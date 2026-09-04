@@ -1,0 +1,170 @@
+{
+  "schema_version": 1,
+  "kind": "harbour_one.h1r04_ast_caller_discovery_architecture_r2",
+  "status": "review_candidate",
+  "claimable": true,
+  "live_actions": false,
+  "decision": "Replace the rejected R1 semantic-discovery draft with a closed, executable AST and reverse-import graph contract. The result only expands discovery membership and never grants a classification or writer authority.",
+  "supersedes": {
+    "path": "docs/plans/evidence/abc-h1r04-ast-caller-discovery-architecture-20260904.json",
+    "raw_blob": "d9f8638735c9af7b832c89fccb786d3556d6857e",
+    "rejection_reasons_closed": [
+      "Nonimportable current-tree Python paths are parsed and conservatively admitted without becoming module nodes.",
+      "The effective census-contract addition has one exact key and one exact closed value object.",
+      "Every uncertainty module is a reverse-reachability anchor.",
+      "File modules, synthetic packages and every supported import form have exact edge rules.",
+      "TYPE_CHECKING and dynamic-loader recognition use a closed conservative binding grammar.",
+      "A terminal inventory and raw-blob recapture is mandatory before report emission."
+    ]
+  },
+  "inherited_authority": {
+    "portable_architecture_path": "docs/plans/evidence/abc-h1r04-currentness-acceptance-architecture-r3-20260904.json",
+    "portable_architecture_raw_blob": "c722ba51605396aab1f7ccc63b8fc66d3b619f5b",
+    "scanner_path": "scripts/audit_harbour_knowledge_state_census.py",
+    "scanner_raw_blob": "aacebb2a1bd0fc95619bc819fe0f29618e10eca8",
+    "tests_path": "tests/test_audit_harbour_knowledge_state_census.py",
+    "tests_raw_blob": "709a3b8d5f09fea5ed0c237c0b3f7bb216644441",
+    "manifest_path": "docs/plans/harbour-one-h1r-04-state-census-manifest.json",
+    "manifest_raw_blob": "dc0c253045888053ab4d717e4468673d4ddfa16a",
+    "product_roadmap_path": "docs/plans/harbour-one-product-roadmap.json",
+    "product_roadmap_raw_blob": "f60717babc099990d670605366b1c0bff74b0a2e",
+    "rule": "All inherited closed Git inventory, safe-read, portable identity, exact control-plane, manifest-role and no-live requirements remain authoritative."
+  },
+  "effective_contract_patch": {
+    "census_contract_addition_key": "semantic_python_discovery_boundary",
+    "census_contract_addition_value_source": "corrected_semantic_contract",
+    "value_top_level_keys_exact": [
+      "python_inventory",
+      "module_graph",
+      "semantic_anchors",
+      "binding_grammar",
+      "reachability",
+      "terminal_recapture"
+    ],
+    "construction_rule": "Deep-copy the corrected_semantic_contract object exactly beneath census_contract.semantic_python_discovery_boundary. Do not hash supersedes, inherited_authority, diagnostic ground truth, acceptance text, implementation scope or this patch object. The effective scan_contract_digest remains the inherited canonical SHA-256 over the complete resulting census_contract object.",
+    "architecture_binding_rule": "The scanner must safe-read and raw-bind the rejected R1 artifact and this R2 artifact, verify the R2 supersedes path and raw blob, then use only the R2 corrected_semantic_contract. Absence, drift, extra effective keys or inconsistent pins fails identity_mismatch."
+  },
+  "corrected_semantic_contract": {
+    "python_inventory": {
+      "source_suffix_exact": ".py",
+      "root_level_rule": "Parse every admitted regular root-level Python file.",
+      "source_roots_exact": [
+        "backend",
+        "companion",
+        "config",
+        "core",
+        "integrations",
+        "mcp_servers",
+        "plugins",
+        "routes",
+        "runtime",
+        "services",
+        "src",
+        "workers"
+      ],
+      "admission_rule": "Only Python paths already admitted by the inherited closed Git inventory enter semantic parsing. Read each once through the inherited safe reader in UTF-8 path-byte order and retain its exact path and raw blob as the first source snapshot.",
+      "nonimportable_rule": "A path whose derived dotted segments are not all valid Python identifiers, including a leading-dot root file, is parsed but has no module or package node. It becomes an unclassified candidate and cannot create or receive guessed graph edges. Its existence is not identity_mismatch.",
+      "scope_rule": "Test, script, documentation, specification, static, mockup and operational roots do not enter semantic parsing unless the file is root-level; inherited lexical discovery remains unchanged for every repository path."
+    },
+    "module_graph": {
+      "file_module_rule": "For an importable path, remove the Python suffix, convert path segments to dots and remove a final __init__ segment. The resulting nonempty identity is one file-module node. Two distinct paths mapping to the same file-module identity fail identity_mismatch.",
+      "synthetic_package_rule": "For every strict nonempty dotted prefix of a file-module identity, create one synthetic-package node unless a file-module node already has that identity. Merging the same package identity is deterministic and legal.",
+      "descendant_rule": "A package node never implies an edge to any descendant. There is no wildcard expansion from a package to its children.",
+      "import_rule": "For import A or import A.B, use the full written dotted identity only. Create importer-to-target edge when that exact file-module or synthetic-package node exists; otherwise treat it as external and create no local edge. An alias does not change the target.",
+      "from_rule": "Resolve the absolute base B first. For each imported name N other than star, target B.N when that exact file-module or synthetic-package node exists; otherwise target B when B exists. A star import targets B when B exists. Missing targets are external and produce no local edge.",
+      "relative_rule": "For ImportFrom level L greater than zero, remove exactly L package levels from the importing file module package, append the written module when present, reject traversal above the repository package, then apply from_rule. A nonimportable source using a relative import becomes an uncertainty source.",
+      "runtime_location_rule": "Imports at module, class, function, async-function and ordinary branch scope create the same edge unless binding_grammar marks their exact subtree type-only.",
+      "ordering_rule": "Sort nodes and unique directed edges by UTF-8 bytes of their dotted identities before reachability. Duplicate syntax edges collapse."
+    },
+    "semantic_anchors": {
+      "state_bearing_rule": "Every importable file module represented by one of the 17 inherited state_bearing seed paths is an anchor.",
+      "entrypoints_exact": [
+        {
+          "module": "src.tool_domains.admin_services",
+          "symbol": "do_manage_personal_docs"
+        },
+        {
+          "module": "src.planning_source_memory",
+          "symbol": "ingest_planning_sources_to_memory"
+        },
+        {
+          "module": "src.memory_provenance_ledger",
+          "symbol": "record_memory_provenance"
+        }
+      ],
+      "entrypoint_rule": "Each exact module must materialize and contain exactly one top-level FunctionDef or AsyncFunctionDef with the exact symbol. Its module is an anchor. Absence or duplicate definition fails identity_mismatch; the anchor fact is discovery evidence only.",
+      "uncertainty_rule": "Every importable source marked uncertain by python_inventory, module_graph or binding_grammar is also an anchor. This propagates uncertainty to every runtime importer rather than stopping at the ambiguous file. A nonimportable uncertain source remains an unclassified candidate but has no possible importers in the declared graph."
+    },
+    "binding_grammar": {
+      "binder_set": "A name is bound by any import alias, assignment target, annotated assignment, augmented assignment, named expression, function or class definition, parameter, for target, with-as target, except-as target, comprehension target or pattern-capture node in its lexical scope.",
+      "trusted_alias_rule": "A typing or dynamic-loader alias is trusted only when its lexical scope contains exactly one matching import binding and no other binder of that name anywhere in that scope. Any shadowed or multiply bound relevant alias marks the source uncertain.",
+      "type_checking_imports": "Recognize import typing as T and from typing import TYPE_CHECKING as C under trusted_alias_rule. A positive guard is exactly Name(C) or Attribute(Name(T), TYPE_CHECKING); a negative guard is exactly UnaryOp(Not, positive_guard). For a positive guard only body imports are type-only and orelse imports are runtime; for a negative guard the roles reverse.",
+      "type_checking_ambiguity": "Any other If test referencing a recognized or syntactically named TYPE_CHECKING binding, or any relevant shadowing, marks the source uncertain and treats imports in both branches as runtime. Imports below a closed type-only branch do not create edges.",
+      "dynamic_loader_bindings": "Recognize Attribute(Name(I), import_module) where I is a trusted alias from import importlib as I; recognize Name(F) where F is a trusted alias from from importlib import import_module as F; recognize Name(__import__) only when no lexical binder named __import__ exists.",
+      "supported_dynamic_call": "A recognized dynamic-loader call is supported only with exactly one positional argument, no keywords and a nonempty absolute dotted-string literal. Resolve that string to an exact local node using module_graph.import_rule. An external literal creates no edge.",
+      "unsupported_dynamic_call": "Any recognized loader call with other argument shape, relative string, nonliteral string, optional argument or keyword marks the source uncertain and emits no guessed loader edge. Any call whose callee is syntactically named __import__ or has terminal attribute import_module but is not a trusted binding also marks the source uncertain.",
+      "loader_escape_rule": "Using a trusted dynamic-loader binding as a value anywhere except the callee position of a supported call marks the source uncertain. This covers reassignment, higher-order passing and getattr-style indirection without speculative dataflow.",
+      "parse_rule": "A syntax error, AST recursion or resource failure marks an importable source uncertain and preserves its graph node; no import edges are guessed from an unavailable tree."
+    },
+    "reachability": {
+      "edge_direction": "importer_to_imported_node",
+      "closure_rule": "Compute reverse reachability from the union of state-bearing, entrypoint and uncertainty anchors to a fixpoint. A file module is a semantic candidate when it is an anchor or can reach an anchor through one or more runtime edges. Synthetic packages never become manifest paths.",
+      "candidate_union": "Final membership is the union of inherited lexical and mandatory candidates, semantic candidates, every nonimportable parsed source and every nonimportable uncertain source.",
+      "classification_rule": "Preserve the 17 inherited state_bearing entries byte-for-byte in classification fields. Every additional member receives only the inherited unclassified combination and fixed reason. No AST node, edge, call, constructor, graph distance or anchor grants writer authority, owner, role or disposition.",
+      "manifest_rule": "Manifest schema version 2 and exact entry fields remain unchanged. Regenerate paths and raw identities in UTF-8 byte order, retain every existing classification, and include this boundary through the effective scan-contract digest.",
+      "determinism_rule": "Set membership, node creation, edge selection, anchor selection, fixpoint traversal and final emission depend only on the two identical closed inventory/source snapshots and use UTF-8 byte ordering."
+    },
+    "terminal_recapture": {
+      "inventory_first": "Retain the normalized admitted path records produced by each of the three inherited Git inventory commands before any semantic source read.",
+      "source_first": "Retain every semantic Python input as ordered path and raw-blob pair from its first safe read.",
+      "inventory_second": "After graph and candidate construction, rerun the same three Git commands with the same stderr and normalization gates. Their three normalized record sequences must equal the retained sequences exactly.",
+      "source_second": "Safe-read every retained semantic Python path again in the same UTF-8 byte order and require every path and raw blob to equal source_first exactly. A missing, extra or changed input fails toctou_changed and discards the result.",
+      "emission_rule": "Emit the report immediately after the second comparisons and perform no further repository read. The inherited trusted-quiescent-checkout boundary applies to the remaining final instant; no malicious privileged-actor guarantee is claimed."
+    }
+  },
+  "current_positive_ground_truth": [
+    "mcp_servers/rag_server.py@275fe792bcdd8b69a6a3830eab5bd9de52d5e993",
+    "routes/roadmap_routes.py@cf6a84a6d9616a96669905035e198991ba2e9b16",
+    "src/app_initializer.py@1ad66bda9fbdd9ab05ff2964660f226bc52140d7",
+    "src/rag_manager.py@5720cc52229c270bf9378430ebec32918d7cc1d2",
+    "src/rag_singleton.py@73e3cdbf19e534cb0ac2462645c9fcf8f523de40",
+    "src/tool_domains/admin_services.py@931960e05c46007379be008caf166882793a82d1",
+    "src/tool_execution.py@e3da7b5fcfa45d225f58815703de59ead48e043c"
+  ],
+  "hostile_acceptance": {
+    "current_tree": [
+      "A leading-dot root Python path is unclassified and does not abort the scan.",
+      "All seven current positive paths are semantic candidates at their exact raw identities.",
+      "The admin-services facade and tool-execution re-export chain close to a fixpoint."
+    ],
+    "module_graph": [
+      "src.memory_triage_contract does not equal or prefix-match src.memory.",
+      "import P, import P.M, from P import M, from P.M import symbol, star and valid relative forms each follow their exact node rule.",
+      "A namespace package has no implicit descendant edges.",
+      "Aliases and function-local imports preserve their exact target."
+    ],
+    "bindings": [
+      "Trusted typing aliases isolate only the closed type-only branch; else and negated branches are correct.",
+      "Shadowed, compound or otherwise ambiguous TYPE_CHECKING use becomes an uncertainty anchor.",
+      "Direct, module-aliased and from-import-aliased dynamic loaders with one absolute literal create an exact edge.",
+      "Optional, keyword, relative, nonliteral, shadowed, rebound and escaped loader forms become uncertainty anchors.",
+      "Comments, docstrings and plain manage_memory strings create neither edges nor anchors."
+    ],
+    "propagation_and_currentness": [
+      "An importer of a parse-failure, binding-ambiguity or unsupported-loader module is included through reverse uncertainty propagation.",
+      "A change between first and second inventory or raw source snapshot fails toctou_changed.",
+      "No new member receives an automatic classification.",
+      "Expected-unclassified validation passes; default validation exits 2 only for unclassified_candidates; focused, dependency, Round6, Integration Spine and Guidance gates pass."
+    ]
+  },
+  "implementation_scope": {
+    "allowed_paths_exact": [
+      "scripts/audit_harbour_knowledge_state_census.py",
+      "tests/test_audit_harbour_knowledge_state_census.py",
+      "docs/plans/harbour-one-h1r-04-state-census-manifest.json"
+    ],
+    "required_delta": "Raw-bind R1 and R2, apply the one exact effective census-contract addition, implement the closed semantic graph and terminal recapture, add all hostile gates and regenerate schema-2 membership without changing the 17 inherited classifications.",
+    "forbidden": "No product-roadmap status change, reviewed classification decision, migration, activation, private-data read, provider or network action, deployment, deletion, push, Codex configuration change or other live effect."
+  },
+  "independent_review": "Two independent reviewers must pass the exact R2 bytes before an implementation claim. Any failure freezes R2 and permits only a fresh correction."
+}

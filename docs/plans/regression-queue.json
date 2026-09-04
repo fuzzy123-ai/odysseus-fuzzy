@@ -3,7 +3,7 @@
   "kind": "odysseus.independent_regression_queue",
   "queue_id": "independent-regressions",
   "created_at": "2026-07-14T20:29:56.6847136+02:00",
-  "updated_at": "2026-07-16T13:29:16.0332451+02:00",
+  "updated_at": "2026-09-04T17:03:00+02:00",
   "status": "open",
   "purpose": "Hold failures discovered outside the active roadmap slice so they remain visible without silently expanding that slice, changing its dependency graph or starting an unbounded probe-and-fix loop.",
   "ownership_boundary": {
@@ -70,24 +70,37 @@
   "items": [
     {
       "id": "REG-20260714-001",
-      "state": "queued",
-      "priority": "untriaged",
+      "state": "invalid",
+      "priority": "stale_historical_node",
       "source_run_id": "sar-12h-20260714t092106",
       "source_probe_id": "SAR-01-FULL-SUITE-DIAGNOSTIC-45",
       "observed_at": "2026-07-14T20:23:06.3653211+02:00",
       "test_node": "tests/test_sandbox_resource_guard.py::test_resource_guard_blocks_rw_mount_without_approval",
       "failure_signature": "read-write mount without approval expected decision.allowed=false but observed true",
+      "current_equivalent_test_node": "tests/test_sandbox_resource_guard.py::test_resource_guard_blocks_non_artifact_rw_mount_without_approval",
       "relationship_to_active_roadmap": "not_established_and_outside_the_selected_SAR_slice",
       "evidence": [
         "Probe 45 reached 6208 passed, 19 skipped and 5 diagnostic-only Windows symlink deselections before this failure.",
         "No diagnosis, source mutation, test mutation or probe 46 was performed.",
         "The failure is not promoted into SAR by this queue entry.",
         "The once-only IP-PLANNING-INTEGRATION-CLOSEOUT run reproduced this node at collection position 6556 of 9041.",
-        "No Planning test node was present among the 28 mapped non-pass markers, so this existing regression remains outside the Planning roadmaps."
+        "No Planning test node was present among the 28 mapped non-pass markers, so this existing regression remains outside the Planning roadmaps.",
+        "On 2026-09-04 the recorded historical node no longer existed in the current module; pytest reported no matching node.",
+        "The current semantic successor test_resource_guard_blocks_non_artifact_rw_mount_without_approval passed in a focused local no-cache run with no product-file mutation."
       ],
-      "next_action": "When explicitly selected from the regression queue, reproduce only this test under a dedicated serialized claim, classify source versus test drift and add focused regression evidence.",
-      "claim": null,
-      "disposition": null
+      "next_action": "None. Preserve the current non-artifact read-write mount denial contract; reopen only if its current focused node fails.",
+      "claim": {
+        "claim_id": "ABC-OW-REG001-STALE-NODE-RECONCILE-20260904",
+        "owner": "/root",
+        "state": "focused_current_equivalent_passed"
+      },
+      "disposition": {
+        "kind": "invalid",
+        "root_cause": "Historical queue node was renamed or replaced; its current semantic successor passes.",
+        "fixed_at": "2026-09-04T15:52:00+02:00",
+        "focused_evidence": "Historical exact node: no match. Current semantic successor: 1 passed.",
+        "scope": "Regression-queue reconciliation and focused local test only; no product source or test file changed."
+      }
     },
     {
       "id": "REG-20260714-002",
@@ -137,8 +150,8 @@
     },
     {
       "id": "REG-20260715-004",
-      "state": "queued",
-      "priority": "untriaged",
+      "state": "fixed",
+      "priority": "focused_regression_fixed",
       "source_run_id": "sar-12h-20260714t092106",
       "source_probe_id": "IP-PLANNING-INTEGRATION-CLOSEOUT",
       "observed_at": "2026-07-15T15:24:00+02:00",
@@ -152,16 +165,28 @@
       "evidence": [
         "Read-only collection mapping resolved the failure markers to positions 6842 and 6852 of 9041.",
         "No Planning product, test or roadmap path is named by either node.",
-        "No diagnosis, focused rerun or source mutation was performed under the integration-only claim."
+        "No diagnosis, focused rerun or source mutation was performed under the integration-only claim.",
+        "On 2026-09-04 both current nodes passed after their static JavaScript Path.read_text calls were made explicitly UTF-8.",
+        "Independent root review reproduced 2 passed in 1.09s; candidate blob cd07aa61d365a2cedb3d6fa22349d73a1abbdec2 was raw-byte verified."
       ],
-      "next_action": "Select REG-20260715-004 through a dedicated serialized claim before reproducing or diagnosing these nodes.",
-      "claim": null,
-      "disposition": null
+      "next_action": "None. Preserve explicit UTF-8 decoding in the two static JavaScript contract tests; reopen only on a new focused failure.",
+      "claim": {
+        "claim_id": "ABC-GO-REG004-UTF8-STATIC-TEST-READS-R2-20260904",
+        "owner": "reg004_utf8_worker",
+        "state": "accepted_after_independent_review"
+      },
+      "disposition": {
+        "kind": "fixed",
+        "root_cause": "Current focused failures were locale-dependent test reads of UTF-8 JavaScript; the truncated July run does not retain enough evidence to prove its historical cause.",
+        "fixed_at": "2026-09-04T16:40:00+02:00",
+        "focused_evidence": "2 passed in independent root review",
+        "scope": "Two explicit test-file encodings and this queue record only; product source unchanged."
+      }
     },
     {
       "id": "REG-20260715-005",
-      "state": "queued",
-      "priority": "untriaged",
+      "state": "invalid",
+      "priority": "stale_historical_marker",
       "source_run_id": "sar-12h-20260714t092106",
       "source_probe_id": "IP-PLANNING-INTEGRATION-CLOSEOUT",
       "observed_at": "2026-07-15T15:24:00+02:00",
@@ -174,16 +199,27 @@
       "evidence": [
         "Read-only collection mapping resolved the marker to position 6884 of 9041.",
         "No Planning product, test or roadmap path is named by this node.",
-        "No diagnosis, focused rerun or source mutation was performed under the integration-only claim."
+        "No diagnosis, focused rerun or source mutation was performed under the integration-only claim.",
+        "On 2026-09-04 the exact current node passed in a focused no-cache run without source or test mutation."
       ],
-      "next_action": "Select REG-20260715-005 through a dedicated serialized claim before reproducing or diagnosing this node.",
-      "claim": null,
-      "disposition": null
+      "next_action": "None. Reopen only if the exact current node fails again with a retained traceback.",
+      "claim": {
+        "claim_id": "ABC-GO-REGRESSION-QUEUE-RECONCILE-R2-20260904",
+        "owner": "/root",
+        "state": "focused_current_nodes_passed"
+      },
+      "disposition": {
+        "kind": "invalid",
+        "root_cause": "The July marker is not reproducible on the current tree and its truncated traceback cannot establish a historical cause.",
+        "fixed_at": "2026-09-04T17:03:00+02:00",
+        "focused_evidence": "1 passed",
+        "scope": "Read-only focused test and this queue record only."
+      }
     },
     {
       "id": "REG-20260715-006",
-      "state": "queued",
-      "priority": "untriaged",
+      "state": "invalid",
+      "priority": "stale_historical_marker",
       "source_run_id": "sar-12h-20260714t092106",
       "source_probe_id": "IP-PLANNING-INTEGRATION-CLOSEOUT",
       "observed_at": "2026-07-15T15:24:00+02:00",
@@ -197,16 +233,27 @@
       "evidence": [
         "Read-only collection mapping resolved the markers to positions 6895 and 6897 of 9041.",
         "No Planning product, test or roadmap path is named by either node.",
-        "No diagnosis, focused rerun or source mutation was performed under the integration-only claim."
+        "No diagnosis, focused rerun or source mutation was performed under the integration-only claim.",
+        "On 2026-09-04 both exact current nodes passed in a focused no-cache run without source or test mutation."
       ],
-      "next_action": "Select REG-20260715-006 through a dedicated serialized claim before reproducing or diagnosing these nodes.",
-      "claim": null,
-      "disposition": null
+      "next_action": "None. Reopen only if an exact current node fails again with a retained traceback.",
+      "claim": {
+        "claim_id": "ABC-GO-REGRESSION-QUEUE-RECONCILE-R2-20260904",
+        "owner": "/root",
+        "state": "focused_current_nodes_passed"
+      },
+      "disposition": {
+        "kind": "invalid",
+        "root_cause": "The July markers are not reproducible on the current tree and their truncated tracebacks cannot establish a historical cause.",
+        "fixed_at": "2026-09-04T17:03:00+02:00",
+        "focused_evidence": "2 passed",
+        "scope": "Read-only focused tests and this queue record only."
+      }
     },
     {
       "id": "REG-20260715-007",
-      "state": "queued",
-      "priority": "untriaged",
+      "state": "invalid",
+      "priority": "stale_historical_marker",
       "source_run_id": "sar-12h-20260714t092106",
       "source_probe_id": "IP-PLANNING-INTEGRATION-CLOSEOUT",
       "observed_at": "2026-07-15T15:24:00+02:00",
@@ -221,16 +268,27 @@
       "evidence": [
         "Read-only collection mapping resolved the markers to positions 7180, 7181 and 7200 of 9041.",
         "No Planning product, test or roadmap path is named by these nodes.",
-        "No diagnosis, focused rerun or source mutation was performed under the integration-only claim."
+        "No diagnosis, focused rerun or source mutation was performed under the integration-only claim.",
+        "On 2026-09-04 all three exact current nodes passed in a focused no-cache run without source or test mutation."
       ],
-      "next_action": "Select REG-20260715-007 through a dedicated serialized claim before reproducing or diagnosing these nodes.",
-      "claim": null,
-      "disposition": null
+      "next_action": "None. Reopen only if an exact current node fails again with a retained traceback.",
+      "claim": {
+        "claim_id": "ABC-GO-REGRESSION-QUEUE-RECONCILE-R2-20260904",
+        "owner": "/root",
+        "state": "focused_current_nodes_passed"
+      },
+      "disposition": {
+        "kind": "invalid",
+        "root_cause": "The July markers are not reproducible on the current tree and their truncated tracebacks cannot establish a historical cause.",
+        "fixed_at": "2026-09-04T17:03:00+02:00",
+        "focused_evidence": "3 passed",
+        "scope": "Read-only focused tests and this queue record only."
+      }
     },
     {
       "id": "REG-20260715-008",
-      "state": "queued",
-      "priority": "untriaged",
+      "state": "fixed",
+      "priority": "focused_regression_fixed",
       "source_run_id": "sar-12h-20260714t092106",
       "source_probe_id": "IP-PLANNING-INTEGRATION-CLOSEOUT",
       "observed_at": "2026-07-15T15:24:00+02:00",
@@ -245,16 +303,28 @@
       "evidence": [
         "Read-only collection mapping resolved the markers to positions 7344, 7353 and 7354 of 9041.",
         "The first parameterized route node had a 2796306-character collected node id and is normalized here to an explicit oversized-parameter label.",
-        "No Planning product, test or roadmap path is named by these nodes, and no diagnosis, focused rerun or source mutation was performed."
+        "No Planning product, test or roadmap path is named by these nodes, and no diagnosis, focused rerun or source mutation was performed.",
+        "On 2026-09-04 the JavaScript helper stdout was made explicitly UTF-8 and all ten focused parameter cases passed.",
+        "Independent root review reproduced 10 passed with one warning; candidate blob 0ce5b8961bcba36ee76c0146351d783e208226e1 was raw-byte verified."
       ],
-      "next_action": "Select REG-20260715-008 through a dedicated serialized claim and use bounded-output reproduction before diagnosing these nodes.",
-      "claim": null,
-      "disposition": null
+      "next_action": "None. Preserve explicit UTF-8 decoding of Node stdout; reopen only on a new focused failure.",
+      "claim": {
+        "claim_id": "ABC-GO-REG008-NODE-UTF8-DECODE-R2-20260904",
+        "owner": "reg008_utf8_worker",
+        "state": "accepted_after_independent_review"
+      },
+      "disposition": {
+        "kind": "fixed",
+        "root_cause": "Current focused failure was locale-dependent decoding of Node stdout; the truncated July run does not retain enough evidence to prove its historical cause.",
+        "fixed_at": "2026-09-04T16:47:00+02:00",
+        "focused_evidence": "10 passed with one warning in independent root review",
+        "scope": "One explicit subprocess decoding setting and this queue record only; product source unchanged."
+      }
     },
     {
       "id": "REG-20260715-009",
-      "state": "queued",
-      "priority": "untriaged",
+      "state": "invalid",
+      "priority": "stale_historical_marker",
       "source_run_id": "sar-12h-20260714t092106",
       "source_probe_id": "IP-PLANNING-INTEGRATION-CLOSEOUT",
       "observed_at": "2026-07-15T15:24:00+02:00",
@@ -268,16 +338,27 @@
       "evidence": [
         "Read-only collection mapping resolved the markers to positions 7683 and 7688 of 9041.",
         "No Planning product, test or roadmap path is named by either node.",
-        "No diagnosis, focused rerun or source mutation was performed under the integration-only claim."
+        "No diagnosis, focused rerun or source mutation was performed under the integration-only claim.",
+        "On 2026-09-04 both exact current nodes passed in a focused no-cache run; evidence packet ABC-GO-REG-ACCEPTANCE-PACKET-20260904 records the command and result."
       ],
-      "next_action": "Select REG-20260715-009 through a dedicated serialized claim before reproducing or diagnosing these nodes.",
-      "claim": null,
-      "disposition": null
+      "next_action": "None. Reopen only if an exact current node fails again with a retained traceback.",
+      "claim": {
+        "claim_id": "ABC-GO-REGRESSION-QUEUE-RECONCILE-R2-20260904",
+        "owner": "/root",
+        "state": "focused_current_nodes_passed"
+      },
+      "disposition": {
+        "kind": "invalid",
+        "root_cause": "The July markers are not reproducible on the current tree and their truncated tracebacks cannot establish a historical cause.",
+        "fixed_at": "2026-09-04T17:03:00+02:00",
+        "focused_evidence": "2 passed; acceptance packet ABC-GO-REG-ACCEPTANCE-PACKET-20260904",
+        "scope": "Read-only focused tests and this queue record only."
+      }
     },
     {
       "id": "REG-20260715-010",
-      "state": "queued",
-      "priority": "untriaged",
+      "state": "invalid",
+      "priority": "stale_historical_marker",
       "source_run_id": "sar-12h-20260714t092106",
       "source_probe_id": "IP-PLANNING-INTEGRATION-CLOSEOUT",
       "observed_at": "2026-07-15T15:24:00+02:00",
@@ -292,16 +373,27 @@
       "evidence": [
         "Read-only collection mapping resolved the markers to positions 7834, 7836 and 7862 of 9041.",
         "No Planning product, test or roadmap path is named by these nodes.",
-        "No diagnosis, focused rerun or source mutation was performed under the integration-only claim."
+        "No diagnosis, focused rerun or source mutation was performed under the integration-only claim.",
+        "On 2026-09-04 all three exact current nodes passed in a focused no-cache run; evidence packet ABC-GO-REG-ACCEPTANCE-PACKET-20260904 records the command and result."
       ],
-      "next_action": "Select REG-20260715-010 through a dedicated serialized claim before reproducing or diagnosing these nodes.",
-      "claim": null,
-      "disposition": null
+      "next_action": "None. Reopen only if an exact current node fails again with a retained traceback.",
+      "claim": {
+        "claim_id": "ABC-GO-REGRESSION-QUEUE-RECONCILE-R2-20260904",
+        "owner": "/root",
+        "state": "focused_current_nodes_passed"
+      },
+      "disposition": {
+        "kind": "invalid",
+        "root_cause": "The July markers are not reproducible on the current tree and their truncated tracebacks cannot establish a historical cause.",
+        "fixed_at": "2026-09-04T17:03:00+02:00",
+        "focused_evidence": "3 passed; acceptance packet ABC-GO-REG-ACCEPTANCE-PACKET-20260904",
+        "scope": "Read-only focused tests and this queue record only."
+      }
     },
     {
       "id": "REG-20260715-011",
-      "state": "queued",
-      "priority": "untriaged",
+      "state": "invalid",
+      "priority": "stale_historical_marker",
       "source_run_id": "sar-12h-20260714t092106",
       "source_probe_id": "IP-PLANNING-INTEGRATION-CLOSEOUT",
       "observed_at": "2026-07-15T15:24:00+02:00",
@@ -314,16 +406,27 @@
       "evidence": [
         "Read-only collection mapping resolved the marker to position 8200 of 9041.",
         "No Planning product, test or roadmap path is named by this node.",
-        "No diagnosis, focused rerun or source mutation was performed under the integration-only claim."
+        "No diagnosis, focused rerun or source mutation was performed under the integration-only claim.",
+        "On 2026-09-04 the exact current TLS node passed in a focused no-cache bundle; evidence packet ABC-GO-REG-ACCEPTANCE-PACKET-20260904 records the command and result."
       ],
-      "next_action": "Select REG-20260715-011 through a dedicated serialized claim before reproducing or diagnosing this node.",
-      "claim": null,
-      "disposition": null
+      "next_action": "None. Reopen only if the exact current node fails again with a retained traceback.",
+      "claim": {
+        "claim_id": "ABC-GO-REGRESSION-QUEUE-RECONCILE-R2-20260904",
+        "owner": "/root",
+        "state": "focused_current_nodes_passed"
+      },
+      "disposition": {
+        "kind": "invalid",
+        "root_cause": "The July marker is not reproducible on the current tree and its truncated traceback cannot establish a historical cause.",
+        "fixed_at": "2026-09-04T17:03:00+02:00",
+        "focused_evidence": "TLS node passed within a 7-case bundle; acceptance packet ABC-GO-REG-ACCEPTANCE-PACKET-20260904",
+        "scope": "Read-only focused tests and this queue record only."
+      }
     },
     {
       "id": "REG-20260715-012",
-      "state": "queued",
-      "priority": "untriaged",
+      "state": "invalid",
+      "priority": "stale_historical_marker",
       "source_run_id": "sar-12h-20260714t092106",
       "source_probe_id": "IP-PLANNING-INTEGRATION-CLOSEOUT",
       "observed_at": "2026-07-15T15:24:00+02:00",
@@ -337,16 +440,27 @@
       "evidence": [
         "Read-only collection mapping resolved the markers to positions 8291 and 8322 of 9041.",
         "No Planning product, test or roadmap path is named by either node.",
-        "No diagnosis, focused rerun or source mutation was performed under the integration-only claim."
+        "No diagnosis, focused rerun or source mutation was performed under the integration-only claim.",
+        "On 2026-09-04 both exact current nodes passed in a focused no-cache run; evidence packet ABC-GO-REG-ACCEPTANCE-PACKET-20260904 records the command and result."
       ],
-      "next_action": "Select REG-20260715-012 through a dedicated serialized claim before reproducing or diagnosing these nodes.",
-      "claim": null,
-      "disposition": null
+      "next_action": "None. Reopen only if an exact current node fails again with a retained traceback.",
+      "claim": {
+        "claim_id": "ABC-GO-REGRESSION-QUEUE-RECONCILE-R2-20260904",
+        "owner": "/root",
+        "state": "focused_current_nodes_passed"
+      },
+      "disposition": {
+        "kind": "invalid",
+        "root_cause": "The July markers are not reproducible on the current tree and their truncated tracebacks cannot establish a historical cause.",
+        "fixed_at": "2026-09-04T17:03:00+02:00",
+        "focused_evidence": "2 passed; acceptance packet ABC-GO-REG-ACCEPTANCE-PACKET-20260904",
+        "scope": "Read-only focused tests and this queue record only."
+      }
     },
     {
       "id": "REG-20260715-013",
-      "state": "queued",
-      "priority": "untriaged",
+      "state": "invalid",
+      "priority": "stale_historical_marker",
       "source_run_id": "sar-12h-20260714t092106",
       "source_probe_id": "IP-PLANNING-INTEGRATION-CLOSEOUT",
       "observed_at": "2026-07-15T15:24:00+02:00",
@@ -359,11 +473,22 @@
       "evidence": [
         "Read-only collection mapping resolved the marker to position 8799 of 9041.",
         "No Planning product, test or roadmap path is named by this node.",
-        "No diagnosis, focused rerun or source mutation was performed under the integration-only claim."
+        "No diagnosis, focused rerun or source mutation was performed under the integration-only claim.",
+        "On 2026-09-04 all parameter cases for the current ancestry node passed in a focused no-cache bundle; evidence packet ABC-GO-REG-ACCEPTANCE-PACKET-20260904 records the command and result."
       ],
-      "next_action": "Select REG-20260715-013 through a dedicated serialized claim before reproducing or diagnosing this node.",
-      "claim": null,
-      "disposition": null
+      "next_action": "None. Reopen only if the exact current node fails again with a retained traceback.",
+      "claim": {
+        "claim_id": "ABC-GO-REGRESSION-QUEUE-RECONCILE-R2-20260904",
+        "owner": "/root",
+        "state": "focused_current_nodes_passed"
+      },
+      "disposition": {
+        "kind": "invalid",
+        "root_cause": "The July marker is not reproducible on the current tree and its truncated traceback cannot establish a historical cause.",
+        "fixed_at": "2026-09-04T17:03:00+02:00",
+        "focused_evidence": "Version ancestry cases passed within a 7-case bundle; acceptance packet ABC-GO-REG-ACCEPTANCE-PACKET-20260904",
+        "scope": "Read-only focused tests and this queue record only."
+      }
     },
     {
       "id": "REG-20260716-014",

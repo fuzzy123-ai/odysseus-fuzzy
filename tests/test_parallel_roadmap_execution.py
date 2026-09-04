@@ -35,10 +35,209 @@ def test_round6_parallel_plan_validates_against_all_active_roadmaps():
     report = validate(plan, guidance, open_work)
 
     assert report["valid"], report["errors"]
-    assert report["active_roadmap_count"] == report["frontier_count"]
-    assert report["active_roadmap_count"] == 31
+    assert report["active_roadmap_count"] == report["active_frontier_count"] == 26
+    assert report["retained_terminal_frontier_count"] == 1
+    assert report["frontier_count"] == 27
+    assert report["active_roadmap_count"] == sum(
+        1 for roadmap in guidance["roadmaps"] if roadmap["profile"].startswith("active_")
+    )
     assert report["claimable_frontier_count"] == 0
     assert report["wave_count"] == 3
+    frontiers = {item["roadmap_path"]: item for item in plan["roadmap_frontiers"]}
+    harbour = frontiers["docs/plans/harbour-one-product-roadmap.json"]
+    assert harbour.get("membership_role", "active") == "active"
+    assert harbour["slice"]["id"] == "H1R-04"
+    assert harbour["slice"]["claimable"] is False
+    assert "docs/plans/coding-agent-orchestration-consolidation-roadmap.md" not in frontiers
+    assert "docs/plans/odysseus-harbor-one-autonomous-workspace-roadmap.md" not in frontiers
+    acpr = frontiers["docs/plans/autonomous-coding-production-readiness-roadmap.json"]
+    assert acpr["membership_role"] == "retained_terminal_wave_evidence"
+    assert any(
+        acpr["slice"]["id"] in wave["implementation_slice_ids"]
+        and wave["state"].startswith(("repo_accepted", "blocked_"))
+        for wave in plan["waves"]
+    )
+
+
+def _retained_frontier(plan: dict) -> dict:
+    return next(
+        item
+        for item in plan["roadmap_frontiers"]
+        if item.get("membership_role") == "retained_terminal_wave_evidence"
+    )
+
+
+@pytest.mark.parametrize(
+    ("mutation", "expected"),
+    (
+        ("unknown_role", "membership_role is unknown"),
+        ("object_role", "membership_role is unknown"),
+        ("array_role", "membership_role is unknown"),
+        ("claimable", "retained terminal frontier must be nonclaimable"),
+        ("nonterminal_slice", "retained terminal frontier must have a terminal slice state"),
+        ("unsafe_path", "roadmap_path must be a safe canonical repository path"),
+        ("unscheduled", "must be referenced by a terminal wave"),
+        ("nonterminal_wave", "must be referenced by a terminal wave"),
+    ),
+)
+def test_validator_rejects_invalid_retained_terminal_frontiers(mutation: str, expected: str):
+    plan, guidance, open_work = _documents()
+    mutated = copy.deepcopy(plan)
+    retained = _retained_frontier(mutated)
+    slice_id = retained["slice"]["id"]
+
+    if mutation == "unknown_role":
+        retained["membership_role"] = "invented"
+    elif mutation == "object_role":
+        retained["membership_role"] = {"nested": "invented"}
+    elif mutation == "array_role":
+        retained["membership_role"] = [["invented"]]
+    elif mutation == "claimable":
+        retained["slice"]["claimable"] = True
+    elif mutation == "nonterminal_slice":
+        retained["slice"]["state"] = "pending_review"
+    elif mutation == "unsafe_path":
+        original_path = retained["roadmap_path"]
+        retained["roadmap_path"] = "../outside.json"
+        matching_guidance = next(
+            item for item in guidance["roadmaps"] if item["path"] == original_path
+        )
+        matching_guidance["path"] = "../outside.json"
+    else:
+        wave = next(
+            item for item in mutated["waves"] if slice_id in item["implementation_slice_ids"]
+        )
+        if mutation == "unscheduled":
+            wave["implementation_slice_ids"].remove(slice_id)
+            wave["qa_assignments"].pop(slice_id)
+        else:
+            wave["state"] = "in_progress"
+
+    report = validate(mutated, guidance, open_work)
+
+    assert not report["valid"]
+    assert any(expected in error for error in report["errors"])
+
+
+@pytest.mark.parametrize("profile", ("active_serial", "archived", None))
+def test_validator_requires_retained_path_exactly_once_as_historical_done(profile: str | None):
+    plan, guidance, open_work = _documents()
+    mutated_guidance = copy.deepcopy(guidance)
+    retained_path = _retained_frontier(plan)["roadmap_path"]
+    entry = next(item for item in mutated_guidance["roadmaps"] if item["path"] == retained_path)
+    if profile is None:
+        mutated_guidance["roadmaps"].remove(entry)
+    else:
+        entry["profile"] = profile
+
+    report = validate(plan, mutated_guidance, open_work)
+
+    assert not report["valid"]
+    assert any("exactly once in Guidance as historical_done" in error for error in report["errors"])
+
+
+def test_validator_rejects_duplicate_path_or_slice_across_membership_classes():
+    plan, guidance, open_work = _documents()
+    retained = _retained_frontier(plan)
+    duplicate_path_plan = copy.deepcopy(plan)
+    duplicate_path_plan["roadmap_frontiers"][1]["roadmap_path"] = retained["roadmap_path"]
+    duplicate_slice_plan = copy.deepcopy(plan)
+    duplicate_slice_plan["roadmap_frontiers"][1]["slice"]["id"] = retained["slice"]["id"]
+
+    path_report = validate(duplicate_path_plan, guidance, open_work)
+    slice_report = validate(duplicate_slice_plan, guidance, open_work)
+
+    assert not path_report["valid"]
+    assert any("duplicate roadmap frontier" in error for error in path_report["errors"])
+    assert not slice_report["valid"]
+    assert any("duplicate normalized slice id" in error for error in slice_report["errors"])
+
+
+def test_validator_rejects_invented_harbour_and_acpr_slice_identities():
+    plan, guidance, open_work = _documents()
+    harbour_plan = copy.deepcopy(plan)
+    harbour = next(
+        item
+        for item in harbour_plan["roadmap_frontiers"]
+        if item["roadmap_path"] == "docs/plans/harbour-one-product-roadmap.json"
+    )
+    harbour["slice"]["id"] = "H1R-99"
+
+    acpr_plan = copy.deepcopy(plan)
+    acpr = _retained_frontier(acpr_plan)
+    original_id = acpr["slice"]["id"]
+    acpr["slice"]["id"] = "ACPR-INVENTED"
+    wave = next(
+        item for item in acpr_plan["waves"] if original_id in item["implementation_slice_ids"]
+    )
+    wave["implementation_slice_ids"] = [
+        "ACPR-INVENTED" if item == original_id else item
+        for item in wave["implementation_slice_ids"]
+    ]
+    wave["qa_assignments"]["ACPR-INVENTED"] = wave["qa_assignments"].pop(original_id)
+
+    harbour_report = validate(harbour_plan, guidance, open_work)
+    acpr_report = validate(acpr_plan, guidance, open_work)
+
+    assert not harbour_report["valid"]
+    assert any("canonical identity 'H1R-04'" in error for error in harbour_report["errors"])
+    assert not acpr_report["valid"]
+    assert any(
+        "canonical identity 'ACPR-12-transactional-worktree-and-safe-tool-capsules'" in error
+        for error in acpr_report["errors"]
+    )
+
+
+def test_validator_requires_exactly_one_acpr_retained_frontier_and_three_waves():
+    plan, guidance, open_work = _documents()
+    missing_plan = copy.deepcopy(plan)
+    retained = _retained_frontier(missing_plan)
+    retained_id = retained["slice"]["id"]
+    missing_plan["roadmap_frontiers"].remove(retained)
+    wave = next(
+        item for item in missing_plan["waves"] if retained_id in item["implementation_slice_ids"]
+    )
+    wave["implementation_slice_ids"].remove(retained_id)
+    wave["qa_assignments"].pop(retained_id)
+
+    resurrected_plan = copy.deepcopy(plan)
+    resurrected = copy.deepcopy(_retained_frontier(resurrected_plan))
+    resurrected["roadmap_path"] = "docs/plans/coding-agent-orchestration-consolidation-roadmap.md"
+    resurrected["slice"]["id"] = "CAO-08G-verification-repair-independent-review"
+    resurrected_plan["roadmap_frontiers"].append(resurrected)
+    resurrected_plan["waves"].append(
+        {
+            "id": "ROUND6-INVENTED",
+            "state": "repo_accepted_invented",
+            "depends_on_wave_ids": [resurrected_plan["waves"][-1]["id"]],
+            "implementation_slice_ids": [resurrected["slice"]["id"]],
+            "qa_lane": "independent_qa",
+            "qa_assignments": {
+                resurrected["slice"]["id"]: resurrected["slice"]["independent_qa_reviewer"]
+            },
+        }
+    )
+
+    missing_report = validate(missing_plan, guidance, open_work)
+    resurrected_report = validate(resurrected_plan, guidance, open_work)
+
+    assert not missing_report["valid"]
+    assert any("exactly 26 active frontiers plus the one ACPR" in error for error in missing_report["errors"])
+    assert not resurrected_report["valid"]
+    assert any("exactly 26 active frontiers plus the one ACPR" in error for error in resurrected_report["errors"])
+    assert any("exactly three terminal waves" in error for error in resurrected_report["errors"])
+    for replacement in (
+        "docs/plans/coding-agent-orchestration-consolidation-roadmap.md",
+        "docs/plans/odysseus-harbor-one-autonomous-workspace-roadmap.md",
+    ):
+        replacement_plan = copy.deepcopy(plan)
+        _retained_frontier(replacement_plan)["roadmap_path"] = replacement
+        replacement_report = validate(replacement_plan, guidance, open_work)
+        assert not replacement_report["valid"]
+        assert any(
+            "exactly 26 active frontiers plus the one ACPR" in error
+            for error in replacement_report["errors"]
+        )
 
 
 @pytest.mark.parametrize(
@@ -254,6 +453,7 @@ def test_validator_rejects_claimable_unresolved_dependency_and_missing_owner_aut
     contract["claimable"] = True
     contract["normalization_blockers"] = []
     contract.pop("owner_authority", None)
+    contract["dependency_evidence"][0]["state"] = "pending_fixture_dependency"
 
     report = validate(mutated, guidance, open_work)
 

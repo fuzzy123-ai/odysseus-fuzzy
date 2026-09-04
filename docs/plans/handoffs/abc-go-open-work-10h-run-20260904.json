@@ -1,0 +1,3166 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.abc_long_run",
+  "run_id": "ABC-GO-OPEN-WORK-10H-20260904T121722+0200",
+  "revision": 199,
+  "state": "complete",
+  "queue_scope": "open_work",
+  "scope": "Codex selects dependency-ready, repository-local Open Work slices. All migrations, USI activation, provider/network access, private-data reads, deletion, deployment, push, and other live effects remain forbidden.",
+  "authorization": "User: GO 10h Open Work, repo-lokal, Slice-Auswahl durch Codex, keine Live-Effekte (2026-09-04).",
+  "started_at": "2026-09-04T12:17:22.8911095+02:00",
+  "deadline_at": "2026-09-04T22:17:22.8911095+02:00",
+  "max_parallel_workers": 1,
+  "heartbeat_automation_id": "odysseus-open-work-10h-watchdog",
+  "heartbeat_interval_minutes": 5,
+  "heartbeat_policy": "Resume only on actual idle state; never report activity without a bounded completed unit or concrete evidence-backed frontier update.",
+  "active_claims": [
+    {
+      "claim_schema": 2,
+      "path_operations": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05-owner-snapshot-v3-digest-contract-2026-08-31.json": "modify"
+      },
+      "baseline_absences": {},
+      "claim_id": "ABC-OW-H1R05A-CONTRACT-CURRENTNESS-20260904",
+      "run_id": "ABC-GO-OPEN-WORK-10H-20260904T121722+0200",
+      "owner": "root/openwork_h1r05a_contract",
+      "state": "released",
+      "allowed_paths": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05-owner-snapshot-v3-digest-contract-2026-08-31.json"
+      ],
+      "hotfiles": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-product-roadmap.json",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-h1r-04-current-boundary-reconciliation-2026-08-30.json",
+        "c:\\users\\nkatz\\odysseus\\src\\harbour_knowledge_store.py",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_harbour_knowledge_store.py"
+      ],
+      "read_only_pins": [
+        "docs/plans/harbour-one-h1r-04-current-boundary-reconciliation-2026-08-30.json@ab0bebf45fb06b242ac6b5b2dc5052b852d53830",
+        "src/harbour_knowledge_store.py@a08286d0f402c29c726e32f1d3122749cd8b87d1",
+        "tests/test_harbour_knowledge_store.py@c7bd801c6ff63ea0dfbeacbe48ef9e1a1dbb8bd4"
+      ],
+      "regression_tests": [
+        "python -m json.tool docs/plans/abc-h1r05-owner-snapshot-v3-digest-contract-2026-08-31.json"
+      ],
+      "baseline_blobs": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05-owner-snapshot-v3-digest-contract-2026-08-31.json": "3f2f9b1f6ea68c36b0d484d4d8307dd59b226500"
+      },
+      "candidate_blobs": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05-owner-snapshot-v3-digest-contract-2026-08-31.json": "a161e0d7dc9134e42e114eadf6bb30fd8e3a439d"
+      },
+      "candidate_state": "accepted_after_independent_review",
+      "independent_review": {
+        "verdict": "PASS",
+        "reviewer": "root/openwork_h1r05a_contract_review",
+        "evidence": "Candidate a161e0d7dc9134e42e114eadf6bb30fd8e3a439d differs from baseline 3f2f9b1f6ea68c36b0d484d4d8307dd59b226500 only in pins.store, pins.product_roadmap, and pins.h1r04; synthetic-fixture-only and no-live boundaries preserved."
+      },
+      "dispatch_token": "a17b01b8a46342d380aba8fb4dc1c938",
+      "dispatch_status": "confirmed",
+      "dispatch_attempt": 1,
+      "acquired_at": "2026-09-04T10:18:59.303829+00:00",
+      "lease_expires_at": "2026-09-04T14:17:22+02:00",
+      "worker_id": "/root/openwork_h1r05a_contract"
+    },
+    {
+      "claim_schema": 2,
+      "path_operations": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05b-metadata-reference-projection-architecture-2026-08-31.json": "modify"
+      },
+      "baseline_absences": {},
+      "claim_id": "ABC-OW-H1R05B-ARCHITECTURE-CURRENTNESS-20260904",
+      "run_id": "ABC-GO-OPEN-WORK-10H-20260904T121722+0200",
+      "owner": "root/openwork_h1r05b_architecture",
+      "state": "released",
+      "allowed_paths": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05b-metadata-reference-projection-architecture-2026-08-31.json"
+      ],
+      "hotfiles": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05-owner-snapshot-v3-digest-contract-2026-08-31.json",
+        "c:\\users\\nkatz\\odysseus\\src\\harbour_knowledge_store.py",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_harbour_knowledge_store.py",
+        "c:\\users\\nkatz\\odysseus\\src\\unified_source_index_sources\\knowledge.py",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_unified_source_index_knowledge_source.py",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-product-roadmap.json"
+      ],
+      "read_only_pins": [
+        "docs/plans/abc-h1r05-owner-snapshot-v3-digest-contract-2026-08-31.json@a161e0d7dc9134e42e114eadf6bb30fd8e3a439d",
+        "src/harbour_knowledge_store.py@a08286d0f402c29c726e32f1d3122749cd8b87d1",
+        "tests/test_harbour_knowledge_store.py@c7bd801c6ff63ea0dfbeacbe48ef9e1a1dbb8bd4",
+        "src/unified_source_index_sources/knowledge.py@76756dafb6b890fdc3417997ff3690a8e87f4bc2",
+        "tests/test_unified_source_index_knowledge_source.py@f22e128a523448fbf639d4cb2be947f258bbf93e",
+        "docs/plans/harbour-one-product-roadmap.json@8d54b67f59de2530f7821474593f7636bd6172bb"
+      ],
+      "regression_tests": [
+        "python -m json.tool docs/plans/abc-h1r05b-metadata-reference-projection-architecture-2026-08-31.json"
+      ],
+      "baseline_blobs": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05b-metadata-reference-projection-architecture-2026-08-31.json": "91fb25b8fa7f3d6dfe984154b9b2c43526fb3b9b"
+      },
+      "candidate_blobs": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05b-metadata-reference-projection-architecture-2026-08-31.json": "7cf1e9b06730122e7880e1fd5aff3d7f3d3aad00"
+      },
+      "candidate_state": "accepted_after_independent_review",
+      "independent_review": {
+        "verdict": "PASS",
+        "reviewer": "root/openwork_h1r05b_architecture_review",
+        "evidence": "Candidate 7cf1e9b06730122e7880e1fd5aff3d7f3d3aad00 differs from baseline 91fb25b8fa7f3d6dfe984154b9b2c43526fb3b9b only in four authority_pins; all six current pins and no-live boundaries passed fresh independent review."
+      },
+      "dispatch_token": "0a8c1509c0be422dbed1ccc20954ff93",
+      "dispatch_status": "confirmed",
+      "dispatch_attempt": 1,
+      "acquired_at": "2026-09-04T10:25:45.642331+00:00",
+      "lease_expires_at": "2026-09-04T11:55:45.3974454Z",
+      "worker_id": "/root/openwork_h1r05b_architecture"
+    },
+    {
+      "claim_schema": 2,
+      "path_operations": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05c-snapshot-comparison-architecture-2026-08-31.json": "modify"
+      },
+      "baseline_absences": {},
+      "claim_id": "ABC-OW-H1R05C-ARCHITECTURE-CURRENTNESS-20260904",
+      "run_id": "ABC-GO-OPEN-WORK-10H-20260904T121722+0200",
+      "owner": "root/openwork_h1r05c_architecture",
+      "state": "released",
+      "allowed_paths": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05c-snapshot-comparison-architecture-2026-08-31.json"
+      ],
+      "hotfiles": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05-offline-knowledge-migration-preparation-architecture-2026-08-31.json",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05-owner-snapshot-v3-digest-contract-2026-08-31.json",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05b-metadata-reference-projection-architecture-2026-08-31.json",
+        "c:\\users\\nkatz\\odysseus\\src\\harbour_knowledge_store.py",
+        "c:\\users\\nkatz\\odysseus\\src\\unified_source_index_sources\\knowledge.py",
+        "c:\\users\\nkatz\\odysseus\\src\\import_export_migration_proof.py",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_import_export_migration_proof.py",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-product-roadmap.json"
+      ],
+      "read_only_pins": [
+        "docs/plans/abc-h1r05-offline-knowledge-migration-preparation-architecture-2026-08-31.json@2bea2f75ccfa13549887c4af79ca323df88393d4",
+        "docs/plans/abc-h1r05-owner-snapshot-v3-digest-contract-2026-08-31.json@a161e0d7dc9134e42e114eadf6bb30fd8e3a439d",
+        "docs/plans/abc-h1r05b-metadata-reference-projection-architecture-2026-08-31.json@7cf1e9b06730122e7880e1fd5aff3d7f3d3aad00",
+        "src/harbour_knowledge_store.py@a08286d0f402c29c726e32f1d3122749cd8b87d1",
+        "src/unified_source_index_sources/knowledge.py@76756dafb6b890fdc3417997ff3690a8e87f4bc2",
+        "src/import_export_migration_proof.py@b7bf60a88ae493f02e7d3ca41bf0a7b8d15ef837",
+        "tests/test_import_export_migration_proof.py@15163086e7aa161a513289ef5ba53fcf2d9fbdad",
+        "docs/plans/harbour-one-product-roadmap.json@8d54b67f59de2530f7821474593f7636bd6172bb"
+      ],
+      "regression_tests": [
+        "python -m json.tool docs/plans/abc-h1r05c-snapshot-comparison-architecture-2026-08-31.json"
+      ],
+      "baseline_blobs": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05c-snapshot-comparison-architecture-2026-08-31.json": "e727596c329eedee98a4182e6983d97caf69f822"
+      },
+      "candidate_blobs": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05c-snapshot-comparison-architecture-2026-08-31.json": "e9dca8ed436a22a5bfe028da5ad23c3247b25d1a"
+      },
+      "candidate_state": "accepted_after_independent_review",
+      "independent_review": {
+        "verdict": "PASS",
+        "reviewer": "root/openwork_h1r05c_architecture_review",
+        "evidence": "Candidate e9dca8ed436a22a5bfe028da5ad23c3247b25d1a differs from baseline e727596c329eedee98a4182e6983d97caf69f822 only in six currentness pins; all eight pins and synthetic no-live boundaries passed fresh independent review."
+      },
+      "dispatch_token": "4d2e16ab31034fc295abe71a1aeac260",
+      "dispatch_status": "confirmed",
+      "dispatch_attempt": 1,
+      "acquired_at": "2026-09-04T10:34:00.883752+00:00",
+      "lease_expires_at": "2026-09-04T12:04:00.5986591Z",
+      "worker_id": "/root/openwork_h1r05c_architecture"
+    },
+    {
+      "claim_schema": 2,
+      "path_operations": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05c-isolated-snapshot-comparison-architecture-2026-09-04.json": "create"
+      },
+      "baseline_absences": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05c-isolated-snapshot-comparison-architecture-2026-09-04.json": {
+          "kind": "absent",
+          "parent": "c:\\users\\nkatz\\odysseus\\docs\\plans"
+        }
+      },
+      "claim_id": "ABC-OW-H1R05C-ISOLATED-ARCHITECTURE-20260904",
+      "run_id": "ABC-GO-OPEN-WORK-10H-20260904T121722+0200",
+      "owner": "root/openwork_h1r05c_isolated_architecture",
+      "state": "released",
+      "allowed_paths": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05c-isolated-snapshot-comparison-architecture-2026-09-04.json"
+      ],
+      "hotfiles": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05c-snapshot-comparison-architecture-2026-08-31.json",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05-owner-snapshot-v3-digest-contract-2026-08-31.json",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05b-metadata-reference-projection-architecture-2026-08-31.json",
+        "c:\\users\\nkatz\\odysseus\\src\\harbour_knowledge_store.py",
+        "c:\\users\\nkatz\\odysseus\\src\\unified_source_index_sources\\knowledge.py"
+      ],
+      "read_only_pins": [
+        "docs/plans/abc-h1r05-owner-snapshot-v3-digest-contract-2026-08-31.json@a161e0d7dc9134e42e114eadf6bb30fd8e3a439d",
+        "docs/plans/abc-h1r05b-metadata-reference-projection-architecture-2026-08-31.json@7cf1e9b06730122e7880e1fd5aff3d7f3d3aad00",
+        "src/harbour_knowledge_store.py@a08286d0f402c29c726e32f1d3122749cd8b87d1",
+        "src/unified_source_index_sources/knowledge.py@76756dafb6b890fdc3417997ff3690a8e87f4bc2"
+      ],
+      "regression_tests": [
+        "python -m json.tool docs/plans/abc-h1r05c-isolated-snapshot-comparison-architecture-2026-09-04.json"
+      ],
+      "baseline_blobs": {},
+      "candidate_blobs": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05c-isolated-snapshot-comparison-architecture-2026-09-04.json": "602756be065d38c28c6f6a1cc6b988ac867518f9"
+      },
+      "candidate_state": "accepted_after_independent_review",
+      "independent_review": {
+        "verdict": "PASS",
+        "reviewer": "root/openwork_h1r05c_isolated_architecture_review",
+        "evidence": "Fresh isolated C architecture 602756be065d38c28c6f6a1cc6b988ac867518f9 passed independent deep review; it corrects the legacy-module conflict with two new paths and preserves all no-live boundaries."
+      },
+      "dispatch_token": "e42952ec0514438783b589ce6d086540",
+      "dispatch_status": "confirmed",
+      "dispatch_attempt": 1,
+      "acquired_at": "2026-09-04T10:42:53.548710+00:00",
+      "lease_expires_at": "2026-09-04T12:12:53.3482491Z",
+      "worker_id": "/root/openwork_h1r05c_isolated_architecture"
+    },
+    {
+      "claim_schema": 2,
+      "path_operations": {
+        "c:\\users\\nkatz\\odysseus\\src\\harbour_snapshot_comparison.py": "create",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_harbour_snapshot_comparison.py": "create"
+      },
+      "baseline_absences": {
+        "c:\\users\\nkatz\\odysseus\\src\\harbour_snapshot_comparison.py": {
+          "kind": "absent",
+          "parent": "c:\\users\\nkatz\\odysseus\\src"
+        },
+        "c:\\users\\nkatz\\odysseus\\tests\\test_harbour_snapshot_comparison.py": {
+          "kind": "absent",
+          "parent": "c:\\users\\nkatz\\odysseus\\tests"
+        }
+      },
+      "claim_id": "ABC-OW-H1R05C-ISOLATED-IMPLEMENTATION-20260904",
+      "run_id": "ABC-GO-OPEN-WORK-10H-20260904T121722+0200",
+      "owner": "root/openwork_h1r05c_isolated_implementation",
+      "state": "released_blocked",
+      "allowed_paths": [
+        "c:\\users\\nkatz\\odysseus\\src\\harbour_snapshot_comparison.py",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_harbour_snapshot_comparison.py"
+      ],
+      "hotfiles": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05c-isolated-snapshot-comparison-architecture-2026-09-04.json",
+        "c:\\users\\nkatz\\odysseus\\src\\import_export_migration_proof.py",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_import_export_migration_proof.py",
+        "c:\\users\\nkatz\\odysseus\\src\\harbour_knowledge_store.py",
+        "c:\\users\\nkatz\\odysseus\\src\\unified_source_index_sources\\knowledge.py",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_harbour_knowledge_store.py",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_unified_source_index_knowledge_source.py"
+      ],
+      "read_only_pins": [
+        "docs/plans/abc-h1r05c-isolated-snapshot-comparison-architecture-2026-09-04.json@602756be065d38c28c6f6a1cc6b988ac867518f9",
+        "src/harbour_knowledge_store.py@a08286d0f402c29c726e32f1d3122749cd8b87d1",
+        "src/unified_source_index_sources/knowledge.py@76756dafb6b890fdc3417997ff3690a8e87f4bc2",
+        "tests/test_harbour_knowledge_store.py@c7bd801c6ff63ea0dfbeacbe48ef9e1a1dbb8bd4",
+        "tests/test_unified_source_index_knowledge_source.py@f22e128a523448fbf639d4cb2be947f258bbf93e"
+      ],
+      "regression_tests": [
+        "py -3 -m pytest -p no:cacheprovider --noconftest tests/test_harbour_snapshot_comparison.py",
+        "py -3 -m pytest -p no:cacheprovider --noconftest tests/test_harbour_knowledge_store.py",
+        "py -3 -m pytest -p no:cacheprovider --noconftest tests/test_unified_source_index_knowledge_source.py"
+      ],
+      "baseline_blobs": {},
+      "candidate_blobs": {
+        "c:\\users\\nkatz\\odysseus\\src\\harbour_snapshot_comparison.py": "2d648961e0e10d972db9eb671417e81ee7e54569",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_harbour_snapshot_comparison.py": "eb27d72f5b0d10df04ab0460b66802f45fae5f14"
+      },
+      "candidate_state": "rejected_after_independent_review_tests_only_correction_required",
+      "independent_review": {
+        "verdict": "FAIL",
+        "reviewer": "root/openwork_h1r05c_isolated_implementation_review",
+        "evidence": "Source conformed but test used source-loader/filesystem I/O and lacked a self-consistent alternate-owner rejection vector. Candidate remains frozen evidence; one tests-only correction is authorized."
+      },
+      "worker_disposition": "interrupted_after_candidate_creation; root independently materialized and ran focused candidate suite: 11 passed",
+      "dispatch_token": "39558297afc0410b843eced0afc72c7b",
+      "dispatch_status": "confirmed",
+      "dispatch_attempt": 1,
+      "acquired_at": "2026-09-04T10:49:05.673783+00:00",
+      "lease_expires_at": "2026-09-04T12:49:05.4815722Z",
+      "worker_id": "/root/openwork_h1r05c_isolated_implementation"
+    },
+    {
+      "claim_schema": 2,
+      "path_operations": {
+        "c:\\users\\nkatz\\odysseus\\tests\\test_harbour_snapshot_comparison.py": "modify"
+      },
+      "baseline_absences": {},
+      "claim_id": "ABC-OW-H1R05C-ISOLATED-TESTS-CORRECTION-20260904",
+      "run_id": "ABC-GO-OPEN-WORK-10H-20260904T121722+0200",
+      "owner": "root/openwork_h1r05c_isolated_tests_correction",
+      "state": "released_blocked",
+      "allowed_paths": [
+        "c:\\users\\nkatz\\odysseus\\tests\\test_harbour_snapshot_comparison.py"
+      ],
+      "hotfiles": [
+        "c:\\users\\nkatz\\odysseus\\src\\harbour_snapshot_comparison.py",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05c-isolated-snapshot-comparison-architecture-2026-09-04.json"
+      ],
+      "read_only_pins": [
+        "docs/plans/abc-h1r05c-isolated-snapshot-comparison-architecture-2026-09-04.json@602756be065d38c28c6f6a1cc6b988ac867518f9",
+        "src/harbour_snapshot_comparison.py@2d648961e0e10d972db9eb671417e81ee7e54569"
+      ],
+      "regression_tests": [
+        "py -3 -m pytest -p no:cacheprovider --noconftest tests/test_harbour_snapshot_comparison.py"
+      ],
+      "baseline_blobs": {
+        "c:\\users\\nkatz\\odysseus\\tests\\test_harbour_snapshot_comparison.py": "eb27d72f5b0d10df04ab0460b66802f45fae5f14"
+      },
+      "candidate_blobs": {
+        "c:\\users\\nkatz\\odysseus\\tests\\test_harbour_snapshot_comparison.py": "9602a44db2e78c865f53edb1d194ae6b8b9eef48"
+      },
+      "candidate_state": "rejected_after_independent_review_proof_gap",
+      "correction_identity": "H1R-05C-isolated-snapshot-comparison/tests-no-io-and-valid-owner-mismatch/contract_repair/1",
+      "independent_review": {
+        "verdict": "FAIL",
+        "reviewer": "root/openwork_h1r05c_isolated_correction_review",
+        "evidence": "No direct forbidden reference remained, but test proof did not observe three in-function projections before owner rejection and did not constrain module/test references strongly enough."
+      },
+      "dispatch_token": "f4762c1f0ffc4486b65584404f2f3a78",
+      "dispatch_status": "confirmed",
+      "dispatch_attempt": 1,
+      "acquired_at": "2026-09-04T11:04:10.129526+00:00",
+      "lease_expires_at": "2026-09-04T12:19:09.9038656Z",
+      "worker_id": "/root/openwork_h1r05c_isolated_tests_correction"
+    },
+    {
+      "claim_schema": 2,
+      "path_operations": {
+        "c:\\users\\nkatz\\odysseus\\tests\\test_harbour_snapshot_comparison.py": "modify"
+      },
+      "baseline_absences": {},
+      "claim_id": "ABC-OW-H1R05C-ISOLATED-TESTS-PROOF-CORRECTION-20260904",
+      "run_id": "ABC-GO-OPEN-WORK-10H-20260904T121722+0200",
+      "owner": "root/openwork_h1r05c_isolated_tests_proof_correction",
+      "state": "released_blocked",
+      "allowed_paths": [
+        "c:\\users\\nkatz\\odysseus\\tests\\test_harbour_snapshot_comparison.py"
+      ],
+      "hotfiles": [
+        "c:\\users\\nkatz\\odysseus\\src\\harbour_snapshot_comparison.py",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05c-isolated-snapshot-comparison-architecture-2026-09-04.json"
+      ],
+      "read_only_pins": [
+        "docs/plans/abc-h1r05c-isolated-snapshot-comparison-architecture-2026-09-04.json@602756be065d38c28c6f6a1cc6b988ac867518f9",
+        "src/harbour_snapshot_comparison.py@2d648961e0e10d972db9eb671417e81ee7e54569"
+      ],
+      "regression_tests": [
+        "py -3 -m pytest -p no:cacheprovider --noconftest tests/test_harbour_snapshot_comparison.py"
+      ],
+      "baseline_blobs": {
+        "c:\\users\\nkatz\\odysseus\\tests\\test_harbour_snapshot_comparison.py": "9602a44db2e78c865f53edb1d194ae6b8b9eef48"
+      },
+      "candidate_blobs": {
+        "c:\\users\\nkatz\\odysseus\\tests\\test_harbour_snapshot_comparison.py": "fb51b4e5d759636c2b39cbb9bb4d7a24e0d06b71"
+      },
+      "candidate_state": "rejected_after_second_reflect",
+      "independent_review": {
+        "verdict": "FAIL",
+        "reviewer": "root/openwork_h1r05c_isolated_final_review",
+        "evidence": "Core behavior passed, but tests-only r2 still could not prove all clone detachments or complete static isolation; fresh Reflect also found an extra migration-named public alias contrary to the architecture API."
+      },
+      "worker_verification_note": "Worker omitted --noconftest and hit unrelated conftest collection failure; root reran the declared isolated command successfully: 12 passed, one existing asyncio_mode config warning.",
+      "dispatch_token": "cae6f367515a443293234df15c2f4824",
+      "dispatch_status": "confirmed",
+      "dispatch_attempt": 1,
+      "acquired_at": "2026-09-04T11:13:34.819545+00:00",
+      "lease_expires_at": "2026-09-04T12:28:34.5964089Z",
+      "worker_id": "/root/openwork_h1r05c_isolated_tests_proof_correction"
+    },
+    {
+      "claim_schema": 2,
+      "path_operations": {
+        "c:\\users\\nkatz\\odysseus\\src\\harbour_snapshot_comparison.py": "modify",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_harbour_snapshot_comparison.py": "modify"
+      },
+      "baseline_absences": {},
+      "claim_id": "ABC-OW-H1R05C-ISOLATED-API-PROOF-RECOVERY-20260904",
+      "run_id": "ABC-GO-OPEN-WORK-10H-20260904T121722+0200",
+      "owner": "root/openwork_h1r05c_isolated_api_proof_recovery",
+      "state": "released",
+      "allowed_paths": [
+        "c:\\users\\nkatz\\odysseus\\src\\harbour_snapshot_comparison.py",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_harbour_snapshot_comparison.py"
+      ],
+      "hotfiles": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05c-isolated-snapshot-comparison-architecture-2026-09-04.json",
+        "c:\\users\\nkatz\\odysseus\\src\\import_export_migration_proof.py",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_import_export_migration_proof.py",
+        "c:\\users\\nkatz\\odysseus\\src\\harbour_knowledge_store.py",
+        "c:\\users\\nkatz\\odysseus\\src\\unified_source_index_sources\\knowledge.py"
+      ],
+      "read_only_pins": [
+        "docs/plans/abc-h1r05c-isolated-snapshot-comparison-architecture-2026-09-04.json@602756be065d38c28c6f6a1cc6b988ac867518f9"
+      ],
+      "regression_tests": [
+        "py -3 -m pytest -p no:cacheprovider --noconftest tests/test_harbour_snapshot_comparison.py"
+      ],
+      "baseline_blobs": {
+        "c:\\users\\nkatz\\odysseus\\src\\harbour_snapshot_comparison.py": "2d648961e0e10d972db9eb671417e81ee7e54569",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_harbour_snapshot_comparison.py": "fb51b4e5d759636c2b39cbb9bb4d7a24e0d06b71"
+      },
+      "candidate_blobs": {
+        "c:\\users\\nkatz\\odysseus\\src\\harbour_snapshot_comparison.py": "2f5aaf325a956201bfd2b1348d2d3530d92c6898",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_harbour_snapshot_comparison.py": "52679818eb766ebe6ec3b53eeac542950b19fbc4"
+      },
+      "candidate_state": "accepted_after_independent_blob_review",
+      "independent_review": {
+        "verdict": "PASS",
+        "reviewer": "root/openwork_h1r05c_isolated_blob_final_review",
+        "evidence": "Exact source 2f5aaf325a956201bfd2b1348d2d3530d92c6898 and test 52679818eb766ebe6ec3b53eeac542950b19fbc4 passed independent raw-blob review for single fixture API, no legacy/I-O/static boundary, full clone detachment, and focused 12/12 tests."
+      },
+      "dispatch_token": "46ea7fd646ca40f4aed6190107b6137a",
+      "dispatch_status": "confirmed",
+      "dispatch_attempt": 1,
+      "acquired_at": "2026-09-04T11:23:47.612410+00:00",
+      "lease_expires_at": "2026-09-04T12:53:47.3555601Z",
+      "worker_id": "/root/openwork_h1r05c_isolated_api_proof_recovery"
+    },
+    {
+      "claim_schema": 2,
+      "path_operations": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05-offline-knowledge-migration-preparation-architecture-2026-08-31.json": "modify"
+      },
+      "baseline_absences": {},
+      "claim_id": "ABC-OW-H1R05-OFFLINE-ARCHITECTURE-ISOLATED-C-RECONCILIATION-20260904",
+      "run_id": "ABC-GO-OPEN-WORK-10H-20260904T121722+0200",
+      "owner": "root/openwork_h1r05_offline_architecture_reconciliation",
+      "state": "released_blocked",
+      "allowed_paths": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05-offline-knowledge-migration-preparation-architecture-2026-08-31.json"
+      ],
+      "hotfiles": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05c-isolated-snapshot-comparison-architecture-2026-09-04.json",
+        "c:\\users\\nkatz\\odysseus\\src\\harbour_snapshot_comparison.py",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_harbour_snapshot_comparison.py",
+        "c:\\users\\nkatz\\odysseus\\src\\import_export_migration_proof.py",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_import_export_migration_proof.py"
+      ],
+      "read_only_pins": [
+        "docs/plans/abc-h1r05c-isolated-snapshot-comparison-architecture-2026-09-04.json@602756be065d38c28c6f6a1cc6b988ac867518f9",
+        "src/harbour_snapshot_comparison.py@2f5aaf325a956201bfd2b1348d2d3530d92c6898",
+        "tests/test_harbour_snapshot_comparison.py@52679818eb766ebe6ec3b53eeac542950b19fbc4",
+        "src/import_export_migration_proof.py@b7bf60a88ae493f02e7d3ca41bf0a7b8d15ef837",
+        "tests/test_import_export_migration_proof.py@15163086e7aa161a513289ef5ba53fcf2d9fbdad"
+      ],
+      "regression_tests": [
+        "py -3 -m json.tool docs/plans/abc-h1r05-offline-knowledge-migration-preparation-architecture-2026-08-31.json"
+      ],
+      "baseline_blobs": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05-offline-knowledge-migration-preparation-architecture-2026-08-31.json": "2bea2f75ccfa13549887c4af79ca323df88393d4"
+      },
+      "candidate_blobs": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05-offline-knowledge-migration-preparation-architecture-2026-08-31.json": "7021ef08c86a205d78e0db373ae2b7df649f4758"
+      },
+      "candidate_state": "rejected_after_independent_review_authority_status_mismatch",
+      "independent_review": {
+        "verdict": "FAIL",
+        "reviewer": "root/openwork_h1r05_offline_architecture_review",
+        "evidence": "Intended isolated-C reconciliation was otherwise correct, but referenced C architecture still self-declared draft, so dependent acceptance wording was not truthful."
+      },
+      "dispatch_token": "1f47b075f269484a8adbf6fdce515d6e",
+      "dispatch_status": "confirmed",
+      "dispatch_attempt": 1,
+      "acquired_at": "2026-09-04T11:42:50.516552+00:00",
+      "lease_expires_at": "2026-09-04T13:12:50.1164707Z",
+      "worker_id": "/root/openwork_h1r05_offline_architecture_reconciliation"
+    },
+    {
+      "claim_schema": 2,
+      "path_operations": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05c-isolated-snapshot-comparison-architecture-2026-09-04.json": "modify"
+      },
+      "baseline_absences": {},
+      "claim_id": "ABC-OW-H1R05C-ARCHITECTURE-ACCEPTANCE-STATUS-20260904",
+      "run_id": "ABC-GO-OPEN-WORK-10H-20260904T121722+0200",
+      "owner": "root/openwork_h1r05c_architecture_acceptance_status",
+      "state": "released",
+      "allowed_paths": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05c-isolated-snapshot-comparison-architecture-2026-09-04.json"
+      ],
+      "hotfiles": [
+        "c:\\users\\nkatz\\odysseus\\src\\harbour_snapshot_comparison.py",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_harbour_snapshot_comparison.py"
+      ],
+      "read_only_pins": [
+        "src/harbour_snapshot_comparison.py@2f5aaf325a956201bfd2b1348d2d3530d92c6898",
+        "tests/test_harbour_snapshot_comparison.py@52679818eb766ebe6ec3b53eeac542950b19fbc4"
+      ],
+      "regression_tests": [
+        "py -3 -m json.tool docs/plans/abc-h1r05c-isolated-snapshot-comparison-architecture-2026-09-04.json"
+      ],
+      "baseline_blobs": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05c-isolated-snapshot-comparison-architecture-2026-09-04.json": "602756be065d38c28c6f6a1cc6b988ac867518f9"
+      },
+      "candidate_blobs": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05c-isolated-snapshot-comparison-architecture-2026-09-04.json": "229f02d9840a94a3c816481b837a9421a7de08b3"
+      },
+      "candidate_state": "accepted_status_reconciliation",
+      "dispatch_token": "2256393968614c789155bbdd03a2534f",
+      "dispatch_status": "confirmed",
+      "dispatch_attempt": 1,
+      "acquired_at": "2026-09-04T11:58:48.277822+00:00",
+      "lease_expires_at": "2026-09-04T12:58:48.0497894Z",
+      "worker_id": "/root/openwork_h1r05c_architecture_acceptance_status"
+    },
+    {
+      "claim_schema": 2,
+      "path_operations": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05-offline-knowledge-migration-preparation-architecture-2026-08-31.json": "modify"
+      },
+      "baseline_absences": {},
+      "claim_id": "ABC-OW-H1R05-OFFLINE-ARCHITECTURE-C-ACCEPTANCE-PIN-20260904",
+      "run_id": "ABC-GO-OPEN-WORK-10H-20260904T121722+0200",
+      "owner": "root/openwork_h1r05_offline_architecture_c_acceptance_pin",
+      "state": "released",
+      "allowed_paths": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05-offline-knowledge-migration-preparation-architecture-2026-08-31.json"
+      ],
+      "hotfiles": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05c-isolated-snapshot-comparison-architecture-2026-09-04.json"
+      ],
+      "read_only_pins": [
+        "docs/plans/abc-h1r05c-isolated-snapshot-comparison-architecture-2026-09-04.json@229f02d9840a94a3c816481b837a9421a7de08b3"
+      ],
+      "regression_tests": [
+        "py -3 -m json.tool docs/plans/abc-h1r05-offline-knowledge-migration-preparation-architecture-2026-08-31.json"
+      ],
+      "baseline_blobs": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05-offline-knowledge-migration-preparation-architecture-2026-08-31.json": "7021ef08c86a205d78e0db373ae2b7df649f4758"
+      },
+      "candidate_blobs": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05-offline-knowledge-migration-preparation-architecture-2026-08-31.json": "2ecec7a67e255e165d938bceca990931fba6acc3"
+      },
+      "dispatch_token": "42b774795da64da3a1e1732e4c653bc4",
+      "dispatch_status": "confirmed",
+      "dispatch_attempt": 1,
+      "acquired_at": "2026-09-04T12:02:42.095446+00:00",
+      "lease_expires_at": "2026-09-04T12:47:41.8629426Z",
+      "worker_id": "/root/openwork_h1r05_offline_architecture_c_acceptance_pin"
+    },
+    {
+      "claim_schema": 2,
+      "path_operations": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05-offline-knowledge-migration-preparation-architecture-2026-08-31.json": "modify"
+      },
+      "baseline_absences": {},
+      "claim_id": "ABC-OW-H1R05-OFFLINE-ARCHITECTURE-ACCEPTANCE-STATUS-20260904",
+      "run_id": "ABC-GO-OPEN-WORK-10H-20260904T121722+0200",
+      "owner": "root/openwork_h1r05_offline_architecture_acceptance_status",
+      "state": "released",
+      "allowed_paths": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05-offline-knowledge-migration-preparation-architecture-2026-08-31.json"
+      ],
+      "hotfiles": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05c-isolated-snapshot-comparison-architecture-2026-09-04.json"
+      ],
+      "read_only_pins": [
+        "docs/plans/abc-h1r05c-isolated-snapshot-comparison-architecture-2026-09-04.json@229f02d9840a94a3c816481b837a9421a7de08b3"
+      ],
+      "regression_tests": [
+        "py -3 -m json.tool docs/plans/abc-h1r05-offline-knowledge-migration-preparation-architecture-2026-08-31.json"
+      ],
+      "baseline_blobs": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05-offline-knowledge-migration-preparation-architecture-2026-08-31.json": "2ecec7a67e255e165d938bceca990931fba6acc3"
+      },
+      "candidate_blobs": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05-offline-knowledge-migration-preparation-architecture-2026-08-31.json": "41fc4751359410569c5515de50590ce86b8fa48a"
+      },
+      "dispatch_token": "42a442aaf90242cabea33ae3da71b04d",
+      "dispatch_status": "confirmed",
+      "dispatch_attempt": 1,
+      "acquired_at": "2026-09-04T12:09:48.852158+00:00",
+      "lease_expires_at": "2026-09-04T22:17:00+02:00",
+      "worker_id": "/root/openwork_h1r05_offline_architecture_c_acceptance_pin"
+    },
+    {
+      "claim_schema": 2,
+      "path_operations": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05-owner-snapshot-v3-digest-contract-2026-08-31.json": "modify"
+      },
+      "baseline_absences": {},
+      "claim_id": "ABC-OW-H1R05A-CONTRACT-ACCEPTANCE-STATUS-20260904",
+      "run_id": "ABC-GO-OPEN-WORK-10H-20260904T121722+0200",
+      "owner": "root/openwork_h1r05a_contract_acceptance_status",
+      "state": "released",
+      "allowed_paths": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05-owner-snapshot-v3-digest-contract-2026-08-31.json"
+      ],
+      "hotfiles": [
+        "c:\\users\\nkatz\\odysseus\\src\\harbour_knowledge_store.py",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_harbour_knowledge_store.py"
+      ],
+      "read_only_pins": [
+        "src/harbour_knowledge_store.py@a08286d0f402c29c726e32f1d3122749cd8b87d1",
+        "tests/test_harbour_knowledge_store.py@c7bd801c6ff63ea0dfbeacbe48ef9e1a1dbb8bd4",
+        "docs/plans/abc-h1r05-offline-knowledge-migration-preparation-architecture-2026-08-31.json@41fc4751359410569c5515de50590ce86b8fa48a"
+      ],
+      "regression_tests": [
+        "py -3 -m json.tool docs/plans/abc-h1r05-owner-snapshot-v3-digest-contract-2026-08-31.json"
+      ],
+      "baseline_blobs": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05-owner-snapshot-v3-digest-contract-2026-08-31.json": "a161e0d7dc9134e42e114eadf6bb30fd8e3a439d"
+      },
+      "candidate_blobs": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05-owner-snapshot-v3-digest-contract-2026-08-31.json": "7a5bf88d08e7df9813fa9cc822b992daa09a5b4a"
+      },
+      "dispatch_token": "a8add1e1fecf408daeab61707a28434e",
+      "dispatch_status": "confirmed",
+      "dispatch_attempt": 1,
+      "acquired_at": "2026-09-04T12:17:24.659954+00:00",
+      "lease_expires_at": "2026-09-04T22:17:00+02:00",
+      "worker_id": "/root/openwork_h1r05_offline_architecture_c_acceptance_pin"
+    },
+    {
+      "claim_schema": 2,
+      "path_operations": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05b-metadata-reference-projection-architecture-2026-08-31.json": "modify"
+      },
+      "baseline_absences": {},
+      "claim_id": "ABC-OW-H1R05B-ARCHITECTURE-A-ACCEPTANCE-PIN-20260904",
+      "run_id": "ABC-GO-OPEN-WORK-10H-20260904T121722+0200",
+      "owner": "root/openwork_h1r05b_architecture_a_acceptance_pin",
+      "state": "released",
+      "allowed_paths": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05b-metadata-reference-projection-architecture-2026-08-31.json"
+      ],
+      "hotfiles": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05-owner-snapshot-v3-digest-contract-2026-08-31.json"
+      ],
+      "read_only_pins": [
+        "docs/plans/abc-h1r05-owner-snapshot-v3-digest-contract-2026-08-31.json@7a5bf88d08e7df9813fa9cc822b992daa09a5b4a",
+        "src/unified_source_index_sources/knowledge.py@76756dafb6b890fdc3417997ff3690a8e87f4bc2",
+        "tests/test_unified_source_index_knowledge_source.py@f22e128a523448fbf639d4cb2be947f258bbf93e"
+      ],
+      "regression_tests": [
+        "py -3 -m json.tool docs/plans/abc-h1r05b-metadata-reference-projection-architecture-2026-08-31.json"
+      ],
+      "baseline_blobs": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05b-metadata-reference-projection-architecture-2026-08-31.json": "7cf1e9b06730122e7880e1fd5aff3d7f3d3aad00"
+      },
+      "candidate_blobs": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05b-metadata-reference-projection-architecture-2026-08-31.json": "aaf4764c0083662dd9fc6a06572db04af0b97d97"
+      },
+      "dispatch_token": "ecf5f63311944f6da45e329af7bb345c",
+      "dispatch_status": "confirmed",
+      "dispatch_attempt": 1,
+      "acquired_at": "2026-09-04T12:21:41.573136+00:00",
+      "lease_expires_at": "2026-09-04T22:17:00+02:00",
+      "worker_id": "/root/openwork_h1r05_offline_architecture_c_acceptance_pin"
+    },
+    {
+      "claim_schema": 2,
+      "path_operations": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05b-metadata-reference-projection-architecture-2026-08-31.json": "modify"
+      },
+      "baseline_absences": {},
+      "claim_id": "ABC-OW-H1R05B-ARCHITECTURE-ACCEPTANCE-STATUS-20260904",
+      "run_id": "ABC-GO-OPEN-WORK-10H-20260904T121722+0200",
+      "owner": "root/openwork_h1r05b_architecture_acceptance_status",
+      "state": "released",
+      "allowed_paths": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05b-metadata-reference-projection-architecture-2026-08-31.json"
+      ],
+      "hotfiles": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05-owner-snapshot-v3-digest-contract-2026-08-31.json"
+      ],
+      "read_only_pins": [
+        "docs/plans/abc-h1r05-owner-snapshot-v3-digest-contract-2026-08-31.json@7a5bf88d08e7df9813fa9cc822b992daa09a5b4a",
+        "src/unified_source_index_sources/knowledge.py@76756dafb6b890fdc3417997ff3690a8e87f4bc2",
+        "tests/test_unified_source_index_knowledge_source.py@f22e128a523448fbf639d4cb2be947f258bbf93e"
+      ],
+      "regression_tests": [
+        "py -3 -m json.tool docs/plans/abc-h1r05b-metadata-reference-projection-architecture-2026-08-31.json"
+      ],
+      "baseline_blobs": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05b-metadata-reference-projection-architecture-2026-08-31.json": "aaf4764c0083662dd9fc6a06572db04af0b97d97"
+      },
+      "candidate_blobs": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-h1r05b-metadata-reference-projection-architecture-2026-08-31.json": "1f5fc1a5fdc046a7faac6cccee9c03df4f8df839"
+      },
+      "dispatch_token": "5e9b1b7f32024fb0991b0ca64d69da50",
+      "dispatch_status": "confirmed",
+      "dispatch_attempt": 1,
+      "acquired_at": "2026-09-04T12:24:21.661130+00:00",
+      "lease_expires_at": "2026-09-04T22:17:00+02:00",
+      "worker_id": "/root/openwork_h1r05_offline_architecture_c_acceptance_pin"
+    },
+    {
+      "claim_schema": 2,
+      "path_operations": {
+        "c:\\users\\nkatz\\odysseus\\tests\\test_roadmap_safe_queue_audit.py": "modify",
+        "c:\\users\\nkatz\\odysseus\\scripts\\roadmap_safe_queue_audit.py": "modify"
+      },
+      "baseline_absences": {},
+      "claim_id": "ABC-OW-ROADMAP-AUDIT-ACCEPTED-LEDGER-20260904",
+      "run_id": "ABC-GO-OPEN-WORK-10H-20260904T121722+0200",
+      "owner": "root/roadmap_audit_accepted_ledger",
+      "state": "released_blocked",
+      "allowed_paths": [
+        "c:\\users\\nkatz\\odysseus\\scripts\\roadmap_safe_queue_audit.py",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_roadmap_safe_queue_audit.py"
+      ],
+      "hotfiles": [],
+      "read_only_pins": [
+        "docs/plans/open-work-completion-master-roadmap.json@ea2e3f531e900d83dd2c151489bba5d26285ae81"
+      ],
+      "regression_tests": [
+        "py -3 -m pytest tests/test_roadmap_safe_queue_audit.py --noconftest --basetemp C:\\Users\\nkatz\\Documents\\abc-roadmap-audit-pytest-20260904-1535 --disable-warnings --tb=short",
+        "py -3 scripts/roadmap_safe_queue_audit.py --format json"
+      ],
+      "baseline_blobs": {
+        "c:\\users\\nkatz\\odysseus\\tests\\test_roadmap_safe_queue_audit.py": "eec9b15332f1c173fc35b680b9ed7e5717871f3d",
+        "c:\\users\\nkatz\\odysseus\\scripts\\roadmap_safe_queue_audit.py": "d73884cf4dd3835063f3e048d5157bee450acce7"
+      },
+      "dispatch_token": "cfeb50cddd434a999b055d15f6c04e67",
+      "dispatch_status": "confirmed",
+      "dispatch_attempt": 1,
+      "acquired_at": "2026-09-04T13:18:23.217272+00:00",
+      "lease_expires_at": "2026-09-04T22:17:00+02:00",
+      "worker_id": "/root/roadmap_audit_accepted_ledger",
+      "release_reason": "baseline_changed_before_worker_write; worker stopped without writes or tests"
+    },
+    {
+      "claim_schema": 2,
+      "path_operations": {
+        "c:\\users\\nkatz\\odysseus\\scripts\\roadmap_safe_queue_audit.py": "modify",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_roadmap_safe_queue_audit.py": "modify"
+      },
+      "baseline_absences": {},
+      "claim_id": "ABC-OW-ROADMAP-AUDIT-ACCEPTED-LEDGER-R2-20260904",
+      "run_id": "ABC-GO-OPEN-WORK-10H-20260904T121722+0200",
+      "owner": "root/roadmap_audit_accepted_ledger_r2",
+      "state": "released",
+      "allowed_paths": [
+        "c:\\users\\nkatz\\odysseus\\scripts\\roadmap_safe_queue_audit.py",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_roadmap_safe_queue_audit.py"
+      ],
+      "hotfiles": [],
+      "read_only_pins": [],
+      "regression_tests": [
+        "py -3 -m pytest tests/test_roadmap_safe_queue_audit.py --noconftest --basetemp C:\\Users\\nkatz\\Documents\\abc-roadmap-audit-pytest-20260904-1540 --disable-warnings --tb=short",
+        "py -3 scripts/roadmap_safe_queue_audit.py --format json"
+      ],
+      "baseline_blobs": {
+        "c:\\users\\nkatz\\odysseus\\scripts\\roadmap_safe_queue_audit.py": "d73884cf4dd3835063f3e048d5157bee450acce7",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_roadmap_safe_queue_audit.py": "eec9b15332f1c173fc35b680b9ed7e5717871f3d"
+      },
+      "dispatch_token": "dc474cf94e384a11add36eeb38c78b02",
+      "dispatch_status": "ready",
+      "dispatch_attempt": 0,
+      "acquired_at": "2026-09-04T13:22:46.538623+00:00",
+      "lease_expires_at": "2026-09-04T22:17:00+02:00",
+      "released_at": "2026-09-04T16:47:00+02:00",
+      "release_reason": "False-positive recovery freeze: both recorded baseline blobs equal the current raw CRLF worktree files; the conflicting values were filtered Git path identities."
+    },
+    {
+      "claim_schema": 2,
+      "path_operations": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\autonomous-coding-production-readiness-roadmap.json": "modify"
+      },
+      "baseline_absences": {},
+      "claim_id": "ABC-OW-ACPR12-FRONTIER-RECONCILE-20260904",
+      "run_id": "ABC-GO-OPEN-WORK-10H-20260904T121722+0200",
+      "owner": "root/acpr12_frontier_reconcile",
+      "state": "released",
+      "allowed_paths": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\autonomous-coding-production-readiness-roadmap.json"
+      ],
+      "hotfiles": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\open-work-completion-master-roadmap.json"
+      ],
+      "read_only_pins": [],
+      "regression_tests": [
+        "py -3 -m json.tool docs/plans/autonomous-coding-production-readiness-roadmap.json",
+        "py -3 scripts/roadmap_safe_queue_audit.py --format json"
+      ],
+      "baseline_blobs": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\autonomous-coding-production-readiness-roadmap.json": "c7bc4a4b7992412a993883675fbcf4d1322a187f"
+      },
+      "candidate_blobs": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\autonomous-coding-production-readiness-roadmap.json": "e574c06ab44f391eab63f25554b1aa1e870ffef5"
+      },
+      "candidate_state": "accepted_after_independent_review",
+      "independent_review": {
+        "verdict": "PASS",
+        "reviewer": "root/roadmap_acpr12_frontier_review",
+        "evidence": "Minimal candidate update reconciles only stale ACPR-12 frontier and claimability language. It preserves ACPR-10/11 acceptance, leaves ACPR-13..17 gated, adds no writer authority and passed JSON validation plus diff review."
+      },
+      "dispatch_token": "c705c223c5da43d4923ddb6ef6b2b93d",
+      "dispatch_status": "confirmed",
+      "dispatch_attempt": 1,
+      "acquired_at": "2026-09-04T13:24:53.787435+00:00",
+      "lease_expires_at": "2026-09-04T22:17:00+02:00",
+      "worker_id": "/root/acpr12_frontier_reconcile"
+    },
+    {
+      "claim_schema": 2,
+      "path_operations": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbor-planning-integration-master-roadmap.json": "modify"
+      },
+      "baseline_absences": {},
+      "claim_id": "ABC-OW-HPIM-GATE-REFERENCE-RECONCILE-20260904",
+      "run_id": "ABC-GO-OPEN-WORK-10H-20260904T121722+0200",
+      "owner": "root/hpim_gate_reference_reconcile",
+      "state": "released",
+      "allowed_paths": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbor-planning-integration-master-roadmap.json"
+      ],
+      "hotfiles": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\planning-definition-editor-roadmap.json",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\temporal-light-agent-execution-roadmap.json"
+      ],
+      "read_only_pins": [],
+      "regression_tests": [
+        "py -3 -m json.tool docs/plans/harbor-planning-integration-master-roadmap.json"
+      ],
+      "baseline_blobs": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbor-planning-integration-master-roadmap.json": "91ae13f2337e2291d1f4bfd1d306b998e24e0b5d"
+      },
+      "candidate_blobs": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbor-planning-integration-master-roadmap.json": "eddfd657110c8491a3255528b79694c6e34e3385"
+      },
+      "candidate_state": "accepted_after_independent_review",
+      "independent_review": {
+        "verdict": "PASS",
+        "reviewer": "root/roadmap_hpim_gate_reference_review",
+        "evidence": "Candidate changes only stale current gate effects: completed relationships are historical, completed verification is not future, and all actual write/live gates remain untouched. JSON and diff checks passed."
+      },
+      "dispatch_token": "91452c51e8e64fb2846dd22be421f1e7",
+      "dispatch_status": "confirmed",
+      "dispatch_attempt": 1,
+      "acquired_at": "2026-09-04T13:28:08.253987+00:00",
+      "lease_expires_at": "2026-09-04T22:17:00+02:00",
+      "worker_id": "/root/hpim_gate_reference_reconcile"
+    },
+    {
+      "claim_schema": 2,
+      "path_operations": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\open-work-continuation-inventory.json": "modify"
+      },
+      "baseline_absences": {},
+      "claim_id": "ABC-OW-CONTINUATION-INVENTORY-AUTHORITY-POINTER-20260904",
+      "run_id": "ABC-GO-OPEN-WORK-10H-20260904T121722+0200",
+      "owner": "root/continuation_inventory_authority_pointer",
+      "state": "released_blocked",
+      "allowed_paths": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\open-work-continuation-inventory.json"
+      ],
+      "hotfiles": [],
+      "read_only_pins": [],
+      "regression_tests": [
+        "py -3 -m json.tool docs/plans/open-work-continuation-inventory.json"
+      ],
+      "baseline_blobs": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\open-work-continuation-inventory.json": "27465d05661f3c28d8940499a97fb66a62602995"
+      },
+      "dispatch_token": "6db848d74a4343b1b0586729f1a471b0",
+      "dispatch_status": "confirmed",
+      "dispatch_attempt": 1,
+      "acquired_at": "2026-09-04T13:36:27.421766+00:00",
+      "lease_expires_at": "2026-09-04T22:17:00+02:00",
+      "worker_id": "/root/continuation_inventory_authority_pointer",
+      "release_reason": "minified_single_line_inventory_requires_whole_file_reserialization; worker stopped before mutation"
+    },
+    {
+      "claim_schema": 2,
+      "path_operations": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-acpr12-transactional-worktree-safe-tool-capsules-architecture-2026-09-04.json": "create"
+      },
+      "baseline_absences": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-acpr12-transactional-worktree-safe-tool-capsules-architecture-2026-09-04.json": {
+          "kind": "absent",
+          "parent": "c:\\users\\nkatz\\odysseus\\docs\\plans"
+        }
+      },
+      "claim_id": "ABC-OW-ACPR12-ARCHITECTURE-PRECLAIM-20260904",
+      "run_id": "ABC-GO-OPEN-WORK-10H-20260904T121722+0200",
+      "owner": "root/acpr12_architecture_preclaim",
+      "state": "released",
+      "allowed_paths": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-acpr12-transactional-worktree-safe-tool-capsules-architecture-2026-09-04.json"
+      ],
+      "hotfiles": [],
+      "read_only_pins": [],
+      "regression_tests": [
+        "py -3 -m json.tool docs/plans/abc-acpr12-transactional-worktree-safe-tool-capsules-architecture-2026-09-04.json"
+      ],
+      "baseline_blobs": {},
+      "candidate_blobs": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-acpr12-transactional-worktree-safe-tool-capsules-architecture-2026-09-04.json": "b2fbd2cd425da1f6bb86f7d0443284b48dd014c3"
+      },
+      "candidate_state": "accepted_after_independent_review",
+      "independent_review": {
+        "verdict": "PASS",
+        "reviewer": "root/acpr12_architecture_preclaim_review",
+        "evidence": "Fresh create-only packet is JSON-valid and scoped strictly to documentation architecture. It carries no writer or live authority, requires fresh authority pins and a separate future claim/review, and introduces no product paths."
+      },
+      "dispatch_token": "f1d8daec0f0f400998f0dd7d4fa58867",
+      "dispatch_status": "confirmed",
+      "dispatch_attempt": 1,
+      "acquired_at": "2026-09-04T13:38:50.392028+00:00",
+      "lease_expires_at": "2026-09-04T22:17:00+02:00",
+      "worker_id": "/root/acpr12_architecture_preclaim"
+    },
+    {
+      "claim_schema": 2,
+      "path_operations": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\autonomous-coding-production-readiness-roadmap.json": "modify"
+      },
+      "baseline_absences": {},
+      "claim_id": "ABC-OW-ACPR12-ARCHITECTURE-ACCEPTANCE-STATUS-20260904",
+      "run_id": "ABC-GO-OPEN-WORK-10H-20260904T121722+0200",
+      "owner": "root/acpr12_architecture_acceptance_status",
+      "state": "released",
+      "allowed_paths": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\autonomous-coding-production-readiness-roadmap.json"
+      ],
+      "hotfiles": [],
+      "read_only_pins": [
+        "docs/plans/abc-acpr12-transactional-worktree-safe-tool-capsules-architecture-2026-09-04.json@b2fbd2cd425da1f6bb86f7d0443284b48dd014c3"
+      ],
+      "regression_tests": [
+        "py -3 -m json.tool docs/plans/autonomous-coding-production-readiness-roadmap.json"
+      ],
+      "baseline_blobs": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\autonomous-coding-production-readiness-roadmap.json": "e574c06ab44f391eab63f25554b1aa1e870ffef5"
+      },
+      "candidate_blobs": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\autonomous-coding-production-readiness-roadmap.json": "cfba7b8e40f3ec9588f5383e586409f5fc1ec990"
+      },
+      "candidate_state": "accepted_after_independent_review",
+      "independent_review": {
+        "verdict": "PASS",
+        "reviewer": "root/acpr12_architecture_acceptance_status_review",
+        "evidence": "Candidate correctly records the accepted architecture packet as documentation-only evidence, keeps ACPR-12 nonclaimable pending a fresh implementation claim, and preserves all later gates. JSON and diff review passed."
+      },
+      "dispatch_token": "9413fdb8ca654a829ef6207937238be1",
+      "dispatch_status": "confirmed",
+      "dispatch_attempt": 1,
+      "acquired_at": "2026-09-04T13:46:22.377733+00:00",
+      "lease_expires_at": "2026-09-04T22:17:00+02:00",
+      "worker_id": "/root/acpr12_architecture_acceptance_status",
+      "release_reason": "worker completed the candidate before interruption; root subsequently observed, validated, and accepted its visible write"
+    },
+    {
+      "claim_schema": 2,
+      "path_operations": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\autonomous-coding-production-readiness-roadmap.json": "modify"
+      },
+      "baseline_absences": {},
+      "claim_id": "ABC-OW-ACPR12-ARCHITECTURE-ACCEPTANCE-STATUS-R2-20260904",
+      "run_id": "ABC-GO-OPEN-WORK-10H-20260904T121722+0200",
+      "owner": "root",
+      "state": "released_blocked",
+      "allowed_paths": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\autonomous-coding-production-readiness-roadmap.json"
+      ],
+      "hotfiles": [],
+      "read_only_pins": [
+        "docs/plans/abc-acpr12-transactional-worktree-safe-tool-capsules-architecture-2026-09-04.json@b2fbd2cd425da1f6bb86f7d0443284b48dd014c3"
+      ],
+      "regression_tests": [
+        "py -3 -m json.tool docs/plans/autonomous-coding-production-readiness-roadmap.json"
+      ],
+      "baseline_blobs": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\autonomous-coding-production-readiness-roadmap.json": "cfba7b8e40f3ec9588f5383e586409f5fc1ec990"
+      },
+      "dispatch_token": "d2e09a6de5df4e1cb0beeb3316b81a61",
+      "dispatch_status": "ready",
+      "dispatch_attempt": 0,
+      "acquired_at": "2026-09-04T13:48:24.868415+00:00",
+      "lease_expires_at": "2026-09-04T22:17:00+02:00",
+      "release_reason": "duplicate status work was already completed by the prior worker before dispatch"
+    },
+    {
+      "claim_schema": 2,
+      "path_operations": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\regression-queue.json": "modify"
+      },
+      "baseline_absences": {},
+      "claim_id": "ABC-OW-REG001-STALE-NODE-RECONCILE-20260904",
+      "run_id": "ABC-GO-OPEN-WORK-10H-20260904T121722+0200",
+      "owner": "root",
+      "state": "released",
+      "allowed_paths": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\regression-queue.json"
+      ],
+      "hotfiles": [],
+      "read_only_pins": [
+        "tests/test_sandbox_resource_guard.py@"
+      ],
+      "regression_tests": [
+        "py -3 -B -m pytest -q -p no:cacheprovider --noconftest tests/test_sandbox_resource_guard.py::test_resource_guard_blocks_non_artifact_rw_mount_without_approval --basetemp C:\\Users\\nkatz\\Documents\\abc-reg001-pytest-20260904-1551 --disable-warnings --tb=short",
+        "py -3 -m json.tool docs/plans/regression-queue.json"
+      ],
+      "baseline_blobs": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\regression-queue.json": "f34d8bfa4127a5a578fa8a4d8a10045b1bc47bdf"
+      },
+      "candidate_blobs": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\regression-queue.json": "650b4c89396b18a70112dbe18816c39e63d7dafd"
+      },
+      "candidate_state": "accepted_after_independent_review",
+      "independent_review": {
+        "verdict": "PASS",
+        "reviewer": "root/reg001_stale_node_review",
+        "evidence": "The exact historical node is absent and the current semantic successor passed in isolation. The queue correction preserves historical evidence, marks only REG-001 invalid, and changes no product path. JSON and diff checks passed."
+      },
+      "dispatch_token": "264fe68029c7411686c7e86a9abe1868",
+      "dispatch_status": "confirmed",
+      "dispatch_attempt": 1,
+      "acquired_at": "2026-09-04T13:51:57.802612+00:00",
+      "lease_expires_at": "2026-09-04T22:17:00+02:00",
+      "worker_id": "/root"
+    },
+    {
+      "claim_schema": 2,
+      "path_operations": {
+        "c:\\users\\nkatz\\odysseus\\tests\\test_security_regressions.py": "modify"
+      },
+      "baseline_absences": {},
+      "claim_id": "ABC-GO-REG004-UTF8-STATIC-TEST-READS-20260904",
+      "run_id": "ABC-GO-OPEN-WORK-10H-20260904T121722+0200",
+      "owner": "root",
+      "state": "released",
+      "allowed_paths": [
+        "c:\\users\\nkatz\\odysseus\\tests\\test_security_regressions.py"
+      ],
+      "hotfiles": [],
+      "read_only_pins": [],
+      "regression_tests": [
+        "py -3 -B -m pytest -q -p no:cacheprovider --noconftest tests/test_security_regressions.py::test_email_thread_rendering_sanitizes_body_html tests/test_security_regressions.py::test_gmail_mcp_preset_uses_contained_oauth_paths --basetemp C:\\Users\\nkatz\\Documents\\abc-reg004-pytest-20260904-1601 --disable-warnings --tb=short"
+      ],
+      "baseline_blobs": {
+        "c:\\users\\nkatz\\odysseus\\tests\\test_security_regressions.py": "227531419c9a930d4e278bd18b363ee90e823812"
+      },
+      "dispatch_token": "e31df4b854b34c479f9c01056c6d7249",
+      "dispatch_status": "ready",
+      "dispatch_attempt": 0,
+      "acquired_at": "2026-09-04T13:57:35.831672+00:00",
+      "lease_expires_at": "2026-09-04T22:17:00+02:00",
+      "released_at": "2026-09-04T16:34:13+02:00",
+      "release_reason": "False-positive recovery freeze: the recorded blob is the exact raw CRLF worktree content; the conflicting path hash was Git's filtered LF identity."
+    },
+    {
+      "claim_schema": 2,
+      "path_operations": {
+        "c:\\users\\nkatz\\odysseus\\tests\\test_signature_fold_js.py": "modify"
+      },
+      "baseline_absences": {},
+      "claim_id": "ABC-GO-REG008-NODE-UTF8-DECODE-20260904",
+      "run_id": "ABC-GO-OPEN-WORK-10H-20260904T121722+0200",
+      "owner": "root",
+      "state": "released",
+      "allowed_paths": [
+        "c:\\users\\nkatz\\odysseus\\tests\\test_signature_fold_js.py"
+      ],
+      "hotfiles": [],
+      "read_only_pins": [],
+      "regression_tests": [
+        "venv\\Scripts\\python.exe -B -m pytest -q -p no:cacheprovider --noconftest tests/test_signature_fold_js.py::test_extract_quote_meta_keeps_outlook_headers --basetemp C:\\Users\\nkatz\\Documents\\abc-reg008-pytest-20260904-1650 --disable-warnings --tb=short"
+      ],
+      "baseline_blobs": {
+        "c:\\users\\nkatz\\odysseus\\tests\\test_signature_fold_js.py": "ccd64ccc9de875b8feebda62a92288145f13c135"
+      },
+      "dispatch_token": "d55fe5d2bcd0481db6a13414369deb69",
+      "dispatch_status": "ready",
+      "dispatch_attempt": 0,
+      "acquired_at": "2026-09-04T14:05:35.592359+00:00",
+      "lease_expires_at": "2026-09-04T22:17:00+02:00",
+      "released_at": "2026-09-04T16:34:13+02:00",
+      "release_reason": "False-positive recovery freeze: the recorded blob is the exact raw CRLF worktree content; the conflicting path hash was Git's filtered LF identity."
+    },
+    {
+      "claim_schema": 2,
+      "path_operations": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-go-regression-acceptance-2026-09-04.json": "create"
+      },
+      "baseline_absences": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-go-regression-acceptance-2026-09-04.json": {
+          "kind": "absent",
+          "parent": "c:\\users\\nkatz\\odysseus\\docs\\plans"
+        }
+      },
+      "claim_id": "ABC-GO-REG-ACCEPTANCE-PACKET-20260904",
+      "run_id": "ABC-GO-OPEN-WORK-10H-20260904T121722+0200",
+      "owner": "evidence_packet",
+      "state": "released",
+      "allowed_paths": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-go-regression-acceptance-2026-09-04.json"
+      ],
+      "hotfiles": [],
+      "read_only_pins": [
+        "docs/plans/regression-queue.json@650b4c89396b18a70112dbe18816c39e63d7dafd"
+      ],
+      "regression_tests": [
+        "REG009=2 passed",
+        "REG010=3 passed",
+        "REG011+REG013=7 passed",
+        "REG012=2 passed"
+      ],
+      "baseline_blobs": {},
+      "dispatch_token": "f9788e7da4b24c8fb073338f055222ba",
+      "dispatch_status": "confirmed",
+      "dispatch_attempt": 1,
+      "acquired_at": "2026-09-04T14:13:37.510802+00:00",
+      "lease_expires_at": "2026-09-04T20:30:00+00:00",
+      "worker_id": "evidence_packet",
+      "released_at": "2026-09-04T16:34:13+02:00",
+      "candidate_blobs": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\abc-go-regression-acceptance-2026-09-04.json": "fbfca951371a3a20626fb31d35bba17a2572e4ad"
+      },
+      "release_reason": "Worker completed and stopped; JSON validation and root readback passed."
+    },
+    {
+      "claim_schema": 2,
+      "path_operations": {
+        "c:\\users\\nkatz\\odysseus\\tests\\test_security_regressions.py": "modify"
+      },
+      "baseline_absences": {},
+      "claim_id": "ABC-GO-REG004-UTF8-STATIC-TEST-READS-R2-20260904",
+      "run_id": "ABC-GO-OPEN-WORK-10H-20260904T121722+0200",
+      "owner": "reg004_utf8_worker",
+      "state": "released",
+      "allowed_paths": [
+        "c:\\users\\nkatz\\odysseus\\tests\\test_security_regressions.py"
+      ],
+      "hotfiles": [],
+      "read_only_pins": [
+        "static/js/emailLibrary.js",
+        "static/js/admin.js"
+      ],
+      "regression_tests": [
+        "venv/Scripts/python.exe -B -m pytest -q -p no:cacheprovider --noconftest tests/test_security_regressions.py::test_email_thread_rendering_sanitizes_body_html tests/test_security_regressions.py::test_gmail_mcp_preset_uses_contained_oauth_paths --disable-warnings --tb=short"
+      ],
+      "baseline_blobs": {
+        "c:\\users\\nkatz\\odysseus\\tests\\test_security_regressions.py": "227531419c9a930d4e278bd18b363ee90e823812"
+      },
+      "dispatch_token": "967568e8e1a7438db2eabc15d9c2d17c",
+      "dispatch_status": "confirmed",
+      "dispatch_attempt": 1,
+      "acquired_at": "2026-09-04T14:36:06.681376+00:00",
+      "lease_expires_at": "2026-09-04T18:00:00+02:00",
+      "worker_id": "reg004_utf8_worker",
+      "released_at": "2026-09-04T16:40:00+02:00",
+      "candidate_blobs": {
+        "c:\\users\\nkatz\\odysseus\\tests\\test_security_regressions.py": "cd07aa61d365a2cedb3d6fa22349d73a1abbdec2"
+      },
+      "acceptance": {
+        "review": "root_standard_pass",
+        "diff": "exactly two Path.read_text calls now specify UTF-8",
+        "focused_tests": "2 passed in 1.09s",
+        "raw_candidate_sha256": "6b11c220bda33fed30d0883d81649bd218c08b86f80d62d23cad0b8344d850e6"
+      }
+    },
+    {
+      "claim_schema": 2,
+      "path_operations": {
+        "c:\\users\\nkatz\\odysseus\\tests\\test_signature_fold_js.py": "modify"
+      },
+      "baseline_absences": {},
+      "claim_id": "ABC-GO-REG008-NODE-UTF8-DECODE-R2-20260904",
+      "run_id": "ABC-GO-OPEN-WORK-10H-20260904T121722+0200",
+      "owner": "reg008_utf8_worker",
+      "state": "released",
+      "allowed_paths": [
+        "c:\\users\\nkatz\\odysseus\\tests\\test_signature_fold_js.py"
+      ],
+      "hotfiles": [],
+      "read_only_pins": [
+        "static/js/emailLibrary.js"
+      ],
+      "regression_tests": [
+        "venv/Scripts/python.exe -B -m pytest -q -p no:cacheprovider --noconftest tests/test_signature_fold_js.py::test_extract_quote_meta_keeps_outlook_headers tests/test_signature_route_hardening.py::test_signature_png_normalization_rejects_invalid_inputs tests/test_signature_route_hardening.py::test_signature_dimensions_are_bounded --disable-warnings --tb=short"
+      ],
+      "baseline_blobs": {
+        "c:\\users\\nkatz\\odysseus\\tests\\test_signature_fold_js.py": "ccd64ccc9de875b8feebda62a92288145f13c135"
+      },
+      "dispatch_token": "902f33c8b67c47698a30c6b958c58190",
+      "dispatch_status": "confirmed",
+      "dispatch_attempt": 1,
+      "acquired_at": "2026-09-04T14:39:52.897858+00:00",
+      "lease_expires_at": "2026-09-04T18:00:00+02:00",
+      "worker_id": "reg008_utf8_worker",
+      "released_at": "2026-09-04T16:47:00+02:00",
+      "candidate_blobs": {
+        "c:\\users\\nkatz\\odysseus\\tests\\test_signature_fold_js.py": "0ce5b8961bcba36ee76c0146351d783e208226e1"
+      },
+      "acceptance": {
+        "review": "root_standard_pass",
+        "diff": "subprocess stdout is explicitly decoded as UTF-8",
+        "focused_tests": "10 passed, 1 warning in 2.91s",
+        "raw_candidate_sha256": "84025133dd1777a578a6ec7779d06e86bc3fb19793520e01d40cd432ceafe50f"
+      }
+    },
+    {
+      "claim_schema": 2,
+      "path_operations": {
+        "c:\\users\\nkatz\\odysseus\\scripts\\roadmap_safe_queue_audit.py": "modify",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_roadmap_safe_queue_audit.py": "modify"
+      },
+      "baseline_absences": {},
+      "claim_id": "ABC-GO-ROADMAP-AUDIT-TERMINAL-STATUS-R3-20260904",
+      "run_id": "ABC-GO-OPEN-WORK-10H-20260904T121722+0200",
+      "owner": "roadmap_audit_terminal_worker",
+      "state": "released",
+      "allowed_paths": [
+        "c:\\users\\nkatz\\odysseus\\scripts\\roadmap_safe_queue_audit.py",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_roadmap_safe_queue_audit.py"
+      ],
+      "hotfiles": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\open-work-completion-master-roadmap.json"
+      ],
+      "read_only_pins": [
+        "docs/plans/open-work-completion-master-roadmap.json",
+        "docs/plans/parallel-roadmap-execution-round7.json",
+        "docs/plans/autonomous-coding-production-readiness-roadmap.json"
+      ],
+      "regression_tests": [
+        "venv/Scripts/python.exe -B -m pytest -q -p no:cacheprovider --noconftest tests/test_roadmap_safe_queue_audit.py --disable-warnings --tb=short",
+        "venv/Scripts/python.exe -B scripts/roadmap_safe_queue_audit.py --format json"
+      ],
+      "baseline_blobs": {
+        "c:\\users\\nkatz\\odysseus\\scripts\\roadmap_safe_queue_audit.py": "d73884cf4dd3835063f3e048d5157bee450acce7",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_roadmap_safe_queue_audit.py": "eec9b15332f1c173fc35b680b9ed7e5717871f3d"
+      },
+      "dispatch_token": "927f96709c6347baa539556e80748b71",
+      "dispatch_status": "cancelled_before_write_authorization",
+      "dispatch_attempt": 1,
+      "acquired_at": "2026-09-04T14:44:05.779669+00:00",
+      "lease_expires_at": "2026-09-04T18:30:00+02:00",
+      "released_at": "2026-09-04T17:02:00+02:00",
+      "release_reason": "Worker was interrupted and independently observed stopped after confirm-start was unavailable; no write authority was issued and both baselines remained unchanged."
+    },
+    {
+      "claim_schema": 2,
+      "path_operations": {
+        "c:\\users\\nkatz\\odysseus\\scripts\\roadmap_safe_queue_audit.py": "modify",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_roadmap_safe_queue_audit.py": "modify"
+      },
+      "baseline_absences": {},
+      "claim_id": "ABC-GO-ROADMAP-AUDIT-TERMINAL-STATUS-ROOT-R4-20260904",
+      "run_id": "ABC-GO-OPEN-WORK-10H-20260904T121722+0200",
+      "owner": "root",
+      "state": "released",
+      "allowed_paths": [
+        "c:\\users\\nkatz\\odysseus\\scripts\\roadmap_safe_queue_audit.py",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_roadmap_safe_queue_audit.py"
+      ],
+      "hotfiles": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\open-work-completion-master-roadmap.json"
+      ],
+      "read_only_pins": [
+        "docs/plans/open-work-completion-master-roadmap.json",
+        "docs/plans/parallel-roadmap-execution-round7.json",
+        "docs/plans/autonomous-coding-production-readiness-roadmap.json"
+      ],
+      "regression_tests": [
+        "venv/Scripts/python.exe -B -m pytest -q -p no:cacheprovider --noconftest tests/test_roadmap_safe_queue_audit.py --disable-warnings --tb=short",
+        "venv/Scripts/python.exe -B scripts/roadmap_safe_queue_audit.py --format json"
+      ],
+      "baseline_blobs": {
+        "c:\\users\\nkatz\\odysseus\\scripts\\roadmap_safe_queue_audit.py": "d73884cf4dd3835063f3e048d5157bee450acce7",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_roadmap_safe_queue_audit.py": "eec9b15332f1c173fc35b680b9ed7e5717871f3d"
+      },
+      "dispatch_token": "035a3ede31244a9b8a8eb7bf2144c8c4",
+      "dispatch_status": "confirmed",
+      "dispatch_attempt": 1,
+      "acquired_at": "2026-09-04T14:48:39.709608+00:00",
+      "lease_expires_at": "2026-09-04T18:30:00+02:00",
+      "worker_id": "/root",
+      "released_at": "2026-09-04T16:58:00+02:00",
+      "candidate_blobs": {
+        "c:\\users\\nkatz\\odysseus\\scripts\\roadmap_safe_queue_audit.py": "679830ff69e7779e8718f7b3e70d5d29276e7fb4",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_roadmap_safe_queue_audit.py": "fbf3f2c433b105902ce0a4ab79408f3acacd570b"
+      },
+      "candidate_state": "accepted_after_independent_review",
+      "acceptance": {
+        "review": "independent_sol_high_pass",
+        "reviewer": "/root/roadmap_audit_r4_reviewer",
+        "focused_tests": "16 passed in 0.88s; independent rerun 16 passed",
+        "audit_evidence": "215 files scanned; safe_open_count 0; terminal family leaks 0; ambiguous blocked/recovery/contains-accepted statuses remain open",
+        "raw_sha256": {
+          "scripts/roadmap_safe_queue_audit.py": "500d356b77dd302947a05c33eacbc1a3003a323d8ee269fd0d72b1f0f6f8ff75",
+          "tests/test_roadmap_safe_queue_audit.py": "782ad1fa8d4593216afd77ffd180598f4f59a41c366b583a6e03c875b8a94ea8"
+        }
+      }
+    },
+    {
+      "claim_schema": 2,
+      "path_operations": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\regression-queue.json": "modify"
+      },
+      "baseline_absences": {},
+      "claim_id": "ABC-GO-REGRESSION-QUEUE-RECONCILE-R2-20260904",
+      "run_id": "ABC-GO-OPEN-WORK-10H-20260904T121722+0200",
+      "owner": "root",
+      "state": "released",
+      "allowed_paths": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\regression-queue.json"
+      ],
+      "hotfiles": [],
+      "read_only_pins": [
+        "docs/plans/abc-go-regression-acceptance-2026-09-04.json",
+        "tests/test_security_regressions.py",
+        "tests/test_signature_fold_js.py"
+      ],
+      "regression_tests": [
+        "python -m json.tool docs/plans/regression-queue.json"
+      ],
+      "baseline_blobs": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\regression-queue.json": "ef06d0f70187549a8c44e77c934e534ce6d349ee"
+      },
+      "dispatch_token": "1132db530aef4e77b6c59d599da81699",
+      "dispatch_status": "confirmed",
+      "dispatch_attempt": 1,
+      "acquired_at": "2026-09-04T14:59:47.456217+00:00",
+      "lease_expires_at": "2026-09-04T18:30:00+02:00",
+      "worker_id": "/root",
+      "released_at": "2026-09-04T17:08:00+02:00",
+      "candidate_blobs": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\regression-queue.json": "f0fffbf1c33dafaf8c5b1ee9f883d4ecacb3c833"
+      },
+      "candidate_state": "accepted_after_independent_review",
+      "acceptance": {
+        "review": "independent_sol_high_pass",
+        "reviewer": "/root/regression_queue_r2_reviewer",
+        "integration_tests": "32 passed, 2 warnings in 7.31s",
+        "queue_result": "16 unique items: 5 fixed, 9 invalid, 2 blocked_environment, 0 queued",
+        "preservation": "REG001 matched the claim baseline; REG002-003 and REG014-016 remained object-for-object unchanged from HEAD",
+        "raw_sha256": "a51f74ef8a99652104e07aa74696e28009ac76c5be9e2735a1c1a35566ff64ce"
+      }
+    },
+    {
+      "claim_schema": 2,
+      "path_operations": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-product-roadmap.json": "modify"
+      },
+      "baseline_absences": {},
+      "claim_id": "ABC-GO-H1R04-STATUS-TRUTH-RECONCILE-20260904",
+      "run_id": "ABC-GO-OPEN-WORK-10H-20260904T121722+0200",
+      "owner": "root",
+      "state": "released",
+      "allowed_paths": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-product-roadmap.json"
+      ],
+      "hotfiles": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-h1r-04-current-boundary-reconciliation-2026-08-30.json",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\open-work-completion-master-roadmap.json"
+      ],
+      "read_only_pins": [
+        "docs/plans/harbour-one-h1r-04-current-boundary-reconciliation-2026-08-30.json",
+        "docs/plans/handoffs/ABC-GO-HARBOUR-ONE-3H-RUN-20260830.json"
+      ],
+      "regression_tests": [
+        "python -m json.tool docs/plans/harbour-one-product-roadmap.json",
+        "status equivalence and H1R-04/H1R-05 invariant assertions"
+      ],
+      "baseline_blobs": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-product-roadmap.json": "8d54b67f59de2530f7821474593f7636bd6172bb"
+      },
+      "dispatch_token": "411a6859182842999e560cfe4a860af4",
+      "dispatch_status": "confirmed",
+      "dispatch_attempt": 1,
+      "acquired_at": "2026-09-04T15:22:15.673016+00:00",
+      "lease_expires_at": "2026-09-04T18:30:00+02:00",
+      "worker_id": "/root",
+      "released_at": "2026-09-04T17:26:00+02:00",
+      "candidate_blobs": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-product-roadmap.json": "f60717babc099990d670605366b1c0bff74b0a2e"
+      },
+      "candidate_state": "accepted_after_independent_review",
+      "acceptance": {
+        "review": "independent_sol_high_pass",
+        "reviewer": "/root/h1r04_status_reviewer",
+        "result": "H1R-04 status now truthfully matches its pending reconciliation; stale @blob and PASS evidence removed; no reciprocal mutable-hash loop",
+        "invariants": "H1R-04 claimable false and not counted accepted; H1R-05 unchanged planned/false; all other roadmap content equals baseline",
+        "validators": "JSON and roadmap invariants PASS; integration spine PASS; guidance PASS; pre-existing Round6 membership mismatch remains",
+        "raw_sha256": "f94b572a08b85e1094a1168aa628947c2ee57136693b8e80fdfeccaea39d5081"
+      }
+    },
+    {
+      "claim_schema": 2,
+      "path_operations": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-round6-guidance-membership-reconciliation-architecture-20260904.json": "create"
+      },
+      "baseline_absences": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-round6-guidance-membership-reconciliation-architecture-20260904.json": {
+          "kind": "absent",
+          "parent": "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence"
+        }
+      },
+      "claim_id": "ABC-GO-ROUND6-MEMBERSHIP-ARCHITECTURE-20260904",
+      "run_id": "ABC-GO-OPEN-WORK-10H-20260904T121722+0200",
+      "owner": "root",
+      "state": "released",
+      "allowed_paths": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-round6-guidance-membership-reconciliation-architecture-20260904.json"
+      ],
+      "hotfiles": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\parallel-roadmap-execution-round6.json",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\multi-agent-execution-guidance.json",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\open-work-completion-master-roadmap.json",
+        "c:\\users\\nkatz\\odysseus\\scripts\\validate_parallel_roadmap_execution.py",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_parallel_roadmap_execution.py",
+        "c:\\users\\nkatz\\odysseus\\scripts\\validate_integration_spine_convergence.py",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_integration_spine_convergence.py",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-product-roadmap.json"
+      ],
+      "read_only_pins": [
+        "docs/plans/parallel-roadmap-execution-round6.json",
+        "docs/plans/multi-agent-execution-guidance.json",
+        "docs/plans/open-work-completion-master-roadmap.json",
+        "scripts/validate_parallel_roadmap_execution.py",
+        "tests/test_parallel_roadmap_execution.py",
+        "scripts/validate_integration_spine_convergence.py",
+        "tests/test_integration_spine_convergence.py",
+        "docs/plans/harbour-one-product-roadmap.json"
+      ],
+      "regression_tests": [
+        "python -m json.tool docs/plans/evidence/abc-round6-guidance-membership-reconciliation-architecture-20260904.json"
+      ],
+      "baseline_blobs": {},
+      "dispatch_token": "3184de1f83b344bfbc47bef387be776e",
+      "dispatch_status": "confirmed",
+      "dispatch_attempt": 1,
+      "acquired_at": "2026-09-04T15:36:44.398329+00:00",
+      "lease_expires_at": "2026-09-04T19:00:00+02:00",
+      "worker_id": "/root",
+      "released_at": "2026-09-04T18:02:00+02:00",
+      "candidate_blobs": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-round6-guidance-membership-reconciliation-architecture-20260904.json": "fd0b00fc95e5efa8b80b54d2480f8a79de9f149f"
+      },
+      "candidate_state": "accepted_after_independent_review",
+      "acceptance": {
+        "review": "independent_sol_high_pass",
+        "reviewer": "/root/round6_membership_arch_reviewer",
+        "result": "Architecture semantics unchanged by the acceptance-record delta; exact seven-writer transaction and two read-only pins approved with live_actions false.",
+        "raw_sha256": "5504b4b6a3d4b895a9f13a973b52b880a0c6cddf080646961b1360c29a1a5cb3"
+      }
+    },
+    {
+      "claim_schema": 2,
+      "path_operations": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\parallel-roadmap-execution-round6.json": "modify",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\multi-agent-execution-guidance.json": "modify",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\open-work-completion-master-roadmap.json": "modify",
+        "c:\\users\\nkatz\\odysseus\\scripts\\validate_parallel_roadmap_execution.py": "modify",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_parallel_roadmap_execution.py": "modify",
+        "c:\\users\\nkatz\\odysseus\\scripts\\validate_integration_spine_convergence.py": "modify",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_integration_spine_convergence.py": "modify"
+      },
+      "baseline_absences": {},
+      "claim_id": "ABC-GO-ROUND6-MEMBERSHIP-IMPLEMENTATION-20260904",
+      "run_id": "ABC-GO-OPEN-WORK-10H-20260904T121722+0200",
+      "owner": "root",
+      "state": "released",
+      "allowed_paths": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\parallel-roadmap-execution-round6.json",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\multi-agent-execution-guidance.json",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\open-work-completion-master-roadmap.json",
+        "c:\\users\\nkatz\\odysseus\\scripts\\validate_parallel_roadmap_execution.py",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_parallel_roadmap_execution.py",
+        "c:\\users\\nkatz\\odysseus\\scripts\\validate_integration_spine_convergence.py",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_integration_spine_convergence.py"
+      ],
+      "hotfiles": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-round6-guidance-membership-reconciliation-architecture-20260904.json",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-product-roadmap.json",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\parallel-roadmap-execution-round7.json"
+      ],
+      "read_only_pins": [
+        "docs/plans/evidence/abc-round6-guidance-membership-reconciliation-architecture-20260904.json@fd0b00fc95e5efa8b80b54d2480f8a79de9f149f",
+        "docs/plans/harbour-one-product-roadmap.json@f60717babc099990d670605366b1c0bff74b0a2e",
+        "docs/plans/parallel-roadmap-execution-round7.json@7704cff25275d3b21138ed63e4835686a44c9879"
+      ],
+      "regression_tests": [
+        "venv/Scripts/python.exe -B -m pytest -q -p no:cacheprovider --noconftest tests/test_parallel_roadmap_execution.py tests/test_integration_spine_convergence.py --disable-warnings --tb=short",
+        "venv/Scripts/python.exe -B scripts/validate_parallel_roadmap_execution.py --format json",
+        "venv/Scripts/python.exe -B scripts/validate_integration_spine_convergence.py --format json",
+        "venv/Scripts/python.exe -B scripts/roadmap_safe_queue_audit.py --format json"
+      ],
+      "baseline_blobs": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\parallel-roadmap-execution-round6.json": "e5f4e1a93c358874203cba3b00b9b9afc74e5b1f",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\multi-agent-execution-guidance.json": "914b00b318c4003d05a8d1822e7825af9bc492f5",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\open-work-completion-master-roadmap.json": "ea2e3f531e900d83dd2c151489bba5d26285ae81",
+        "c:\\users\\nkatz\\odysseus\\scripts\\validate_parallel_roadmap_execution.py": "22d5be1db6f58906d9fa5132c46a5f358daae300",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_parallel_roadmap_execution.py": "4bdcb3d5a912e03515c3ec73226b91588891bc0f",
+        "c:\\users\\nkatz\\odysseus\\scripts\\validate_integration_spine_convergence.py": "b0f3468d66f6213ff701a01e72ee5a32842a3018",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_integration_spine_convergence.py": "e42a246417ad963f608f035f1a495caa02db4475"
+      },
+      "dispatch_token": "2e6428d974484d66aa90efdb7f412839",
+      "dispatch_status": "confirmed",
+      "dispatch_attempt": 1,
+      "acquired_at": "2026-09-04T15:57:04.568833+00:00",
+      "lease_expires_at": "2026-09-04T21:30:00+02:00",
+      "worker_id": "/root",
+      "released_at": "2026-09-04T18:22:00+02:00",
+      "candidate_blobs": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\parallel-roadmap-execution-round6.json": "2bda63a2725fd59e2842f0ba8320387315995b09",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\multi-agent-execution-guidance.json": "94f928d58ea124daf9544385433234e2f6451589",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\open-work-completion-master-roadmap.json": "7be4a97552e5448362af7a54c98e0573bda30e75",
+        "c:\\users\\nkatz\\odysseus\\scripts\\validate_parallel_roadmap_execution.py": "b5d9a651946b6a0ed7f47561f9de45d97ceb2b86",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_parallel_roadmap_execution.py": "ed9caaf07364bb807f071c4d03734c4e1f614244",
+        "c:\\users\\nkatz\\odysseus\\scripts\\validate_integration_spine_convergence.py": "29f2fdd10250ace125e9d7acd4c72472d8b6f4c0",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_integration_spine_convergence.py": "f5b87ddcd0cd8c6ef171d9cd4c8f847e16af1ca9"
+      },
+      "candidate_state": "accepted_after_independent_review",
+      "acceptance": {
+        "review": "two_independent_sol_passes",
+        "reviewers": [
+          "/root/round6_membership_arch_reviewer",
+          "/root/round6_membership_contract_audit"
+        ],
+        "focused_tests": "178 passed",
+        "validators": "Round6, Integration Spine, Guidance inventory and Safe Queue PASS",
+        "preservation": "Round6 equals baseline outside roadmap_frontiers; Guidance and Open Work equal baselines outside the authorized current projection; historical 30-to-28 receipt preserved.",
+        "result": "26 exact active frontiers plus one exact ACPR retained terminal frontier, 27 total, three preserved waves, Harbour H1R-04 included, CAO and legacy H1 removed, no-active-claim false green closed.",
+        "raw_sha256": {
+          "docs/plans/parallel-roadmap-execution-round6.json": "a25bcf184dc1f24c76b73b8ac14af578ce49d82442efedec6274ee1feedf0758",
+          "docs/plans/multi-agent-execution-guidance.json": "a93fb1c749d2faca379da2df99a99fae228ec7e010dc6348e061f7b9ec4a9741",
+          "docs/plans/open-work-completion-master-roadmap.json": "9b8d2111aba1363ea1906979cbd11aaea22011800da1160fcd13f949b3c00394",
+          "scripts/validate_parallel_roadmap_execution.py": "40273ff72fe7884f8ccded096115ec948e10daa6ad47db6179b0da36ef4dd171",
+          "tests/test_parallel_roadmap_execution.py": "ca25406ce13561815f48fadc2c6a140af167bd2d8d2c0f8d9e12b8f77c564d1c",
+          "scripts/validate_integration_spine_convergence.py": "149c355107b397f9349f44d3c043155263ca0415f66c12f8cca90577d77c58b1",
+          "tests/test_integration_spine_convergence.py": "f400c5c2df793de836a5d7a810456c5e3f18d484cb73fbfaff4c4e5bf5ba53e6"
+        }
+      }
+    },
+    {
+      "claim_schema": 2,
+      "path_operations": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-h1r04-currentness-acceptance-architecture-20260904.json": "create"
+      },
+      "baseline_absences": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-h1r04-currentness-acceptance-architecture-20260904.json": {
+          "kind": "absent",
+          "parent": "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence"
+        }
+      },
+      "claim_id": "ABC-GO-H1R04-CURRENTNESS-ACCEPTANCE-ARCHITECTURE-20260904",
+      "run_id": "ABC-GO-OPEN-WORK-10H-20260904T121722+0200",
+      "owner": "root",
+      "state": "released",
+      "allowed_paths": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-h1r04-currentness-acceptance-architecture-20260904.json"
+      ],
+      "hotfiles": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-product-roadmap.json",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-h1r-04-current-boundary-reconciliation-2026-08-30.json"
+      ],
+      "read_only_pins": [
+        "docs/plans/harbour-one-product-roadmap.json@f60717babc099990d670605366b1c0bff74b0a2e",
+        "docs/plans/harbour-one-h1r-04-current-boundary-reconciliation-2026-08-30.json@ab0bebf45fb06b242ac6b5b2dc5052b852d53830",
+        "docs/plans/harbour-one-user-decision-agent-data-isolation-2026-08-31.json@10fa85434ee6f980af96b43cf0c519cc11e6a271",
+        "src/harbour_knowledge_store.py@a08286d0f402c29c726e32f1d3122749cd8b87d1",
+        "tests/test_harbour_knowledge_store.py@c7bd801c6ff63ea0dfbeacbe48ef9e1a1dbb8bd4",
+        "src/harbour_knowledge_staging_destination.py@7d1cd0fe57bbbe2645b9fb5d7286b28d7c1674d7",
+        "tests/test_harbour_knowledge_staging_destination.py@cc882e5a231701b5732e510d3aa439ac51e7e586"
+      ],
+      "regression_tests": [
+        "venv/Scripts/python.exe -B -m json.tool docs/plans/evidence/abc-h1r04-currentness-acceptance-architecture-20260904.json"
+      ],
+      "baseline_blobs": {},
+      "dispatch_token": "a17ea75b6602490cb2af3bab042c5962",
+      "dispatch_status": "confirmed",
+      "dispatch_attempt": 1,
+      "acquired_at": "2026-09-04T16:29:26.511456+00:00",
+      "lease_expires_at": "2026-09-04T20:30:00+02:00",
+      "worker_id": "/root",
+      "released_at": "2026-09-04T18:58:00+02:00",
+      "candidate_blobs": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-h1r04-currentness-acceptance-architecture-20260904.json": "0d8a29f451b0d971b059851a704ec302b77a44f4"
+      },
+      "candidate_state": "accepted_after_independent_review",
+      "acceptance": {
+        "review": "two_independent_passes_plus_acceptance_delta_readback",
+        "reviewers": [
+          "/root/round6_membership_arch_reviewer",
+          "/root/round6_membership_contract_audit"
+        ],
+        "result": "Closed, deterministic and real-checkout-achievable H1R-04 state-census discovery architecture accepted; H1R-04 product completion remains pending.",
+        "reviewed_contract_blob": "f17a610c6531358e1ad58f098706941d103c28df",
+        "raw_sha256": "c9dce60f73179fa7592d50f23d890420b810bf8b358d110bd6549d5eac28ccff"
+      }
+    },
+    {
+      "claim_schema": 2,
+      "path_operations": {
+        "c:\\users\\nkatz\\odysseus\\scripts\\audit_harbour_knowledge_state_census.py": "create",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-h1r-04-state-census-manifest.json": "create",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_audit_harbour_knowledge_state_census.py": "create"
+      },
+      "baseline_absences": {
+        "c:\\users\\nkatz\\odysseus\\scripts\\audit_harbour_knowledge_state_census.py": {
+          "kind": "absent",
+          "parent": "c:\\users\\nkatz\\odysseus\\scripts"
+        },
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-h1r-04-state-census-manifest.json": {
+          "kind": "absent",
+          "parent": "c:\\users\\nkatz\\odysseus\\docs\\plans"
+        },
+        "c:\\users\\nkatz\\odysseus\\tests\\test_audit_harbour_knowledge_state_census.py": {
+          "kind": "absent",
+          "parent": "c:\\users\\nkatz\\odysseus\\tests"
+        }
+      },
+      "claim_id": "ABC-GO-H1R04-STATE-CENSUS-DISCOVERY-IMPLEMENTATION-20260904",
+      "run_id": "ABC-GO-OPEN-WORK-10H-20260904T121722+0200",
+      "owner": "root",
+      "state": "released_blocked",
+      "allowed_paths": [
+        "c:\\users\\nkatz\\odysseus\\scripts\\audit_harbour_knowledge_state_census.py",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_audit_harbour_knowledge_state_census.py",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-h1r-04-state-census-manifest.json"
+      ],
+      "hotfiles": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-h1r04-currentness-acceptance-architecture-20260904.json",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-product-roadmap.json",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-h1r-04-current-boundary-reconciliation-2026-08-30.json"
+      ],
+      "read_only_pins": [
+        "docs/plans/evidence/abc-h1r04-currentness-acceptance-architecture-20260904.json@0d8a29f451b0d971b059851a704ec302b77a44f4",
+        "docs/plans/harbour-one-product-roadmap.json@",
+        "f60717babc099990d670605366b1c0bff74b0a2e",
+        "docs/plans/harbour-one-h1r-04-current-boundary-reconciliation-2026-08-30.json@",
+        "ab0bebf45fb06b242ac6b5b2dc5052b852d53830",
+        "docs/plans/harbour-one-user-decision-agent-data-isolation-2026-08-31.json@",
+        "10fa85434ee6f980af96b43cf0c519cc11e6a271",
+        "src/memory.py@c27ed54ad3b1d2048c5215ba5df549052a091b4d",
+        "src/personal_docs.py@e75021299fa56a44d68b11f91a3e8bc727a8446c",
+        "src/causal_claim_store.py@8223f1d24bf8a7bfb7cfead5e7a3ef86257b9451",
+        "src/memory_vector.py@a30a198d4527ec532d60d4a6bc2b6dcc22a46269",
+        "src/rag_vector.py@ecd9f48b5d589162e2958139872e54f3051f2eb5",
+        "src/unified_source_index_sqlite.py@28de8a45424fead0eab133d42d2449303982997f",
+        "src/unified_source_index_raptor.py@bda910a40f677cfdd0377b99be841d2c2cef1d1b",
+        "src/universal_inbox_raptorgraph_store.py@c374b9b3435e9679c2674e250d785f0f27ae9109",
+        "src/codebase_memory_process.py@c4bcc81cbd77f2d5922a9362e5b106c7af4853e8",
+        "src/native_knowledge_store.py@1691aff9e343e8b4269062d1a801a15dd2d2e857",
+        "src/memory_provider.py@3a33d569bb0f855afb8c56ea2dbcfbafa3ec308e",
+        "src/memory_runtime_metrics.py@cea4bdc20965f113bf8b4a9b4fc931184d72615f",
+        "src/coding_agent_runner_state.py@854007b063a2b765694cb192b8705a4fd629364a",
+        "src/headless_write_agent_state.py@1078c737396776efdfb06867973078de2de74be2",
+        "src/sandbox_job_ledger.py@0c649d33b5404e5c94f7930d6bfcf5a7d228e9de",
+        "src/execution_authority_ledger.py@8dfe41c902d32f19d70de021f452ffa4e1ad33ae",
+        "src/agent_run_ledger.py@4828779a48a16a5b8efbdd61c8310fe16f3ce44f",
+        "src/harbour_knowledge_store.py@a08286d0f402c29c726e32f1d3122749cd8b87d1",
+        "tests/test_harbour_knowledge_store.py@c7bd801c6ff63ea0dfbeacbe48ef9e1a1dbb8bd4",
+        "src/harbour_knowledge_staging_destination.py@7d1cd0fe57bbbe2645b9fb5d7286b28d7c1674d7",
+        "tests/test_harbour_knowledge_staging_destination.py@cc882e5a231701b5732e510d3aa439ac51e7e586",
+        "src/unified_source_index_sources/knowledge.py@76756dafb6b890fdc3417997ff3690a8e87f4bc2",
+        "tests/test_unified_source_index_knowledge_source.py@f22e128a523448fbf639d4cb2be947f258bbf93e",
+        "src/harbour_snapshot_comparison.py@2f5aaf325a956201bfd2b1348d2d3530d92c6898",
+        "tests/test_harbour_snapshot_comparison.py@52679818eb766ebe6ec3b53eeac542950b19fbc4",
+        "src/import_export_migration_proof.py@b7bf60a88ae493f02e7d3ca41bf0a7b8d15ef837",
+        "tests/test_import_export_migration_proof.py@15163086e7aa161a513289ef5ba53fcf2d9fbdad"
+      ],
+      "regression_tests": [
+        "venv\\Scripts\\python.exe -B -m pytest -q -p no:cacheprovider --noconftest tests/test_audit_harbour_knowledge_state_census.py --basetemp C:\\Users\\nkatz\\Documents\\abc-h1r04-census-discovery-tests-20260904 --disable-warnings --tb=short",
+        "venv\\Scripts\\python.exe -B scripts/audit_harbour_knowledge_state_census.py --discover --format json",
+        "venv\\Scripts\\python.exe -B scripts/audit_harbour_knowledge_state_census.py --manifest docs/plans/harbour-one-h1r-04-state-census-manifest.json --format json --expect-unclassified",
+        "venv\\Scripts\\python.exe -B -m json.tool docs/plans/harbour-one-h1r-04-state-census-manifest.json",
+        "venv\\Scripts\\python.exe -B -m pytest -q -p no:cacheprovider --noconftest tests/test_harbour_knowledge_store.py tests/test_harbour_knowledge_staging_destination.py tests/test_harbour_authority.py tests/test_unified_source_index_knowledge_source.py tests/test_harbour_snapshot_comparison.py tests/test_import_export_migration_proof.py --basetemp C:\\Users\\nkatz\\Documents\\abc-h1r04-census-dependency-tests-20260904 --disable-warnings --tb=short",
+        "venv\\Scripts\\python.exe -B scripts/validate_parallel_roadmap_execution.py --format json",
+        "venv\\Scripts\\python.exe -B scripts/validate_integration_spine_convergence.py --format json",
+        "venv\\Scripts\\python.exe -B scripts/roadmap_multi_agent_guidance.py --format json"
+      ],
+      "baseline_blobs": {},
+      "dispatch_token": "afb8c7b9525d4d529ee593f11dddb1d0",
+      "dispatch_status": "ready",
+      "dispatch_attempt": 0,
+      "acquired_at": "2026-09-04T17:02:20.838339+00:00",
+      "lease_expires_at": "2026-09-04T21:30:00+02:00",
+      "released_at": "2026-09-04T19:02:00+02:00",
+      "reservation_failure": "Never dispatched: three dynamically constructed read_only_pins were serialized as path@ and bare-blob pairs. Helper accepted malformed advisory pins; replacement claim must use fixed path@blob strings."
+    },
+    {
+      "claim_schema": 2,
+      "path_operations": {
+        "c:\\users\\nkatz\\odysseus\\scripts\\audit_harbour_knowledge_state_census.py": "create",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-h1r-04-state-census-manifest.json": "create",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_audit_harbour_knowledge_state_census.py": "create"
+      },
+      "baseline_absences": {
+        "c:\\users\\nkatz\\odysseus\\scripts\\audit_harbour_knowledge_state_census.py": {
+          "kind": "absent",
+          "parent": "c:\\users\\nkatz\\odysseus\\scripts"
+        },
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-h1r-04-state-census-manifest.json": {
+          "kind": "absent",
+          "parent": "c:\\users\\nkatz\\odysseus\\docs\\plans"
+        },
+        "c:\\users\\nkatz\\odysseus\\tests\\test_audit_harbour_knowledge_state_census.py": {
+          "kind": "absent",
+          "parent": "c:\\users\\nkatz\\odysseus\\tests"
+        }
+      },
+      "claim_id": "ABC-GO-H1R04-STATE-CENSUS-DISCOVERY-IMPLEMENTATION-R2-20260904",
+      "run_id": "ABC-GO-OPEN-WORK-10H-20260904T121722+0200",
+      "owner": "root",
+      "state": "released",
+      "allowed_paths": [
+        "c:\\users\\nkatz\\odysseus\\scripts\\audit_harbour_knowledge_state_census.py",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_audit_harbour_knowledge_state_census.py",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-h1r-04-state-census-manifest.json"
+      ],
+      "hotfiles": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-h1r04-currentness-acceptance-architecture-20260904.json",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-product-roadmap.json",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-h1r-04-current-boundary-reconciliation-2026-08-30.json"
+      ],
+      "read_only_pins": [
+        "docs/plans/evidence/abc-h1r04-currentness-acceptance-architecture-20260904.json@0d8a29f451b0d971b059851a704ec302b77a44f4",
+        "docs/plans/harbour-one-product-roadmap.json@f60717babc099990d670605366b1c0bff74b0a2e",
+        "docs/plans/harbour-one-h1r-04-current-boundary-reconciliation-2026-08-30.json@ab0bebf45fb06b242ac6b5b2dc5052b852d53830",
+        "docs/plans/harbour-one-user-decision-agent-data-isolation-2026-08-31.json@10fa85434ee6f980af96b43cf0c519cc11e6a271",
+        "src/memory.py@c27ed54ad3b1d2048c5215ba5df549052a091b4d",
+        "src/personal_docs.py@e75021299fa56a44d68b11f91a3e8bc727a8446c",
+        "src/causal_claim_store.py@8223f1d24bf8a7bfb7cfead5e7a3ef86257b9451",
+        "src/memory_vector.py@a30a198d4527ec532d60d4a6bc2b6dcc22a46269",
+        "src/rag_vector.py@ecd9f48b5d589162e2958139872e54f3051f2eb5",
+        "src/unified_source_index_sqlite.py@28de8a45424fead0eab133d42d2449303982997f",
+        "src/unified_source_index_raptor.py@bda910a40f677cfdd0377b99be841d2c2cef1d1b",
+        "src/universal_inbox_raptorgraph_store.py@c374b9b3435e9679c2674e250d785f0f27ae9109",
+        "src/codebase_memory_process.py@c4bcc81cbd77f2d5922a9362e5b106c7af4853e8",
+        "src/native_knowledge_store.py@1691aff9e343e8b4269062d1a801a15dd2d2e857",
+        "src/memory_provider.py@3a33d569bb0f855afb8c56ea2dbcfbafa3ec308e",
+        "src/memory_runtime_metrics.py@cea4bdc20965f113bf8b4a9b4fc931184d72615f",
+        "src/coding_agent_runner_state.py@854007b063a2b765694cb192b8705a4fd629364a",
+        "src/headless_write_agent_state.py@1078c737396776efdfb06867973078de2de74be2",
+        "src/sandbox_job_ledger.py@0c649d33b5404e5c94f7930d6bfcf5a7d228e9de",
+        "src/execution_authority_ledger.py@8dfe41c902d32f19d70de021f452ffa4e1ad33ae",
+        "src/agent_run_ledger.py@4828779a48a16a5b8efbdd61c8310fe16f3ce44f",
+        "src/harbour_knowledge_store.py@a08286d0f402c29c726e32f1d3122749cd8b87d1",
+        "tests/test_harbour_knowledge_store.py@c7bd801c6ff63ea0dfbeacbe48ef9e1a1dbb8bd4",
+        "src/harbour_knowledge_staging_destination.py@7d1cd0fe57bbbe2645b9fb5d7286b28d7c1674d7",
+        "tests/test_harbour_knowledge_staging_destination.py@cc882e5a231701b5732e510d3aa439ac51e7e586",
+        "src/unified_source_index_sources/knowledge.py@76756dafb6b890fdc3417997ff3690a8e87f4bc2",
+        "tests/test_unified_source_index_knowledge_source.py@f22e128a523448fbf639d4cb2be947f258bbf93e",
+        "src/harbour_snapshot_comparison.py@2f5aaf325a956201bfd2b1348d2d3530d92c6898",
+        "tests/test_harbour_snapshot_comparison.py@52679818eb766ebe6ec3b53eeac542950b19fbc4",
+        "src/import_export_migration_proof.py@b7bf60a88ae493f02e7d3ca41bf0a7b8d15ef837",
+        "tests/test_import_export_migration_proof.py@15163086e7aa161a513289ef5ba53fcf2d9fbdad"
+      ],
+      "regression_tests": [
+        "venv\\Scripts\\python.exe -B -m pytest -q -p no:cacheprovider --noconftest tests/test_audit_harbour_knowledge_state_census.py --basetemp C:\\Users\\nkatz\\Documents\\abc-h1r04-census-discovery-tests-20260904 --disable-warnings --tb=short",
+        "venv\\Scripts\\python.exe -B scripts/audit_harbour_knowledge_state_census.py --discover --format json",
+        "venv\\Scripts\\python.exe -B scripts/audit_harbour_knowledge_state_census.py --manifest docs/plans/harbour-one-h1r-04-state-census-manifest.json --format json --expect-unclassified",
+        "venv\\Scripts\\python.exe -B -m json.tool docs/plans/harbour-one-h1r-04-state-census-manifest.json",
+        "venv\\Scripts\\python.exe -B -m pytest -q -p no:cacheprovider --noconftest tests/test_harbour_knowledge_store.py tests/test_harbour_knowledge_staging_destination.py tests/test_harbour_authority.py tests/test_unified_source_index_knowledge_source.py tests/test_harbour_snapshot_comparison.py tests/test_import_export_migration_proof.py --basetemp C:\\Users\\nkatz\\Documents\\abc-h1r04-census-dependency-tests-20260904 --disable-warnings --tb=short",
+        "venv\\Scripts\\python.exe -B scripts/validate_parallel_roadmap_execution.py --format json",
+        "venv\\Scripts\\python.exe -B scripts/validate_integration_spine_convergence.py --format json",
+        "venv\\Scripts\\python.exe -B scripts/roadmap_multi_agent_guidance.py --format json"
+      ],
+      "baseline_blobs": {},
+      "dispatch_token": "1eed4952b35d4570bd1b6f0fcc5cac05",
+      "dispatch_status": "confirmed",
+      "dispatch_attempt": 1,
+      "acquired_at": "2026-09-04T17:03:33.319666+00:00",
+      "lease_expires_at": "2026-09-04T21:30:00+02:00",
+      "worker_id": "/root",
+      "released_at": "2026-09-04T19:32:00+02:00",
+      "candidate_blobs": {
+        "c:\\users\\nkatz\\odysseus\\scripts\\audit_harbour_knowledge_state_census.py": "8c29c957c0610c817b94e53acba9b9dbd984baaa",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_audit_harbour_knowledge_state_census.py": "07a124fac85f49c410bff88b3ff3bdc1cad6ebb3",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-h1r-04-state-census-manifest.json": "d48c2358bc4dbffb8302235509ed236c7906f413"
+      },
+      "candidate_state": "accepted_discovery_snapshot_after_independent_review",
+      "acceptance": {
+        "review": "two_independent_hostile_passes",
+        "reviewers": [
+          "/root/round6_membership_arch_reviewer",
+          "/root/round6_membership_contract_audit"
+        ],
+        "focused_tests": "39 passed",
+        "dependency_tests": "500 passed",
+        "validators": "Census expected-unclassified, Round6, Integration Spine, Guidance inventory and manifest JSON PASS",
+        "discovery": "4048 denominator files; 1647 candidates; 17 exact state-bearing seeds; 1630 exact unclassified records; member digest 400558ea6a04536b21c1893c3687e4af249113005b9749fe7caf9a2e1158e036.",
+        "post_freeze_recapture": "Architecture plus product/reconciliation/user authority, 17 seeds and ten mandatory pins unchanged; two historical authority blobs and all three final candidate blobs materialized.",
+        "raw_sha256": {
+          "scripts/audit_harbour_knowledge_state_census.py": "5c6e2b490afb6fdef7716139609bc9728cf3918747929b8e4c053267c3fe0ff5",
+          "tests/test_audit_harbour_knowledge_state_census.py": "f3f777c229206ed933e0d1a79798b88b33dc780b8af699c3ce485e1768a92724",
+          "docs/plans/harbour-one-h1r-04-state-census-manifest.json": "bbe4b2a42a1b255878338ac5d9cd82746ee90e0a5087676046c3acb93c71e4b5"
+        }
+      }
+    },
+    {
+      "claim_schema": 2,
+      "path_operations": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-h1r04-currentness-acceptance-architecture-r2-20260904.json": "create"
+      },
+      "baseline_absences": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-h1r04-currentness-acceptance-architecture-r2-20260904.json": {
+          "kind": "absent",
+          "parent": "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence"
+        }
+      },
+      "claim_id": "ABC-GO-H1R04-CENSUS-CONTROL-PLANE-DECOUPLING-ARCHITECTURE-20260904",
+      "run_id": "ABC-GO-OPEN-WORK-10H-20260904T121722+0200",
+      "owner": "root",
+      "state": "released",
+      "allowed_paths": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-h1r04-currentness-acceptance-architecture-r2-20260904.json"
+      ],
+      "hotfiles": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-h1r04-currentness-acceptance-architecture-20260904.json",
+        "c:\\users\\nkatz\\odysseus\\scripts\\audit_harbour_knowledge_state_census.py",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_audit_harbour_knowledge_state_census.py",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-h1r-04-state-census-manifest.json",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-product-roadmap.json",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-h1r-04-current-boundary-reconciliation-2026-08-30.json",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-user-decision-durable-state-2026-08-30.json"
+      ],
+      "read_only_pins": [
+        "docs/plans/evidence/abc-h1r04-currentness-acceptance-architecture-20260904.json@0d8a29f451b0d971b059851a704ec302b77a44f4",
+        "scripts/audit_harbour_knowledge_state_census.py@8c29c957c0610c817b94e53acba9b9dbd984baaa",
+        "tests/test_audit_harbour_knowledge_state_census.py@07a124fac85f49c410bff88b3ff3bdc1cad6ebb3",
+        "docs/plans/harbour-one-h1r-04-state-census-manifest.json@d48c2358bc4dbffb8302235509ed236c7906f413",
+        "docs/plans/harbour-one-product-roadmap.json@f60717babc099990d670605366b1c0bff74b0a2e",
+        "docs/plans/harbour-one-h1r-04-current-boundary-reconciliation-2026-08-30.json@ab0bebf45fb06b242ac6b5b2dc5052b852d53830",
+        "docs/plans/harbour-one-user-decision-durable-state-2026-08-30.json@e9b49466bd5d6cdff89d88debfa1acaf860c9d2e"
+      ],
+      "regression_tests": [
+        "venv\\Scripts\\python.exe -B -m json.tool docs/plans/evidence/abc-h1r04-currentness-acceptance-architecture-r2-20260904.json"
+      ],
+      "baseline_blobs": {},
+      "dispatch_token": "62509de72b0f4893a378446df9dccc72",
+      "dispatch_status": "confirmed",
+      "dispatch_attempt": 1,
+      "acquired_at": "2026-09-04T17:38:04.334140+00:00",
+      "lease_expires_at": "2026-09-04T22:17:00+02:00",
+      "worker_id": "/root",
+      "released_at": "2026-09-04T19:48:00+02:00",
+      "candidate_blobs": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-h1r04-currentness-acceptance-architecture-r2-20260904.json": "dc322b1e46e1d1db50a0fd9afba7f9ec443c5289"
+      },
+      "candidate_state": "accepted_after_two_independent_adversarial_reviews",
+      "independent_review": {
+        "verdict": "PASS",
+        "reviewers": [
+          "/root/round6_membership_contract_audit",
+          "/root/round6_membership_ownership_audit"
+        ],
+        "evidence": "The first broad-prefix candidate was rejected. Final exact-path architecture dc322b1e46e1d1db50a0fd9afba7f9ec443c5289 excludes only the schema-bound canonical run record after safe full read, preserves all siblings in the denominator, accepts paused lifecycle state, and closes chmod races with complete st_mode plus st_ctime_ns comparison."
+      }
+    },
+    {
+      "claim_schema": 2,
+      "path_operations": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-h1r-04-state-census-manifest.json": "modify",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_audit_harbour_knowledge_state_census.py": "modify",
+        "c:\\users\\nkatz\\odysseus\\scripts\\audit_harbour_knowledge_state_census.py": "modify"
+      },
+      "baseline_absences": {},
+      "claim_id": "ABC-GO-H1R04-CENSUS-CONTROL-PLANE-DECOUPLING-IMPLEMENTATION-20260904",
+      "run_id": "ABC-GO-OPEN-WORK-10H-20260904T121722+0200",
+      "owner": "root",
+      "state": "released_blocked",
+      "allowed_paths": [
+        "c:\\users\\nkatz\\odysseus\\scripts\\audit_harbour_knowledge_state_census.py",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_audit_harbour_knowledge_state_census.py",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-h1r-04-state-census-manifest.json"
+      ],
+      "hotfiles": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-h1r04-currentness-acceptance-architecture-20260904.json",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-h1r04-currentness-acceptance-architecture-r2-20260904.json",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-product-roadmap.json",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-h1r-04-current-boundary-reconciliation-2026-08-30.json",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-user-decision-durable-state-2026-08-30.json",
+        "c:\\users\\nkatz\\odysseus\\src\\memory.py",
+        "c:\\users\\nkatz\\odysseus\\src\\personal_docs.py",
+        "c:\\users\\nkatz\\odysseus\\src\\causal_claim_store.py",
+        "c:\\users\\nkatz\\odysseus\\src\\memory_vector.py",
+        "c:\\users\\nkatz\\odysseus\\src\\rag_vector.py",
+        "c:\\users\\nkatz\\odysseus\\src\\unified_source_index_sqlite.py",
+        "c:\\users\\nkatz\\odysseus\\src\\unified_source_index_raptor.py",
+        "c:\\users\\nkatz\\odysseus\\src\\universal_inbox_raptorgraph_store.py",
+        "c:\\users\\nkatz\\odysseus\\src\\codebase_memory_process.py",
+        "c:\\users\\nkatz\\odysseus\\src\\native_knowledge_store.py",
+        "c:\\users\\nkatz\\odysseus\\src\\memory_provider.py",
+        "c:\\users\\nkatz\\odysseus\\src\\memory_runtime_metrics.py",
+        "c:\\users\\nkatz\\odysseus\\src\\coding_agent_runner_state.py",
+        "c:\\users\\nkatz\\odysseus\\src\\headless_write_agent_state.py",
+        "c:\\users\\nkatz\\odysseus\\src\\sandbox_job_ledger.py",
+        "c:\\users\\nkatz\\odysseus\\src\\execution_authority_ledger.py",
+        "c:\\users\\nkatz\\odysseus\\src\\agent_run_ledger.py",
+        "c:\\users\\nkatz\\odysseus\\src\\harbour_knowledge_store.py",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_harbour_knowledge_store.py",
+        "c:\\users\\nkatz\\odysseus\\src\\harbour_knowledge_staging_destination.py",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_harbour_knowledge_staging_destination.py",
+        "c:\\users\\nkatz\\odysseus\\src\\unified_source_index_sources\\knowledge.py",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_unified_source_index_knowledge_source.py",
+        "c:\\users\\nkatz\\odysseus\\src\\harbour_snapshot_comparison.py",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_harbour_snapshot_comparison.py",
+        "c:\\users\\nkatz\\odysseus\\src\\import_export_migration_proof.py",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_import_export_migration_proof.py"
+      ],
+      "read_only_pins": [
+        "docs/plans/evidence/abc-h1r04-currentness-acceptance-architecture-20260904.json@0d8a29f451b0d971b059851a704ec302b77a44f4",
+        "docs/plans/evidence/abc-h1r04-currentness-acceptance-architecture-r2-20260904.json@dc322b1e46e1d1db50a0fd9afba7f9ec443c5289",
+        "docs/plans/harbour-one-product-roadmap.json@f60717babc099990d670605366b1c0bff74b0a2e",
+        "docs/plans/harbour-one-h1r-04-current-boundary-reconciliation-2026-08-30.json@ab0bebf45fb06b242ac6b5b2dc5052b852d53830",
+        "docs/plans/harbour-one-user-decision-durable-state-2026-08-30.json@e9b49466bd5d6cdff89d88debfa1acaf860c9d2e",
+        "src/memory.py@c27ed54ad3b1d2048c5215ba5df549052a091b4d",
+        "src/personal_docs.py@e75021299fa56a44d68b11f91a3e8bc727a8446c",
+        "src/causal_claim_store.py@8223f1d24bf8a7bfb7cfead5e7a3ef86257b9451",
+        "src/memory_vector.py@a30a198d4527ec532d60d4a6bc2b6dcc22a46269",
+        "src/rag_vector.py@ecd9f48b5d589162e2958139872e54f3051f2eb5",
+        "src/unified_source_index_sqlite.py@28de8a45424fead0eab133d42d2449303982997f",
+        "src/unified_source_index_raptor.py@bda910a40f677cfdd0377b99be841d2c2cef1d1b",
+        "src/universal_inbox_raptorgraph_store.py@c374b9b3435e9679c2674e250d785f0f27ae9109",
+        "src/codebase_memory_process.py@c4bcc81cbd77f2d5922a9362e5b106c7af4853e8",
+        "src/native_knowledge_store.py@1691aff9e343e8b4269062d1a801a15dd2d2e857",
+        "src/memory_provider.py@3a33d569bb0f855afb8c56ea2dbcfbafa3ec308e",
+        "src/memory_runtime_metrics.py@cea4bdc20965f113bf8b4a9b4fc931184d72615f",
+        "src/coding_agent_runner_state.py@854007b063a2b765694cb192b8705a4fd629364a",
+        "src/headless_write_agent_state.py@1078c737396776efdfb06867973078de2de74be2",
+        "src/sandbox_job_ledger.py@0c649d33b5404e5c94f7930d6bfcf5a7d228e9de",
+        "src/execution_authority_ledger.py@8dfe41c902d32f19d70de021f452ffa4e1ad33ae",
+        "src/agent_run_ledger.py@4828779a48a16a5b8efbdd61c8310fe16f3ce44f",
+        "src/harbour_knowledge_store.py@a08286d0f402c29c726e32f1d3122749cd8b87d1",
+        "tests/test_harbour_knowledge_store.py@c7bd801c6ff63ea0dfbeacbe48ef9e1a1dbb8bd4",
+        "src/harbour_knowledge_staging_destination.py@7d1cd0fe57bbbe2645b9fb5d7286b28d7c1674d7",
+        "tests/test_harbour_knowledge_staging_destination.py@cc882e5a231701b5732e510d3aa439ac51e7e586",
+        "src/unified_source_index_sources/knowledge.py@76756dafb6b890fdc3417997ff3690a8e87f4bc2",
+        "tests/test_unified_source_index_knowledge_source.py@f22e128a523448fbf639d4cb2be947f258bbf93e",
+        "src/harbour_snapshot_comparison.py@2f5aaf325a956201bfd2b1348d2d3530d92c6898",
+        "tests/test_harbour_snapshot_comparison.py@52679818eb766ebe6ec3b53eeac542950b19fbc4",
+        "src/import_export_migration_proof.py@b7bf60a88ae493f02e7d3ca41bf0a7b8d15ef837",
+        "tests/test_import_export_migration_proof.py@15163086e7aa161a513289ef5ba53fcf2d9fbdad"
+      ],
+      "regression_tests": [
+        "venv\\Scripts\\python.exe -B -m pytest -q -p no:cacheprovider --noconftest tests/test_audit_harbour_knowledge_state_census.py --basetemp C:\\Users\\nkatz\\Documents\\abc-h1r04-census-r2-tests-20260904 --disable-warnings --tb=short",
+        "venv\\Scripts\\python.exe -B scripts/audit_harbour_knowledge_state_census.py --discover --format json",
+        "venv\\Scripts\\python.exe -B scripts/audit_harbour_knowledge_state_census.py --manifest docs/plans/harbour-one-h1r-04-state-census-manifest.json --format json --expect-unclassified",
+        "venv\\Scripts\\python.exe -B -m json.tool docs/plans/harbour-one-h1r-04-state-census-manifest.json",
+        "venv\\Scripts\\python.exe -B -m pytest -q -p no:cacheprovider --noconftest tests/test_harbour_knowledge_store.py tests/test_harbour_knowledge_staging_destination.py tests/test_harbour_authority.py tests/test_unified_source_index_knowledge_source.py tests/test_harbour_snapshot_comparison.py tests/test_import_export_migration_proof.py --basetemp C:\\Users\\nkatz\\Documents\\abc-h1r04-census-r2-dependency-20260904 --disable-warnings --tb=short",
+        "venv\\Scripts\\python.exe -B scripts/validate_parallel_roadmap_execution.py --format json",
+        "venv\\Scripts\\python.exe -B scripts/validate_integration_spine_convergence.py --format json",
+        "venv\\Scripts\\python.exe -B scripts/roadmap_multi_agent_guidance.py --format json"
+      ],
+      "baseline_blobs": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-h1r-04-state-census-manifest.json": "d48c2358bc4dbffb8302235509ed236c7906f413",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_audit_harbour_knowledge_state_census.py": "07a124fac85f49c410bff88b3ff3bdc1cad6ebb3",
+        "c:\\users\\nkatz\\odysseus\\scripts\\audit_harbour_knowledge_state_census.py": "8c29c957c0610c817b94e53acba9b9dbd984baaa"
+      },
+      "dispatch_token": "92e70773f7ee4110ba6e7b610d71f911",
+      "dispatch_status": "confirmed",
+      "dispatch_attempt": 1,
+      "acquired_at": "2026-09-04T17:49:23.233433+00:00",
+      "lease_expires_at": "2026-09-04T22:17:00+02:00",
+      "worker_id": "/root",
+      "released_at": "2026-09-04T20:04:00+02:00",
+      "candidate_blobs": {
+        "c:\\users\\nkatz\\odysseus\\scripts\\audit_harbour_knowledge_state_census.py": "3cf4c8660d1fce6140fb86b62eca52b030c3103f",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_audit_harbour_knowledge_state_census.py": "c030eea9c96d52dd14366879327dd8cf7e48f16b",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-h1r-04-state-census-manifest.json": "36acb2c3d115d7414bd4711f57c6175a11cfab24"
+      },
+      "candidate_state": "rejected_after_independent_review_portable_ctime_contract_correction_required",
+      "independent_review": {
+        "verdict": "FAIL",
+        "passing_reviewer": "/root/round6_membership_ownership_audit",
+        "failing_reviewer": "/root/round6_membership_contract_audit",
+        "evidence": "43 focused and 500 dependency tests plus validators passed, but the accepted R2 wording required cross-API st_ctime_ns equality. Windows lstat and handle fstat expose different unchanged-file ctime values, so the portable identity contract must be corrected before acceptance. Raw manifest blob 36acb2c3d115d7414bd4711f57c6175a11cfab24 was confirmed with git hash-object --no-filters; the reviewer's 2d1e value was the path-filtered identity."
+      }
+    },
+    {
+      "claim_schema": 2,
+      "path_operations": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-h1r04-currentness-acceptance-architecture-r3-20260904.json": "create"
+      },
+      "baseline_absences": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-h1r04-currentness-acceptance-architecture-r3-20260904.json": {
+          "kind": "absent",
+          "parent": "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence"
+        }
+      },
+      "claim_id": "ABC-GO-H1R04-CENSUS-PORTABLE-CTIME-ARCHITECTURE-R3-20260904",
+      "run_id": "ABC-GO-OPEN-WORK-10H-20260904T121722+0200",
+      "owner": "root",
+      "state": "released",
+      "allowed_paths": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-h1r04-currentness-acceptance-architecture-r3-20260904.json"
+      ],
+      "hotfiles": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-h1r04-currentness-acceptance-architecture-20260904.json",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-h1r04-currentness-acceptance-architecture-r2-20260904.json",
+        "c:\\users\\nkatz\\odysseus\\scripts\\audit_harbour_knowledge_state_census.py",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_audit_harbour_knowledge_state_census.py",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-h1r-04-state-census-manifest.json"
+      ],
+      "read_only_pins": [
+        "docs/plans/evidence/abc-h1r04-currentness-acceptance-architecture-20260904.json@0d8a29f451b0d971b059851a704ec302b77a44f4",
+        "docs/plans/evidence/abc-h1r04-currentness-acceptance-architecture-r2-20260904.json@dc322b1e46e1d1db50a0fd9afba7f9ec443c5289",
+        "scripts/audit_harbour_knowledge_state_census.py@3cf4c8660d1fce6140fb86b62eca52b030c3103f",
+        "tests/test_audit_harbour_knowledge_state_census.py@c030eea9c96d52dd14366879327dd8cf7e48f16b",
+        "docs/plans/harbour-one-h1r-04-state-census-manifest.json@36acb2c3d115d7414bd4711f57c6175a11cfab24"
+      ],
+      "regression_tests": [
+        "venv\\Scripts\\python.exe -B -m json.tool docs/plans/evidence/abc-h1r04-currentness-acceptance-architecture-r3-20260904.json"
+      ],
+      "baseline_blobs": {},
+      "dispatch_token": "1a04a314c9474cabb3e1a704681bf5f9",
+      "dispatch_status": "confirmed",
+      "dispatch_attempt": 1,
+      "acquired_at": "2026-09-04T18:04:14.786628+00:00",
+      "lease_expires_at": "2026-09-04T22:17:00+02:00",
+      "worker_id": "/root",
+      "released_at": "2026-09-04T20:10:00+02:00",
+      "candidate_blobs": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-h1r04-currentness-acceptance-architecture-r3-20260904.json": "c722ba51605396aab1f7ccc63b8fc66d3b619f5b"
+      },
+      "candidate_state": "accepted_after_two_independent_adversarial_reviews",
+      "independent_review": {
+        "verdict": "PASS",
+        "reviewers": [
+          "/root/round6_membership_contract_audit",
+          "/root/round6_membership_ownership_audit"
+        ],
+        "evidence": "Final R3 precisely separates portable cross-view fields from channel-local ctime, retains POSIX cross-view ctime, preserves complete mode checks, and honestly scopes the unobservable Windows ACL-only pre-handle transition to the inherited trusted-checkout threat boundary."
+      }
+    },
+    {
+      "claim_schema": 2,
+      "path_operations": {
+        "c:\\users\\nkatz\\odysseus\\scripts\\audit_harbour_knowledge_state_census.py": "modify",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-h1r-04-state-census-manifest.json": "modify",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_audit_harbour_knowledge_state_census.py": "modify"
+      },
+      "baseline_absences": {},
+      "claim_id": "ABC-GO-H1R04-CENSUS-CONTROL-PLANE-DECOUPLING-IMPLEMENTATION-R2-20260904",
+      "run_id": "ABC-GO-OPEN-WORK-10H-20260904T121722+0200",
+      "owner": "root",
+      "state": "released",
+      "allowed_paths": [
+        "c:\\users\\nkatz\\odysseus\\scripts\\audit_harbour_knowledge_state_census.py",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_audit_harbour_knowledge_state_census.py",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-h1r-04-state-census-manifest.json"
+      ],
+      "hotfiles": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-h1r04-currentness-acceptance-architecture-20260904.json",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-h1r04-currentness-acceptance-architecture-r2-20260904.json",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-h1r04-currentness-acceptance-architecture-r3-20260904.json",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-product-roadmap.json",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-h1r-04-current-boundary-reconciliation-2026-08-30.json",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-user-decision-durable-state-2026-08-30.json",
+        "c:\\users\\nkatz\\odysseus\\src\\memory.py",
+        "c:\\users\\nkatz\\odysseus\\src\\personal_docs.py",
+        "c:\\users\\nkatz\\odysseus\\src\\causal_claim_store.py",
+        "c:\\users\\nkatz\\odysseus\\src\\memory_vector.py",
+        "c:\\users\\nkatz\\odysseus\\src\\rag_vector.py",
+        "c:\\users\\nkatz\\odysseus\\src\\unified_source_index_sqlite.py",
+        "c:\\users\\nkatz\\odysseus\\src\\unified_source_index_raptor.py",
+        "c:\\users\\nkatz\\odysseus\\src\\universal_inbox_raptorgraph_store.py",
+        "c:\\users\\nkatz\\odysseus\\src\\codebase_memory_process.py",
+        "c:\\users\\nkatz\\odysseus\\src\\native_knowledge_store.py",
+        "c:\\users\\nkatz\\odysseus\\src\\memory_provider.py",
+        "c:\\users\\nkatz\\odysseus\\src\\memory_runtime_metrics.py",
+        "c:\\users\\nkatz\\odysseus\\src\\coding_agent_runner_state.py",
+        "c:\\users\\nkatz\\odysseus\\src\\headless_write_agent_state.py",
+        "c:\\users\\nkatz\\odysseus\\src\\sandbox_job_ledger.py",
+        "c:\\users\\nkatz\\odysseus\\src\\execution_authority_ledger.py",
+        "c:\\users\\nkatz\\odysseus\\src\\agent_run_ledger.py",
+        "c:\\users\\nkatz\\odysseus\\src\\harbour_knowledge_store.py",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_harbour_knowledge_store.py",
+        "c:\\users\\nkatz\\odysseus\\src\\harbour_knowledge_staging_destination.py",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_harbour_knowledge_staging_destination.py",
+        "c:\\users\\nkatz\\odysseus\\src\\unified_source_index_sources\\knowledge.py",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_unified_source_index_knowledge_source.py",
+        "c:\\users\\nkatz\\odysseus\\src\\harbour_snapshot_comparison.py",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_harbour_snapshot_comparison.py",
+        "c:\\users\\nkatz\\odysseus\\src\\import_export_migration_proof.py",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_import_export_migration_proof.py"
+      ],
+      "read_only_pins": [
+        "docs/plans/evidence/abc-h1r04-currentness-acceptance-architecture-20260904.json@0d8a29f451b0d971b059851a704ec302b77a44f4",
+        "docs/plans/evidence/abc-h1r04-currentness-acceptance-architecture-r2-20260904.json@dc322b1e46e1d1db50a0fd9afba7f9ec443c5289",
+        "docs/plans/evidence/abc-h1r04-currentness-acceptance-architecture-r3-20260904.json@c722ba51605396aab1f7ccc63b8fc66d3b619f5b",
+        "docs/plans/harbour-one-product-roadmap.json@f60717babc099990d670605366b1c0bff74b0a2e",
+        "docs/plans/harbour-one-h1r-04-current-boundary-reconciliation-2026-08-30.json@ab0bebf45fb06b242ac6b5b2dc5052b852d53830",
+        "docs/plans/harbour-one-user-decision-durable-state-2026-08-30.json@e9b49466bd5d6cdff89d88debfa1acaf860c9d2e",
+        "src/memory.py@c27ed54ad3b1d2048c5215ba5df549052a091b4d",
+        "src/personal_docs.py@e75021299fa56a44d68b11f91a3e8bc727a8446c",
+        "src/causal_claim_store.py@8223f1d24bf8a7bfb7cfead5e7a3ef86257b9451",
+        "src/memory_vector.py@a30a198d4527ec532d60d4a6bc2b6dcc22a46269",
+        "src/rag_vector.py@ecd9f48b5d589162e2958139872e54f3051f2eb5",
+        "src/unified_source_index_sqlite.py@28de8a45424fead0eab133d42d2449303982997f",
+        "src/unified_source_index_raptor.py@bda910a40f677cfdd0377b99be841d2c2cef1d1b",
+        "src/universal_inbox_raptorgraph_store.py@c374b9b3435e9679c2674e250d785f0f27ae9109",
+        "src/codebase_memory_process.py@c4bcc81cbd77f2d5922a9362e5b106c7af4853e8",
+        "src/native_knowledge_store.py@1691aff9e343e8b4269062d1a801a15dd2d2e857",
+        "src/memory_provider.py@3a33d569bb0f855afb8c56ea2dbcfbafa3ec308e",
+        "src/memory_runtime_metrics.py@cea4bdc20965f113bf8b4a9b4fc931184d72615f",
+        "src/coding_agent_runner_state.py@854007b063a2b765694cb192b8705a4fd629364a",
+        "src/headless_write_agent_state.py@1078c737396776efdfb06867973078de2de74be2",
+        "src/sandbox_job_ledger.py@0c649d33b5404e5c94f7930d6bfcf5a7d228e9de",
+        "src/execution_authority_ledger.py@8dfe41c902d32f19d70de021f452ffa4e1ad33ae",
+        "src/agent_run_ledger.py@4828779a48a16a5b8efbdd61c8310fe16f3ce44f",
+        "src/harbour_knowledge_store.py@a08286d0f402c29c726e32f1d3122749cd8b87d1",
+        "tests/test_harbour_knowledge_store.py@c7bd801c6ff63ea0dfbeacbe48ef9e1a1dbb8bd4",
+        "src/harbour_knowledge_staging_destination.py@7d1cd0fe57bbbe2645b9fb5d7286b28d7c1674d7",
+        "tests/test_harbour_knowledge_staging_destination.py@cc882e5a231701b5732e510d3aa439ac51e7e586",
+        "src/unified_source_index_sources/knowledge.py@76756dafb6b890fdc3417997ff3690a8e87f4bc2",
+        "tests/test_unified_source_index_knowledge_source.py@f22e128a523448fbf639d4cb2be947f258bbf93e",
+        "src/harbour_snapshot_comparison.py@2f5aaf325a956201bfd2b1348d2d3530d92c6898",
+        "tests/test_harbour_snapshot_comparison.py@52679818eb766ebe6ec3b53eeac542950b19fbc4",
+        "src/import_export_migration_proof.py@b7bf60a88ae493f02e7d3ca41bf0a7b8d15ef837",
+        "tests/test_import_export_migration_proof.py@15163086e7aa161a513289ef5ba53fcf2d9fbdad"
+      ],
+      "regression_tests": [
+        "venv\\Scripts\\python.exe -B -m pytest -q -p no:cacheprovider --noconftest tests/test_audit_harbour_knowledge_state_census.py --basetemp C:\\Users\\nkatz\\Documents\\abc-h1r04-census-r3-tests-20260904 --disable-warnings --tb=short",
+        "venv\\Scripts\\python.exe -B scripts/audit_harbour_knowledge_state_census.py --manifest docs/plans/harbour-one-h1r-04-state-census-manifest.json --format json --expect-unclassified",
+        "venv\\Scripts\\python.exe -B -m pytest -q -p no:cacheprovider --noconftest tests/test_harbour_knowledge_store.py tests/test_harbour_knowledge_staging_destination.py tests/test_harbour_authority.py tests/test_unified_source_index_knowledge_source.py tests/test_harbour_snapshot_comparison.py tests/test_import_export_migration_proof.py --basetemp C:\\Users\\nkatz\\Documents\\abc-h1r04-census-r3-dependency-20260904 --disable-warnings --tb=short"
+      ],
+      "baseline_blobs": {
+        "c:\\users\\nkatz\\odysseus\\scripts\\audit_harbour_knowledge_state_census.py": "3cf4c8660d1fce6140fb86b62eca52b030c3103f",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-h1r-04-state-census-manifest.json": "36acb2c3d115d7414bd4711f57c6175a11cfab24",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_audit_harbour_knowledge_state_census.py": "c030eea9c96d52dd14366879327dd8cf7e48f16b"
+      },
+      "dispatch_token": "42f668557f19410fb542d26b47055720",
+      "dispatch_status": "confirmed",
+      "dispatch_attempt": 1,
+      "acquired_at": "2026-09-04T18:08:29.193271+00:00",
+      "lease_expires_at": "2026-09-04T22:17:00+02:00",
+      "worker_id": "/root",
+      "released_at": "2026-09-04T20:27:00+02:00",
+      "candidate_blobs": {
+        "c:\\users\\nkatz\\odysseus\\scripts\\audit_harbour_knowledge_state_census.py": "aacebb2a1bd0fc95619bc819fe0f29618e10eca8",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_audit_harbour_knowledge_state_census.py": "709a3b8d5f09fea5ed0c237c0b3f7bb216644441",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-h1r-04-state-census-manifest.json": "dc0c253045888053ab4d717e4468673d4ddfa16a"
+      },
+      "candidate_state": "accepted_portable_control_plane_decoupling_after_two_independent_reviews_and_reflect",
+      "acceptance": {
+        "review": "two_independent_exact_blob_passes_plus_recovery_reflect",
+        "reviewers": [
+          "/root/round6_membership_contract_audit",
+          "/root/round6_membership_ownership_audit",
+          "/root/round6_membership_arch_reviewer"
+        ],
+        "focused_tests": "47 passed",
+        "dependency_tests": "500 passed",
+        "validators": "Census expected-unclassified, default rejection, manifest JSON, Round6, Integration Spine and Guidance PASS",
+        "discovery": "4049 denominator files; 1646 candidates; 17 exact state-bearing seeds; 1629 exact unclassified records; member digest 281bf9f5cc651e79b08e1a0baf3b669923576614fbc272b072dd71a6686088e0.",
+        "control_plane_boundary": "Only the exact canonical run record is excluded after safe read, strict schema and type-exact fixed-value validation; sibling handoff files remain discoverable.",
+        "portable_identity": "Complete mode and stable cross-view fields are exact; ctime is channel-local on Windows and additionally cross-view on POSIX; executable exact records fail on every platform.",
+        "product_status": "H1R-04 remains product-pending; semantic AST/caller discovery is the next separate slice.",
+        "post_release_stability": "After release changed the excluded canonical run record, expected-unclassified remained exit 0 and default remained exit 2 with identical 4049/1646/17/1629 counts and member digest 281bf9f5cc651e79b08e1a0baf3b669923576614fbc272b072dd71a6686088e0."
+      }
+    },
+    {
+      "claim_schema": 2,
+      "path_operations": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-h1r04-ast-caller-discovery-architecture-20260904.json": "create"
+      },
+      "baseline_absences": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-h1r04-ast-caller-discovery-architecture-20260904.json": true
+      },
+      "claim_id": "ABC-GO-H1R04-AST-CALLER-DISCOVERY-ARCHITECTURE-R1-20260904",
+      "run_id": "ABC-GO-OPEN-WORK-10H-20260904T121722+0200",
+      "owner": "root",
+      "state": "released_rejected",
+      "allowed_paths": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-h1r04-ast-caller-discovery-architecture-20260904.json"
+      ],
+      "hotfiles": [
+        "c:\\users\\nkatz\\odysseus\\scripts\\audit_harbour_knowledge_state_census.py",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_audit_harbour_knowledge_state_census.py",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-h1r-04-state-census-manifest.json",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-h1r04-currentness-acceptance-architecture-r3-20260904.json",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-product-roadmap.json"
+      ],
+      "read_only_pins": [
+        "scripts/audit_harbour_knowledge_state_census.py@aacebb2a1bd0fc95619bc819fe0f29618e10eca8",
+        "tests/test_audit_harbour_knowledge_state_census.py@709a3b8d5f09fea5ed0c237c0b3f7bb216644441",
+        "docs/plans/harbour-one-h1r-04-state-census-manifest.json@dc0c253045888053ab4d717e4468673d4ddfa16a",
+        "docs/plans/evidence/abc-h1r04-currentness-acceptance-architecture-r3-20260904.json@c722ba51605396aab1f7ccc63b8fc66d3b619f5b",
+        "docs/plans/harbour-one-product-roadmap.json@f60717babc099990d670605366b1c0bff74b0a2e"
+      ],
+      "regression_tests": [
+        "venv\\Scripts\\python.exe -B -m json.tool docs/plans/evidence/abc-h1r04-ast-caller-discovery-architecture-20260904.json",
+        "git hash-object --no-filters -- docs/plans/evidence/abc-h1r04-ast-caller-discovery-architecture-20260904.json",
+        "two independent read-only architecture reviews"
+      ],
+      "baseline_blobs": {},
+      "dispatch_token": "059ec342ab4b4ae7b61be90f8542f575",
+      "dispatch_status": "confirmed",
+      "dispatch_attempt": 1,
+      "acquired_at": "2026-09-04T20:29:37.4890542+02:00",
+      "lease_expires_at": "2026-09-04T22:17:00+02:00",
+      "worker_id": "/root",
+      "released_at": "2026-09-04T20:37:00+02:00",
+      "candidate_blobs": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-h1r04-ast-caller-discovery-architecture-20260904.json": "d9f8638735c9af7b832c89fccb786d3556d6857e"
+      },
+      "candidate_state": "rejected_after_independent_architecture_review",
+      "review_findings": "Current-tree invalid module names, unspecified effective digest, incomplete uncertainty propagation, ambiguous namespace nodes, open dynamic-import and TYPE_CHECKING binding semantics, and missing terminal inventory/blob recapture."
+    },
+    {
+      "claim_schema": 2,
+      "path_operations": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-h1r04-ast-caller-discovery-architecture-r2-20260904.json": "create"
+      },
+      "baseline_absences": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-h1r04-ast-caller-discovery-architecture-r2-20260904.json": true
+      },
+      "claim_id": "ABC-GO-H1R04-AST-CALLER-DISCOVERY-ARCHITECTURE-R2-20260904",
+      "run_id": "ABC-GO-OPEN-WORK-10H-20260904T121722+0200",
+      "owner": "root",
+      "state": "released_rejected",
+      "allowed_paths": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-h1r04-ast-caller-discovery-architecture-r2-20260904.json"
+      ],
+      "hotfiles": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-h1r04-ast-caller-discovery-architecture-20260904.json",
+        "c:\\users\\nkatz\\odysseus\\scripts\\audit_harbour_knowledge_state_census.py",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_audit_harbour_knowledge_state_census.py",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-h1r-04-state-census-manifest.json"
+      ],
+      "read_only_pins": [
+        "docs/plans/evidence/abc-h1r04-ast-caller-discovery-architecture-20260904.json@d9f8638735c9af7b832c89fccb786d3556d6857e",
+        "scripts/audit_harbour_knowledge_state_census.py@aacebb2a1bd0fc95619bc819fe0f29618e10eca8",
+        "tests/test_audit_harbour_knowledge_state_census.py@709a3b8d5f09fea5ed0c237c0b3f7bb216644441",
+        "docs/plans/harbour-one-h1r-04-state-census-manifest.json@dc0c253045888053ab4d717e4468673d4ddfa16a"
+      ],
+      "regression_tests": [
+        "venv\\Scripts\\python.exe -B -m json.tool docs/plans/evidence/abc-h1r04-ast-caller-discovery-architecture-r2-20260904.json",
+        "git hash-object --no-filters -- docs/plans/evidence/abc-h1r04-ast-caller-discovery-architecture-r2-20260904.json",
+        "two independent read-only architecture reviews"
+      ],
+      "baseline_blobs": {},
+      "dispatch_token": "f8bd61fae08f484facc49a5be5750675",
+      "dispatch_status": "confirmed",
+      "dispatch_attempt": 1,
+      "acquired_at": "2026-09-04T20:37:12.1363891+02:00",
+      "lease_expires_at": "2026-09-04T22:17:00+02:00",
+      "worker_id": "/root",
+      "released_at": "2026-09-04T20:43:00+02:00",
+      "candidate_blobs": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-h1r04-ast-caller-discovery-architecture-r2-20260904.json": "59c6f1dc3934b77032658ae1664cf6fa2b71de74"
+      },
+      "candidate_state": "rejected_after_independent_architecture_review",
+      "review_findings": "Relative import ascent was off by one and lacked initializer context; file-backed ancestor package initializers had no execution edges; loader alias trust across lexical scopes was underspecified."
+    },
+    {
+      "claim_schema": 2,
+      "path_operations": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-h1r04-ast-caller-discovery-architecture-r3-20260904.json": "create"
+      },
+      "baseline_absences": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-h1r04-ast-caller-discovery-architecture-r3-20260904.json": true
+      },
+      "claim_id": "ABC-GO-H1R04-AST-CALLER-DISCOVERY-ARCHITECTURE-R3-20260904",
+      "run_id": "ABC-GO-OPEN-WORK-10H-20260904T121722+0200",
+      "owner": "root",
+      "state": "released_rejected",
+      "allowed_paths": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-h1r04-ast-caller-discovery-architecture-r3-20260904.json"
+      ],
+      "hotfiles": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-h1r04-ast-caller-discovery-architecture-20260904.json",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-h1r04-ast-caller-discovery-architecture-r2-20260904.json",
+        "c:\\users\\nkatz\\odysseus\\scripts\\audit_harbour_knowledge_state_census.py",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_audit_harbour_knowledge_state_census.py",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-h1r-04-state-census-manifest.json"
+      ],
+      "read_only_pins": [
+        "docs/plans/evidence/abc-h1r04-ast-caller-discovery-architecture-20260904.json@d9f8638735c9af7b832c89fccb786d3556d6857e",
+        "docs/plans/evidence/abc-h1r04-ast-caller-discovery-architecture-r2-20260904.json@59c6f1dc3934b77032658ae1664cf6fa2b71de74",
+        "scripts/audit_harbour_knowledge_state_census.py@aacebb2a1bd0fc95619bc819fe0f29618e10eca8",
+        "tests/test_audit_harbour_knowledge_state_census.py@709a3b8d5f09fea5ed0c237c0b3f7bb216644441",
+        "docs/plans/harbour-one-h1r-04-state-census-manifest.json@dc0c253045888053ab4d717e4468673d4ddfa16a"
+      ],
+      "regression_tests": [
+        "venv\\Scripts\\python.exe -B -m json.tool docs/plans/evidence/abc-h1r04-ast-caller-discovery-architecture-r3-20260904.json",
+        "git hash-object --no-filters -- docs/plans/evidence/abc-h1r04-ast-caller-discovery-architecture-r3-20260904.json",
+        "two independent read-only architecture reviews"
+      ],
+      "baseline_blobs": {},
+      "dispatch_token": "e9eedfc1719446ea9d04cffc127ff31b",
+      "dispatch_status": "confirmed",
+      "dispatch_attempt": 1,
+      "acquired_at": "2026-09-04T20:42:55.9373216+02:00",
+      "lease_expires_at": "2026-09-04T22:17:00+02:00",
+      "worker_id": "/root",
+      "released_at": "2026-09-04T20:47:00+02:00",
+      "candidate_blobs": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-h1r04-ast-caller-discovery-architecture-r3-20260904.json": "9a853ac835a8fd8529a9b9ce57c23c04c52823ce"
+      },
+      "candidate_state": "rejected_after_independent_architecture_review",
+      "review_findings": "R3 treated a new package-initializer field as a mandatory replacement of a missing R2 key, and accepted equality at the relative-import traversal boundary where Python rejects beyond-top-level traversal."
+    },
+    {
+      "claim_schema": 2,
+      "path_operations": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-h1r04-ast-caller-discovery-architecture-r4-20260904.json": "create"
+      },
+      "baseline_absences": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-h1r04-ast-caller-discovery-architecture-r4-20260904.json": true
+      },
+      "claim_id": "ABC-GO-H1R04-AST-CALLER-DISCOVERY-ARCHITECTURE-R4-20260904",
+      "run_id": "ABC-GO-OPEN-WORK-10H-20260904T121722+0200",
+      "owner": "root",
+      "state": "released",
+      "allowed_paths": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-h1r04-ast-caller-discovery-architecture-r4-20260904.json"
+      ],
+      "hotfiles": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-h1r04-ast-caller-discovery-architecture-20260904.json",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-h1r04-ast-caller-discovery-architecture-r2-20260904.json",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-h1r04-ast-caller-discovery-architecture-r3-20260904.json",
+        "c:\\users\\nkatz\\odysseus\\scripts\\audit_harbour_knowledge_state_census.py",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_audit_harbour_knowledge_state_census.py",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-h1r-04-state-census-manifest.json"
+      ],
+      "read_only_pins": [
+        "docs/plans/evidence/abc-h1r04-ast-caller-discovery-architecture-20260904.json@d9f8638735c9af7b832c89fccb786d3556d6857e",
+        "docs/plans/evidence/abc-h1r04-ast-caller-discovery-architecture-r2-20260904.json@59c6f1dc3934b77032658ae1664cf6fa2b71de74",
+        "docs/plans/evidence/abc-h1r04-ast-caller-discovery-architecture-r3-20260904.json@9a853ac835a8fd8529a9b9ce57c23c04c52823ce",
+        "scripts/audit_harbour_knowledge_state_census.py@aacebb2a1bd0fc95619bc819fe0f29618e10eca8",
+        "tests/test_audit_harbour_knowledge_state_census.py@709a3b8d5f09fea5ed0c237c0b3f7bb216644441",
+        "docs/plans/harbour-one-h1r-04-state-census-manifest.json@dc0c253045888053ab4d717e4468673d4ddfa16a"
+      ],
+      "regression_tests": [
+        "venv\\Scripts\\python.exe -B -m json.tool docs/plans/evidence/abc-h1r04-ast-caller-discovery-architecture-r4-20260904.json",
+        "git hash-object --no-filters -- docs/plans/evidence/abc-h1r04-ast-caller-discovery-architecture-r4-20260904.json",
+        "two independent read-only architecture reviews"
+      ],
+      "baseline_blobs": {},
+      "dispatch_token": "c6f4741dde2e477b98f9cecc92c9ec0a",
+      "dispatch_status": "confirmed",
+      "dispatch_attempt": 1,
+      "acquired_at": "2026-09-04T20:46:38.0253731+02:00",
+      "lease_expires_at": "2026-09-04T22:17:00+02:00",
+      "worker_id": "/root",
+      "released_at": "2026-09-04T20:52:00+02:00",
+      "candidate_blobs": {
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-h1r04-ast-caller-discovery-architecture-r4-20260904.json": "ab1008ce5ec0892da34696eb7f7bfaee2965c688"
+      },
+      "candidate_state": "accepted_after_three_independent_exact_blob_reviews",
+      "acceptance": "Exact merge, relative boundary, initializer edges, scope binding, inherited digest, recapture, seven positives, schema-2, unclassified-only and no-live gates passed."
+    },
+    {
+      "claim_schema": 2,
+      "path_operations": {
+        "c:\\users\\nkatz\\odysseus\\scripts\\audit_harbour_knowledge_state_census.py": "modify",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_audit_harbour_knowledge_state_census.py": "modify",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-h1r-04-state-census-manifest.json": "modify"
+      },
+      "baseline_absences": {},
+      "claim_id": "ABC-GO-H1R04-AST-CALLER-DISCOVERY-IMPLEMENTATION-R1-20260904",
+      "run_id": "ABC-GO-OPEN-WORK-10H-20260904T121722+0200",
+      "owner": "root",
+      "state": "released_rejected",
+      "allowed_paths": [
+        "c:\\users\\nkatz\\odysseus\\scripts\\audit_harbour_knowledge_state_census.py",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_audit_harbour_knowledge_state_census.py",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-h1r-04-state-census-manifest.json"
+      ],
+      "hotfiles": [
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-h1r04-ast-caller-discovery-architecture-r4-20260904.json",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-product-roadmap.json"
+      ],
+      "read_only_pins": [
+        "docs/plans/evidence/abc-h1r04-ast-caller-discovery-architecture-20260904.json@d9f8638735c9af7b832c89fccb786d3556d6857e",
+        "docs/plans/evidence/abc-h1r04-ast-caller-discovery-architecture-r2-20260904.json@59c6f1dc3934b77032658ae1664cf6fa2b71de74",
+        "docs/plans/evidence/abc-h1r04-ast-caller-discovery-architecture-r3-20260904.json@9a853ac835a8fd8529a9b9ce57c23c04c52823ce",
+        "docs/plans/evidence/abc-h1r04-ast-caller-discovery-architecture-r4-20260904.json@ab1008ce5ec0892da34696eb7f7bfaee2965c688",
+        "docs/plans/harbour-one-product-roadmap.json@f60717babc099990d670605366b1c0bff74b0a2e"
+      ],
+      "regression_tests": [
+        "focused census tests including all R2/R4 hostile vectors",
+        "real discovery and manifest expected-unclassified/default validation",
+        "500 dependency tests",
+        "Round6, Integration Spine and Guidance validators",
+        "two independent exact-blob implementation reviews"
+      ],
+      "baseline_blobs": {
+        "c:\\users\\nkatz\\odysseus\\scripts\\audit_harbour_knowledge_state_census.py": "aacebb2a1bd0fc95619bc819fe0f29618e10eca8",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_audit_harbour_knowledge_state_census.py": "709a3b8d5f09fea5ed0c237c0b3f7bb216644441",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-h1r-04-state-census-manifest.json": "dc0c253045888053ab4d717e4468673d4ddfa16a"
+      },
+      "dispatch_token": "61c4d0ef65b74098b5d9fbc0d023770a",
+      "dispatch_status": "confirmed",
+      "dispatch_attempt": 1,
+      "acquired_at": "2026-09-04T20:52:00+02:00",
+      "lease_expires_at": "2026-09-04T22:17:00+02:00",
+      "worker_id": "/root",
+      "released_at": "2026-09-04T22:08:00+02:00",
+      "candidate_blobs": {
+        "c:\\users\\nkatz\\odysseus\\scripts\\audit_harbour_knowledge_state_census.py": "41ebcf3a58eddc8d47cf156587933d511e69e459",
+        "c:\\users\\nkatz\\odysseus\\tests\\test_audit_harbour_knowledge_state_census.py": "ed26f1191cda65b23c8acc572ea32f7a4f0659fb",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-h1r-04-state-census-manifest.json": "3b534d048c36775c24e97efe12f4c6cfffb7e2bb"
+      },
+      "candidate_state": "rejected_incomplete_mandatory_hostile_test_contract",
+      "acceptance": {
+        "review": "architecture_and_ownership_pass_but_independent_contract_audit_fail",
+        "reviewers": [
+          "/root/round6_membership_arch_reviewer",
+          "/root/round6_membership_ownership_audit"
+        ],
+        "focused_tests": "57 passed including real default CLI exit code 2",
+        "dependency_tests": "500 passed",
+        "validators": "Census expected-unclassified, manifest JSON, Round6, Integration Spine and Guidance PASS",
+        "discovery": "4053 denominator files; 1859 candidates; 17 exact state-bearing seeds; 1842 exact unclassified records; member digest 548840efd5f0090a11897284f0df349f3928a37921690e971caa98cab8a6ce5e.",
+        "semantic_boundary": "R4 exact merge, module and initializer graph, lexical binding, TYPE_CHECKING fixpoint, dynamic loader handling, reverse uncertainty propagation and terminal inventory/blob recapture accepted.",
+        "no_live_effects": "Read-only census only; no classification authority, migration, USI activation, provider/network access, private-data read, deletion, deployment or push.",
+        "contract_blocker": "Mandatory R4/R2 hostile tests are incomplete: merge preconditions, exact relative vectors, synthetic namespace negative, nonlocal/multiple/pattern bindings, inherited import/loader/text/fixpoint vectors, semantic raw-blob drift and zero-read-after-terminal-recapture proof.",
+        "raw_sha256": {
+          "scripts/audit_harbour_knowledge_state_census.py": "b6a61810393a4f4d6a0ebc5fc33a20ed20afd525e22b7c085b7bc81edc63b61f",
+          "tests/test_audit_harbour_knowledge_state_census.py": "54045bb03d30dd798dee4d48dce48ea9e7fde6694a9026521fbacf32ce393bcb",
+          "docs/plans/harbour-one-h1r-04-state-census-manifest.json": "8e5579f478b637626068fd3d1f0df034684a4852aff1c20be0aedb03bf2b6785"
+        }
+      }
+    },
+    {
+      "claim_schema": 2,
+      "path_operations": {
+        "c:\\users\\nkatz\\odysseus\\tests\\test_audit_harbour_knowledge_state_census.py": "modify"
+      },
+      "baseline_absences": {},
+      "claim_id": "ABC-GO-H1R04-AST-CALLER-DISCOVERY-TESTS-RECOVERY-R1-20260904",
+      "run_id": "ABC-GO-OPEN-WORK-10H-20260904T121722+0200",
+      "owner": "root",
+      "state": "released",
+      "allowed_paths": [
+        "c:\\users\\nkatz\\odysseus\\tests\\test_audit_harbour_knowledge_state_census.py"
+      ],
+      "hotfiles": [
+        "c:\\users\\nkatz\\odysseus\\scripts\\audit_harbour_knowledge_state_census.py",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\harbour-one-h1r-04-state-census-manifest.json",
+        "c:\\users\\nkatz\\odysseus\\docs\\plans\\evidence\\abc-h1r04-ast-caller-discovery-architecture-r4-20260904.json"
+      ],
+      "read_only_pins": [
+        "scripts/audit_harbour_knowledge_state_census.py@41ebcf3a58eddc8d47cf156587933d511e69e459",
+        "tests/test_audit_harbour_knowledge_state_census.py@ed26f1191cda65b23c8acc572ea32f7a4f0659fb",
+        "docs/plans/harbour-one-h1r-04-state-census-manifest.json@3b534d048c36775c24e97efe12f4c6cfffb7e2bb",
+        "docs/plans/evidence/abc-h1r04-ast-caller-discovery-architecture-r4-20260904.json@ab1008ce5ec0892da34696eb7f7bfaee2965c688"
+      ],
+      "regression_tests": [
+        "all mandatory R4/R2 hostile vectors named by independent contract audit",
+        "full focused census suite including real default CLI exit code 2",
+        "expected-unclassified real checkout stability",
+        "independent exact-blob contract rereview"
+      ],
+      "baseline_blobs": {
+        "c:\\users\\nkatz\\odysseus\\tests\\test_audit_harbour_knowledge_state_census.py": "ed26f1191cda65b23c8acc572ea32f7a4f0659fb"
+      },
+      "dispatch_token": "9c2e8d92bfa54d739d063fd660a8b81f",
+      "dispatch_status": "confirmed",
+      "dispatch_attempt": 1,
+      "acquired_at": "2026-09-04T22:17:00+02:00",
+      "lease_expires_at": "2026-09-04T23:30:00+02:00",
+      "worker_id": "/root",
+      "released_at": "2026-09-04T22:27:00+02:00",
+      "candidate_blobs": {
+        "c:\\users\\nkatz\\odysseus\\tests\\test_audit_harbour_knowledge_state_census.py": "d2fbc2e3b36d7f00f6bcd3c4fcca81cb4c26f6ac"
+      },
+      "candidate_state": "accepted_tests_only_contract_recovery_after_independent_rereview",
+      "acceptance": {
+        "review": "prior_contract_fail_repaired_then_exact_blob_contract_and_ownership_pass",
+        "reviewers": [
+          "/root/round6_membership_contract_audit",
+          "/root/round6_membership_ownership_audit"
+        ],
+        "targeted_new_gates": "20 passed, 57 deselected",
+        "focused_tests": "77 passed in 95.08s including real expected-unclassified rc0 and default rc2",
+        "dependency_tests": "500 passed in 64.41s",
+        "census_stability": "4053 denominator files; 1859 candidates; 17 classified; 1842 unclassified; unchanged member digest 548840efd5f0090a11897284f0df349f3928a37921690e971caa98cab8a6ce5e.",
+        "unchanged_product_blobs": "scanner 41ebcf3a58eddc8d47cf156587933d511e69e459; manifest 3b534d048c36775c24e97efe12f4c6cfffb7e2bb.",
+        "raw_sha256": "505e57113216dada692263f3c0dc7a6c6a16b7edb8b06a250df2b28a727ca1c7",
+        "scope": "Test file only; no source, manifest, migration, activation, provider/network, private-data, deletion, deployment or push effect."
+      }
+    }
+  ],
+  "agent_leases": [
+    {
+      "claim_id": "ABC-OW-H1R05A-CONTRACT-CURRENTNESS-20260904",
+      "owner": "root/openwork_h1r05a_contract",
+      "dispatch_token": "a17b01b8a46342d380aba8fb4dc1c938",
+      "state": "released",
+      "lease_expires_at": "2026-09-04T14:17:22+02:00",
+      "worker_id": "/root/openwork_h1r05a_contract"
+    },
+    {
+      "claim_id": "ABC-OW-H1R05B-ARCHITECTURE-CURRENTNESS-20260904",
+      "owner": "root/openwork_h1r05b_architecture",
+      "dispatch_token": "0a8c1509c0be422dbed1ccc20954ff93",
+      "state": "released",
+      "lease_expires_at": "2026-09-04T11:55:45.3974454Z",
+      "worker_id": "/root/openwork_h1r05b_architecture"
+    },
+    {
+      "claim_id": "ABC-OW-H1R05C-ARCHITECTURE-CURRENTNESS-20260904",
+      "owner": "root/openwork_h1r05c_architecture",
+      "dispatch_token": "4d2e16ab31034fc295abe71a1aeac260",
+      "state": "released",
+      "lease_expires_at": "2026-09-04T12:04:00.5986591Z",
+      "worker_id": "/root/openwork_h1r05c_architecture"
+    },
+    {
+      "claim_id": "ABC-OW-H1R05C-ISOLATED-ARCHITECTURE-20260904",
+      "owner": "root/openwork_h1r05c_isolated_architecture",
+      "dispatch_token": "e42952ec0514438783b589ce6d086540",
+      "state": "released",
+      "lease_expires_at": "2026-09-04T12:12:53.3482491Z",
+      "worker_id": "/root/openwork_h1r05c_isolated_architecture"
+    },
+    {
+      "claim_id": "ABC-OW-H1R05C-ISOLATED-IMPLEMENTATION-20260904",
+      "owner": "root/openwork_h1r05c_isolated_implementation",
+      "dispatch_token": "39558297afc0410b843eced0afc72c7b",
+      "state": "released_blocked",
+      "lease_expires_at": "2026-09-04T12:49:05.4815722Z",
+      "worker_id": "/root/openwork_h1r05c_isolated_implementation"
+    },
+    {
+      "claim_id": "ABC-OW-H1R05C-ISOLATED-TESTS-CORRECTION-20260904",
+      "owner": "root/openwork_h1r05c_isolated_tests_correction",
+      "dispatch_token": "f4762c1f0ffc4486b65584404f2f3a78",
+      "state": "released_blocked",
+      "lease_expires_at": "2026-09-04T12:19:09.9038656Z",
+      "worker_id": "/root/openwork_h1r05c_isolated_tests_correction"
+    },
+    {
+      "claim_id": "ABC-OW-H1R05C-ISOLATED-TESTS-PROOF-CORRECTION-20260904",
+      "owner": "root/openwork_h1r05c_isolated_tests_proof_correction",
+      "dispatch_token": "cae6f367515a443293234df15c2f4824",
+      "state": "released_blocked",
+      "lease_expires_at": "2026-09-04T12:28:34.5964089Z",
+      "worker_id": "/root/openwork_h1r05c_isolated_tests_proof_correction"
+    },
+    {
+      "claim_id": "ABC-OW-H1R05C-ISOLATED-API-PROOF-RECOVERY-20260904",
+      "owner": "root/openwork_h1r05c_isolated_api_proof_recovery",
+      "dispatch_token": "46ea7fd646ca40f4aed6190107b6137a",
+      "state": "released",
+      "lease_expires_at": "2026-09-04T12:53:47.3555601Z",
+      "worker_id": "/root/openwork_h1r05c_isolated_api_proof_recovery"
+    },
+    {
+      "claim_id": "ABC-OW-H1R05-OFFLINE-ARCHITECTURE-ISOLATED-C-RECONCILIATION-20260904",
+      "owner": "root/openwork_h1r05_offline_architecture_reconciliation",
+      "dispatch_token": "1f47b075f269484a8adbf6fdce515d6e",
+      "state": "released_blocked",
+      "lease_expires_at": "2026-09-04T13:12:50.1164707Z",
+      "worker_id": "/root/openwork_h1r05_offline_architecture_reconciliation"
+    },
+    {
+      "claim_id": "ABC-OW-H1R05C-ARCHITECTURE-ACCEPTANCE-STATUS-20260904",
+      "owner": "root/openwork_h1r05c_architecture_acceptance_status",
+      "dispatch_token": "2256393968614c789155bbdd03a2534f",
+      "state": "released",
+      "lease_expires_at": "2026-09-04T12:58:48.0497894Z",
+      "worker_id": "/root/openwork_h1r05c_architecture_acceptance_status"
+    },
+    {
+      "claim_id": "ABC-OW-H1R05-OFFLINE-ARCHITECTURE-C-ACCEPTANCE-PIN-20260904",
+      "owner": "root/openwork_h1r05_offline_architecture_c_acceptance_pin",
+      "dispatch_token": "42b774795da64da3a1e1732e4c653bc4",
+      "state": "released",
+      "lease_expires_at": "2026-09-04T12:47:41.8629426Z",
+      "worker_id": "/root/openwork_h1r05_offline_architecture_c_acceptance_pin"
+    },
+    {
+      "claim_id": "ABC-OW-H1R05-OFFLINE-ARCHITECTURE-ACCEPTANCE-STATUS-20260904",
+      "owner": "root/openwork_h1r05_offline_architecture_acceptance_status",
+      "dispatch_token": "42a442aaf90242cabea33ae3da71b04d",
+      "state": "released",
+      "lease_expires_at": "2026-09-04T22:17:00+02:00",
+      "worker_id": "/root/openwork_h1r05_offline_architecture_c_acceptance_pin"
+    },
+    {
+      "claim_id": "ABC-OW-H1R05A-CONTRACT-ACCEPTANCE-STATUS-20260904",
+      "owner": "root/openwork_h1r05a_contract_acceptance_status",
+      "dispatch_token": "a8add1e1fecf408daeab61707a28434e",
+      "state": "released",
+      "lease_expires_at": "2026-09-04T22:17:00+02:00",
+      "worker_id": "/root/openwork_h1r05_offline_architecture_c_acceptance_pin"
+    },
+    {
+      "claim_id": "ABC-OW-H1R05B-ARCHITECTURE-A-ACCEPTANCE-PIN-20260904",
+      "owner": "root/openwork_h1r05b_architecture_a_acceptance_pin",
+      "dispatch_token": "ecf5f63311944f6da45e329af7bb345c",
+      "state": "released",
+      "lease_expires_at": "2026-09-04T22:17:00+02:00",
+      "worker_id": "/root/openwork_h1r05_offline_architecture_c_acceptance_pin"
+    },
+    {
+      "claim_id": "ABC-OW-H1R05B-ARCHITECTURE-ACCEPTANCE-STATUS-20260904",
+      "owner": "root/openwork_h1r05b_architecture_acceptance_status",
+      "dispatch_token": "5e9b1b7f32024fb0991b0ca64d69da50",
+      "state": "released",
+      "lease_expires_at": "2026-09-04T22:17:00+02:00",
+      "worker_id": "/root/openwork_h1r05_offline_architecture_c_acceptance_pin"
+    },
+    {
+      "claim_id": "ABC-OW-ROADMAP-AUDIT-ACCEPTED-LEDGER-20260904",
+      "owner": "root/roadmap_audit_accepted_ledger",
+      "dispatch_token": "cfeb50cddd434a999b055d15f6c04e67",
+      "state": "released_blocked",
+      "lease_expires_at": "2026-09-04T22:17:00+02:00",
+      "worker_id": "/root/roadmap_audit_accepted_ledger"
+    },
+    {
+      "claim_id": "ABC-OW-ROADMAP-AUDIT-ACCEPTED-LEDGER-R2-20260904",
+      "owner": "root/roadmap_audit_accepted_ledger_r2",
+      "dispatch_token": "dc474cf94e384a11add36eeb38c78b02",
+      "state": "released",
+      "lease_expires_at": "2026-09-04T22:17:00+02:00",
+      "released_at": "2026-09-04T16:47:00+02:00"
+    },
+    {
+      "claim_id": "ABC-OW-ACPR12-FRONTIER-RECONCILE-20260904",
+      "owner": "root/acpr12_frontier_reconcile",
+      "dispatch_token": "c705c223c5da43d4923ddb6ef6b2b93d",
+      "state": "released",
+      "lease_expires_at": "2026-09-04T22:17:00+02:00",
+      "worker_id": "/root/acpr12_frontier_reconcile"
+    },
+    {
+      "claim_id": "ABC-OW-HPIM-GATE-REFERENCE-RECONCILE-20260904",
+      "owner": "root/hpim_gate_reference_reconcile",
+      "dispatch_token": "91452c51e8e64fb2846dd22be421f1e7",
+      "state": "released",
+      "lease_expires_at": "2026-09-04T22:17:00+02:00",
+      "worker_id": "/root/hpim_gate_reference_reconcile"
+    },
+    {
+      "claim_id": "ABC-OW-CONTINUATION-INVENTORY-AUTHORITY-POINTER-20260904",
+      "owner": "root/continuation_inventory_authority_pointer",
+      "dispatch_token": "6db848d74a4343b1b0586729f1a471b0",
+      "state": "released_blocked",
+      "lease_expires_at": "2026-09-04T22:17:00+02:00",
+      "worker_id": "/root/continuation_inventory_authority_pointer"
+    },
+    {
+      "claim_id": "ABC-OW-ACPR12-ARCHITECTURE-PRECLAIM-20260904",
+      "owner": "root/acpr12_architecture_preclaim",
+      "dispatch_token": "f1d8daec0f0f400998f0dd7d4fa58867",
+      "state": "released",
+      "lease_expires_at": "2026-09-04T22:17:00+02:00",
+      "worker_id": "/root/acpr12_architecture_preclaim"
+    },
+    {
+      "claim_id": "ABC-OW-ACPR12-ARCHITECTURE-ACCEPTANCE-STATUS-20260904",
+      "owner": "root/acpr12_architecture_acceptance_status",
+      "dispatch_token": "9413fdb8ca654a829ef6207937238be1",
+      "state": "released",
+      "lease_expires_at": "2026-09-04T22:17:00+02:00",
+      "worker_id": "/root/acpr12_architecture_acceptance_status"
+    },
+    {
+      "claim_id": "ABC-OW-ACPR12-ARCHITECTURE-ACCEPTANCE-STATUS-R2-20260904",
+      "owner": "root",
+      "dispatch_token": "d2e09a6de5df4e1cb0beeb3316b81a61",
+      "state": "released_blocked",
+      "lease_expires_at": "2026-09-04T22:17:00+02:00"
+    },
+    {
+      "claim_id": "ABC-OW-REG001-STALE-NODE-RECONCILE-20260904",
+      "owner": "root",
+      "dispatch_token": "264fe68029c7411686c7e86a9abe1868",
+      "state": "released",
+      "lease_expires_at": "2026-09-04T22:17:00+02:00",
+      "worker_id": "/root"
+    },
+    {
+      "claim_id": "ABC-GO-REG004-UTF8-STATIC-TEST-READS-20260904",
+      "owner": "root",
+      "dispatch_token": "e31df4b854b34c479f9c01056c6d7249",
+      "state": "released",
+      "lease_expires_at": "2026-09-04T22:17:00+02:00",
+      "released_at": "2026-09-04T16:34:13+02:00"
+    },
+    {
+      "claim_id": "ABC-GO-REG008-NODE-UTF8-DECODE-20260904",
+      "owner": "root",
+      "dispatch_token": "d55fe5d2bcd0481db6a13414369deb69",
+      "state": "released",
+      "lease_expires_at": "2026-09-04T22:17:00+02:00",
+      "released_at": "2026-09-04T16:34:13+02:00"
+    },
+    {
+      "claim_id": "ABC-GO-REG-ACCEPTANCE-PACKET-20260904",
+      "owner": "evidence_packet",
+      "dispatch_token": "f9788e7da4b24c8fb073338f055222ba",
+      "state": "released",
+      "lease_expires_at": "2026-09-04T20:30:00+00:00",
+      "worker_id": "evidence_packet",
+      "released_at": "2026-09-04T16:34:13+02:00"
+    },
+    {
+      "claim_id": "ABC-GO-REG004-UTF8-STATIC-TEST-READS-R2-20260904",
+      "owner": "reg004_utf8_worker",
+      "dispatch_token": "967568e8e1a7438db2eabc15d9c2d17c",
+      "state": "released",
+      "lease_expires_at": "2026-09-04T18:00:00+02:00",
+      "worker_id": "reg004_utf8_worker",
+      "released_at": "2026-09-04T16:40:00+02:00"
+    },
+    {
+      "claim_id": "ABC-GO-REG008-NODE-UTF8-DECODE-R2-20260904",
+      "owner": "reg008_utf8_worker",
+      "dispatch_token": "902f33c8b67c47698a30c6b958c58190",
+      "state": "released",
+      "lease_expires_at": "2026-09-04T18:00:00+02:00",
+      "worker_id": "reg008_utf8_worker",
+      "released_at": "2026-09-04T16:47:00+02:00"
+    },
+    {
+      "claim_id": "ABC-GO-ROADMAP-AUDIT-TERMINAL-STATUS-R3-20260904",
+      "owner": "roadmap_audit_terminal_worker",
+      "dispatch_token": "927f96709c6347baa539556e80748b71",
+      "state": "released",
+      "lease_expires_at": "2026-09-04T18:30:00+02:00",
+      "released_at": "2026-09-04T17:02:00+02:00"
+    },
+    {
+      "claim_id": "ABC-GO-ROADMAP-AUDIT-TERMINAL-STATUS-ROOT-R4-20260904",
+      "owner": "root",
+      "dispatch_token": "035a3ede31244a9b8a8eb7bf2144c8c4",
+      "state": "released",
+      "lease_expires_at": "2026-09-04T18:30:00+02:00",
+      "worker_id": "/root",
+      "released_at": "2026-09-04T16:58:00+02:00"
+    },
+    {
+      "claim_id": "ABC-GO-REGRESSION-QUEUE-RECONCILE-R2-20260904",
+      "owner": "root",
+      "dispatch_token": "1132db530aef4e77b6c59d599da81699",
+      "state": "released",
+      "lease_expires_at": "2026-09-04T18:30:00+02:00",
+      "worker_id": "/root",
+      "released_at": "2026-09-04T17:08:00+02:00"
+    },
+    {
+      "claim_id": "ABC-GO-H1R04-STATUS-TRUTH-RECONCILE-20260904",
+      "owner": "root",
+      "dispatch_token": "411a6859182842999e560cfe4a860af4",
+      "state": "released",
+      "lease_expires_at": "2026-09-04T18:30:00+02:00",
+      "worker_id": "/root",
+      "released_at": "2026-09-04T17:26:00+02:00"
+    },
+    {
+      "claim_id": "ABC-GO-ROUND6-MEMBERSHIP-ARCHITECTURE-20260904",
+      "owner": "root",
+      "dispatch_token": "3184de1f83b344bfbc47bef387be776e",
+      "state": "released",
+      "lease_expires_at": "2026-09-04T19:00:00+02:00",
+      "worker_id": "/root",
+      "released_at": "2026-09-04T18:02:00+02:00"
+    },
+    {
+      "claim_id": "ABC-GO-ROUND6-MEMBERSHIP-IMPLEMENTATION-20260904",
+      "owner": "root",
+      "dispatch_token": "2e6428d974484d66aa90efdb7f412839",
+      "state": "released",
+      "lease_expires_at": "2026-09-04T21:30:00+02:00",
+      "worker_id": "/root",
+      "released_at": "2026-09-04T18:22:00+02:00"
+    },
+    {
+      "claim_id": "ABC-GO-H1R04-CURRENTNESS-ACCEPTANCE-ARCHITECTURE-20260904",
+      "owner": "root",
+      "dispatch_token": "a17ea75b6602490cb2af3bab042c5962",
+      "state": "released",
+      "lease_expires_at": "2026-09-04T20:30:00+02:00",
+      "worker_id": "/root",
+      "released_at": "2026-09-04T18:58:00+02:00"
+    },
+    {
+      "claim_id": "ABC-GO-H1R04-STATE-CENSUS-DISCOVERY-IMPLEMENTATION-20260904",
+      "owner": "root",
+      "dispatch_token": "afb8c7b9525d4d529ee593f11dddb1d0",
+      "state": "released_blocked",
+      "lease_expires_at": "2026-09-04T21:30:00+02:00",
+      "released_at": "2026-09-04T19:02:00+02:00"
+    },
+    {
+      "claim_id": "ABC-GO-H1R04-STATE-CENSUS-DISCOVERY-IMPLEMENTATION-R2-20260904",
+      "owner": "root",
+      "dispatch_token": "1eed4952b35d4570bd1b6f0fcc5cac05",
+      "state": "released",
+      "lease_expires_at": "2026-09-04T21:30:00+02:00",
+      "worker_id": "/root",
+      "released_at": "2026-09-04T19:32:00+02:00"
+    },
+    {
+      "claim_id": "ABC-GO-H1R04-CENSUS-CONTROL-PLANE-DECOUPLING-ARCHITECTURE-20260904",
+      "owner": "root",
+      "dispatch_token": "62509de72b0f4893a378446df9dccc72",
+      "state": "released",
+      "lease_expires_at": "2026-09-04T22:17:00+02:00",
+      "worker_id": "/root",
+      "released_at": "2026-09-04T19:48:00+02:00"
+    },
+    {
+      "claim_id": "ABC-GO-H1R04-CENSUS-CONTROL-PLANE-DECOUPLING-IMPLEMENTATION-20260904",
+      "owner": "root",
+      "dispatch_token": "92e70773f7ee4110ba6e7b610d71f911",
+      "state": "released_blocked",
+      "lease_expires_at": "2026-09-04T22:17:00+02:00",
+      "worker_id": "/root",
+      "released_at": "2026-09-04T20:04:00+02:00"
+    },
+    {
+      "claim_id": "ABC-GO-H1R04-CENSUS-PORTABLE-CTIME-ARCHITECTURE-R3-20260904",
+      "owner": "root",
+      "dispatch_token": "1a04a314c9474cabb3e1a704681bf5f9",
+      "state": "released",
+      "lease_expires_at": "2026-09-04T22:17:00+02:00",
+      "worker_id": "/root",
+      "released_at": "2026-09-04T20:10:00+02:00"
+    },
+    {
+      "claim_id": "ABC-GO-H1R04-CENSUS-CONTROL-PLANE-DECOUPLING-IMPLEMENTATION-R2-20260904",
+      "owner": "root",
+      "dispatch_token": "42f668557f19410fb542d26b47055720",
+      "state": "released",
+      "lease_expires_at": "2026-09-04T22:17:00+02:00",
+      "worker_id": "/root",
+      "released_at": "2026-09-04T20:27:00+02:00"
+    },
+    {
+      "claim_id": "ABC-GO-H1R04-AST-CALLER-DISCOVERY-ARCHITECTURE-R1-20260904",
+      "owner": "root",
+      "dispatch_token": "059ec342ab4b4ae7b61be90f8542f575",
+      "state": "released_rejected",
+      "lease_expires_at": "2026-09-04T22:17:00+02:00",
+      "worker_id": "/root",
+      "released_at": "2026-09-04T20:37:00+02:00"
+    },
+    {
+      "claim_id": "ABC-GO-H1R04-AST-CALLER-DISCOVERY-ARCHITECTURE-R2-20260904",
+      "owner": "root",
+      "dispatch_token": "f8bd61fae08f484facc49a5be5750675",
+      "state": "released_rejected",
+      "lease_expires_at": "2026-09-04T22:17:00+02:00",
+      "worker_id": "/root",
+      "released_at": "2026-09-04T20:43:00+02:00"
+    },
+    {
+      "claim_id": "ABC-GO-H1R04-AST-CALLER-DISCOVERY-ARCHITECTURE-R3-20260904",
+      "owner": "root",
+      "dispatch_token": "e9eedfc1719446ea9d04cffc127ff31b",
+      "state": "released_rejected",
+      "lease_expires_at": "2026-09-04T22:17:00+02:00",
+      "worker_id": "/root",
+      "released_at": "2026-09-04T20:47:00+02:00"
+    },
+    {
+      "claim_id": "ABC-GO-H1R04-AST-CALLER-DISCOVERY-ARCHITECTURE-R4-20260904",
+      "owner": "root",
+      "dispatch_token": "c6f4741dde2e477b98f9cecc92c9ec0a",
+      "state": "released",
+      "lease_expires_at": "2026-09-04T22:17:00+02:00",
+      "worker_id": "/root",
+      "released_at": "2026-09-04T20:52:00+02:00"
+    },
+    {
+      "claim_id": "ABC-GO-H1R04-AST-CALLER-DISCOVERY-IMPLEMENTATION-R1-20260904",
+      "owner": "root",
+      "dispatch_token": "61c4d0ef65b74098b5d9fbc0d023770a",
+      "state": "released",
+      "lease_expires_at": "2026-09-04T22:17:00+02:00",
+      "worker_id": "/root",
+      "released_at": "2026-09-04T22:08:00+02:00"
+    },
+    {
+      "claim_id": "ABC-GO-H1R04-AST-CALLER-DISCOVERY-TESTS-RECOVERY-R1-20260904",
+      "owner": "root",
+      "dispatch_token": "9c2e8d92bfa54d739d063fd660a8b81f",
+      "state": "released",
+      "lease_expires_at": "2026-09-04T23:30:00+02:00",
+      "worker_id": "/root",
+      "released_at": "2026-09-04T22:27:00+02:00"
+    }
+  ],
+  "readiness": {
+    "status": "ten_hour_run_complete_h1r04_ast_contract_accepted",
+    "checked_at": "2026-09-04T22:31:00+02:00",
+    "initial_packet": "full-open-roadmap-audit-and-reconciliation-r1",
+    "reserve_packets": [],
+    "known_material_decisions": [],
+    "gate": "The 10h run and tests-only recovery are complete. Semantic AST/caller discovery plus its full mandatory R4/R2 hostile contract are accepted at scanner 41ebcf3a58eddc8d47cf156587933d511e69e459, tests d2fbc2e3b36d7f00f6bcd3c4fcca81cb4c26f6ac and manifest 3b534d048c36775c24e97efe12f4c6cfffb7e2bb after Contract, Ownership and Terminal exact-blob PASS. H1R-04 remains product-pending because 1842 candidates are intentionally unclassified; next run resumes with separate repository-local classification/reconciliation architecture and no live authority.",
+    "snapshot_resolution": {
+      "resolved_at": "2026-09-04T16:34:13+02:00",
+      "verdict": "helper_correct_comparison_procedure_fixed",
+      "invariant": "Compare held raw worktree baselines with `git hash-object --stdin` over the same raw bytes or `git cat-file blob`; never compare them to the filtered identity from `git hash-object <path>`.",
+      "proof": [
+        "tests/test_security_regressions.py: raw current bytes equal blob 227531419c9a930d4e278bd18b363ee90e823812; filtered path identity is 776b544efdb049c5b250529fd02c7c67e5816cb5.",
+        "tests/test_signature_fold_js.py: raw current bytes equal blob ccd64ccc9de875b8feebda62a92288145f13c135; filtered path identity is 3ccaffc5a70dbdccedf2d43d1d1ba4c0a592202e."
+      ]
+    }
+  },
+  "route": {
+    "class": "critical",
+    "master": {
+      "requested": "gpt-5.6-sol",
+      "actual": "surface_default",
+      "evidence": "current Codex task"
+    },
+    "review": {
+      "depth": "deep",
+      "reviewer": "fresh independent reviewer",
+      "actual_model": "unknown",
+      "result": "H1R-05A contract, H1R-05B architecture, and exact existing H1R-05B implementation passed fresh independent review"
+    }
+  },
+  "evidence_reviews": [
+    {
+      "packet": "H1R-05B-existing-implementation-r1",
+      "verdict": "PASS",
+      "reviewer": "root/openwork_h1r05b_implementation_review",
+      "source_blob": "76756dafb6b890fdc3417997ff3690a8e87f4bc2",
+      "test_blob": "f22e128a523448fbf639d4cb2be947f258bbf93e",
+      "evidence": "Fresh static architecture/no-live review passed; exact focused candidate suite passed 45 tests. Dependent Store suite could not create pytest tmp_path due sandbox PermissionError before test bodies, so it is recorded as an environment gap rather than a candidate failure."
+    },
+    {
+      "packet": "H1R-05C-existing-implementation-r1",
+      "verdict": "FAIL",
+      "reviewer": "root/openwork_h1r05c_implementation_review",
+      "source_blob": "b7bf60a88ae493f02e7d3ca41bf0a7b8d15ef837",
+      "test_blob": "15163086e7aa161a513289ef5ba53fcf2d9fbdad",
+      "evidence": "C comparison functions passed focused behavior review and 55 tests, but the same allowed module retains prohibited MigrationProof, Go/No-Go, backup/restore/rollback and evidence surfaces. Existing candidate is evidence only; no product acceptance or reuse authority."
+    },
+    {
+      "packet": "H1R-05C-isolated-implementation-r1",
+      "verdict": "FAIL",
+      "reviewer": "root/openwork_h1r05c_isolated_implementation_review",
+      "source_blob": "2d648961e0e10d972db9eb671417e81ee7e54569",
+      "test_blob": "eb27d72f5b0d10df04ab0460b66802f45fae5f14",
+      "evidence": "Core source conformed and focused suite passed 11 tests, but test static check used loader/filesystem I/O and did not exercise a self-consistent alternate-owner rejection. One tests-only correction is the permitted first recovery."
+    },
+    {
+      "packet": "H1R-05-offline-architecture-C-acceptance-pin-r1",
+      "verdict": "PASS",
+      "reviewer": "root/openwork_h1r05_offline_architecture_rereview",
+      "source_blob": "2ecec7a67e255e165d938bceca990931fba6acc3",
+      "evidence": "Fresh independent frozen-blob review: the sole delta pins C to accepted architecture/status blob 229f02d9840a94a3c816481b837a9421a7de08b3; JSON, fixture-only isolation and all no-live prohibitions remain intact."
+    },
+    {
+      "packet": "H1R-05-offline-architecture-acceptance-status-r1",
+      "verdict": "PASS",
+      "reviewer": "root/openwork_h1r05_offline_architecture_rereview",
+      "source_blob": "41fc4751359410569c5515de50590ce86b8fa48a",
+      "evidence": "Fresh independent frozen-blob review confirmed the status/evidence-only reconciliation; all offline fixture-only boundaries, A/B/C constraints and no-live prohibitions are unchanged."
+    },
+    {
+      "packet": "H1R-05A-existing-snapshot-basis-r1",
+      "verdict": "PASS",
+      "reviewer": "root/openwork_h1r05a_snapshot_evidence_review",
+      "source_blob": "a08286d0f402c29c726e32f1d3122749cd8b87d1",
+      "test_blob": "c7bd801c6ff63ea0dfbeacbe48ef9e1a1dbb8bd4",
+      "evidence": "Independent audit confirmed owner denial before SQLite, coherent deferred read boundary, metadata-only output and no prohibited authority. Focused local command `py -3 -m pytest tests/test_harbour_knowledge_store.py -k snapshot --noconftest --basetemp C:\\Users\\nkatz\\Documents\\abc-h1r05a-pytest-20260904-1428 --disable-warnings --tb=short` passed 51 tests. The normal conftest bootstrap is blocked by an environment SQLAlchemy import resolution fault, not a candidate failure."
+    },
+    {
+      "packet": "H1R-05A-contract-acceptance-status-r1",
+      "verdict": "PASS",
+      "reviewer": "root/openwork_h1r05_offline_architecture_rereview",
+      "source_blob": "7a5bf88d08e7df9813fa9cc822b992daa09a5b4a",
+      "evidence": "Fresh independent frozen-blob review confirmed the acceptance-status/evidence-only reconciliation; all contract constraints and no-live boundaries remain identical."
+    },
+    {
+      "packet": "H1R-05B-architecture-A-acceptance-pin-r1",
+      "verdict": "PASS",
+      "reviewer": "root/openwork_h1r05_offline_architecture_rereview",
+      "source_blob": "aaf4764c0083662dd9fc6a06572db04af0b97d97",
+      "evidence": "Fresh independent frozen-blob review confirmed the sole A-contract pin update to accepted blob 7a5bf88d08e7df9813fa9cc822b992daa09a5b4a; B metadata-only/no-live constraints and existing source/test pins remain unchanged."
+    },
+    {
+      "packet": "H1R-05B-architecture-acceptance-status-r1",
+      "verdict": "PASS",
+      "reviewer": "root/openwork_h1r05_offline_architecture_rereview",
+      "source_blob": "1f5fc1a5fdc046a7faac6cccee9c03df4f8df839",
+      "evidence": "Fresh independent frozen-blob review confirmed the B acceptance-status/evidence-only reconciliation; all metadata-only and no-live/no-activation constraints remain identical."
+    },
+    {
+      "packet": "H1R-04-control-plane-decoupling-implementation-r3-final",
+      "verdict": "PASS",
+      "reviewer": "root/round6_membership_contract_audit",
+      "source_blob": "aacebb2a1bd0fc95619bc819fe0f29618e10eca8",
+      "test_blob": "709a3b8d5f09fea5ed0c237c0b3f7bb216644441",
+      "manifest_blob": "dc0c253045888053ab4d717e4468673d4ddfa16a",
+      "evidence": "Exact-blob hostile review passed after type-exact fixed-value validation closed the JSON true-versus-integer bypass; all-platform execute-mode rejection and R3 portable identity remain correct."
+    },
+    {
+      "packet": "H1R-04-control-plane-decoupling-implementation-r3-final",
+      "verdict": "PASS",
+      "reviewer": "root/round6_membership_ownership_audit",
+      "source_blob": "aacebb2a1bd0fc95619bc819fe0f29618e10eca8",
+      "test_blob": "709a3b8d5f09fea5ed0c237c0b3f7bb216644441",
+      "manifest_blob": "dc0c253045888053ab4d717e4468673d4ddfa16a",
+      "evidence": "Independent exact-blob review passed the strict schema, exact one-record exclusion, sibling visibility, portable ctime/mode, manifest currentness and no-live boundaries."
+    }
+  ],
+  "reflect_assessments": [
+    {
+      "component": "H1R-05C-isolated-snapshot-comparison",
+      "reviewer": "root/openwork_h1r05c_reflect",
+      "verdict": "correct",
+      "evidence": "Architecture remains suitable; a second tests-only correction can conclusively prove projection ordering and static no-I/O/no-legacy isolation using only in-memory namespace and code-object metadata."
+    },
+    {
+      "component": "H1R-05C-isolated-snapshot-comparison",
+      "reviewer": "root/openwork_h1r05c_second_reflect",
+      "verdict": "stop_tests_only_and_recover_source_plus_tests",
+      "evidence": "The architecture has one fixture-named public API, but source exposes an extra migration-named alias; complete top-level import absence requires fresh blob-level review, not self-test only."
+    },
+    {
+      "component": "H1R-04-state-census-control-plane-decoupling",
+      "reviewer": "root/round6_membership_arch_reviewer",
+      "verdict": "accept_current_infrastructure_then_continue_ast_caller_discovery",
+      "evidence": "Corrected raw-byte Reflect confirmed the narrow R3 implementation is coherent and no-live; seven semantically relevant callers remain a mandatory separate AST/reverse-import discovery slice before any H1R-04 product acceptance."
+    }
+  ],
+  "initial_packet": {
+    "id": "H1R-05A-contract-currentness-r1",
+    "outcome": "Refresh only the H1R-05A owner-snapshot contract authority pins and currentness evidence; preserve its synthetic-fixture-only, no-migration and no-live boundaries.",
+    "allowed_paths": [
+      "docs/plans/abc-h1r05-owner-snapshot-v3-digest-contract-2026-08-31.json"
+    ],
+    "path_operations": {
+      "docs/plans/abc-h1r05-owner-snapshot-v3-digest-contract-2026-08-31.json": "modify"
+    },
+    "hotfiles": [
+      "docs/plans/harbour-one-product-roadmap.json",
+      "docs/plans/harbour-one-h1r-04-current-boundary-reconciliation-2026-08-30.json",
+      "src/harbour_knowledge_store.py",
+      "tests/test_harbour_knowledge_store.py"
+    ],
+    "acceptance": [
+      "JSON parses.",
+      "All authority pins are materialized and current.",
+      "Fresh independent deep review passes.",
+      "No source implementation, migration, activation, deletion, network/provider or live authority is granted."
+    ],
+    "stop_conditions": [
+      "Authority identity drift.",
+      "Any scope expansion or source-writer request."
+    ]
+  },
+  "resume_cursor": "h1r04-state-census-product-classification-reconciliation-architecture",
+  "last_durable_progress_at": "2026-09-04T22:31:00+02:00",
+  "correction_history": [
+    {
+      "component_id": "H1R-04-state-census-ast-caller-discovery",
+      "invariant_id": "exact-merge-and-relative-boundary",
+      "failure_kind": "architecture_change",
+      "count": 3,
+      "outcome": "fresh_r4_architecture",
+      "affected_claim_ids": [
+        "ABC-GO-H1R04-AST-CALLER-DISCOVERY-ARCHITECTURE-R3-20260904"
+      ],
+      "resolved_at": "2026-09-04T20:47:00+02:00",
+      "resolution": "R3 is frozen rejected; R4 separates two existing replacements from one absent-key addition and corrects beyond-top-level rejection to L-minus-one greater than or equal to package depth."
+    },
+    {
+      "component_id": "H1R-04-state-census-ast-caller-discovery",
+      "invariant_id": "python-relative-package-and-scope-semantics",
+      "failure_kind": "architecture_change",
+      "count": 2,
+      "outcome": "fresh_r3_architecture",
+      "affected_claim_ids": [
+        "ABC-GO-H1R04-AST-CALLER-DISCOVERY-ARCHITECTURE-R2-20260904"
+      ],
+      "resolved_at": "2026-09-04T20:43:00+02:00",
+      "resolution": "R2 is frozen rejected; R3 replaces the relative-import rule, adds file-backed ancestor initializer execution edges, and makes same-scope alias trust versus outer-scope uncertainty explicit."
+    },
+    {
+      "component_id": "H1R-04-state-census-ast-caller-discovery",
+      "invariant_id": "deterministic-semantic-graph-contract",
+      "failure_kind": "architecture_change",
+      "count": 1,
+      "outcome": "fresh_r2_architecture",
+      "affected_claim_ids": [
+        "ABC-GO-H1R04-AST-CALLER-DISCOVERY-ARCHITECTURE-R1-20260904"
+      ],
+      "resolved_at": "2026-09-04T20:37:00+02:00",
+      "resolution": "R1 is frozen rejected; R2 must define nonimportable sources, an exact census-contract patch, uncertainty anchors and propagation, exact package nodes and import forms, closed binding/shadowing behavior, and a terminal inventory plus raw-blob recapture."
+    },
+    {
+      "component_id": "H1R-04-state-census-control-plane-decoupling",
+      "invariant_id": "strict-control-record-type-and-permission-validation",
+      "failure_kind": "contract_repair",
+      "count": 2,
+      "outcome": "recovery_reflect_then_accept",
+      "affected_claim_ids": [
+        "ABC-GO-H1R04-CENSUS-CONTROL-PLANE-DECOUPLING-IMPLEMENTATION-R2-20260904"
+      ],
+      "resolved_at": "2026-09-04T20:27:00+02:00",
+      "resolution": "Self-review removed a POSIX-only executable-mode condition; independent hostile review found Python boolean/integer equality in fixed schema values. Both are covered by hostile tests, two final exact-blob PASS reviews and a corrected raw-byte Reflect pass."
+    },
+    {
+      "component_id": "H1R-04-state-census-control-plane-decoupling",
+      "invariant_id": "portable-ctime-identity",
+      "failure_kind": "architecture_change",
+      "count": 1,
+      "outcome": "architecture_review",
+      "affected_claim_ids": [
+        "ABC-GO-H1R04-CENSUS-CONTROL-PLANE-DECOUPLING-IMPLEMENTATION-20260904"
+      ],
+      "resolved_at": "2026-09-04T20:04:00+02:00",
+      "resolution": "Windows exposes different unchanged-file st_ctime_ns values through lstat and handle fstat. Preserve the rejected candidate and replace impossible cross-API equality with channel-local ctime comparison plus POSIX cross-view equality under a fresh reviewed architecture."
+    },
+    {
+      "component_id": "H1R-04-state-census",
+      "invariant_id": "post-release-manifest-stability",
+      "failure_kind": "architecture_change",
+      "count": 1,
+      "outcome": "architecture_review",
+      "affected_claim_ids": [
+        "ABC-GO-H1R04-STATE-CENSUS-DISCOVERY-IMPLEMENTATION-R2-20260904"
+      ],
+      "resolved_at": "2026-09-04T19:48:00+02:00",
+      "resolution": "Accepted discovery validation was invalidated by its own subsequent ABC run-record release. Broad prefix exclusion was independently rejected; exact schema-validated canonical run-record decoupling architecture dc322b1e46e1d1db50a0fd9afba7f9ec443c5289 is accepted for a fresh implementation claim."
+    },
+    {
+      "component_id": "H1R-05C-isolated-snapshot-comparison",
+      "invariant_id": "tests-no-io-and-valid-owner-mismatch",
+      "failure_kind": "contract_repair",
+      "count": 1,
+      "outcome": "bounded_repair"
+    },
+    {
+      "component_id": "H1R-05C-isolated-snapshot-comparison",
+      "invariant_id": "in-memory-reference-allowlist-and-projection-order-proof",
+      "failure_kind": "contract_repair",
+      "count": 1,
+      "outcome": "bounded_repair"
+    },
+    {
+      "component_id": "H1R-05C-isolated-snapshot-comparison",
+      "invariant_id": "single-fixture-api-and-blob-static-evidence",
+      "failure_kind": "contract_repair",
+      "count": 1,
+      "outcome": "bounded_repair"
+    },
+    {
+      "component_id": "roadmap-safe-queue-audit",
+      "invariant_id": "snapshot-baseline-matches-held-worktree-bytes",
+      "failure_kind": "harness_recovery",
+      "count": 1,
+      "outcome": "recovery_with_product_claim_frozen",
+      "affected_claim_ids": [
+        "ABC-OW-ROADMAP-AUDIT-ACCEPTED-LEDGER-R2-20260904"
+      ],
+      "resolved_at": "2026-09-04T16:47:00+02:00",
+      "resolution": "False positive caused by comparing raw held CRLF baseline blobs with Git-filtered path identities; byte-for-byte raw readback passed for both claimed files."
+    },
+    {
+      "component_id": "abc-windows-claim-snapshot",
+      "invariant_id": "held-baseline-matches-current-worktree-and-index-bytes",
+      "failure_kind": "harness_recovery",
+      "count": 2,
+      "outcome": "repeat_requires_escalation",
+      "affected_claim_ids": [
+        "ABC-GO-REG008-NODE-UTF8-DECODE-20260904"
+      ],
+      "resolved_at": "2026-09-04T16:34:13+02:00",
+      "resolution": "False positive caused by comparing raw held CRLF baseline blobs with Git-filtered path identities; byte-for-byte raw readback passed for both affected regression files."
+    }
+  ]
+}

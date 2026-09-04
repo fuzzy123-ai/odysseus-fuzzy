@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "evidence_packet": "ABC-GO-REG-ACCEPTANCE-PACKET-20260904",
+  "date": "2026-09-04",
+  "scope": "repository-local, read-only test classification for queued regression markers",
+  "read_only_queue_pin": "docs/plans/regression-queue.json@650b4c89396b18a70112dbe18816c39e63d7dafd",
+  "source_marker_context": {
+    "observed_at": "2026-07-15T15:24:00+02:00",
+    "source_run_id": "sar-12h-20260714t092106",
+    "limitation": "The original queue markers are July 15 observations with bounded, truncated output and no retained traceback."
+  },
+  "focused_reruns": [
+    {
+      "queue_ids": ["REG-20260715-009"],
+      "command": "venv\\Scripts\\python.exe -B -m pytest -q -p no:cacheprovider --noconftest tests/test_task_shell_tools.py::test_non_admin_owner_block_strips_shell_end_to_end tests/test_task_summary_routes.py::test_task_summary_route_requires_auth_when_configured",
+      "result": "2 passed"
+    },
+    {
+      "queue_ids": ["REG-20260715-010"],
+      "command": "venv\\Scripts\\python.exe -B -m pytest -q -p no:cacheprovider --noconftest tests/test_telegram_plugin.py::test_polling_cycle_calendar_reminder_create_and_update tests/test_telegram_plugin.py::test_polling_cycle_universal_inbox_command_replies_without_agent_turn tests/test_telegram_plugin.py::test_agent_bridge_workflow_context_classifies_export_without_raw_prompt",
+      "result": "3 passed"
+    },
+    {
+      "queue_ids": ["REG-20260715-011", "REG-20260715-013"],
+      "command": "venv\\Scripts\\python.exe -B -m pytest -q -p no:cacheprovider --noconftest tests/test_tls_overrides_scope.py::test_tls_overrides_does_not_weaken_global_tls tests/test_version_info_ancestry.py::test_classify_version_relation",
+      "result": "7 passed"
+    },
+    {
+      "queue_ids": ["REG-20260715-012"],
+      "command": "venv\\Scripts\\python.exe -B -m pytest -q -p no:cacheprovider --noconftest tests/test_tool_policy.py::test_commit_project_is_treated_as_effectful_and_plan_blocked tests/test_tool_registry.py::test_execute_tool_keeps_legacy_dict_call_fallback",
+      "result": "2 passed"
+    }
+  ],
+  "classification": "These focused current reruns pass, so the original July 15 queue markers are stale as current failure indicators; this packet does not diagnose their historical cause.",
+  "safety": {
+    "product_source_changed": false,
+    "source_or_test_files_changed": false,
+    "network_or_live_effects": false,
+    "queue_mutated": false,
+    "queue_reason": "The current baseline claim is blocked, so the canonical regression queue was deliberately left unchanged."
+  }
+}

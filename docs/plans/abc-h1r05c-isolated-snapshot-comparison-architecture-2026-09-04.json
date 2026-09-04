@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.h1r05c.isolated_snapshot_comparison",
+  "status": "accepted_after_fresh_independent_sol_deep_review",
+  "acceptance_evidence": {
+    "run_record": "docs/plans/handoffs/abc-go-open-work-10h-run-20260904.json",
+    "reviewed_source": "src/harbour_snapshot_comparison.py@2f5aaf325a956201bfd2b1348d2d3530d92c6898",
+    "reviewed_tests": "tests/test_harbour_snapshot_comparison.py@52679818eb766ebe6ec3b53eeac542950b19fbc4",
+    "authority_statement": "Accepted review evidence only; no migration or live authority is created."
+  },
+  "claim_id": "ABC-OW-H1R05C-ISOLATED-ARCHITECTURE-20260904",
+  "scope": "A new, pure, isolated comparison boundary for synthetic H1R-05A snapshot fixtures. It creates neither migration evidence nor migration readiness, and performs no Go/No-Go, activation, registration, provider, network, filesystem, private-data, deletion, deployment, backup, restore, rollback, or other external action.",
+  "authority_pins": {
+    "h1r05a_contract": "docs/plans/abc-h1r05-owner-snapshot-v3-digest-contract-2026-08-31.json@a161e0d7dc9134e42e114eadf6bb30fd8e3a439d",
+    "h1r05b_architecture": "docs/plans/abc-h1r05b-metadata-reference-projection-architecture-2026-08-31.json@7cf1e9b06730122e7880e1fd5aff3d7f3d3aad00",
+    "h1r05a_store": "src/harbour_knowledge_store.py@a08286d0f402c29c726e32f1d3122749cd8b87d1",
+    "h1r05b_source": "src/unified_source_index_sources/knowledge.py@76756dafb6b890fdc3417997ff3690a8e87f4bc2"
+  },
+  "writer_packet": {
+    "id": "H1R-05C-isolated-snapshot-comparison",
+    "class": "critical",
+    "allowed_paths": [
+      "src/harbour_snapshot_comparison.py",
+      "tests/test_harbour_snapshot_comparison.py"
+    ],
+    "review": "fresh independent Sol deep review required before acceptance"
+  },
+  "isolation": {
+    "new_source_module": "src/harbour_snapshot_comparison.py",
+    "new_test_module": "tests/test_harbour_snapshot_comparison.py",
+    "required_import_surface": [
+      "exact built-in H1R-05A KnowledgeMigrationSnapshot and KnowledgeHeadMetadata types",
+      "the H1R-05B detached metadata-reference projection function used solely to validate each detached clone"
+    ],
+    "forbidden_imports_or_references": [
+      "src/import_export_migration_proof.py",
+      "MigrationProof or any legacy migration-proof class, function, constant, test helper, or result",
+      "manifest APIs",
+      "Go, Go/No-Go, status, activation, registration, readiness, or action-authority APIs",
+      "backup, restore, rollback, evidence, receipt, or proof APIs",
+      "database, filesystem, network, provider, clock, randomness, payload, or private-data APIs"
+    ],
+    "static_rule": "The new module and its tests must not import, name, inspect, monkeypatch, or otherwise reference the legacy import_export_migration_proof module or any forbidden API family. The comparison module is a standalone pure boundary, not a wrapper or compatibility layer."
+  },
+  "public_api": {
+    "function": "compare_harbour_snapshot_fixtures(source, target, post) -> HarbourSnapshotComparison",
+    "error": "HarbourSnapshotComparisonError(code='invalid_comparison')",
+    "failure_contract": "Every rejected public input, hostile slot access, projection rejection, comparison failure, or unexpected internal exception yields only the bounded, context-free invalid_comparison error. It exposes no snapshot field, digest, owner, payload, exception text, path, provider, or migration context."
+  },
+  "validation_and_detachment": [
+    "Accept only exact built-in H1R-05A KnowledgeMigrationSnapshot values; reject subclasses and all foreign look-alikes.",
+    "Read each public input and every accepted slot exactly once, validate exact scalar and tuple types, and construct an independent built-in clone of each snapshot and head before retaining or comparing anything.",
+    "Clone source, target, and post completely before invoking the H1R-05B projection on any of them. The implementation retains only its detached clones and locally constructed output tuples.",
+    "Each clone must pass the pinned H1R-05B metadata-reference projection. The three accepted clones must have the same H1R-05A schema identifier and owner_ref_digest.",
+    "Preserve and enforce the inherited snapshot constraints, including SHA-256 digest grammar, unique lexical knowledge_id_digest order, exact immutable heads, and at most 10000 heads per snapshot. Bounded local counters and byte accounting must fail before unbounded work.",
+    "Projection validates the exported snapshot envelope; it does not authenticate origin. Self-consistent synthetic fixtures remain synthetic fixture evidence only."
+  ],
+  "comparison_semantics": {
+    "identity_and_change_key": "Compare records only by the pair of exported fields knowledge_id_digest and record_digest. Do not compare revision, generation, state, kind, payload_sha256, inner metadata digests, projection output fields, object identity, or any legacy migration field.",
+    "source_to_target": "left=source clone; right=target clone",
+    "target_to_post": "left=target clone; right=post clone",
+    "delta_rules": {
+      "missing_knowledge_ids": "knowledge_id_digest present only on left",
+      "extra_knowledge_ids": "knowledge_id_digest present only on right",
+      "changed_knowledge_ids": "knowledge_id_digest present on both sides with unequal record_digest"
+    },
+    "ordering": "Every delta field is a tuple sorted in lexical ascending order. Empty snapshots and empty tuples are valid."
+  },
+  "result_model": {
+    "schema_id": "odysseus.harbour.snapshot_comparison.v1",
+    "delta": "frozen, slots-only, redacted HarbourSnapshotDelta(label in {'source_to_target','target_to_post'}, missing_knowledge_ids: tuple[str, ...], extra_knowledge_ids: tuple[str, ...], changed_knowledge_ids: tuple[str, ...])",
+    "comparison": "frozen, slots-only, redacted HarbourSnapshotComparison(schema_id, owner_ref_digest, source_snapshot_digest, target_snapshot_digest, post_snapshot_digest, source_to_target, target_to_post)",
+    "redaction": "repr and error rendering are fixed content-free labels; output construction retains no caller aliases and does not reveal private data or migration state."
+  },
+  "acceptance": [
+    "Synthetic literal golden vectors cover equal, empty, changed, missing, extra, and mixed two-delta comparisons, with lexical tuple order.",
+    "Synthetic hostile fixtures cover subclasses, foreign types, bool/integer confusion, missing or throwing slots, malformed digests, duplicate or disordered knowledge ids, mismatched schema or owner, over-10000 heads, mutation after entry, and retained-alias attempts.",
+    "Tests prove all three clones are created before the first H1R-05B projection and prove a projection failure is reported as invalid_comparison without raw context.",
+    "Static tests prove the two new files contain no import or reference to src/import_export_migration_proof.py, MigrationProof, manifest, Go/status/readiness, backup/restore/rollback/evidence, or I/O/provider/network/private-data interfaces.",
+    "Focused tests run only against tests/test_harbour_snapshot_comparison.py with --noconftest; pinned H1R-05A and H1R-05B regression suites are run separately with --noconftest.",
+    "A fresh independent Sol deep review is required; it must re-check isolation, exact-type detachment, clone-before-projection sequencing, the two-field comparison key, bounds, redaction, and synthetic-fixture-only non-claims."
+  ],
+  "non_claims": [
+    "No migration, manifest, readiness, status, Go/No-Go, activation, registration, or authority decision is created.",
+    "No origin authenticity, freshness, live state, payload equivalence, record recovery, backup, restore, rollback, deletion, or operational evidence is established.",
+    "No change to existing source, legacy proof code, H1R-05A store behavior, H1R-05B projection behavior, routing, registry, or deployment is authorized."
+  ]
+}

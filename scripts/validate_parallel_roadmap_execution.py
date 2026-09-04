@@ -24,6 +24,11 @@ CENTRAL_ROUTER_PATHS = {
     "docs/plans/open-work-completion-master-roadmap.json",
     "docs/plans/multi-agent-execution-guidance.json",
 }
+CANONICAL_FRONTIER_SLICE_IDS = {
+    "docs/plans/autonomous-coding-production-readiness-roadmap.json":
+        "ACPR-12-transactional-worktree-and-safe-tool-capsules",
+    "docs/plans/harbour-one-product-roadmap.json": "H1R-04",
+}
 SLICE_FIELDS = {
     "id",
     "state",
@@ -98,6 +103,8 @@ def _invalid_input_report() -> dict[str, Any]:
         "valid": False,
         "round_id": None,
         "active_roadmap_count": 0,
+        "active_frontier_count": 0,
+        "retained_terminal_frontier_count": 0,
         "frontier_count": 0,
         "claimable_frontier_count": 0,
         "wave_count": 0,
@@ -160,9 +167,10 @@ def validate(
     if qa_lanes and qa_lanes[0].get("write_mode") != "read_only":
         errors.append("independent_qa lane must be read_only")
 
+    guidance_roadmaps = guidance.get("roadmaps", [])
     active_paths = {
         entry.get("path")
-        for entry in guidance.get("roadmaps", [])
+        for entry in guidance_roadmaps
         if isinstance(entry, dict) and str(entry.get("profile", "")).startswith("active_")
     }
     frontiers = plan.get("roadmap_frontiers")
@@ -172,9 +180,30 @@ def validate(
     frontier_paths = [
         item.get("roadmap_path") for item in frontiers if isinstance(item, dict)
     ]
-    if set(frontier_paths) != active_paths:
-        missing = sorted(active_paths - set(frontier_paths))
-        extra = sorted(set(frontier_paths) - active_paths)
+    active_frontiers = [
+        item
+        for item in frontiers
+        if isinstance(item, dict) and item.get("membership_role", "active") == "active"
+    ]
+    retained_frontiers = [
+        item
+        for item in frontiers
+        if isinstance(item, dict)
+        and item.get("membership_role") == "retained_terminal_wave_evidence"
+    ]
+    expected_retained_path = "docs/plans/autonomous-coding-production-readiness-roadmap.json"
+    if (
+        len(frontiers) != 27
+        or len(retained_frontiers) != 1
+        or retained_frontiers[0].get("roadmap_path") != expected_retained_path
+    ):
+        errors.append(
+            "Round6 must contain exactly 26 active frontiers plus the one ACPR retained terminal frontier"
+        )
+    active_frontier_paths = [item.get("roadmap_path") for item in active_frontiers]
+    if set(active_frontier_paths) != active_paths:
+        missing = sorted(active_paths - set(active_frontier_paths))
+        extra = sorted(set(active_frontier_paths) - active_paths)
         errors.append(f"active roadmap coverage mismatch: missing={missing}, extra={extra}")
     for duplicate in _duplicate_values([path for path in frontier_paths if isinstance(path, str)]):
         errors.append(f"duplicate roadmap frontier: {duplicate}")
@@ -185,6 +214,14 @@ def validate(
         if not isinstance(frontier, dict):
             errors.append(f"{label} must be an object")
             continue
+        membership_role = frontier.get("membership_role", "active")
+        if not isinstance(membership_role, str) or membership_role not in {
+            "active",
+            "retained_terminal_wave_evidence",
+        }:
+            errors.append(f"{label}.membership_role is unknown")
+        if not _is_safe_repo_path(frontier.get("roadmap_path")):
+            errors.append(f"{label}.roadmap_path must be a safe canonical repository path")
         lane = frontier.get("lane")
         if lane not in IMPLEMENTATION_LANES:
             errors.append(f"{label}.lane must be an implementation lane")
@@ -203,6 +240,11 @@ def validate(
             errors.append(f"duplicate normalized slice id: {slice_id}")
         else:
             frontier_by_id[slice_id] = frontier
+        expected_slice_id = CANONICAL_FRONTIER_SLICE_IDS.get(frontier.get("roadmap_path"))
+        if expected_slice_id is not None and slice_id != expected_slice_id:
+            errors.append(
+                f"{label}.slice.id must be the canonical identity {expected_slice_id!r}"
+            )
 
         for field in ("depends_on", "allowed_paths", "hotfiles", "master_only_paths", "normalization_blockers"):
             if not _list_of_strings(slice_contract.get(field)):
@@ -311,12 +353,34 @@ def validate(
                         errors.append(
                             f"{label}: claimable slice has unresolved dependency evidence {state!r}"
                         )
+        if membership_role == "retained_terminal_wave_evidence":
+            roadmap_path = frontier.get("roadmap_path")
+            matching_profiles = [
+                entry.get("profile")
+                for entry in guidance_roadmaps
+                if isinstance(entry, dict) and entry.get("path") == roadmap_path
+            ]
+            if matching_profiles != ["historical_done"]:
+                errors.append(
+                    f"{label}: retained terminal frontier must occur exactly once in Guidance as historical_done"
+                )
+            if slice_contract.get("claimable") is not False:
+                errors.append(f"{label}: retained terminal frontier must be nonclaimable")
+            retained_state = slice_contract.get("state")
+            if not (
+                isinstance(retained_state, str)
+                and retained_state.startswith(("accepted_", "repo_accepted", "released_"))
+            ):
+                errors.append(f"{label}: retained terminal frontier must have a terminal slice state")
 
     waves = plan.get("waves")
     if not isinstance(waves, list) or not waves:
         waves = []
         errors.append("waves must be a non-empty list")
+    elif len(waves) != 3:
+        errors.append("Round6 must preserve exactly three terminal waves")
     scheduled_ids: list[str] = []
+    terminal_scheduled_ids: set[str] = set()
     seen_wave_ids: set[str] = set()
     for wave_index, wave in enumerate(waves):
         label = f"waves[{wave_index}]"
@@ -360,6 +424,8 @@ def validate(
         )
         for slice_id in slice_ids:
             scheduled_ids.append(slice_id)
+            if terminal_wave:
+                terminal_scheduled_ids.add(slice_id)
             frontier = frontier_by_id.get(slice_id)
             if frontier is None:
                 errors.append(f"{label}: unknown slice id {slice_id}")
@@ -392,11 +458,20 @@ def validate(
                 path_owners[path] = slice_id
     for duplicate in _duplicate_values(scheduled_ids):
         errors.append(f"slice scheduled in multiple waves: {duplicate}")
+    for frontier in retained_frontiers:
+        slice_contract = frontier.get("slice")
+        slice_id = slice_contract.get("id") if isinstance(slice_contract, dict) else None
+        if slice_id not in terminal_scheduled_ids:
+            errors.append(
+                f"retained terminal frontier {slice_id!r} must be referenced by a terminal wave"
+            )
 
     return {
         "valid": not errors,
         "round_id": plan.get("round_id"),
         "active_roadmap_count": len(active_paths),
+        "active_frontier_count": len(active_frontiers),
+        "retained_terminal_frontier_count": len(retained_frontiers),
         "frontier_count": len(frontiers),
         "claimable_frontier_count": sum(
             1

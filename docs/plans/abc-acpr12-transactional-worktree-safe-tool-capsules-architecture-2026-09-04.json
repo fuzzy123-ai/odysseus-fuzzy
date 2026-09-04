@@ -1,0 +1,110 @@
+{
+  "schema": "odysseus.abc.acpr12.architecture-preclaim.v1",
+  "document_id": "ABC-OW-ACPR12-ARCHITECTURE-PRECLAIM-20260904",
+  "created_at": "2026-09-04",
+  "kind": "local_documentation_only_architecture_preclaim",
+  "slice": {
+    "id": "ACPR-12-transactional-worktree-and-safe-tool-capsules",
+    "title": "Transactional worktree and safe tool capsules",
+    "current_status": "architecture_preclaim_ready_not_writer_claimable"
+  },
+  "authority": {
+    "accepted_prerequisites": [
+      {
+        "id": "ACPR-10-gate-ownership-and-memory-loop-roadmap-authoring",
+        "status": "accepted"
+      },
+      {
+        "id": "ACPR-11-planning-authority-and-memory-checkpoints",
+        "status": "accepted"
+      }
+    ],
+    "execution_plane_contracts": [
+      {
+        "id": "CAO-08D-scoped-execution-plane-consolidation",
+        "status": "accepted",
+        "implementation_claim_requirement": "Freshly pin the exact current contract revision and content hash before any ACPR-12 implementation claim."
+      },
+      {
+        "id": "CAO-08E-transactional-worktree-edit-and-exact-read-receipts",
+        "status": "accepted",
+        "implementation_claim_requirement": "Freshly pin the exact current contract revision and content hash before any ACPR-12 implementation claim."
+      }
+    ],
+    "freshness_rule": "This packet does not substitute for current authority. A future implementation claim must independently read, pin, and compare the then-current ACPR-10, ACPR-11, CAO-08D, and CAO-08E authority inputs.",
+    "writer_authority": "unregistered",
+    "live_actions_authorized": false
+  },
+  "future_writer_envelope": {
+    "state": "unregistered",
+    "claim_may_be_created_only_after": [
+      "This architecture/preclaim packet has separate independent acceptance recorded by Root.",
+      "Fresh exact-read pins for all authority inputs are materialized and equal the inspected current bytes.",
+      "The future writer names exact repository-relative allowed paths, path operations, hotfiles, regression tests, and a lease within the active run window.",
+      "The generic claim helper successfully reserves, dispatches, and confirms the new writer claim."
+    ],
+    "scope": "A later writer may implement only the minimal ACPR-12 transactional worktree and safe tool-capsule behavior that is explicitly bound by its own accepted claim.",
+    "prohibited_inference": [
+      "This packet does not select writer paths.",
+      "This packet does not reserve, dispatch, start, renew, release, or transfer a writer claim or lease.",
+      "This packet does not authorize edits to source, tests, roadmap state, run state, shared routers, or execution-plane contracts."
+    ]
+  },
+  "non_live_boundaries": {
+    "no_live_effects": [
+      "No deployment, publication, commit, push, merge, release, notification, provider activation, worker or thread dispatch, host mutation, or external service action.",
+      "No migration, activation, deletion, or product-side persistence change."
+    ],
+    "no_network": "No network, provider, browser, RPC, webhook, package download, or remote API interaction.",
+    "no_secrets": "Do not read, emit, persist, derive, or transmit credentials, tokens, private source content, user data, or secrets.",
+    "no_host_shell": "A future implementation must not execute host shell commands, subprocesses, arbitrary tools, or user-provided commands. Tool capsules remain declarative and fail closed unless their own accepted contract explicitly permits a bounded local mechanism.",
+    "documentation_effect": "This file is local planning evidence only and has no runtime, routing, persistence, or authority effect."
+  },
+  "implementation_contract": {
+    "minimal_behavior": [
+      "Represent a transaction as an explicit, bounded local operation with exact input and output boundaries.",
+      "Require immutable/readable authority inputs before an operation is considered eligible.",
+      "Use a declared safe-tool capsule interface with an allowlisted, content-free result shape and fail-closed behavior for unsupported or ambiguous inputs.",
+      "Keep control-plane and product writer authority separate; no shared router mutation is implied."
+    ],
+    "fail_closed_conditions": [
+      "Missing, stale, ambiguous, unreadable, or mismatched authority pin.",
+      "Unexpected target existence, path drift, baseline drift, hotfile overlap, claim-state mismatch, or lease expiry.",
+      "Any requested effect outside the future writer's exact allowed-path and no-live envelope.",
+      "Any request to invoke a host shell, network, provider, secret-bearing input, or external side effect."
+    ],
+    "stop_conditions": [
+      "Stop before the first write if any pinned authority blob differs from the freshly read byte hash.",
+      "Stop before the first write if the claim manifest, path operation, baseline, or worktree status differs from the registered future claim.",
+      "Stop and return the packet to architecture/review if a focused test exposes a contract ambiguity or an implementation needs an unregistered path or effect."
+    ]
+  },
+  "acceptance_evidence_for_future_implementation": {
+    "required": [
+      "Fresh authority readback with exact revision, content hash, and path for ACPR-10, ACPR-11, CAO-08D, and CAO-08E.",
+      "Successful fresh claim-helper reservation, dispatch, and confirm-start evidence for the exact future writer manifest.",
+      "Focused deterministic tests covering normal operation, stale/missing pin rejection, path/baseline drift rejection, unsupported capsule rejection, and zero external-effect behavior.",
+      "Scoped diff inspection proving only registered writer paths changed and no secret, network, shell, provider, host, or live-effect code path was introduced.",
+      "Independent review from a fresh context after candidate freeze, with explicit confirmation that this architecture's boundaries remain intact."
+    ],
+    "not_sufficient": [
+      "Historical Round-6 acceptance alone.",
+      "A roadmap status string without current byte-level authority pins.",
+      "Passing tests without a matching registered claim and independent review."
+    ]
+  },
+  "independent_review": {
+    "required": true,
+    "timing": "After the future implementation candidate is frozen and before acceptance or roadmap-status mutation.",
+    "review_questions": [
+      "Do exact current authority pins support every claimed behavior?",
+      "Are all changed paths and tests within the registered future writer manifest?",
+      "Does the implementation fail closed for every stale pin, path drift, baseline drift, unsupported capsule, and prohibited-effect case?",
+      "Is there any direct or indirect network, secret, host-shell, provider, deployment, or other live effect?"
+    ]
+  },
+  "separate_acceptance": {
+    "this_packet": "Requires independent Root acceptance as architecture/preclaim evidence only.",
+    "future_implementation": "Requires a separate claim, separate candidate verification, separate independent review, and separate Root acceptance. Acceptance of this packet grants none of those authorities."
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "kind": "harbour_one.h1r04_ast_caller_discovery_architecture_r4",
+  "status": "review_candidate",
+  "claimable": true,
+  "live_actions": false,
+  "decision": "Retain the closed R2 semantic contract and the valid R3 Python corrections while making the merge operation and beyond-top-level boundary exact.",
+  "supersedes": {
+    "path": "docs/plans/evidence/abc-h1r04-ast-caller-discovery-architecture-r3-20260904.json",
+    "raw_blob": "9a853ac835a8fd8529a9b9ce57c23c04c52823ce",
+    "preserved": "All R2 rules remain authoritative except the two replacements and one addition declared here. R3 is evidence for the replacement wording but is not used as the merge base."
+  },
+  "effective_contract_patch": {
+    "base_value_source": "R2.corrected_semantic_contract",
+    "base_value_raw_blob": "59c6f1dc3934b77032658ae1664cf6fa2b71de74",
+    "replacement_paths_exact": [
+      "module_graph.relative_rule",
+      "binding_grammar.trusted_alias_rule"
+    ],
+    "addition_paths_exact": [
+      "module_graph.package_initializer_execution_rule"
+    ],
+    "value_source": "field_values",
+    "construction_rule": "Safe-read and raw-bind R1, R2, R3 and R4 and verify every supersedes pin. Deep-copy R2.corrected_semantic_contract. Require both replacement paths to exist as strings, require the addition path to be absent, replace exactly the two declared fields, add exactly the one declared field, reject every missing, extra or duplicate operation, and place the result beneath census_contract.semantic_python_discovery_boundary. The canonical digest covers the complete resulting census_contract only."
+  },
+  "field_values": {
+    "module_graph.relative_rule": "Derive importing_package_context from the source path: for a path ending in __init__.py use its file-module identity; otherwise remove the final component from its file-module identity. Require that context to be nonempty. For ImportFrom level L greater than zero, require a positive integer and let ascents equal L minus 1. Reject identity_mismatch when ascents is greater than or equal to the package-context component count. Otherwise remove exactly ascents trailing components, append the written module components when present, require a nonempty absolute base, and apply R2 from_rule. A nonimportable source with a relative import is uncertain and receives no guessed edge.",
+    "module_graph.package_initializer_execution_rule": "Whenever R2 import_rule, from_rule or a supported dynamic-loader call resolves a local full target node T, create the full importer-to-T edge and also an importer-to-P edge for every strict ancestor identity P of T that is a file-module node materialized from P/__init__.py. Synthetic-package ancestors have no executable edge. If T is itself a file-backed package initializer, the full target edge covers it. Ancestor initializer edges never expand a package to descendants.",
+    "binding_grammar.trusted_alias_rule": "Lexical scopes are Module, ClassDef, FunctionDef, AsyncFunctionDef, Lambda and each comprehension. A relevant alias reference is trusted only when its innermost lexical scope is the same scope containing exactly one matching import binding and no other binder of that name anywhere in that scope. A reference that would resolve to an imported alias from an enclosing scope is deliberately not resolved and marks the source uncertain. Any relevant global or nonlocal declaration, shadowing or multiple binding also marks the source uncertain. A direct builtin __import__ Name is trusted only when no binder and no global or nonlocal declaration for __import__ exists in its scope or any enclosing lexical scope."
+  },
+  "closed_vectors": [
+    "core/models.py with from .session_manager import SessionManager uses context core, level 1, zero ascents and target core.session_manager.",
+    "core/__init__.py with from .auth import AuthManager uses context core, level 1, zero ascents and target core.auth.",
+    "pkg/sub/consumer.py with from .. import authority uses context pkg.sub, level 2, one ascent and target pkg.authority.",
+    "Context core with level 2 and context pkg.sub with level 3 both fail because ascents equals package depth.",
+    "Importing pkg.sub.mod targets that node and only the file-backed ancestor initializers among pkg and pkg.sub.",
+    "A same-scope unique loader alias is trusted; an enclosing-scope alias used inside a nested scope makes that source an uncertainty anchor."
+  ],
+  "acceptance": [
+    "The exact merge produces one and only one corrected semantic boundary from R2.",
+    "Both replacement preconditions and the absent addition precondition are hostile-tested.",
+    "Relative levels 1 and 2 resolve exactly; equality and greater-than package-depth traversal fail.",
+    "File-backed ancestor initializers add execution edges and synthetic namespaces do not.",
+    "Same-scope, enclosing-scope, global, nonlocal, shadowed and multiply bound aliases follow the exact conservative rule.",
+    "All R2 current-tree, digest, module-node, dynamic-loader, TYPE_CHECKING, uncertainty-propagation, terminal-recapture, seven-positive, schema-2, unclassified-only and no-live gates remain required."
+  ],
+  "implementation_scope": {
+    "allowed_paths_exact": [
+      "scripts/audit_harbour_knowledge_state_census.py",
+      "tests/test_audit_harbour_knowledge_state_census.py",
+      "docs/plans/harbour-one-h1r-04-state-census-manifest.json"
+    ],
+    "required_delta": "Bind R1 through R4, construct the exact corrected semantic boundary, implement it, add every inherited and R4 hostile gate, and regenerate schema-2 discovery membership without changing the 17 inherited classifications.",
+    "forbidden": "No product-roadmap status change, classification decision, migration, activation, private-data read, provider or network action, deployment, deletion, push, Codex configuration change or other live effect."
+  },
+  "independent_review": "Two independent reviewers must pass the exact R4 bytes before implementation. Any failure freezes R4 and permits only a fresh correction."
+}

@@ -39,6 +39,18 @@ GATED_DONE_STATUSES = {
     "foundation_done_live_gated",
     "repo_prepared_live_unverified",
 }
+TERMINAL_STATUS_FAMILIES = (
+    "accepted",
+    "sol_accepted",
+    "implemented",
+    "done",
+    "satisfied",
+)
+NONTERMINAL_STATUS_FAMILIES = (
+    "blocked",
+    "released_blocked",
+    "recovery",
+)
 OPEN_STATUSES = {"open", "planned", "running", "todo", "pending"}
 META_ROUTER_STATUSES = {"waiting_for_operator_choice"}
 
@@ -634,7 +646,11 @@ def _classify_item(item: RoadmapAuditItem) -> str:
     path = item.path.lower()
     if _is_meta_router_item(status=status, path=path):
         return "closed"
-    if status in DONE_STATUSES or status in GATED_DONE_STATUSES:
+    if (
+        status in DONE_STATUSES
+        or status in GATED_DONE_STATUSES
+        or _is_terminal_status_family(status)
+    ):
         return "closed"
     if item_class == "needs_design":
         return "design_gate"
@@ -656,11 +672,31 @@ def _classify_item(item: RoadmapAuditItem) -> str:
         return "live_gate"
     if not item_class and _looks_like_design_gate(item_id=item_id, path=path):
         return "design_gate"
+    if _is_nonterminal_status_family(status):
+        return "other_open"
     if item_class == "blocked":
         return "other_open"
     if status in OPEN_STATUSES:
         return "other_open"
     return "closed"
+
+
+def _is_terminal_status_family(status: str) -> bool:
+    """Recognize explicit terminal ledger families without substring matching."""
+
+    return any(
+        status == family or status.startswith(f"{family}_")
+        for family in TERMINAL_STATUS_FAMILIES
+    )
+
+
+def _is_nonterminal_status_family(status: str) -> bool:
+    """Keep explicit blocked, recovery, and negative acceptance states open."""
+
+    return ("accepted" in status and not _is_terminal_status_family(status)) or any(
+        status == family or status.startswith(f"{family}_")
+        for family in NONTERMINAL_STATUS_FAMILIES
+    )
 
 
 def _is_meta_router_item(*, status: str, path: str) -> bool:

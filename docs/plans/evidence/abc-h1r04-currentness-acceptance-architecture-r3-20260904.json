@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "kind": "harbour_one.h1r04_census_portable_ctime_architecture",
+  "status": "review_candidate",
+  "claimable": true,
+  "live_actions": false,
+  "decision": "Preserve the exact-record R2 control-plane boundary, but replace its impossible cross-API ctime equality wording with a portable identity contract. H1R-04 remains product-pending and no candidate classification is authorized.",
+  "supersedes": {
+    "path": "docs/plans/evidence/abc-h1r04-currentness-acceptance-architecture-r2-20260904.json",
+    "raw_blob": "dc322b1e46e1d1db50a0fd9afba7f9ec443c5289",
+    "scope": "Only filesystem identity comparison semantics and their tests are corrected. The R2 exact record path, schema, manifest v2, effective digest, sibling visibility, no-live boundary and all inherited R1 contracts remain authoritative."
+  },
+  "observed_platform_vector": {
+    "platform": "Windows",
+    "unchanged_file_lstat_mode_octal": "100666",
+    "unchanged_file_fstat_mode_octal": "100666",
+    "unchanged_file_lstat_ctime_ns": 1788539491678272700,
+    "unchanged_file_fstat_ctime_ns": 1788540928311661800,
+    "unchanged_file_mtime_ns": 1788540928311661800,
+    "conclusion": "For an unchanged file, Windows lstat and handle fstat expose different st_ctime_ns meanings. Requiring those two raw values to equal rejects every valid read and is not a security property."
+  },
+  "portable_identity_contract": {
+    "cross_view_fields_exact": [
+      "st_mode_complete",
+      "st_dev",
+      "st_ino_when_nonzero",
+      "st_size",
+      "st_mtime_ns",
+      "st_file_attributes"
+    ],
+    "path_snapshot_fields_exact": [
+      "st_mode_complete",
+      "st_dev",
+      "st_ino_when_nonzero",
+      "st_size",
+      "st_mtime_ns",
+      "st_file_attributes",
+      "st_ctime_ns"
+    ],
+    "descriptor_snapshot_fields_exact": [
+      "st_mode_complete",
+      "st_dev",
+      "st_ino_when_nonzero",
+      "st_size",
+      "st_mtime_ns",
+      "st_file_attributes",
+      "st_ctime_ns"
+    ],
+    "comparison_sequence": [
+      "Capture initial component lstat path snapshots including complete st_mode and st_ctime_ns.",
+      "Open exactly once and require the first descriptor fstat to equal the final-path lstat on every cross_view_fields_exact field, including complete permission bits.",
+      "On non-Windows platforms additionally require first descriptor st_ctime_ns to equal final-path lstat st_ctime_ns.",
+      "After reading, require the second descriptor fstat to equal the first descriptor fstat on every descriptor_snapshot_fields_exact field.",
+      "After close, recapture every component lstat and require equality with the initial lstat on every path_snapshot_fields_exact field."
+    ],
+    "permission_rule": "Any stable executable permission bit on the exact JSON record fails control_plane_record_invalid. Any mode change between path and descriptor, during descriptor reading, or between initial and final path snapshots fails toctou_changed on every platform.",
+    "ctime_rule": "A descriptor ctime change after the first descriptor snapshot or a path-component ctime change visible between initial and final path snapshots fails toctou_changed on every platform. POSIX also enforces lstat-to-first-fstat ctime equality. Windows deliberately does not compare raw ctime across those APIs and does not claim to detect a ctime-only metadata transition between initial lstat and first fstat when that transition is thereafter stable and not reflected by any cross-view field or final path snapshot.",
+    "failure_rule": "No platform may normalize, overwrite or discard st_mode. No platform may discard ctime from both channel-local comparisons. Unknown platform behavior fails closed through the ordinary identity mismatch checks.",
+    "windows_threat_boundary": "The verifier detects content, size, mtime, device/inode, file-attribute and complete-mode changes across path and descriptor views, including chmod. It does not claim to sandbox a malicious privileged Windows actor or to detect an ACL/security-descriptor-only transition that occurs before the first handle snapshot and is invisible to all declared stat fields. Run against a quiescent trusted checkout, consistent with the inherited R1 TOCTOU threat boundary."
+  },
+  "effective_contract_patch": {
+    "census_contract_addition_key": "portable_identity_boundary",
+    "census_contract_addition_value_source": "portable_identity_contract",
+    "scan_contract_digest_rule": "The effective census contract digest covers inherited R1, the entire R2 boundary_contract, and the entire portable_identity_contract under portable_identity_boundary. The R3 diagnostic platform vector is not hashed.",
+    "architecture_binding_rule": "The scanner must safe-read and raw-blob-bind R1, R2 and this R3 artifact before constructing the effective in-memory contract. Any absence, drift or inconsistent supersedes pin fails identity_mismatch."
+  },
+  "implementation_scope": {
+    "allowed_paths_exact": [
+      "scripts/audit_harbour_knowledge_state_census.py",
+      "tests/test_audit_harbour_knowledge_state_census.py",
+      "docs/plans/harbour-one-h1r-04-state-census-manifest.json"
+    ],
+    "required_delta": [
+      "Represent cross-view and channel snapshot identities separately rather than truncating an opaque tuple.",
+      "Use complete st_mode in both representations.",
+      "Compare ctime channel-locally on Windows and both channel-locally plus cross-view on POSIX.",
+      "Bind R3 and include portable_identity_boundary in the effective scan digest.",
+      "Regenerate the schema-2 discovery manifest without changing any classification."
+    ],
+    "forbidden": "No product-roadmap/status edit, state classification, migration, data/private read, provider/network action, deployment, deletion, push, Codex configuration change or other live effect."
+  },
+  "acceptance_gates": {
+    "hostile_tests": [
+      "The real unchanged Windows lstat/fstat ctime divergence vector is accepted when all cross-view fields and both channel-local snapshots are stable.",
+      "On POSIX, a first-fstat ctime-only mismatch against initial lstat fails toctou_changed.",
+      "On Windows, the real benign lstat/fstat ctime divergence is accepted; no test or implementation may infer a race from that difference alone.",
+      "A second-fstat ctime-only drift fails toctou_changed.",
+      "A final-lstat ctime-only drift on the file or any parent component fails toctou_changed.",
+      "A permission-bit change in any cross-view or channel-local transition fails toctou_changed; a stable executable exact record fails control_plane_record_invalid.",
+      "All R2 exact-path, schema, paused-state, sibling and manifest/digest hostile gates remain green."
+    ],
+    "real_repository": [
+      "Focused and dependency suites plus Round6, Integration Spine and Guidance validators pass.",
+      "Expected-unclassified validation passes before release.",
+      "After release changes the exact excluded run record, the unchanged manifest passes again with identical files, candidates, counts and member digest.",
+      "Default validation remains exit 2 with only unclassified_candidates."
+    ],
+    "independent_review": "Two independent reviewers must PASS the exact R3 bytes and the final three implementation blobs. A failure freezes the candidate and authorizes only a fresh correction."
+  }
+}

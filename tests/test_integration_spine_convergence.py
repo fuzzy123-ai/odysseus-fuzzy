@@ -264,39 +264,113 @@ def _current_authority_factory(
 def _rolling_projection_fixture_documents() -> tuple[dict[str, dict[str, Any]], dict[str, dict[str, Any]]]:
     """Return the entire rolling-projection authority from explicit literals."""
 
-    forge = "docs/plans/forge-usi-code-source-adapter-roadmap.md"
-    members = [f"docs/plans/active-{index:02d}.md" for index in range(29)] + [forge]
-    members.sort()
-    old_members = [path for path in members if path != forge]
+    historically_removed = [
+        "docs/plans/agent-maintenance-safety-harness-roadmap.json",
+        "docs/plans/live-contextual-layer-roadmap.json",
+    ]
+    retained_path = "docs/plans/autonomous-coding-production-readiness-roadmap.json"
+    harbour_path = "docs/plans/harbour-one-product-roadmap.json"
+    removed_current = [
+        "docs/plans/coding-agent-orchestration-consolidation-roadmap.md",
+        "docs/plans/odysseus-harbor-one-autonomous-workspace-roadmap.md",
+    ]
+    members = sorted([harbour_path, *[f"docs/plans/active-{index:02d}.md" for index in range(25)]])
+    baseline_members = sorted([*([path for path in members if path != harbour_path]), retained_path, *removed_current])
+    old_members = sorted([*baseline_members, *historically_removed])
     frontiers = [{"roadmap_path": path, "claimable": False} for path in members]
+    next(item for item in frontiers if item["roadmap_path"] == harbour_path)["slice"] = {
+        "id": "H1R-04",
+        "claimable": False,
+    }
+    frontiers.append({
+        "roadmap_path": retained_path,
+        "membership_role": "retained_terminal_wave_evidence",
+        "claimable": False,
+        "slice": {
+            "id": "ACPR-12-transactional-worktree-and-safe-tool-capsules",
+            "state": "accepted_released_round6_a",
+            "claimable": False,
+        },
+    })
+    baseline_frontiers = [{"roadmap_path": path, "claimable": False} for path in baseline_members]
     old_frontiers = [{"roadmap_path": path, "claimable": False} for path in old_members]
     waves = [
-        {"implementation_slice_ids": ["a", "b", "c"]},
-        {"implementation_slice_ids": ["d", "e"]},
-        {"implementation_slice_ids": ["f", "g"]},
+        {"state": "repo_accepted", "implementation_slice_ids": ["ACPR-12-transactional-worktree-and-safe-tool-capsules", "b", "c"]},
+        {"state": "repo_accepted", "implementation_slice_ids": ["d", "e"]},
+        {"state": "blocked_terminal", "implementation_slice_ids": ["f", "g"]},
     ]
-    source_blob, old_blob = "a" * 40, "b" * 40
-    new_blob = _EXPLICIT_FIXTURE_BLOB_IDS[validator.ROUND6_PATH]
+    source_blob, old_blob, historical_new_blob, baseline_blob = "a" * 40, "b" * 40, "c" * 40, "d" * 40
+    corrected_blob = _EXPLICIT_FIXTURE_BLOB_IDS[validator.ROUND6_PATH]
     digest = validator._member_set_digest(members)
+    baseline_digest = validator._member_set_digest(baseline_members)
     old_digest = validator._member_set_digest(old_members)
+    reconciliation = {
+        "architecture_path": "docs/plans/evidence/abc-round6-guidance-membership-reconciliation-architecture-20260904.json",
+        "baseline_guidance_blob": source_blob,
+        "baseline_guidance_active_count": 26,
+        "baseline_guidance_active_digest": digest,
+        "baseline_round6_blob": baseline_blob,
+        "baseline_round6_total_frontier_count": 28,
+        "baseline_round6_untyped_frontier_digest": baseline_digest,
+        "corrected_round6_blob": corrected_blob,
+        "corrected_guidance_active_count": 26,
+        "corrected_guidance_active_digest": digest,
+        "corrected_round6_active_frontier_count": 26,
+        "corrected_round6_retained_terminal_frontier_count": 1,
+        "corrected_round6_total_frontier_count": 27,
+        "frontier_added": [harbour_path],
+        "frontier_removed": removed_current,
+        "frontier_role_reclassified": [{
+            "path": retained_path,
+            "from": "untyped_active_assumption",
+            "to": "retained_terminal_wave_evidence",
+        }],
+        "retained_terminal_paths": [retained_path],
+        "historical_records_preserved": True,
+        "scope": "current_active_membership_and_retained_terminal_provenance_only",
+    }
+    current_summary = {
+        "inventory_mode": "rolling_projection",
+        "inventory_source_blob": source_blob,
+        "inventory_member_set_digest": digest,
+        "inventory_member_count": 26,
+        "active_roadmap_count": 26,
+        "active_frontier_count": 26,
+        "retained_terminal_frontier_count": 1,
+        "total_frontier_count": 27,
+        "normalized_frontier_count": 27,
+        "current_claimable_frontier_count": 0,
+        "wave_count": 3,
+        "scheduled_repo_slice_count": 7,
+        "active_membership_reconciliation": reconciliation,
+        "inventory_denominator_change": {
+            "old_count": 30, "new_count": 28, "old_digest": old_digest,
+            "new_digest": baseline_digest, "old_round6_blob": old_blob,
+            "new_round6_blob": historical_new_blob, "added": [],
+            "removed": historically_removed,
+            "scope": "inventory_membership_only_terminal_waves_and_seven_scheduled_slices_unchanged",
+        },
+    }
     guidance = {
-        "roadmaps": [{"path": path, "profile": "active_fixture"} for path in members],
-        "analysis_summary": {"round6_parallel_execution": {
-            "inventory_member_set_digest": digest, "inventory_member_count": 30,
-            "active_roadmap_count": 30, "normalized_frontier_count": 30,
-            "current_claimable_frontier_count": 0, "wave_count": 3,
-            "scheduled_repo_slice_count": 7, "inventory_source_blob": source_blob,
-            "inventory_denominator_change": {
-                "old_count": 29, "new_count": 30, "old_digest": old_digest,
-                "new_digest": digest, "old_round6_blob": old_blob,
-                "new_round6_blob": new_blob, "added": [forge], "removed": [],
-                "scope": "inventory_membership_only_terminal_waves_and_seven_scheduled_slices_unchanged",
-            },
-        }},
+        "roadmaps": [
+            *[{"path": path, "profile": "active_fixture"} for path in members],
+            {"path": retained_path, "profile": "historical_done"},
+        ],
+        "analysis_summary": {"round6_parallel_execution": current_summary},
     }
     round6 = {"roadmap_frontiers": frontiers, "waves": waves, "active_claims": []}
+    open_work = {"current_position": {"round6_parallel_execution": {
+        key: SyntheticAuthorityWorld._copy_json(value)
+        for key, value in current_summary.items()
+        if key in {
+            "active_roadmap_count", "active_frontier_count",
+            "retained_terminal_frontier_count", "total_frontier_count",
+            "normalized_frontier_count", "current_claimable_frontier_count",
+            "scheduled_repo_slice_count", "wave_count", "active_membership_reconciliation",
+        }
+    }}}
     evidence = {"inventory_receipt": {
-        "inventory_mode": "rolling_projection", "member_count": 30,
+        "inventory_mode": "rolling_projection", "member_count": 26,
         "member_set_digest": digest, "terminal_waves_unchanged": True,
         "scheduled_slice_count_unchanged": 7,
     }}
@@ -304,11 +378,14 @@ def _rolling_projection_fixture_documents() -> tuple[dict[str, dict[str, Any]], 
         _EXPLICIT_FIXTURE_EVIDENCE_PATH: evidence,
         validator.GUIDANCE_PATH: guidance,
         validator.ROUND6_PATH: round6,
+        validator.OPEN_WORK_PATH: open_work,
     }
     materialized = {
         source_blob: guidance,
         old_blob: {"roadmap_frontiers": old_frontiers, "waves": waves, "active_claims": []},
-        new_blob: round6,
+        historical_new_blob: {"roadmap_frontiers": baseline_frontiers, "waves": waves, "active_claims": []},
+        baseline_blob: {"roadmap_frontiers": baseline_frontiers, "waves": waves, "active_claims": []},
+        corrected_blob: round6,
     }
     return documents, materialized
 
@@ -342,8 +419,9 @@ def _parallel_evidence_projection_errors(
         control_documents[factory.evidence_path]
     )
     documents = {
-        validator.GUIDANCE_PATH: control_documents[validator.GUIDANCE_PATH],
-        validator.ROUND6_PATH: control_documents[validator.ROUND6_PATH],
+        path: document
+        for path, document in control_documents.items()
+        if path != factory.evidence_path
     }
     additional_blob_ids: dict[str, str] = {}
     receipt_blob_ids: dict[str, str] = {}
@@ -456,6 +534,110 @@ def test_validator_preserves_single_claim_evidence_receipt_compatibility(
     )
 
     assert errors == []
+
+
+def test_current_membership_is_validated_without_active_v2_claims(monkeypatch) -> None:
+    factory = _current_authority_factory()
+    documents, materialized = _rolling_projection_fixture_documents()
+    data = {
+        "external_lane_claims": [],
+        "long_run_state": {"revision": 17, "active_claims": [], "agent_leases": []},
+    }
+    monkeypatch.setattr(
+        validator,
+        "_materialized_json_blob",
+        lambda _root, blob_id: materialized.get(blob_id),
+    )
+    control = _explicit_active_fixture_authority(data, factory, documents=documents)
+    errors: list[str] = []
+    validator._validate_rolling_projection(
+        [], repo_root=REPO_ROOT, authority=control, errors=errors
+    )
+    assert errors == []
+
+    mutated = SyntheticAuthorityWorld._copy_json(documents)
+    mutated[validator.GUIDANCE_PATH]["analysis_summary"]["round6_parallel_execution"][
+        "active_frontier_count"
+    ] = 25
+    authority = _explicit_active_fixture_authority(data, factory, documents=mutated)
+    errors = []
+    validator._validate_rolling_projection(
+        [], repo_root=REPO_ROOT, authority=authority, errors=errors
+    )
+
+    assert any("current rolling projection membership" in error for error in errors)
+
+    for malformed_role in ({"nested": "invented"}, [["invented"]]):
+        mutated = SyntheticAuthorityWorld._copy_json(documents)
+        retained = next(
+            item
+            for item in mutated[validator.ROUND6_PATH]["roadmap_frontiers"]
+            if item.get("membership_role") == "retained_terminal_wave_evidence"
+        )
+        retained["membership_role"] = malformed_role
+        authority = _explicit_active_fixture_authority(data, factory, documents=mutated)
+        errors = []
+        validator._validate_rolling_projection(
+            [], repo_root=REPO_ROOT, authority=authority, errors=errors
+        )
+        assert any("current rolling projection membership" in error for error in errors)
+
+    mutated = SyntheticAuthorityWorld._copy_json(documents)
+    harbour = next(
+        item
+        for item in mutated[validator.ROUND6_PATH]["roadmap_frontiers"]
+        if item["roadmap_path"] == "docs/plans/harbour-one-product-roadmap.json"
+    )
+    harbour["slice"]["id"] = "H1R-99"
+    authority = _explicit_active_fixture_authority(data, factory, documents=mutated)
+    errors = []
+    validator._validate_rolling_projection(
+        [], repo_root=REPO_ROOT, authority=authority, errors=errors
+    )
+    assert any("current rolling projection membership" in error for error in errors)
+
+    mutated = SyntheticAuthorityWorld._copy_json(documents)
+    retained = next(
+        item
+        for item in mutated[validator.ROUND6_PATH]["roadmap_frontiers"]
+        if item.get("membership_role") == "retained_terminal_wave_evidence"
+    )
+    original_path = retained["roadmap_path"]
+    retained["roadmap_path"] = "../outside.json"
+    guidance_entry = next(
+        item
+        for item in mutated[validator.GUIDANCE_PATH]["roadmaps"]
+        if item["path"] == original_path
+    )
+    guidance_entry["path"] = "../outside.json"
+    authority = _explicit_active_fixture_authority(data, factory, documents=mutated)
+    errors = []
+    validator._validate_rolling_projection(
+        [], repo_root=REPO_ROOT, authority=authority, errors=errors
+    )
+    assert any("current rolling projection membership" in error for error in errors)
+
+    mutated = SyntheticAuthorityWorld._copy_json(documents)
+    mutated[validator.ROUND6_PATH]["completion"] = {"implemented": True}
+    drift_blob = "e" * 40
+    for path in (validator.GUIDANCE_PATH, validator.OPEN_WORK_PATH):
+        summary = (
+            mutated[path]["analysis_summary"]["round6_parallel_execution"]
+            if path == validator.GUIDANCE_PATH
+            else mutated[path]["current_position"]["round6_parallel_execution"]
+        )
+        summary["active_membership_reconciliation"]["corrected_round6_blob"] = drift_blob
+    authority = _explicit_active_fixture_authority(
+        data,
+        factory,
+        documents=mutated,
+        additional_blob_ids={validator.ROUND6_PATH: drift_blob},
+    )
+    errors = []
+    validator._validate_rolling_projection(
+        [], repo_root=REPO_ROOT, authority=authority, errors=errors
+    )
+    assert any("active-membership reconciliation receipt" in error for error in errors)
 
 
 def test_validator_rejects_parallel_v2_evidence_path_alias(monkeypatch) -> None:
@@ -880,6 +1062,235 @@ def _validate_running_v2_fixture(
         errors=errors,
     )
     return errors
+
+
+def _runtime_launcher_claim_errors(
+    monkeypatch: pytest.MonkeyPatch,
+    launcher: str,
+) -> tuple[list[str], dict[str, Any]]:
+    """Validate one isolated claim whose persisted argv uses ``launcher``."""
+
+    factory = _current_authority_factory()
+    data = _current_running_fixture(factory, "fixture-runtime-launcher")
+    claim = next(
+        item
+        for item in data["external_lane_claims"]
+        if item.get("state") == "running"
+    )
+    for command in claim["regression_tests"]:
+        command["argv"][0] = launcher
+    return _validate_running_v2_fixture(claim, data, factory, monkeypatch), claim
+
+
+def test_command_spec_accepts_legacy_and_exact_current_virtualenv_executable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    legacy_errors, _ = _runtime_launcher_claim_errors(
+        monkeypatch, "venv\\Scripts\\python.exe"
+    )
+    assert legacy_errors == []
+
+    seen_runtime_identities: list[object] = []
+    original_command_spec = validator._command_spec
+
+    def record_runtime_identity(*args: Any, **kwargs: Any):
+        seen_runtime_identities.append(kwargs.get("runtime_identity"))
+        return original_command_spec(*args, **kwargs)
+
+    monkeypatch.setattr(validator, "_command_spec", record_runtime_identity)
+    current_errors, claim = _runtime_launcher_claim_errors(
+        monkeypatch, sys.executable
+    )
+
+    assert current_errors == []
+    assert len(seen_runtime_identities) == len(claim["regression_tests"])
+    assert None not in seen_runtime_identities
+    assert len({id(identity) for identity in seen_runtime_identities}) == 1
+    assert all(
+        command["argv"][0] == sys.executable
+        for command in claim["regression_tests"]
+    )
+
+
+def test_command_spec_preserves_shell_url_artifact_basetemp_and_digest_guards(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    current_errors, current_claim = _runtime_launcher_claim_errors(
+        monkeypatch, sys.executable
+    )
+    assert current_errors == []
+
+    current_manifest = validator._r5_structured_command_manifest(current_claim)
+    assert current_manifest is not None
+    current_digest = validator._manifest_digest(current_manifest)
+    legacy_manifest = json.loads(json.dumps(current_manifest))
+    for command in legacy_manifest:
+        command["argv"][0] = "venv\\Scripts\\python.exe"
+    assert validator._manifest_digest(legacy_manifest) != current_digest
+
+    mutations = (
+        (
+            lambda claim: claim["regression_tests"][0]["argv"].append(";"),
+            "closed local Python boundary",
+        ),
+        (
+            lambda claim: claim["regression_tests"][0]["argv"].append(
+                "https://example.invalid/test.py"
+            ),
+            "closed local Python boundary",
+        ),
+        (
+            lambda claim: claim["regression_tests"][0]["argv"].__setitem__(
+                7, "tests\\test_chat_route_tool_policy.py"
+            ),
+            "command artifact escapes claim writer",
+        ),
+        (
+            lambda claim: claim["regression_tests"][0]["argv"].__setitem__(
+                -1, ".abc-test-tmp/other/focused"
+            ),
+            "not an allowlisted validator invocation",
+        ),
+    )
+    for mutate, expected in mutations:
+        errors, claim = _runtime_launcher_claim_errors(monkeypatch, sys.executable)
+        mutate(claim)
+        factory = _current_authority_factory()
+        data = {
+            "external_lane_claims": [
+                item
+                for item in _current_running_fixture(
+                    factory, "fixture-runtime-launcher"
+                )["external_lane_claims"]
+                if item.get("state") != "running"
+            ]
+            + [claim],
+            "long_run_state": {
+                "revision": 17,
+                "active_claims": [claim["run_id"]],
+                "agent_leases": [
+                    {
+                        "claim_id": claim["run_id"],
+                        "owner": claim["owner"],
+                        "expires_at": claim["lease_expires_at"],
+                    }
+                ],
+            },
+        }
+        errors = _validate_running_v2_fixture(
+            claim, data, factory, monkeypatch
+        )
+        assert any(expected in error for error in errors), (expected, errors)
+
+
+def test_command_spec_rejects_path_alias_env_and_arbitrary_absolute_interpreters(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    current_errors, _ = _runtime_launcher_claim_errors(monkeypatch, sys.executable)
+    assert current_errors == []
+
+    executable = Path(sys.executable)
+    aliases = (
+        executable.name,
+        "/usr/bin/env",
+        str(executable.parent / ".." / executable.parent.name / executable.name),
+        "/opt/unrelated-venv/bin/python",
+    )
+    for alias in aliases:
+        assert alias != sys.executable
+        errors, _ = _runtime_launcher_claim_errors(monkeypatch, alias)
+        assert any("closed local Python boundary" in error for error in errors)
+
+
+def test_command_spec_rejects_relative_or_non_virtualenv_current_executable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    current_errors, _ = _runtime_launcher_claim_errors(monkeypatch, sys.executable)
+    assert current_errors == []
+
+    with monkeypatch.context() as context:
+        context.setattr(validator.sys, "executable", "venv/bin/python")
+        context.setattr(validator.sys, "prefix", "/fixture/venv")
+        context.setattr(validator.sys, "base_prefix", "/fixture/base")
+        errors, _ = _runtime_launcher_claim_errors(
+            context, "venv/bin/python"
+        )
+        assert any("closed local Python boundary" in error for error in errors)
+
+    with monkeypatch.context() as context:
+        context.setattr(validator.sys, "executable", "/usr/bin/python3")
+        context.setattr(validator.sys, "prefix", "/usr")
+        context.setattr(validator.sys, "base_prefix", "/usr")
+        errors, _ = _runtime_launcher_claim_errors(
+            context, "/usr/bin/python3"
+        )
+        assert any("closed local Python boundary" in error for error in errors)
+
+
+def test_command_spec_rejects_symlink_realpath_and_runtime_identity_drift(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    current_executable = sys.executable
+    current_errors, _ = _runtime_launcher_claim_errors(
+        monkeypatch, current_executable
+    )
+    assert current_errors == []
+
+    with monkeypatch.context() as context:
+        alias = current_executable + "-alias"
+        captured_realpath = validator.os.path.realpath(current_executable)
+        context.setattr(
+            validator.os.path,
+            "realpath",
+            lambda value: captured_realpath
+            if value in {current_executable, alias}
+            else value,
+        )
+        errors, _ = _runtime_launcher_claim_errors(context, alias)
+        assert any("closed local Python boundary" in error for error in errors)
+
+    for mutate_after_call in (1, 4):
+        with monkeypatch.context() as context:
+            original_command_spec = validator._command_spec
+            calls = 0
+
+            def drift_executable(*args: Any, **kwargs: Any):
+                nonlocal calls
+                result = original_command_spec(*args, **kwargs)
+                calls += 1
+                if calls == mutate_after_call:
+                    context.setattr(
+                        validator.sys,
+                        "executable",
+                        current_executable + "-drift",
+                    )
+                return result
+
+            context.setattr(validator, "_command_spec", drift_executable)
+            errors, _ = _runtime_launcher_claim_errors(
+                context, current_executable
+            )
+            assert any("runtime identity drifted" in error for error in errors)
+
+    with monkeypatch.context() as context:
+        original_command_spec = validator._command_spec
+        original_realpath = validator.os.path.realpath
+        drifted = False
+
+        def conditional_realpath(value: str) -> str:
+            result = original_realpath(value)
+            return result + "-drift" if drifted else result
+
+        def drift_realpath(*args: Any, **kwargs: Any):
+            nonlocal drifted
+            result = original_command_spec(*args, **kwargs)
+            drifted = True
+            return result
+
+        context.setattr(validator.os.path, "realpath", conditional_realpath)
+        context.setattr(validator, "_command_spec", drift_realpath)
+        errors, _ = _runtime_launcher_claim_errors(context, current_executable)
+        assert any("runtime identity drifted" in error for error in errors)
 
 
 def _materialized_repo_genesis_fixture(
@@ -1962,9 +2373,12 @@ def test_target_fixture_builders_are_explicit_and_zero_read(monkeypatch) -> None
     )
 
     assert set(documents) == {
-        factory.evidence_path, validator.GUIDANCE_PATH, validator.ROUND6_PATH
+        factory.evidence_path,
+        validator.GUIDANCE_PATH,
+        validator.ROUND6_PATH,
+        validator.OPEN_WORK_PATH,
     }
-    assert len(materialized) == 3
+    assert len(materialized) == 5
     assert [item["run_id"] for item in data["external_lane_claims"]] == [
         "fixture-uda-terminal-source", "fixture-uda",
         "fixture-fca-terminal-source", "fixture-fca",
@@ -2313,41 +2727,20 @@ def test_claim_origin_compatibility_rejects_hostile_variants(
 
 
 def test_claim_origin_architecture_packet_is_digest_and_semantic_binding_closed() -> None:
-    data = json.loads(ROADMAP.read_text(encoding="utf-8"))
-    packet = data["architecture_packets"]["R7-claim-origin-compatibility"]
-    matches = [
-        item
-        for item in data["external_lane_claims"]
-        if item.get("slice_id") == packet["slice_id"]
-        and item.get("architecture_revision") == packet["architecture_revision"]
-    ]
-    assert len(matches) == 1
-    claim = matches[0]
+    claim, _sources, authority, data = _claim_origin_fixture(
+        validator.NEW_PRODUCT_PATHS_MODE
+    )
+    packet = data["architecture_packets"][claim["slice_id"]]
     state_pair = (claim.get("state"), claim.get("candidate_state"))
-    if claim.get("state") == "running":
-        assert state_pair in {
-            ("running", "not_frozen"),
-            ("running", "frozen_for_independent_qa"),
-        }
-        assert claim["run_id"] in data["long_run_state"]["active_claims"]
-        assert sum(
-            lease.get("claim_id") == claim["run_id"]
-            for lease in data["long_run_state"]["agent_leases"]
-        ) == 1
-    else:
-        assert state_pair in {
-            ("released_accepted", "frozen_for_independent_qa"),
-            ("released_blocked", "blocked_before_freeze"),
-            ("released_blocked", "blocked_after_freeze"),
-            ("released_pending_post_release_qa", "frozen_for_independent_qa"),
-        }
-        assert type(claim.get("released_at")) is str
-        assert claim["run_id"] not in data["long_run_state"]["active_claims"]
-        assert all(
-            lease.get("claim_id") != claim["run_id"]
-            for lease in data["long_run_state"]["agent_leases"]
-        )
-    assert validator._claim_origin_packet_binding_is_exact(claim, data)
+    assert state_pair == ("running", "not_frozen")
+    assert claim["run_id"] in data["long_run_state"]["active_claims"]
+    assert sum(
+        lease.get("claim_id") == claim["run_id"]
+        for lease in data["long_run_state"]["agent_leases"]
+    ) == 1
+    assert validator._claim_origin_packet_binding_is_exact(
+        claim, data, authority
+    )
 
     wrong_revision = json.loads(json.dumps(claim))
     wrong_revision["architecture_revision"] = "wrong-revision"
@@ -2379,7 +2772,9 @@ def test_claim_origin_architecture_packet_is_digest_and_semantic_binding_closed(
         if recompute:
             packet.pop("architecture_digest_sha256", None)
             packet["architecture_digest_sha256"] = validator._manifest_digest(packet)
-        assert validator._claim_origin_packet_binding_is_exact(claim, drifted) is False
+        assert validator._claim_origin_packet_binding_is_exact(
+            claim, drifted, authority
+        ) is False
 
 
 def test_new_product_origin_requires_exact_absence_readback_without_changing_existing_modes(
@@ -2963,17 +3358,30 @@ def test_classic_v2_legacy_and_new_evidence_capture_semantics_are_unchanged(
 
 
 def test_r6_exact_slice_selects_only_its_own_architecture_packet() -> None:
-    roadmap = json.loads(ROADMAP.read_text(encoding="utf-8"))
-    historical = next(
-        item
-        for item in roadmap["external_lane_claims"]
-        if item.get("slice_id") == validator.R6_VALIDATOR_SLICE
-    )
-    direct = next(
-        item
-        for item in roadmap["external_lane_claims"]
-        if item.get("slice_id") == validator.R6_DIRECT_VALIDATOR_SLICE
-    )
+    historical_packet = {
+        "architecture_revision": "FIXTURE-R6-ARCH-v1",
+        "digest_sha256": "sha256:" + "6" * 64,
+    }
+    direct_packet = {
+        "architecture_revision": "FIXTURE-R6R-DIRECT-ARCH-v1",
+        "digest_sha256": "sha256:" + "d" * 64,
+    }
+    roadmap = {
+        "architecture_packets": {
+            validator.R6_ARCHITECTURE_PACKET: historical_packet,
+            validator.R6_DIRECT_ARCHITECTURE_PACKET: direct_packet,
+        }
+    }
+    historical = {
+        "slice_id": validator.R6_VALIDATOR_SLICE,
+        "architecture_revision": historical_packet["architecture_revision"],
+        "architecture_digest_sha256": historical_packet["digest_sha256"],
+    }
+    direct = {
+        "slice_id": validator.R6_DIRECT_VALIDATOR_SLICE,
+        "architecture_revision": direct_packet["architecture_revision"],
+        "architecture_digest_sha256": direct_packet["digest_sha256"],
+    }
     assert validator._r6_architecture_binding(historical, roadmap) == (
         historical["architecture_revision"], historical["architecture_digest_sha256"]
     )
@@ -2996,36 +3404,49 @@ def _run(path: Path) -> subprocess.CompletedProcess[str]:
     )
 
 
-def _r5_frozen_fixture() -> tuple[dict[str, Any], dict[str, Any], validator.AuthoritySnapshotBundle]:
+def _r5_frozen_fixture() -> tuple[
+    dict[str, Any],
+    dict[str, Any],
+    validator.AuthoritySnapshotBundle,
+    dict[str, Any],
+]:
     """Build a receipt candidate without inheriting current active authority."""
 
-    roadmap = json.loads(ROADMAP.read_text(encoding="utf-8"))
-    claim = next(
-        item
-        for item in roadmap["external_lane_claims"]
-        if item.get("slice_id") == validator.R5_VALIDATOR_SLICE
-    )
-    # The checked-in R5 record is now receiptless terminal history.  This
-    # helper deliberately reconstructs its old pre-freeze unit fixture rather
-    # than letting terminal acceptance prose leak into the legacy R5 core.
-    claim.pop("acceptance_evidence", None)
-    candidates = {
-        path: validator._path_blob_id(REPO_ROOT / path)
-        for path in claim["allowed_paths"]
+    factory = _current_authority_factory()
+    data = {
+        "external_lane_claims": [],
+        "long_run_state": {
+            "revision": 17,
+            "active_claims": [],
+            "agent_leases": [],
+        },
     }
-    assert all(candidates.values())
-    evidence_path = next(
-        path for path in claim["read_only_pins"] if path.startswith("docs/plans/evidence/")
+    claim = factory.running_v2(
+        data,
+        "fixture-r5-freeze",
+        ["src/r5_fixture.py", "tests/test_r5_fixture.py"],
     )
+    candidates = {
+        path: ("c" if index == 0 else "d") * 40
+        for index, path in enumerate(claim["allowed_paths"])
+    }
+    evidence_path = factory.evidence_path
     dependency_pins = {
         path: blob
         for path, blob in claim["read_only_pins"].items()
         if path != evidence_path
     }
-    packet = roadmap["architecture_packets"][validator.R5_ARCHITECTURE_PACKET]
+    packet = {
+        "architecture_revision": "FIXTURE-R5-ARCH-v1",
+        "digest_sha256": "sha256:" + "5" * 64,
+    }
+    roadmap = {
+        "architecture_packets": {validator.R5_ARCHITECTURE_PACKET: packet}
+    }
     node_ids = ["tests/test_integration_spine_convergence.py::r5_freeze_fixture"]
     claim.update(
         {
+            "slice_id": validator.R5_VALIDATOR_SLICE,
             "candidate_blobs": candidates,
             "candidate_state": "frozen_for_independent_qa",
             "candidate_evidence_path": evidence_path,
@@ -3042,7 +3463,7 @@ def _r5_frozen_fixture() -> tuple[dict[str, Any], dict[str, Any], validator.Auth
             "candidate_pytest_node_ids": node_ids,
             "architecture_revision": packet["architecture_revision"],
             "architecture_digest_sha256": packet["digest_sha256"],
-            "freeze_receipt_blob": "a" * 40,
+            "freeze_receipt_blob": "f" * 40,
         }
     )
     evidence = {
@@ -3082,7 +3503,7 @@ def _r5_frozen_fixture() -> tuple[dict[str, Any], dict[str, Any], validator.Auth
         blob_ids=MappingProxyType(blob_ids),
         paths=tuple(sorted(blob_ids)),
     )
-    return claim, receipt, authority
+    return claim, receipt, authority, roadmap
 
 
 def _with_running_a1(data: dict) -> dict:
@@ -3112,25 +3533,43 @@ def test_round7_integration_spine_is_valid() -> None:
 
 
 def test_historical_r7_records_remain_terminal_and_noncurrent() -> None:
-    data = json.loads(ROADMAP.read_text(encoding="utf-8"))
-    claims = [
-        item for item in data["external_lane_claims"]
-        if item.get("slice_id") == validator.R7_VALIDATOR_SLICE
-    ]
-    assert claims
+    claim = {
+        "run_id": "fixture-terminal-r7",
+        "claim_id": "fixture-terminal-r7",
+        "slice_id": validator.R7_VALIDATOR_SLICE,
+        "state": "released_blocked",
+        "candidate_state": "blocked_before_freeze",
+        "released_at": "2026-08-06T12:00:00+02:00",
+    }
+    authority = {
+        "external_lane_claims": [claim],
+        "long_run_state": {"active_claims": [], "agent_leases": []},
+    }
+    assert claim["state"] == "released_blocked"
+    assert claim["candidate_state"] == "blocked_before_freeze"
+    assert claim["run_id"] not in authority["long_run_state"]["active_claims"]
     assert all(
-        claim.get("state") == "released_blocked"
-        and claim.get("candidate_state") == "blocked_before_freeze"
-        for claim in claims
+        lease.get("claim_id") != claim["run_id"]
+        for lease in authority["long_run_state"]["agent_leases"]
     )
 
 
 def test_historical_r7_claim_cannot_alias_the_direct_r6_recovery() -> None:
-    data = json.loads(ROADMAP.read_text(encoding="utf-8"))
-    claim = next(
-        item for item in data["external_lane_claims"]
-        if item.get("slice_id") == validator.R7_VALIDATOR_SLICE
-    )
+    claim = {
+        "slice_id": validator.R7_VALIDATOR_SLICE,
+        "architecture_revision": "FIXTURE-R7-TERMINAL-ARCH-v1",
+        "architecture_digest_sha256": "sha256:" + "7" * 64,
+        "state": "released_blocked",
+        "candidate_state": "blocked_before_freeze",
+    }
+    data = {
+        "architecture_packets": {
+            validator.R6_DIRECT_ARCHITECTURE_PACKET: {
+                "architecture_revision": "FIXTURE-R6R-DIRECT-ARCH-v1",
+                "digest_sha256": "sha256:" + "d" * 64,
+            }
+        }
+    }
     assert validator._r6_is_validator_claim(claim) is False
     assert validator._r6_architecture_binding(claim, data) is None
 
@@ -3495,6 +3934,7 @@ def test_json_and_vnext_authority_hostile_matrix(tmp_path, monkeypatch) -> None:
         evidence_path: evidence,
         validator.GUIDANCE_PATH: guidance,
         validator.ROUND6_PATH: round6,
+        validator.OPEN_WORK_PATH: control_documents[validator.OPEN_WORK_PATH],
     }
     errors = validate_active_world(data, documents=frozen_documents)
     assert errors == []
@@ -3549,19 +3989,23 @@ def test_json_and_vnext_authority_hostile_matrix(tmp_path, monkeypatch) -> None:
     )
     assert any("source Guidance blob disagrees" in error for error in errors)
 
-    guidance = json.loads(json.dumps(control_documents[validator.GUIDANCE_PATH]))
-    guidance["analysis_summary"]["round6_parallel_execution"][
-        "inventory_denominator_change"
-    ]["added"] = []
-    errors = validate_active_world(
-        data,
-        documents={
-            evidence_path: control_documents[evidence_path],
-            validator.GUIDANCE_PATH: guidance,
-            validator.ROUND6_PATH: round6,
-        },
-    )
-    assert any("denominator provenance is not exact" in error for error in errors)
+    for field, value in (
+        ("added", ["docs/plans/unexpected-active-roadmap.md"]),
+        ("removed", []),
+    ):
+        guidance = json.loads(json.dumps(control_documents[validator.GUIDANCE_PATH]))
+        guidance["analysis_summary"]["round6_parallel_execution"][
+            "inventory_denominator_change"
+        ][field] = value
+        errors = validate_active_world(
+            data,
+            documents={
+                evidence_path: control_documents[evidence_path],
+                validator.GUIDANCE_PATH: guidance,
+                validator.ROUND6_PATH: round6,
+            },
+        )
+        assert any("denominator provenance is not exact" in error for error in errors)
 
     data = current_running_fixture()
     errors = validate_active_world(data)
@@ -4337,11 +4781,11 @@ def test_r4_byte_capture_is_immutable_after_writer_drift(tmp_path) -> None:
 
 
 def test_r4_authority_bundle_captures_each_json_authority_once(monkeypatch) -> None:
-    roadmap = json.loads(ROADMAP.read_text(encoding="utf-8"))
-    claim = next(
-        item
-        for item in roadmap["external_lane_claims"]
-        if item.get("claim_id") == "ABC-R7-VALIDATOR-R4-20260803T202708+0200"
+    factory = _current_authority_factory()
+    claim = factory.terminal_v2(
+        "fixture-r4-authority-capture",
+        ["src/r4_capture_fixture.py", "tests/test_r4_capture_fixture.py"],
+        authority_revision=16,
     )
     original = validator._load_json_snapshot
     captures: dict[str, int] = {}
@@ -4551,42 +4995,16 @@ def test_r4_terminal_receipt_requires_identical_pre_and_post_bindings() -> None:
 
 
 def test_r4_pending_release_requires_one_frozen_terminal_object(monkeypatch) -> None:
-    def pending_release(data: dict) -> dict:
-        terminal_history_ids = {
-            item["run_id"]
-            for item in data["external_lane_claims"]
-            if item.get("slice_id")
-            in {validator.R5_VALIDATOR_SLICE, validator.R6_VALIDATOR_SLICE}
-        }
-        data["external_lane_claims"] = [
-            item
-            for item in data["external_lane_claims"]
-            if item.get("run_id") not in terminal_history_ids
-        ]
-        data["long_run_state"]["active_claims"] = [
-            run_id
-            for run_id in data["long_run_state"]["active_claims"]
-            if run_id not in terminal_history_ids
-        ]
-        data["long_run_state"]["agent_leases"] = [
-            lease
-            for lease in data["long_run_state"]["agent_leases"]
-            if lease.get("claim_id") not in terminal_history_ids
-        ]
-        claim = next(
-            item
-            for item in data["external_lane_claims"]
-            if item.get("claim_id") == "ABC-R7-VALIDATOR-R4-20260803T202708+0200"
+    def pending_release() -> dict[str, Any]:
+        claim, _sources, _authority, _roadmap = _r4_standard_v2_world(
+            frozen=True
         )
-        candidate_blobs = {
-            path: validator._path_blob_id(REPO_ROOT / path)
-            for path in claim["allowed_paths"]
-        }
+        candidate_blobs = dict(claim["candidate_blobs"])
         command_manifest = [
             {"id": item["id"], "tier": item["tier"], "argv": item["argv"]}
             for item in claim["regression_tests"]
         ]
-        node_ids = ["tests/test_integration_spine_convergence.py::pending_release"]
+        node_ids = list(claim["candidate_pytest_node_ids"])
         bindings = {
             "candidate_set_digest_sha256": validator._candidate_set_digest(
                 candidate_blobs
@@ -4633,24 +5051,30 @@ def test_r4_pending_release_requires_one_frozen_terminal_object(monkeypatch) -> 
                 },
             }
         )
-        data["long_run_state"]["active_claims"] = [
-            run_id
-            for run_id in data["long_run_state"]["active_claims"]
-            if run_id != claim["run_id"]
-        ]
-        data["long_run_state"]["agent_leases"] = [
-            lease
-            for lease in data["long_run_state"]["agent_leases"]
-            if lease["claim_id"] != claim["run_id"]
-        ]
         return claim
 
+    def isolated_terminal_errors(claim: dict[str, Any]) -> list[str]:
+        errors: list[str] = []
+        validator._validate_terminal_receipt(
+            claim, repo_root=REPO_ROOT, errors=errors
+        )
+        expected_review_result = (
+            validator.R4_PENDING_REVIEW_RESULT
+            if claim.get("state") == "released_pending_post_release_qa"
+            else validator.R4_ACCEPTED_REVIEW_RESULT
+            if claim.get("state") == "released_accepted"
+            else None
+        )
+        if (
+            expected_review_result is not None
+            and claim.get("review_result") != expected_review_result
+        ):
+            errors.append("terminal R4 release lifecycle result is invalid")
+        return errors
+
     monkeypatch.setattr(validator, "_materialized_git_blob", lambda _root, _blob: True)
-    data = json.loads(ROADMAP.read_text(encoding="utf-8"))
-    claim = pending_release(data)
-    _load_round7_and_open_work(monkeypatch, data)
-    errors = validator.validate(ROADMAP, REPO_ROOT)
-    assert errors == []
+    claim = pending_release()
+    assert isolated_terminal_errors(claim) == []
 
     for field, drifted_value in (
         ("candidate_blobs", {"README.md": "0" * 40}),
@@ -4659,24 +5083,19 @@ def test_r4_pending_release_requires_one_frozen_terminal_object(monkeypatch) -> 
         ("candidate_pytest_node_manifest_digest_sha256", "sha256:" + "0" * 64),
         ("candidate_pytest_node_ids", ["tests/test_integration_spine_convergence.py::drift"]),
     ):
-        data = json.loads(ROADMAP.read_text(encoding="utf-8"))
-        claim = pending_release(data)
+        claim = pending_release()
         claim[field] = drifted_value
-        _load_round7_and_open_work(monkeypatch, data)
-        errors = validator.validate(ROADMAP, REPO_ROOT)
-        assert errors == [
+        assert isolated_terminal_errors(claim) == [
             "terminal R4 receipt does not bind one candidate and manifest set"
         ]
 
-    data = json.loads(ROADMAP.read_text(encoding="utf-8"))
-    claim = pending_release(data)
+    claim = pending_release()
     claim["state"] = "released_accepted"
     claim["review_result"] = validator.R4_ACCEPTED_REVIEW_RESULT
-    _load_round7_and_open_work(monkeypatch, data)
-    assert validator.validate(ROADMAP, REPO_ROOT) == []
+    assert isolated_terminal_errors(claim) == []
 
     claim["review_result"] = validator.R4_PENDING_REVIEW_RESULT
-    assert validator.validate(ROADMAP, REPO_ROOT) == [
+    assert isolated_terminal_errors(claim) == [
         "terminal R4 release lifecycle result is invalid"
     ]
 
@@ -4711,11 +5130,10 @@ def test_r4_callable_helpers_reject_hostile_subclasses_before_use() -> None:
 
 
 def test_r5_root_materialized_receipt_binds_complete_core(monkeypatch) -> None:
-    claim, root_receipt, authority = _r5_frozen_fixture()
+    claim, root_receipt, authority, roadmap = _r5_frozen_fixture()
     monkeypatch.setattr(
         validator, "_materialized_freeze_receipt_blob", lambda *_args: root_receipt
     )
-    roadmap = json.loads(ROADMAP.read_text(encoding="utf-8"))
     errors: list[str] = []
     validator._validate_r5_freeze_receipt(
         claim,
@@ -4760,8 +5178,7 @@ def test_r5_root_materialized_receipt_binds_complete_core(monkeypatch) -> None:
 
 
 def test_r5_receipt_loader_rejects_unusable_receipt_objects(monkeypatch) -> None:
-    claim, root_receipt, authority = _r5_frozen_fixture()
-    roadmap = json.loads(ROADMAP.read_text(encoding="utf-8"))
+    claim, root_receipt, authority, roadmap = _r5_frozen_fixture()
     original_loader = validator._materialized_freeze_receipt_blob
 
     for unusable in (
@@ -4801,8 +5218,7 @@ def test_r5_receipt_loader_rejects_unusable_receipt_objects(monkeypatch) -> None
 
 
 def test_r5_pending_and_accepted_release_bindings_recheck_current_capture(monkeypatch) -> None:
-    claim, root_receipt, authority = _r5_frozen_fixture()
-    roadmap = json.loads(ROADMAP.read_text(encoding="utf-8"))
+    claim, root_receipt, authority, roadmap = _r5_frozen_fixture()
     monkeypatch.setattr(
         validator, "_materialized_freeze_receipt_blob", lambda *_args: root_receipt
     )
@@ -4925,16 +5341,40 @@ def test_r5_closed_cli_rejects_every_token_class_and_internal_fault(monkeypatch,
 
 
 def test_r5_synthetic_active_fixtures_replace_production_authority() -> None:
-    data = json.loads(ROADMAP.read_text(encoding="utf-8"))
     factory = _current_authority_factory()
+    production_id = "fixture-production-sentinel"
+    data = {
+        "external_lane_claims": [
+            {
+                "run_id": production_id,
+                "claim_id": production_id,
+                "owner": "production sentinel",
+                "state": "running",
+            }
+        ],
+        "long_run_state": {
+            "revision": 17,
+            "active_claims": [production_id],
+            "agent_leases": [
+                {
+                    "claim_id": production_id,
+                    "owner": "production sentinel",
+                    "expires_at": "2026-08-15T23:00:00+02:00",
+                }
+            ],
+        },
+    }
     production_ids = {
         claim["run_id"]
         for claim in data["external_lane_claims"]
         if type(claim) is dict and type(claim.get("run_id")) is str
     }
-    assert "ABC-R7-VALIDATOR-R5-20260803T212415+0200" in production_ids
+    assert production_ids == {production_id}
 
     factory.replace_active_authority(data)
+    assert data["external_lane_claims"] == []
+    assert data["long_run_state"]["active_claims"] == []
+    assert data["long_run_state"]["agent_leases"] == []
     fixtures = factory.parallel_running_v2(
         data,
         [
@@ -4952,50 +5392,43 @@ def test_r5_synthetic_active_fixtures_replace_production_authority() -> None:
 
 
 def _r6_frozen_fixture() -> tuple[
-    dict[str, Any], dict[str, dict[str, Any]], validator.AuthoritySnapshotBundle
+    dict[str, Any],
+    dict[str, dict[str, Any]],
+    validator.AuthoritySnapshotBundle,
+    dict[str, Any],
 ]:
     """Build one isolated F/P/A/B-ready fixture without production authority."""
 
-    roadmap = json.loads(ROADMAP.read_text(encoding="utf-8"))
-    claim = next(
-        item
-        for item in roadmap["external_lane_claims"]
-        if item.get("slice_id") == validator.R6_VALIDATOR_SLICE
+    factory = _current_authority_factory()
+    data = {
+        "external_lane_claims": [],
+        "long_run_state": {
+            "revision": 17,
+            "active_claims": [],
+            "agent_leases": [],
+        },
+    }
+    claim = factory.running_v2(
+        data,
+        "fixture-r6-freeze",
+        ["src/r6_fixture.py", "tests/test_r6_fixture.py"],
     )
-    # The checked-in R6 record is terminal history.  Rebuild the fixture from
-    # the single pre-freeze pair instead of retaining any release, review,
-    # receipt, terminal, or candidate-evidence authority from production.
-    for field in (
-        "acceptance_evidence",
-        "candidate_evidence_manifest_blob",
-        "candidate_evidence_path",
-        "candidate_frozen_at",
-        "candidate_set_digest_sha256",
-        "candidate_command_manifest_digest_sha256",
-        "candidate_pytest_node_manifest_digest_sha256",
-        "candidate_pytest_node_ids",
-        "freeze_receipt_blob",
-        "released_at",
-        "released_reason",
-        "review_result",
-        "terminal_transition_blob",
-        "terminal_evidence_digest_sha256",
-        "terminal_verification",
-    ):
-        claim.pop(field, None)
-    claim["state"] = "running"
-    claim["candidate_state"] = "frozen_for_independent_qa"
-    claim["candidate_blobs"] = {}
-    evidence_path = next(
-        path for path in claim["read_only_pins"] if path.startswith("docs/plans/evidence/")
-    )
+    packet = {
+        "architecture_revision": "FIXTURE-R6-ARCH-v1",
+        "digest_sha256": "sha256:" + "6" * 64,
+    }
+    roadmap = {
+        "architecture_packets": {validator.R6_ARCHITECTURE_PACKET: packet}
+    }
+    evidence_path = factory.evidence_path
     candidates = {
-        path: ("a" if index == 0 else "b") * 40
+        path: ("6" if index == 0 else "7") * 40
         for index, path in enumerate(claim["allowed_paths"])
     }
     node_ids = ["tests/test_integration_spine_convergence.py::r6_fixture"]
     claim.update(
         {
+            "slice_id": validator.R6_VALIDATOR_SLICE,
             "candidate_blobs": candidates,
             "candidate_state": "frozen_for_independent_qa",
             "candidate_evidence_path": evidence_path,
@@ -5010,6 +5443,8 @@ def _r6_frozen_fixture() -> tuple[
             ),
             "candidate_pytest_node_manifest_digest_sha256": validator._node_manifest_digest(node_ids),
             "candidate_pytest_node_ids": node_ids,
+            "architecture_revision": packet["architecture_revision"],
+            "architecture_digest_sha256": packet["digest_sha256"],
             "freeze_receipt_blob": "f" * 40,
         }
     )
@@ -5058,7 +5493,7 @@ def _r6_frozen_fixture() -> tuple[
         blob_ids=MappingProxyType(blob_ids),
         paths=tuple(sorted(blob_ids)),
     )
-    return claim, {claim["freeze_receipt_blob"]: freeze}, authority
+    return claim, {claim["freeze_receipt_blob"]: freeze}, authority, roadmap
 
 
 def _r6_transition(
@@ -5154,8 +5589,7 @@ def _r6_terminalize(
 
 
 def test_r6_freeze_and_three_materialized_phase_chains_are_closed(monkeypatch) -> None:
-    claim, receipts, authority = _r6_frozen_fixture()
-    roadmap = json.loads(ROADMAP.read_text(encoding="utf-8"))
+    claim, receipts, authority, roadmap = _r6_frozen_fixture()
     evidence_blob = claim["candidate_evidence_manifest_blob"]
     evidence = authority.get(claim["candidate_evidence_path"])
     assert evidence is not None
@@ -5208,8 +5642,7 @@ def test_r6_freeze_and_three_materialized_phase_chains_are_closed(monkeypatch) -
 
 
 def test_r6_rejects_rewritten_chain_and_current_authority_history(monkeypatch) -> None:
-    claim, receipts, authority = _r6_frozen_fixture()
-    roadmap = json.loads(ROADMAP.read_text(encoding="utf-8"))
+    claim, receipts, authority, roadmap = _r6_frozen_fixture()
     evidence_blob = claim["candidate_evidence_manifest_blob"]
     evidence = authority.get(claim["candidate_evidence_path"])
     assert evidence is not None
@@ -5240,9 +5673,12 @@ def test_r6_rejects_rewritten_chain_and_current_authority_history(monkeypatch) -
     )
     assert errors == ["R6 transition receipt is missing, nonblob, malformed or outside the closed schema"]
 
-    data = json.loads(ROADMAP.read_text(encoding="utf-8"))
-    r5 = next(item for item in data["external_lane_claims"] if validator._r5_is_validator_claim(item))
-    r5["candidate_state"] = "not_frozen"
+    r5 = {
+        "state": "released_blocked",
+        "candidate_state": "not_frozen",
+        "candidate_blobs": {},
+        "review_result": validator.R6_BLOCKED_BEFORE_FREEZE_OUTCOME,
+    }
     errors = []
     validator._validate_r5_blocked_before_freeze(r5, errors)
     assert errors == ["R5 blocked-before-freeze history is not receiptless and exact"]

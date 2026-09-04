@@ -1,0 +1,163 @@
+{
+  "schema_version": 1,
+  "kind": "harbour_one.h1r04_ast_caller_discovery_architecture",
+  "status": "review_candidate",
+  "claimable": true,
+  "live_actions": false,
+  "decision": "Extend the accepted lexical census with a deterministic Python AST and reverse-import reachability union. The extension discovers semantic callers conservatively but never assigns writer authority or any final disposition.",
+  "extends": {
+    "portable_architecture_path": "docs/plans/evidence/abc-h1r04-currentness-acceptance-architecture-r3-20260904.json",
+    "portable_architecture_raw_blob": "c722ba51605396aab1f7ccc63b8fc66d3b619f5b",
+    "scanner_path": "scripts/audit_harbour_knowledge_state_census.py",
+    "scanner_raw_blob": "aacebb2a1bd0fc95619bc819fe0f29618e10eca8",
+    "tests_path": "tests/test_audit_harbour_knowledge_state_census.py",
+    "tests_raw_blob": "709a3b8d5f09fea5ed0c237c0b3f7bb216644441",
+    "manifest_path": "docs/plans/harbour-one-h1r-04-state-census-manifest.json",
+    "manifest_raw_blob": "dc0c253045888053ab4d717e4468673d4ddfa16a",
+    "product_roadmap_path": "docs/plans/harbour-one-product-roadmap.json",
+    "product_roadmap_raw_blob": "f60717babc099990d670605366b1c0bff74b0a2e",
+    "scope_rule": "All inherited inventory, path safety, portable identity, exact control-plane boundary, manifest role and no-live rules remain authoritative unless this artifact explicitly adds a semantic discovery rule."
+  },
+  "problem_statement": {
+    "observed_gap": "The accepted lexical candidate union is reproducible but misses productive modules whose paths and source do not contain its closed lexical triggers even though they construct, initialize, mutate or dispatch known memory, personal-document or derived-index authorities.",
+    "root_cause": "Substring membership cannot represent Python module identity, aliases, local imports, relative imports or re-export chains and also creates prefix false positives such as treating src.memory_triage_contract as src.memory.",
+    "product_boundary": "This architecture repairs discovery completeness only. H1R-04 remains pending until a later reviewed classification and product acceptance."
+  },
+  "python_inventory": {
+    "source_suffix_exact": ".py",
+    "root_level_rule": "Every inventoried regular root-level Python file is parsed.",
+    "source_roots_exact": [
+      "backend",
+      "companion",
+      "config",
+      "core",
+      "integrations",
+      "mcp_servers",
+      "plugins",
+      "routes",
+      "runtime",
+      "services",
+      "src",
+      "workers"
+    ],
+    "boundary_rule": "Only paths already admitted by the inherited closed Git inventory may enter this scope. Every admitted Python source is read through the inherited safe reader and raw-identified before parsing. Tests, scripts, documentation, specifications, static assets, mockups and operational tooling remain outside productive semantic reachability unless they already match an inherited lexical rule.",
+    "module_identity_rule": "Map a valid Python path to its dotted repository module identity by removing the suffix and converting path segments to dots; an __init__ file maps to its containing package. Every segment must be a valid Python identifier. Duplicate module identities, invalid source identities or relative-import resolution above the source package fail identity_mismatch.",
+    "package_rule": "Repository directories are treated as namespace-capable packages for deterministic local resolution; package initialization files are not required. Only identities materialized by the closed inventory can be import-edge targets."
+  },
+  "semantic_anchors": {
+    "state_bearing_module_rule": "Every Python module represented by one of the 17 inherited state_bearing seed paths is a semantic anchor module at distance zero.",
+    "entrypoint_symbols_exact": [
+      {
+        "module": "src.tool_domains.admin_services",
+        "symbol": "do_manage_personal_docs",
+        "current_raw_blob": "931960e05c46007379be008caf166882793a82d1",
+        "reason": "Productive personal-document administration mutation entrypoint."
+      },
+      {
+        "module": "src.planning_source_memory",
+        "symbol": "ingest_planning_sources_to_memory",
+        "reason": "Planning-source ingestion can reach the legacy memory authority."
+      },
+      {
+        "module": "src.memory_provenance_ledger",
+        "symbol": "record_memory_provenance",
+        "reason": "Productive provenance mutation entrypoint."
+      }
+    ],
+    "entrypoint_rule": "Each exact entrypoint symbol must exist as a top-level function or async-function definition in its exact materialized module. Absence or ambiguity fails identity_mismatch. Its containing module is an anchor module; this fact is discovery evidence only and grants no Harbour writer authority."
+  },
+  "ast_import_contract": {
+    "runtime_nodes": [
+      "Import",
+      "ImportFrom"
+    ],
+    "direct_import_rule": "An import edge exists only when the imported dotted identity equals a materialized local module or is the package prefix of one. Exact module equality and a dot boundary are mandatory; lexical prefix matches are forbidden.",
+    "from_import_rule": "For from M import N, record M when materialized and additionally M.N only when that exact dotted module is materialized. Never assume an imported symbol is a submodule.",
+    "relative_import_rule": "Resolve the level against the importing module package and then apply the same exact materialization rule. Invalid upward traversal fails identity_mismatch.",
+    "alias_and_local_rule": "Aliases and imports nested in functions, classes or ordinary runtime branches produce the same module edges as top-level imports.",
+    "type_only_rule": "Imports dominated by a positive typing.TYPE_CHECKING or an unshadowed TYPE_CHECKING guard are recorded as type_only and do not create runtime reachability. A guard whose binding or truth meaning is ambiguous makes the containing source an unclassified candidate.",
+    "dynamic_literal_rule": "A call to importlib.import_module or __import__ with a single literal string module argument creates an import edge after exact local resolution. A matching call with a nonliteral module argument makes the containing source an unclassified candidate and emits no guessed edge.",
+    "parse_failure_rule": "Syntax errors, AST recursion/resource failure or an undecidable supported import form make the affected source an unclassified candidate. They never silently remove it and never grant a classification.",
+    "source_stability_rule": "All Python source path/raw identities used for graph construction must remain identical through report production; drift fails toctou_changed under the inherited safe-read contract."
+  },
+  "reachability_contract": {
+    "edge_direction": "importer_to_imported_module",
+    "closure": "Compute deterministic reverse reachability from all semantic anchor modules to a fixpoint. Every productive Python source whose module can reach an anchor through one or more runtime import edges is a semantic candidate.",
+    "candidate_union": "Final discovery membership is the union of the inherited lexical and mandatory membership, semantic reverse-reachability membership, anchor modules, parse-failure sources, ambiguous type-guard sources and nonliteral dynamic-import sources.",
+    "classification_rule": "Existing 17 seed mappings remain exact. Every additional candidate is emitted only as unclassified with the inherited unclassified combination and fixed reason. No trigger, graph distance, filename, constructor or function name may automatically classify writer authority, owner, role or disposition.",
+    "determinism_rule": "Sort module identities, import edges, anchor identities and final candidates by UTF-8 bytes. Graph traversal order may not influence membership or report bytes.",
+    "manifest_rule": "Keep manifest schema version 2 and its exact entry fields. The effective scan-contract digest covers this entire semantic contract. Regenerate only membership and raw identities; preserve every existing classification exactly."
+  },
+  "current_positive_ground_truth": [
+    {
+      "path": "mcp_servers/rag_server.py",
+      "raw_blob": "275fe792bcdd8b69a6a3830eab5bd9de52d5e993",
+      "evidence": "Imports and constructs PersonalDocsManager."
+    },
+    {
+      "path": "routes/roadmap_routes.py",
+      "raw_blob": "cf6a84a6d9616a96669905035e198991ba2e9b16",
+      "evidence": "Imports and constructs MemoryManager and dispatches planning-source ingestion."
+    },
+    {
+      "path": "src/app_initializer.py",
+      "raw_blob": "1ad66bda9fbdd9ab05ff2964660f226bc52140d7",
+      "evidence": "Imports and constructs legacy memory and personal-document managers and records provenance."
+    },
+    {
+      "path": "src/rag_manager.py",
+      "raw_blob": "5720cc52229c270bf9378430ebec32918d7cc1d2",
+      "evidence": "Imports and wraps VectorRAG."
+    },
+    {
+      "path": "src/rag_singleton.py",
+      "raw_blob": "73e3cdbf19e534cb0ac2462645c9fcf8f523de40",
+      "evidence": "Locally imports and constructs VectorRAG."
+    },
+    {
+      "path": "src/tool_domains/admin_services.py",
+      "raw_blob": "931960e05c46007379be008caf166882793a82d1",
+      "evidence": "Defines the exact personal-document mutation entrypoint anchor."
+    },
+    {
+      "path": "src/tool_execution.py",
+      "raw_blob": "e3da7b5fcfa45d225f58815703de59ead48e043c",
+      "evidence": "Imports and dispatches the personal-document mutation entrypoint through a re-export path."
+    }
+  ],
+  "hostile_acceptance": {
+    "positive": [
+      "All seven current_positive_ground_truth paths are candidates at their pinned raw identities.",
+      "An aliased from-import of MemoryManager is discovered.",
+      "An aliased module import followed by a constructor is discovered through the module edge.",
+      "A function-local import of VectorRAG is discovered.",
+      "A valid relative import is resolved to its exact materialized module.",
+      "A facade re-export chain and its dispatcher are both discovered by reverse-graph fixpoint.",
+      "Literal importlib and builtin dynamic imports are discovered.",
+      "Parse failure and nonliteral dynamic-import ambiguity produce unclassified candidates."
+    ],
+    "negative": [
+      "src.memory_triage_contract, src.memory_runtime_metrics and src.memory_category_policy do not match src.memory without a real graph path.",
+      "Comments, docstrings and plain manage_memory strings do not create import edges.",
+      "A type-only import does not create runtime reachability.",
+      "A same-prefix external or local module without a dot boundary does not match an anchor.",
+      "No newly discovered path receives an automatic writer, owner, role or disposition classification."
+    ],
+    "currentness": [
+      "Any pinned architecture, scanner, test, manifest, product-roadmap or positive-ground-truth raw drift fails identity_mismatch before acceptance.",
+      "Expected-unclassified mode passes on the regenerated manifest; default mode exits 2 only for unclassified_candidates.",
+      "The exact canonical run-record mutation remains denominator-neutral and every sibling handoff path remains visible.",
+      "Focused, dependency, Round6, Integration Spine and Guidance gates pass."
+    ]
+  },
+  "implementation_scope": {
+    "allowed_paths_exact": [
+      "scripts/audit_harbour_knowledge_state_census.py",
+      "tests/test_audit_harbour_knowledge_state_census.py",
+      "docs/plans/harbour-one-h1r-04-state-census-manifest.json"
+    ],
+    "required_delta": "Bind this architecture by raw blob, add deterministic semantic graph discovery to the inherited candidate union, implement the hostile gates and regenerate the schema-2 discovery manifest without changing the 17 existing classifications.",
+    "forbidden": "No product-roadmap status change, reviewed classification decision, migration, activation, private-data read, provider or network action, deployment, deletion, push, Codex configuration change or other live effect."
+  },
+  "independent_review": "Two independent reviewers must pass the exact architecture bytes before an implementation claim. A failure freezes this candidate and permits only a fresh architecture correction."
+}

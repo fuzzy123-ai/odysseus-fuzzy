@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.autonomous_coding_production_readiness_roadmap",
-  "updated_at": "2026-08-02T18:41:46+02:00",
-  "status": "acpr_0_through_11_accepted_acpr_12_dependency_ready_unclaimed_live_gates_closed",
+  "updated_at": "2026-09-04T15:30:00+02:00",
+  "status": "acpr_0_through_11_accepted_acpr_12_architecture_preclaim_ready_not_writer_claimable_later_slices_gated",
   "mode": "backend_logic_first",
   "title": "Autonomous Coding Production Readiness Roadmap",
   "goal": "Move the autonomous coding foundation from proven backend pieces to a reliable workstation-first project-runner workflow that can be monitored and controlled remotely through Telegram.",
@@ -37,8 +37,8 @@
     "memory_bridge": "src/coding_agent_memory_bridge.py"
   },
   "current_state_audit": {
-    "status": "acpr_0_through_11_accepted_next_readiness_slice_dependency_ready_unclaimed",
-    "updated_at": "2026-08-02T18:41:46+02:00",
+    "status": "acpr_0_through_11_accepted_acpr_12_architecture_preclaim_ready_not_writer_claimable",
+    "updated_at": "2026-09-04T15:30:00+02:00",
     "implemented_foundation": [
       "routes/coding_agent_routes.py exposes task-plan, quality-gate, worktree-quality-gate, sandbox-checks, done-gate, patch-set, publish-plan and subagents-plan endpoints.",
       "src/coding_agent_backend.py already provides task plans, worktree creation gates, patch-set application gates, quality/done gates, publish plans and subagent contracts.",
@@ -75,12 +75,17 @@
     "raw_content_visible": false
   },
   "current_frontier": {
-    "status": "ACPR-11 is accepted after bounded fix cycles, 50-test integrated Root evidence and independent QA; ACPR-12 is dependency-ready but intentionally unclaimed for the Round-5 router handoff.",
-    "claimable_slices": [
-      "ACPR-12-transactional-worktree-and-safe-tool-capsules"
+    "status": "ACPR-10 and ACPR-11 are accepted. ACPR-12 architecture/preclaim documentation evidence is accepted at docs/plans/abc-acpr12-transactional-worktree-safe-tool-capsules-architecture-2026-09-04.json@b2fbd2cd425da1f6bb86f7d0443284b48dd014c3; it grants no writer authority. ACPR-12 remains not writer-claimable until a separate fresh implementation claim pins the then-current authority inputs.",
+    "claimable_slices": [],
+    "blocked_by": [
+      "ACPR-12 implementation requires a separate fresh writer claim that pins the then-current ACPR-10, ACPR-11, CAO-08D and CAO-08E authority inputs and declares exact allowed paths, acceptance evidence, regression lanes and no-live boundaries."
     ],
-    "blocked_by": [],
-    "next_after_acceptance": "A future explicitly registered round may claim ACPR-12 because ACPR-11, CAO-08D and CAO-08E are accepted; this Round-5 handoff starts no new central roadmap claim.",
+    "accepted_architecture_preclaim_evidence": {
+      "path": "docs/plans/abc-acpr12-transactional-worktree-safe-tool-capsules-architecture-2026-09-04.json",
+      "blob": "b2fbd2cd425da1f6bb86f7d0443284b48dd014c3",
+      "acceptance_scope": "local documentation/preclaim evidence only; no implementation, live, or writer authority"
+    },
+    "next_after_acceptance": "Create a separate fresh ACPR-12 implementation claim that pins current authority inputs; this accepted architecture evidence does not itself authorize that claim. ACPR-13 through ACPR-17 remain gated by their recorded prerequisites.",
     "later_bundle_constraints": "ACPR-17 is deliberately later: it requires accepted CAO-08B1/C1 subagent contracts and ACPR readiness prerequisites, then supplies VCL-7 before CAO-08G can consume readiness lanes."
   },
   "cross_roadmap_ownership": {
@@ -746,11 +751,20 @@
       "id": "ACPR-12-transactional-worktree-and-safe-tool-capsules",
       "class": "repo_only",
       "owner": "Bob/Terra implementation; root/Sol deep review",
-      "status": "planned_not_claimable_until_ACPR-11_and_CAO-08D-E_acceptance",
+      "status": "architecture_preclaim_documentation_accepted_not_writer_claimable_pending_fresh_implementation_claim",
       "depends_on": [
         "ACPR-11 accepted",
         "CAO-08D accepted",
         "CAO-08E accepted"
+      ],
+      "claimable": false,
+      "accepted_architecture_preclaim_evidence": {
+        "path": "docs/plans/abc-acpr12-transactional-worktree-safe-tool-capsules-architecture-2026-09-04.json",
+        "blob": "b2fbd2cd425da1f6bb86f7d0443284b48dd014c3",
+        "acceptance_scope": "local documentation/preclaim evidence only; no implementation, live, or writer authority"
+      },
+      "blocked_by": [
+        "A separate fresh ACPR-12 implementation claim must pin the then-current ACPR-10, ACPR-11, CAO-08D and CAO-08E authority inputs and specify exact writer paths, acceptance evidence, regression lanes and no-live boundaries."
       ],
       "allowed_paths": [
         "src/coding_agent_backend.py",

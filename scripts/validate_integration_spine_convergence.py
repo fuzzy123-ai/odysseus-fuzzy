@@ -502,6 +502,16 @@ class CommandSpec:
 
 
 @dataclass(frozen=True, slots=True)
+class RuntimeIdentity:
+    """Validation-time Python identity captured once for one complete claim."""
+
+    executable: str
+    prefix: str
+    base_prefix: str
+    executable_realpath: str
+
+
+@dataclass(frozen=True, slots=True)
 class AbcClaimV2:
     run_id: str
     slice_id: str
@@ -1102,12 +1112,60 @@ def _is_evidence_json_path(path: Any) -> bool:
     )
 
 
+def _capture_runtime_identity(
+    *, errors: list[str], label: str
+) -> RuntimeIdentity | None:
+    """Capture the process identity once without asserting its provenance."""
+
+    try:
+        executable = sys.executable
+        prefix = sys.prefix
+        base_prefix = sys.base_prefix
+        if not all(
+            type(value) is str
+            for value in (executable, prefix, base_prefix)
+        ):
+            raise TypeError("non_string_runtime_identity")
+        executable_realpath = os.path.realpath(executable)
+        if type(executable_realpath) is not str:
+            raise TypeError("non_string_runtime_realpath")
+    except Exception:
+        errors.append(
+            f"{label} runtime identity is unavailable for closed command validation"
+        )
+        return None
+    return RuntimeIdentity(
+        executable=executable,
+        prefix=prefix,
+        base_prefix=base_prefix,
+        executable_realpath=executable_realpath,
+    )
+
+
+def _runtime_identity_matches(identity: RuntimeIdentity) -> bool:
+    """Compare live process identity with one immutable validation capture."""
+
+    try:
+        return bool(
+            type(sys.executable) is str
+            and type(sys.prefix) is str
+            and type(sys.base_prefix) is str
+            and sys.executable == identity.executable
+            and sys.prefix == identity.prefix
+            and sys.base_prefix == identity.base_prefix
+            and os.path.realpath(sys.executable) == identity.executable_realpath
+        )
+    except Exception:
+        return False
+
+
 def _command_spec(
     value: Any,
     *,
     run_id: str,
     basetemps: dict[str, str],
     artifact_scope: frozenset[PathKey],
+    runtime_identity: RuntimeIdentity,
     errors: list[str],
     label: str,
 ) -> CommandSpec | None:
@@ -1126,8 +1184,16 @@ def _command_spec(
         errors.append(f"{label} command identity, tier or argv is invalid")
         return None
     args = tuple(argv)
+    exact_current_virtualenv = bool(
+        args[0] == runtime_identity.executable
+        and os.path.isabs(runtime_identity.executable)
+        and runtime_identity.prefix != runtime_identity.base_prefix
+    )
     if (
-        args[0] != "venv\\Scripts\\python.exe"
+        not (
+            args[0] == "venv\\Scripts\\python.exe"
+            or exact_current_virtualenv
+        )
         or any(any(token in arg for token in ("\n", "\r", ";", "&&", "||", "|", ">", "<")) for arg in args)
         or any("://" in arg for arg in args)
         or any(arg.casefold() in {"git", "push", "deploy", "curl", "wget", "pip"} for arg in args)
@@ -1976,17 +2042,37 @@ def _validate_abc_claim_v2(
     if type(regression_tests) is not list or not regression_tests:
         errors.append(f"{label} regression_tests must contain structured command specs")
     else:
-        for command in regression_tests:
-            parsed = _command_spec(
-                command,
-                run_id=run_id,
-                basetemps=basetemps,
-                artifact_scope=artifact_scope,
-                errors=errors,
-                label=label,
-            )
-            if parsed is not None:
-                commands.append(parsed)
+        runtime_identity = _capture_runtime_identity(errors=errors, label=label)
+        runtime_drifted = False
+        if runtime_identity is not None:
+            for command in regression_tests:
+                if not _runtime_identity_matches(runtime_identity):
+                    errors.append(
+                        f"{label} runtime identity drifted during claim command validation"
+                    )
+                    runtime_drifted = True
+                    break
+                parsed = _command_spec(
+                    command,
+                    run_id=run_id,
+                    basetemps=basetemps,
+                    artifact_scope=artifact_scope,
+                    runtime_identity=runtime_identity,
+                    errors=errors,
+                    label=label,
+                )
+                if parsed is not None:
+                    commands.append(parsed)
+            if (
+                not runtime_drifted
+                and not _runtime_identity_matches(runtime_identity)
+            ):
+                errors.append(
+                    f"{label} runtime identity drifted during claim command validation"
+                )
+                runtime_drifted = True
+        if runtime_drifted:
+            commands.clear()
         if len({item.command_id for item in commands}) != len(commands):
             errors.append(f"{label} command ids are duplicated")
         if {item.tier for item in commands} != {"focused", "dependency", "central"}:
@@ -3304,6 +3390,263 @@ def _validate_r5_blocked_before_freeze(claim: dict[str, Any], errors: list[str])
         errors.append("R5 blocked-before-freeze history is not receiptless and exact")
 
 
+def _validate_current_rolling_projection(
+    *,
+    repo_root: Path,
+    authority: AuthoritySnapshotBundle,
+    errors: list[str],
+) -> None:
+    guidance = authority.get(GUIDANCE_PATH)
+    round6 = authority.get(ROUND6_PATH)
+    open_work = authority.get(OPEN_WORK_PATH)
+    if not all(isinstance(item, Mapping) for item in (guidance, round6, open_work)):
+        errors.append("current rolling projection snapshots are unavailable")
+        return
+    assert isinstance(guidance, Mapping)
+    assert isinstance(round6, Mapping)
+    assert isinstance(open_work, Mapping)
+    roadmaps = guidance.get("roadmaps")
+    frontiers = round6.get("roadmap_frontiers")
+    waves = round6.get("waves")
+    guidance_summary = guidance.get("analysis_summary", {}).get("round6_parallel_execution")
+    open_work_summary = open_work.get("current_position", {}).get("round6_parallel_execution")
+    if not all(
+        (
+            isinstance(roadmaps, tuple),
+            isinstance(frontiers, tuple),
+            isinstance(waves, tuple),
+            isinstance(guidance_summary, Mapping),
+            isinstance(open_work_summary, Mapping),
+        )
+    ):
+        errors.append("current rolling projection sources have an invalid shape")
+        return
+    active_members = [
+        item["path"]
+        for item in roadmaps
+        if isinstance(item, Mapping)
+        and type(item.get("path")) is str
+        and str(item.get("profile", "")).startswith("active_")
+    ]
+    frontier_paths = [
+        item["roadmap_path"]
+        for item in frontiers
+        if isinstance(item, Mapping) and type(item.get("roadmap_path")) is str
+    ]
+    unknown_roles = [
+        item.get("membership_role")
+        for item in frontiers
+        if isinstance(item, Mapping)
+        and (
+            not isinstance(item.get("membership_role", "active"), str)
+            or item.get("membership_role", "active")
+            not in {"active", "retained_terminal_wave_evidence"}
+        )
+    ]
+    active_frontiers = [
+        item
+        for item in frontiers
+        if isinstance(item, Mapping) and item.get("membership_role", "active") == "active"
+    ]
+    retained_frontiers = [
+        item
+        for item in frontiers
+        if isinstance(item, Mapping)
+        and item.get("membership_role") == "retained_terminal_wave_evidence"
+    ]
+    active_frontier_paths = [item.get("roadmap_path") for item in active_frontiers]
+    harbour_frontiers = [
+        item
+        for item in active_frontiers
+        if item.get("roadmap_path") == "docs/plans/harbour-one-product-roadmap.json"
+    ]
+    harbour_identity_valid = bool(
+        len(harbour_frontiers) == 1
+        and isinstance(harbour_frontiers[0].get("slice"), Mapping)
+        and harbour_frontiers[0]["slice"].get("id") == "H1R-04"
+    )
+    scheduled_ids: set[str] = set()
+    for wave in waves:
+        if not isinstance(wave, Mapping):
+            continue
+        state = wave.get("state")
+        if isinstance(state, str) and (
+            state.startswith("repo_accepted") or state.startswith("blocked_")
+        ):
+            slice_ids = wave.get("implementation_slice_ids")
+            if isinstance(slice_ids, tuple):
+                scheduled_ids.update(item for item in slice_ids if isinstance(item, str))
+    retained_valid = True
+    for frontier in retained_frontiers:
+        path = frontier.get("roadmap_path")
+        matching_profiles = [
+            item.get("profile")
+            for item in roadmaps
+            if isinstance(item, Mapping) and item.get("path") == path
+        ]
+        contract = frontier.get("slice")
+        state = contract.get("state") if isinstance(contract, Mapping) else None
+        slice_id = contract.get("id") if isinstance(contract, Mapping) else None
+        retained_valid = retained_valid and bool(
+            matching_profiles == ["historical_done"]
+            and isinstance(contract, Mapping)
+            and contract.get("claimable") is False
+            and isinstance(state, str)
+            and state.startswith(("accepted_", "repo_accepted", "released_"))
+            and slice_id == "ACPR-12-transactional-worktree-and-safe-tool-capsules"
+            and slice_id in scheduled_ids
+        )
+    active_members = sorted(active_members)
+    active_frontier_paths = sorted(active_frontier_paths)
+    digest = _member_set_digest(active_members)
+    expected_digest = digest
+    common_fields = {
+        "active_roadmap_count": 26,
+        "active_frontier_count": 26,
+        "retained_terminal_frontier_count": 1,
+        "total_frontier_count": 27,
+        "normalized_frontier_count": 27,
+        "current_claimable_frontier_count": 0,
+        "scheduled_repo_slice_count": 7,
+        "wave_count": 3,
+    }
+    if not (
+        not unknown_roles
+        and len(active_members) == len(set(active_members)) == 26
+        and len(frontier_paths) == len(set(frontier_paths)) == 27
+        and all(_repository_path_key(path) is not None for path in frontier_paths)
+        and active_frontier_paths == active_members
+        and harbour_identity_valid
+        and len(retained_frontiers) == 1
+        and retained_valid
+        and digest == expected_digest
+        and round6.get("active_claims") == ()
+        and all(guidance_summary.get(key) == value for key, value in common_fields.items())
+        and guidance_summary.get("inventory_mode") == "rolling_projection"
+        and isinstance(guidance_summary.get("inventory_source_blob"), str)
+        and GIT_BLOB_ID.fullmatch(guidance_summary["inventory_source_blob"])
+        and guidance_summary.get("inventory_member_count") == 26
+        and guidance_summary.get("inventory_member_set_digest") == expected_digest
+        and all(open_work_summary.get(key) == value for key, value in common_fields.items())
+    ):
+        errors.append("current rolling projection membership, roles, counts or digest disagrees")
+
+    reconciliation = guidance_summary.get("active_membership_reconciliation")
+    source_guidance = _materialized_json_blob(
+        repo_root, guidance_summary.get("inventory_source_blob")
+    )
+    source_members = []
+    if isinstance(source_guidance, dict):
+        source_members = sorted(
+            item["path"]
+            for item in source_guidance.get("roadmaps", [])
+            if isinstance(item, dict)
+            and isinstance(item.get("path"), str)
+            and str(item.get("profile", "")).startswith("active_")
+        )
+    baseline_round6 = (
+        _materialized_json_blob(repo_root, reconciliation.get("baseline_round6_blob"))
+        if isinstance(reconciliation, Mapping)
+        else None
+    )
+    baseline_paths = sorted(
+        item["roadmap_path"]
+        for item in baseline_round6.get("roadmap_frontiers", [])
+        if isinstance(item, dict) and isinstance(item.get("roadmap_path"), str)
+    ) if isinstance(baseline_round6, dict) else []
+    current_round6 = _thaw_json(round6)
+    current_outside_frontiers = dict(current_round6)
+    current_outside_frontiers.pop("roadmap_frontiers", None)
+    baseline_outside_frontiers = dict(baseline_round6 or {})
+    baseline_outside_frontiers.pop("roadmap_frontiers", None)
+    retained_paths = sorted(
+        item["roadmap_path"]
+        for item in retained_frontiers
+        if isinstance(item.get("roadmap_path"), str)
+    )
+    baseline_by_path = {
+        item.get("roadmap_path"): item
+        for item in (baseline_round6 or {}).get("roadmap_frontiers", [])
+        if isinstance(item, dict)
+    }
+    current_by_path = {
+        item.get("roadmap_path"): item
+        for item in current_round6.get("roadmap_frontiers", [])
+        if isinstance(item, dict)
+    }
+    retained_path = "docs/plans/autonomous-coding-production-readiness-roadmap.json"
+    record_added = (
+        reconciliation.get("frontier_added", ())
+        if isinstance(reconciliation, Mapping)
+        and isinstance(reconciliation.get("frontier_added", ()), (list, tuple))
+        else ()
+    )
+    record_removed = (
+        reconciliation.get("frontier_removed", ())
+        if isinstance(reconciliation, Mapping)
+        and isinstance(reconciliation.get("frontier_removed", ()), (list, tuple))
+        else ()
+    )
+    record_retained = (
+        reconciliation.get("retained_terminal_paths", ())
+        if isinstance(reconciliation, Mapping)
+        and isinstance(reconciliation.get("retained_terminal_paths", ()), (list, tuple))
+        else ()
+    )
+    if not (
+        isinstance(reconciliation, Mapping)
+        and _thaw_json(reconciliation)
+        == _thaw_json(open_work_summary.get("active_membership_reconciliation"))
+        and reconciliation.get("corrected_round6_blob")
+        == authority.blob_ids.get(ROUND6_PATH)
+        and reconciliation.get("architecture_path")
+        == "docs/plans/evidence/abc-round6-guidance-membership-reconciliation-architecture-20260904.json"
+        and reconciliation.get("baseline_guidance_blob")
+        == guidance_summary.get("inventory_source_blob")
+        and source_members == active_members
+        and reconciliation.get("baseline_guidance_active_count") == 26
+        and reconciliation.get("baseline_guidance_active_digest") == expected_digest
+        and reconciliation.get("baseline_round6_total_frontier_count") == len(baseline_paths) == 28
+        and reconciliation.get("baseline_round6_untyped_frontier_digest")
+        == _member_set_digest(baseline_paths)
+        and reconciliation.get("corrected_guidance_active_count") == 26
+        and reconciliation.get("corrected_guidance_active_digest") == expected_digest
+        and reconciliation.get("corrected_round6_active_frontier_count") == 26
+        and reconciliation.get("corrected_round6_retained_terminal_frontier_count") == 1
+        and reconciliation.get("corrected_round6_total_frontier_count") == 27
+        and current_outside_frontiers == baseline_outside_frontiers
+        and tuple(record_added)
+        == ("docs/plans/harbour-one-product-roadmap.json",)
+        and set(frontier_paths) - set(baseline_paths)
+        == set(record_added)
+        and tuple(record_removed)
+        == (
+            "docs/plans/coding-agent-orchestration-consolidation-roadmap.md",
+            "docs/plans/odysseus-harbor-one-autonomous-workspace-roadmap.md",
+        )
+        and set(baseline_paths) - set(frontier_paths)
+        == set(record_removed)
+        and _thaw_json(reconciliation.get("frontier_role_reclassified"))
+        == [{
+            "path": "docs/plans/autonomous-coding-production-readiness-roadmap.json",
+            "from": "untyped_active_assumption",
+            "to": "retained_terminal_wave_evidence",
+        }]
+        and tuple(record_retained)
+        == ("docs/plans/autonomous-coding-production-readiness-roadmap.json",)
+        and retained_paths == list(record_retained)
+        and isinstance(baseline_by_path.get(retained_path), dict)
+        and baseline_by_path[retained_path].get("membership_role") is None
+        and isinstance(current_by_path.get(retained_path), dict)
+        and current_by_path[retained_path].get("membership_role")
+        == "retained_terminal_wave_evidence"
+        and reconciliation.get("historical_records_preserved") is True
+        and reconciliation.get("scope")
+        == "current_active_membership_and_retained_terminal_provenance_only"
+    ):
+        errors.append("current active-membership reconciliation receipt disagrees")
+
+
 def _validate_rolling_projection(
     typed_claims: list[tuple[dict[str, Any], AbcClaimV2]],
     *,
@@ -3311,6 +3654,11 @@ def _validate_rolling_projection(
     authority: AuthoritySnapshotBundle,
     errors: list[str],
 ) -> None:
+    _validate_current_rolling_projection(
+        repo_root=repo_root,
+        authority=authority,
+        errors=errors,
+    )
     if not typed_claims:
         return
     pin_maps = [dict(typed.pins) for _raw, typed in typed_claims]
@@ -3457,6 +3805,19 @@ def _validate_rolling_projection(
         members = [
             item["roadmap_path"]
             for item in entries
+            if isinstance(item, Mapping)
+            and type(item.get("roadmap_path")) is str
+            and item.get("membership_role", "active") == "active"
+        ]
+        return sorted(members) if len(members) == len(set(members)) else []
+
+    def all_frontier_members(document: Mapping[str, Any]) -> list[str]:
+        entries = document.get("roadmap_frontiers")
+        if not isinstance(entries, (list, tuple)):
+            return []
+        members = [
+            item["roadmap_path"]
+            for item in entries
             if isinstance(item, Mapping) and type(item.get("roadmap_path")) is str
         ]
         return sorted(members) if len(members) == len(set(members)) else []
@@ -3475,6 +3836,7 @@ def _validate_rolling_projection(
 
     members = active_members(guidance)
     frontier_paths = frontier_members(round6)
+    all_frontier_paths = all_frontier_members(round6)
     digest = _member_set_digest(members)
     claimable = sum(item.get("claimable") is True for item in frontiers if isinstance(item, Mapping))
     scheduled = scheduled_count(round6)
@@ -3486,14 +3848,17 @@ def _validate_rolling_projection(
         "scheduled_slice_count_unchanged",
     }
     if not (
-        len(members) == 30
-        and len(frontier_paths) == 30
+        len(members) == 26
+        and len(frontier_paths) == 26
         and members == frontier_paths
-        and len(frontier_paths) == len(set(frontier_paths))
+        and len(all_frontier_paths) == 27
         and digest == summary.get("inventory_member_set_digest")
-        and summary.get("inventory_member_count") == 30
-        and summary.get("active_roadmap_count") == 30
-        and summary.get("normalized_frontier_count") == 30
+        and summary.get("inventory_member_count") == 26
+        and summary.get("active_roadmap_count") == 26
+        and summary.get("active_frontier_count") == 26
+        and summary.get("retained_terminal_frontier_count") == 1
+        and summary.get("total_frontier_count") == 27
+        and summary.get("normalized_frontier_count") == 27
         and summary.get("current_claimable_frontier_count") == 0
         and summary.get("wave_count") == 3
         and summary.get("scheduled_repo_slice_count") == 7
@@ -3503,7 +3868,7 @@ def _validate_rolling_projection(
         and round6.get("active_claims") == ()
         and set(receipt) == receipt_fields
         and receipt.get("inventory_mode") == "rolling_projection"
-        and receipt.get("member_count") == 30
+        and receipt.get("member_count") == 26
         and receipt.get("member_set_digest") == digest
         and receipt.get("terminal_waves_unchanged") is True
         and receipt.get("scheduled_slice_count_unchanged") == 7
@@ -3519,12 +3884,13 @@ def _validate_rolling_projection(
         isinstance(source_blob_id, str)
         and GIT_BLOB_ID.fullmatch(source_blob_id)
         and source_members == members
-        and len(source_members) == 30
+        and len(source_members) == 26
         and _member_set_digest(source_members) == digest
     ):
         errors.append("rolling projection source Guidance blob disagrees")
 
     change = summary.get("inventory_denominator_change")
+    reconciliation = summary.get("active_membership_reconciliation")
     change_fields = {
         "old_count",
         "new_count",
@@ -3546,22 +3912,30 @@ def _validate_rolling_projection(
         if isinstance(change, Mapping)
         else None
     )
-    old_paths = frontier_members(old_round6) if isinstance(old_round6, dict) else []
-    new_paths = frontier_members(new_round6) if isinstance(new_round6, dict) else []
-    forge_path = "docs/plans/forge-usi-code-source-adapter-roadmap.md"
+    old_paths = all_frontier_members(old_round6) if isinstance(old_round6, dict) else []
+    new_paths = all_frontier_members(new_round6) if isinstance(new_round6, dict) else []
+    deferred_paths = (
+        "docs/plans/agent-maintenance-safety-harness-roadmap.json",
+        "docs/plans/live-contextual-layer-roadmap.json",
+    )
     if not (
         isinstance(change, Mapping)
         and set(change) == change_fields
-        and change.get("old_count") == len(old_paths) == 29
-        and change.get("new_count") == len(new_paths) == 30
+        and change.get("old_count") == len(old_paths) == 30
+        and change.get("new_count") == len(new_paths) == 28
         and change.get("old_digest") == _member_set_digest(old_paths)
-        and change.get("new_digest") == _member_set_digest(new_paths) == digest
-        and tuple(change.get("added", ())) == (forge_path,)
-        and tuple(change.get("removed", ())) == ()
-        and set(new_paths) - set(old_paths) == {forge_path}
-        and not (set(old_paths) - set(new_paths))
-        and change.get("new_round6_blob") == pin_maps[0][ROUND6_PATH]
-        and new_paths == frontier_paths == members
+        and change.get("new_digest")
+        == _member_set_digest(new_paths)
+        == (
+            reconciliation.get("baseline_round6_untyped_frontier_digest")
+            if isinstance(reconciliation, Mapping)
+            else None
+        )
+        and tuple(change.get("added", ())) == ()
+        and tuple(change.get("removed", ())) == deferred_paths
+        and not (set(new_paths) - set(old_paths))
+        and set(old_paths) - set(new_paths) == set(deferred_paths)
+        and pin_maps[0][ROUND6_PATH] == authority.blob_ids.get(ROUND6_PATH)
         and isinstance(old_round6, dict)
         and isinstance(new_round6, dict)
         and old_round6.get("waves")

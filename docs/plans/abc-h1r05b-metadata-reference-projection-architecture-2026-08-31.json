@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.h1r05b.metadata_reference_projection",
+  "status": "accepted_after_fresh_independent_review",
+  "acceptance_evidence": {"source_pin": "76756dafb6b890fdc3417997ff3690a8e87f4bc2", "test_pin": "f22e128a523448fbf639d4cb2be947f258bbf93e", "current_h1r05a_contract_pin": "7a5bf88d08e7df9813fa9cc822b992daa09a5b4a", "run_record": "docs/plans/handoffs/ABC-GO-OPEN-WORK-10H-RUN-20260904.json", "focused_suite": "45 passed", "live_effects": "no live effects"},
+  "scope": "A pure, detached, default-off conversion of an already captured H1R-05A owner snapshot to Harbour metadata-reference records. It is not a USI source adapter, registration, activation, migration, or runtime integration.",
+  "authority_pins": {
+    "h1r05a_contract": "docs/plans/abc-h1r05-owner-snapshot-v3-digest-contract-2026-08-31.json@7a5bf88d08e7df9813fa9cc822b992daa09a5b4a",
+    "h1r05a_store": "src/harbour_knowledge_store.py@a08286d0f402c29c726e32f1d3122749cd8b87d1",
+    "h1r05a_tests": "tests/test_harbour_knowledge_store.py@c7bd801c6ff63ea0dfbeacbe48ef9e1a1dbb8bd4",
+    "native_source": "src/unified_source_index_sources/knowledge.py@76756dafb6b890fdc3417997ff3690a8e87f4bc2",
+    "native_source_tests": "tests/test_unified_source_index_knowledge_source.py@f22e128a523448fbf639d4cb2be947f258bbf93e",
+    "product_roadmap": "docs/plans/harbour-one-product-roadmap.json@8d54b67f59de2530f7821474593f7636bd6172bb"
+  },
+  "writer_packet": {
+    "id": "H1R-05B-metadata-reference-projection",
+    "class": "critical",
+    "allowed_paths": ["src/unified_source_index_sources/knowledge.py", "tests/test_unified_source_index_knowledge_source.py"],
+    "review": "fresh independent Sol deep"
+  },
+  "required_behavior": [
+    "Accept only exact built-in KnowledgeMigrationSnapshot and KnowledgeHeadMetadata values from H1R-05A.",
+    "Validate the exported-snapshot boundary only: exact built-in H1R-05A exported record types, scalar types and budgets, schema id, SHA-256 digest grammar, enumeration/integer bounds, unique ordered heads, record_digest, captured_head_boundary and snapshot_digest. The opaque H1R-05A inner R/T/owner/null-sensitive metadata digests are not re-authenticated because their source values are intentionally not exported.",
+    "Return only immutable detached HarbourKnowledgeMetadataReference(schema_id='odysseus.harbour.knowledge_metadata_reference.v1', snapshot_digest, owner_ref_digest, record_digest, knowledge_id_digest, revision, generation, state, knowledge_kind, payload_sha256, classification_digest, retention_digest, provenance_digest, source_revisions_digest, references_digest, revision_metadata_digest, head_metadata_digest) values in the input's verified order; the empty snapshot returns an empty tuple.",
+    "Copy every accepted scalar once before conversion and expose no retained input aliases. Reject foreign schemas, subclasses, missing slots, malformed hashes, invalid enums/integers, over-budget values, boundary/digest mismatch, duplicate or disordered heads and bounded hostile objects without sensitive exception context.",
+    "Remain deterministic, payload-free and repr-safe."
+  ],
+  "forbidden": [
+    "NativeKnowledgeStore construction or capture calls", "KnowledgeSourceAdapter construction or registration", "SourceRecord, SourceVersionRecord or ChunkRecord emission", "USI registry, capability or manifest changes", "SQLite, filesystem, network, clock or randomness", "payload, content, raw owner identifiers, locator, timestamp or alias access", "schema change, migration, activation, provider, private-data, deletion or live action"
+  ],
+  "acceptance": [
+    "Golden conversion, literal output field mapping and deterministic empty snapshot", "hostile exact-type, missing-slot, mutation and retained-alias rejection", "exported record/boundary/snapshot digest recomputation plus order/duplicate/budget failures", "self-consistent synthetic snapshots are explicitly not treated as authenticated origin", "no reinterpretation of payload_sha256 as content_hash, source-id minting, Native evidence/locator/binding emission or SourceRecord/SourceVersionRecord/ChunkRecord emission", "static proof of no Native store/capture/adapter/registry/I-O calls", "focused H1R-05A Store and Native USI regression suites via --noconftest"
+  ],
+  "non_claims": "This packet does not satisfy H1R-05 completion and creates no authoritative USI source or migration readiness."
+}

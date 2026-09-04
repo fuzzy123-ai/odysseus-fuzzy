@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.h1r05.offline_knowledge_migration_preparation_architecture",
+  "revision": "v1",
+  "status": "accepted_after_fresh_independent_review",
+  "acceptance_evidence": {"run_record": "docs/plans/handoffs/ABC-GO-OPEN-WORK-10H-RUN-20260904.json", "master_architecture_blob": "2ecec7a67e255e165d938bceca990931fba6acc3", "c_accepted_status_evidence_blob": "229f02d9840a94a3c816481b837a9421a7de08b3", "fresh_independent_review": "passed; no live effects"},
+  "scope": "Repository-only preparation for a later Knowledge migration. It is not a migration, cutover, USI activation, runtime wiring, provider action, network action, private-data read, deletion, deployment or live Go.",
+  "authority": {
+    "product_roadmap": {"path": "docs/plans/harbour-one-product-roadmap.json", "blob": "8d54b67f59de2530f7821474593f7636bd6172bb"},
+    "h1r04_boundary": {"path": "docs/plans/harbour-one-h1r-04-current-boundary-reconciliation-2026-08-30.json", "blob": "ab0bebf45fb06b242ac6b5b2dc5052b852d53830"},
+    "user_decision": {"path": "docs/plans/harbour-one-user-decision-agent-data-isolation-2026-08-31.json", "blob": "10fa85434ee6f980af96b43cf0c519cc11e6a271"},
+    "store": {"path": "src/harbour_knowledge_store.py", "blob": "a08286d0f402c29c726e32f1d3122749cd8b87d1"},
+    "store_tests": {"path": "tests/test_harbour_knowledge_store.py", "blob": "c7bd801c6ff63ea0dfbeacbe48ef9e1a1dbb8bd4"},
+    "native_usi_adapter": {"path": "src/unified_source_index_sources/knowledge.py", "blob": "76756dafb6b890fdc3417997ff3690a8e87f4bc2"},
+    "isolated_snapshot_comparison": {"path": "docs/plans/abc-h1r05c-isolated-snapshot-comparison-architecture-2026-09-04.json", "blob": "229f02d9840a94a3c816481b837a9421a7de08b3"},
+    "isolated_snapshot_comparison_source": {"path": "src/harbour_snapshot_comparison.py", "blob": "2f5aaf325a956201bfd2b1348d2d3530d92c6898"},
+    "isolated_snapshot_comparison_tests": {"path": "tests/test_harbour_snapshot_comparison.py", "blob": "52679818eb766ebe6ec3b53eeac542950b19fbc4"}
+  },
+  "target": {
+    "outcome": "Produce deterministic, owner-scoped, payload-free fixture evidence that a later separately authorized migration can compare without treating an existing Native USI adapter or historical H1R-05 route as Harbour authority.",
+    "forbidden": ["schema changes", "writes to an existing knowledge database", "legacy import", "dual write", "cutover", "USI registration or activation", "payload disclosure", "actual deletion", "network", "provider", "worker/broker execution", "runtime wiring", "live action"]
+  },
+  "representation": {
+    "snapshot": "KnowledgeMigrationSnapshot is one exact frozen dataclass. Its digest frames schema_id=odysseus.harbour.knowledge_migration_snapshot.v1, owner_ref_digest, captured_head_boundary and an ordered tuple of at most 10,000 frozen HeadMetadata values. Every record has opaque knowledge_id/revision_id digests, revision number, head generation, lifecycle state, knowledge_kind, classification/retention/provenance/source-reference digests and record digest. Ordering is by opaque knowledge_id then revision; duplicates, oversize/non-exact fields or digest disagreement reject. No payload, raw owner, path, URL, principal or mutable alias appears.",
+    "capture": "An additive HarbourKnowledgeStore method accepts the existing exact TrustedPrincipal plus exact built-in expected owner boundary or explicit no-freshness mode. It authenticates/binds owner before an owned deferred read transaction, runs bounded owner-filtered metadata-only queries, copies primitive rows once and reliably rolls back/closes. It changes no constructor/admission/replay/lifecycle/schema or mutating pragma. Empty is valid; oversize, incomplete, corrupt, stale expected boundary or SQLite failure returns detached bounded error. Capture is consistent at its SQLite boundary only; no-freshness mode makes no fresh-now promise.",
+    "projection": "After accepted frozen Snapshot A, a new Harbour-only pure converter accepts only that exact representation and emits fixed harbour-knowledge/v1 metadata-reference records. It creates no Native authority binding/capability/existing Native locator and does not instantiate, register or modify KnowledgeSourceAdapter.",
+    "comparison": "After accepted frozen Snapshot A, only the isolated fixture API in src/harbour_snapshot_comparison.py accepts exact source, target and post snapshots and emits a bounded content-free report with role-labelled source_to_target and target_to_post missing, extra and changed opaque ids. Owner/schema mismatch rejects. It must not import, call, return or reference the legacy migration module, MigrationProof, MigrationProofStatus, GO/status/evidence objects or concepts; it cannot trigger migration, infer policy or mutate either store. Digest equality is fixture metadata comparison only, establishes no live state or completion, and supplies no migration or activation authorization."
+  },
+  "invariants": [
+    "Owner authentication and exact owner binding precede every database observation.",
+    "A snapshot is one consistent read boundary; its digest binds its ordered primitive records and no payload.",
+    "Apart from the required exact TrustedPrincipal authentication object, all snapshot/projection/comparison data is exact built-in data copied before comparison, hashing, serialization or SQLite access; subclasses, aliases, iterators and hooks fail closed.",
+    "The Harbour snapshot/projection path is distinct from NativeKnowledgeStore authority and does not widen any USI capability.",
+    "Comparison is deterministic, reports missing/extra/changed metadata only, and never supplies a migration or activation authorization.",
+    "No package may claim H1R-05 completion; only the later fixture integration may establish readiness for a separately reviewed migration packet."
+  ],
+  "packets": [
+    {"id": "H1R-05A-snapshot", "class": "critical", "allowed_paths": ["src/harbour_knowledge_store.py", "tests/test_harbour_knowledge_store.py"], "depends_on": ["architecture_pass"], "acceptance": ["owner denial before SQLite", "consistent single-read snapshot", "restart equality", "payload-free output", "hostile input failure"], "review": "fresh Sol deep"},
+    {"id": "H1R-05B-harbour-usi-metadata", "class": "critical", "allowed_paths": ["src/unified_source_index_sources/knowledge.py", "tests/test_unified_source_index_knowledge_source.py"], "depends_on": ["H1R-05A accepted and frozen as a read-only pin"], "acceptance": ["exact detached snapshot only", "deterministic metadata references", "Native adapter unchanged", "no registration, I/O or payload"], "review": "fresh Sol deep"},
+    {"id": "H1R-05C-migration-comparison", "class": "critical", "allowed_paths": ["src/harbour_snapshot_comparison.py", "tests/test_harbour_snapshot_comparison.py"], "depends_on": ["H1R-05A accepted and frozen as a read-only pin", "isolated snapshot comparison architecture and exact accepted source/test pins read-only"], "acceptance": ["only the isolated fixture API performs deterministic role-labelled source/target/post comparison", "missing/extra/changed detection", "no legacy module, MigrationProof, GO/status/evidence reference, mutation, migration, activation or completion claim", "hostile fixture failure"], "review": "fresh Sol deep"}
+  ],
+  "integration": "A, B and C may be authored only one critical writer at a time. A is integrated and frozen first; B and C then consume its exact read-only candidate pin serially. No worker reads a concurrently changing writer path as authority.",
+  "verification": {"required": ["JSON parse", "exact authority/blob readback", "focused hostile tests per packet", "existing Store/Staging/Authority and Native-USI regressions", "fresh independent Sol deep review"], "not_verified": ["actual migration", "rollback", "USI activation", "runtime integration", "live behavior"]},
+  "stop_rules": ["Any schema/version/migration/cutover requirement invalidates this draft.", "Any request to use NativeKnowledgeStore as Harbour authority invalidates this draft.", "Any private-data, network, provider, deployment or deletion requirement is a separate user gate."]
+}

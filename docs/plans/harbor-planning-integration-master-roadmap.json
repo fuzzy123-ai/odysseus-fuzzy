@@ -542,7 +542,9 @@
       "id": "HPA-PLANNING-UX-ACCEPTANCE",
       "owner_roadmap": "docs/plans/planning-definition-editor-roadmap.json",
       "status": "accepted_user_v3_calm_control_room_definition_only",
-      "blocks": ["PDE-05-v3-planning-surface", "PDE-07-boundary-browser-acceptance"],
+      "blocks": [],
+      "historically_blocked": ["PDE-05-v3-planning-surface", "PDE-07-boundary-browser-acceptance"],
+      "current_gate_effect": "satisfied; the historical Planning UX dependencies are complete and no longer currently blocked",
       "safe_default": "no_go",
       "decision": "Approve the definition-only Planning information architecture and browser acceptance packet."
     },
@@ -558,7 +560,9 @@
       "id": "HPA-AGENT-UX-ACCEPTANCE",
       "owner_roadmap": "docs/plans/temporal-light-agent-execution-roadmap.json",
       "status": "accepted_by_user_20260715",
-      "blocks": ["TLR-07-agent-screen-runtime-ui"],
+      "blocks": [],
+      "historically_blocked": ["TLR-07-agent-screen-runtime-ui"],
+      "current_gate_effect": "satisfied; the historical Agent UX dependency is complete and no longer currently blocked",
       "safe_default": "no_go",
       "decision": "Approve the Agent operational information architecture and controls before runtime UI implementation."
     },
@@ -597,8 +601,8 @@
     "python -m json.tool docs/plans/planning-mcp-roadmap.json",
     "python -m pytest -q tests/test_planning_agent_boundary_roadmaps.py",
     "python scripts/roadmap_safe_queue_audit.py --format json",
-    "Future PDE-07: Playwright definition-only Planning acceptance",
-    "Future TLR-09: Temporal time-skipping, replay, restart, heartbeat and idempotency acceptance",
+    "Completed PDE-07: Playwright definition-only Planning acceptance",
+    "Completed TLR-09: Temporal time-skipping, replay, restart, heartbeat and idempotency acceptance",
     "Future HPIM-14: cross-screen browser acceptance packet"
   ],
   "shared_router_handoff_required": {

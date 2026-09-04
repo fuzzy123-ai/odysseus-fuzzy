@@ -2,8 +2,8 @@
   "schema_version": 1,
   "kind": "odysseus.parallel_roadmap_execution_round",
   "round_id": "round6",
-  "updated_at": "2026-08-11T23:30:00+02:00",
-  "status": "round6_authority_revision220_true_safe_queue_exhausted_nmg05a_candidate_paused_outside_active_release_set",
+  "updated_at": "2026-08-14T20:54:01+02:00",
+  "status": "round6_authority_revision287_verified_global_denominator_173_of_245_hwa2a_v4_architecture_registered_claim_reconciliation_pending",
   "goal": "After accepted Round 5, expose disjoint Coding, Memory/Data and App Integration frontiers with independent QA while keeping every central router master-only.",
   "prerequisite": {
     "round5_state": "accepted_released",
@@ -77,54 +77,8 @@
   ],
   "roadmap_frontiers": [
     {
-      "roadmap_path": "docs/plans/agent-maintenance-safety-harness-roadmap.json",
-      "lane": "coding",
-      "slice": {
-        "id": "AMH-01-root-policy-and-runbook",
-        "state": "waiting_on_user",
-        "claimable": false,
-        "depends_on": [
-          "AMH-00-roadmap-contract-and-registration"
-        ],
-        "dependency_evidence": [
-          {
-            "id": "AMH-00-roadmap-contract-and-registration",
-            "state": "done_in_this_artifact"
-          }
-        ],
-        "allowed_paths": [
-          "AGENTS.md",
-          "docs/agent-maintenance-runbook.md",
-          "CONTRIBUTING.md",
-          "tests/test_agent_maintenance_policy.py"
-        ],
-        "hotfiles": [
-          "CONTRIBUTING.md"
-        ],
-        "master_only_paths": [],
-        "owner": "Alice/Terra",
-        "independent_qa_reviewer": "Charlie/Terra fresh-context",
-        "root_review_depth": "deep",
-        "automatic_gates": [
-          {
-            "id": "AMH-01-policy",
-            "command": "venv\\Scripts\\python.exe -m pytest -q tests\\test_agent_maintenance_policy.py",
-            "pass_condition": "policy suite passes and scoped git diff --check is clean"
-          }
-        ],
-        "remaining_user_gates": [
-          {
-            "id": "AMH-GATE-EXPLICIT-GOAL-OR-REPRIORITIZATION",
-            "blocks_current_slice": true,
-            "reason": "The roadmap requires an explicit AMH goal or Open Work reprioritization."
-          }
-        ],
-        "normalization_blockers": []
-      },
-      "source_evidence": "slice_queue AMH-01 and gate_queue AMH-GATE-EXPLICIT-GOAL-OR-REPRIORITIZATION"
-    },
-    {
       "roadmap_path": "docs/plans/autonomous-coding-production-readiness-roadmap.json",
+      "membership_role": "retained_terminal_wave_evidence",
       "lane": "coding",
       "slice": {
         "id": "ACPR-12-transactional-worktree-and-safe-tool-capsules",
@@ -194,67 +148,6 @@
       "source_evidence": "current_frontier plus slice_queue ACPR-12; stale embedded status is superseded by accepted Round-5 dependencies in this master normalization"
     },
     {
-      "roadmap_path": "docs/plans/coding-agent-orchestration-consolidation-roadmap.md",
-      "lane": "coding",
-      "slice": {
-        "id": "CAO-08G-verification-repair-independent-review",
-        "state": "blocked_by_dependency_and_normalization",
-        "claimable": false,
-        "depends_on": [
-          "CAO-08C1",
-          "CAO-08D",
-          "CAO-08E",
-          "CAO-08F",
-          "ACPR-12"
-        ],
-        "dependency_evidence": [
-          {
-            "id": "CAO-08C1",
-            "state": "accepted"
-          },
-          {
-            "id": "CAO-08D",
-            "state": "accepted"
-          },
-          {
-            "id": "CAO-08E",
-            "state": "accepted"
-          },
-          {
-            "id": "CAO-08F",
-            "state": "accepted"
-          },
-          {
-            "id": "ACPR-12",
-            "state": "not_accepted"
-          }
-        ],
-        "allowed_paths": [],
-        "hotfiles": [],
-        "master_only_paths": [],
-        "owner": "Bob/Terra coding",
-        "independent_qa_reviewer": "Charlie/Terra fresh-context",
-        "root_review_depth": "deep",
-        "automatic_gates": [
-          {
-            "id": "CAO-08G-normalization",
-            "command": "venv\\Scripts\\python.exe scripts\\validate_parallel_roadmap_execution.py --format json",
-            "pass_condition": "ACPR-12 is accepted and exact CAO-08G paths/hotfiles/tests are registered"
-          }
-        ],
-        "remaining_user_gates": [
-          {
-            "id": "coding-loop-user-acceptance",
-            "blocks_current_slice": false,
-            "reason": "Only material product, architecture, security or privacy changes escalate."
-          }
-        ],
-        "normalization_blockers": [
-          "Exact allowed paths, hotfiles and slice-specific test commands are absent from the source roadmap."
-        ]
-      }
-    },
-    {
       "roadmap_path": "docs/plans/diagnostics-legacy-fix-roadmap.md",
       "lane": "coding",
       "slice": {
@@ -291,8 +184,8 @@
       "roadmap_path": "docs/plans/headless-write-agent-orchestration-roadmap.md",
       "lane": "coding",
       "slice": {
-        "id": "HWA2-canonical-subagent-commit-bridge",
-        "state": "normalization_blocked",
+      "id": "HWA-2-canonical-subagent-commit-bridge",
+      "state": "architecture_registered_claim_origin_and_clean_baseline_reconciliation_pending",
         "claimable": false,
         "depends_on": [
           "HWA3A",
@@ -301,11 +194,11 @@
         "dependency_evidence": [
           {
             "id": "HWA3A",
-            "state": "accepted_in_run_state_but_stale_in_roadmap"
+            "state": "accepted_in_source_reconciliation"
           },
           {
             "id": "HWA3B",
-            "state": "accepted_in_run_state_but_stale_in_roadmap"
+            "state": "accepted_in_source_reconciliation"
           }
         ],
         "allowed_paths": [
@@ -336,9 +229,11 @@
             "reason": "Required only for an actual non-fake commit."
           }
         ],
-        "normalization_blockers": [
-          "Source roadmap and durable run state disagree; HWA2 hotfile/test contract requires atomic reconciliation."
-        ]
+      "normalization_blockers": [
+        "HWA2-canonical-subagent-commit-bridge is the non-counting historical spelling of this exact source-bound HWA-2 unit; Revision 285 resolved the identity without creating a second unit.",
+        "HWA2A Rev227, v2 and v3r1 product lineages are terminal or rejected after exhausted bounded corrections and must never be revived.",
+        "Fresh HWA2A-v4 architecture is registered at authority Revision 287 on packet blob 63fb75c6edbbc7ec72f357ce661370dd5074441a. Before any writer, Root must reconcile an exact accepted HWA3A source projection and claim-origin route, create claim-specific Evidence, and bind a clean detached two-path baseline with all central validators green."
+      ]
       }
     },
     {
@@ -449,81 +344,6 @@
       }
     },
     {
-      "roadmap_path": "docs/plans/live-contextual-layer-roadmap.json",
-      "lane": "memory_data",
-      "slice": {
-        "id": "LCL-01-observation-and-hypothesis-contract",
-        "state": "waiting_on_explicit_implementation_goal",
-        "claimable": false,
-        "depends_on": [
-          "CAO-08B",
-          "LCL-00",
-          "canonical-router-registration"
-        ],
-        "dependency_evidence": [
-          {
-            "id": "CAO-08B",
-            "state": "accepted_in_open_work"
-          },
-          {
-            "id": "LCL-00",
-            "state": "root_review_accepted"
-          },
-          {
-            "id": "canonical-router-registration",
-            "state": "accepted"
-          }
-        ],
-        "allowed_paths": [
-          "docs/plans/live-contextual-layer-contract.md",
-          "docs/plans/agent-context-transparency-contract.md",
-          "tests/test_live_contextual_layer_contract.py"
-        ],
-        "hotfiles": [
-          "docs/plans/agent-context-transparency-contract.md"
-        ],
-        "master_only_paths": [],
-        "owner": "Alice/Terra memory contract",
-        "independent_qa_reviewer": "Charlie/Terra fresh-context",
-        "root_review_depth": "deep",
-        "automatic_gates": [
-          {
-            "id": "LCL-01-contract",
-            "command": "venv\\Scripts\\python.exe -m pytest -q tests\\test_live_contextual_layer_contract.py",
-            "pass_condition": "schema, privacy, contradiction, expiry and prohibited-authority negatives pass"
-          }
-        ],
-        "remaining_user_gates": [
-          {
-            "id": "LCL-EXPLICIT-IMPLEMENTATION-GOAL",
-            "blocks_current_slice": true,
-            "reason": "The current user request authorizes roadmap normalization, not LCL implementation."
-          },
-          {
-            "id": "LCL-PRODUCT-POLICY-ACCEPTANCE",
-            "blocks_current_slice": false,
-            "reason": "Later product policy gate."
-          },
-          {
-            "id": "LCL-LOCAL-BACKGROUND-PROCESS-GO",
-            "blocks_current_slice": false,
-            "reason": "Later runtime process gate."
-          },
-          {
-            "id": "LCL-TEMPORAL-SOAK-GO",
-            "blocks_current_slice": false,
-            "reason": "Later soak gate."
-          },
-          {
-            "id": "LCL-PRODUCTION-ACTIVATION-GO",
-            "blocks_current_slice": false,
-            "reason": "Later production activation gate."
-          }
-        ],
-        "normalization_blockers": []
-      }
-    },
-    {
       "roadmap_path": "docs/plans/gemma3-memory-ops-optimization-roadmap.md",
       "lane": "memory_data",
       "slice": {
@@ -622,7 +442,7 @@
       "lane": "memory_data",
       "slice": {
         "id": "NMG-05A-causal-store-and-review",
-        "state": "paused_recoverable_candidate_main_worktree",
+        "state": "normalization_blocked_fresh_architecture_required",
         "claimable": false,
         "depends_on": [
           "NMG-05"
@@ -646,6 +466,7 @@
           "docs/plans/multi-agent-execution-guidance.json"
         ],
         "owner": "root/Sol unified-main-worktree steward",
+        "owner_authority": "The accepted NMG-05 source and frozen NMG-05A v2 architecture assign the exact two-path implementation to Bob/Terra under Root/Sol review.",
         "independent_qa_reviewer": "Charlie/Terra fresh-context",
         "root_review_depth": "deep",
         "automatic_gates": [
@@ -706,7 +527,7 @@
         },
         "remaining_user_gates": [],
         "normalization_blockers": [
-          "Candidate is unfrozen and 11 of 12 focused tests remain red; one bounded correction and full QA are still required before acceptance."
+          "NMG-05A v2 exhausted correction 1/1: malformed stored claim JSON is detected but projected as storage_failed instead of integrity_failed; a fresh Root/Sol architecture is required."
         ],
         "claim_id": "ABC-NMG05A-REV203",
         "authority_revision": 219,
@@ -1389,60 +1210,45 @@
       }
     },
     {
-      "roadmap_path": "docs/plans/odysseus-harbor-one-autonomous-workspace-roadmap.md",
+      "roadmap_path": "docs/plans/harbour-one-product-roadmap.json",
       "lane": "app_integration",
       "slice": {
-        "id": "H1-29-canonical-planning-projection",
-        "state": "normalization_blocked",
+        "id": "H1R-04",
+        "state": "pending_independent_review_after_currentness_refresh",
         "claimable": false,
         "depends_on": [
-          "H1-28",
-          "CAO-08A",
-          "CAO-08B",
-          "ACPR-11"
+          "H1R-00"
         ],
         "dependency_evidence": [
           {
-            "id": "H1-28",
-            "state": "done"
-          },
-          {
-            "id": "CAO-08A",
-            "state": "accepted_central_not_bound_in_source"
-          },
-          {
-            "id": "CAO-08B",
-            "state": "accepted_central_not_bound_in_source"
-          },
-          {
-            "id": "ACPR-11",
-            "state": "accepted_round5_not_bound_in_source"
+            "id": "H1R-00",
+            "state": "accepted_2026-08-29"
           }
         ],
         "allowed_paths": [],
         "hotfiles": [],
         "master_only_paths": [],
-        "owner": "Bob/Terra planning integration",
+        "owner": "Root/Sol product architecture",
         "independent_qa_reviewer": "Charlie/Terra fresh-context",
         "root_review_depth": "deep",
         "automatic_gates": [
           {
-            "id": "H1-29-normalization",
-            "command": "venv\\Scripts\\python.exe scripts\\validate_parallel_roadmap_execution.py --format json",
-            "pass_condition": "exact fixture paths, hotfiles and test command are registered against current accepted dependencies"
-          }
-        ],
-        "remaining_user_gates": [
+            "id": "H1R-04-product-roadmap-json",
+            "command": "venv\\Scripts\\python.exe -B -m json.tool docs\\plans\\harbour-one-product-roadmap.json",
+            "pass_condition": "The canonical Harbour One product roadmap parses as strict JSON."
+          },
           {
-            "id": "H1-GATE-INBOX-SEMANTIC-UX-ACCEPTANCE",
-            "blocks_current_slice": false,
-            "reason": "Later semantic UX gate."
+            "id": "H1R-04-guidance-route",
+            "command": "venv\\Scripts\\python.exe -B scripts\\roadmap_multi_agent_guidance.py --roadmap docs/plans/harbour-one-product-roadmap.json --format json",
+            "pass_condition": "Guidance routes Harbour One as the current active serial product authority."
           }
         ],
+        "remaining_user_gates": [],
         "normalization_blockers": [
-          "The source lacks exact allowed paths, hotfiles and a test command for H1-29."
+          "H1R-04 current-boundary reconciliation is pending independent review; infer no H1R-05 writer or implementation authority."
         ]
-      }
+      },
+      "source_evidence": "Harbour One product authority H1R-04 is pending independent review after currentness refresh; H1R-02 and H1R-03 are accepted and must not restart."
     },
     {
       "roadmap_path": "docs/plans/planning-definition-editor-roadmap.json",
@@ -1588,16 +1394,15 @@
       "lane": "app_integration",
       "slice": {
         "id": "TTD-07A5-poll-webhook-sweep-and-turn-lease",
-        "state": "blocked_after_two_attempts",
+      "state": "accepted_released_fd2340a6_live_default_off",
         "claimable": false,
-        "depends_on": [
-          "TTD-07A0",
-          "TTD-07A1",
-          "TTD-07A2",
-          "TTD-07A3",
-          "TTD-07A4",
-          "fresh-readonly-architecture-handoff"
-        ],
+      "depends_on": [
+        "TTD-07A0",
+        "TTD-07A1",
+        "TTD-07A2",
+        "TTD-07A3",
+        "TTD-07A4"
+      ],
         "dependency_evidence": [
           {
             "id": "TTD-07A0",
@@ -1618,11 +1423,7 @@
           {
             "id": "TTD-07A4",
             "state": "accepted"
-          },
-          {
-            "id": "fresh-readonly-architecture-handoff",
-            "state": "missing"
-          }
+        }
         ],
         "allowed_paths": [],
         "hotfiles": [],
@@ -1630,17 +1431,15 @@
         "owner": "Bob/Terra app integration",
         "independent_qa_reviewer": "Charlie/Terra fresh-context",
         "root_review_depth": "deep",
-        "automatic_gates": [
-          {
-            "id": "TTD-07A5-reclaim",
-            "command": "venv\\Scripts\\python.exe scripts\\validate_parallel_roadmap_execution.py --format json",
-            "pass_condition": "fresh architecture handoff defines exact transport/DB/fencing/offset/owner paths and tests before a third claim"
-          }
-        ],
+      "automatic_gates": [
+        {
+          "id": "TTD-07A5-accepted-projection",
+          "command": "venv\\Scripts\\python.exe scripts\\validate_parallel_roadmap_execution.py --format json",
+          "pass_condition": "the accepted fd2340a6 parent and five released child slices remain projected once and productive activation remains default-off"
+        }
+      ],
         "remaining_user_gates": [],
-        "normalization_blockers": [
-          "Two attempts were rejected; exact new claim fields and independent reviewer must come from a fresh read-only architecture handoff."
-        ]
+      "normalization_blockers": []
       }
     },
     {
@@ -1857,14 +1656,13 @@
       "lane": "app_integration",
       "slice": {
         "id": "UIR-03-composition-root-and-dependency-injection",
-        "state": "blocked_pending_exact_active_file_handoff",
+      "state": "accepted_released_superseded_aggregate",
         "claimable": false,
-        "depends_on": [
-          "UIR-02",
-          "USI-03",
-          "USI-04",
-          "active-file-handoff"
-        ],
+      "depends_on": [
+        "UIR-02",
+        "USI-03",
+        "USI-04"
+      ],
         "dependency_evidence": [
           {
             "id": "UIR-02",
@@ -1877,23 +1675,10 @@
           {
             "id": "USI-04",
             "state": "accepted"
-          },
-          {
-            "id": "active-file-handoff",
-            "state": "not_accepted_pending_exact_app_initializer_single_writer_handoff"
-          }
+        }
         ],
-        "allowed_paths": [
-          "src/unified_source_index_runtime.py",
-          "src/app_initializer.py",
-          "app.py",
-          "tests/test_unified_source_index_runtime_wiring.py",
-          "tests/test_app_router_initialization_order.py"
-        ],
-        "hotfiles": [
-          "src/app_initializer.py",
-          "app.py"
-        ],
+      "allowed_paths": [],
+      "hotfiles": [],
         "master_only_paths": [],
         "owner": "Charlie/Terra app integration",
         "independent_qa_reviewer": "Alice/Terra fresh-context",
@@ -1912,79 +1697,10 @@
             "reason": "Productive sources/workers/providers remain later and default-off."
           }
         ],
-        "normalization_blockers": [
-          "Open Work requires an exact app.py/src/app_initializer.py active-file collision and single-writer handoff before UIR-03 can be claimed or scheduled."
-        ]
+      "normalization_blockers": [
+        "The generic UIR-03 row is a non-counting superseded aggregate. UIR-03A Go-A R2 and UIR-03B R2 are the two exact accepted units; later UIR-04C and UIR-05B legitimately advanced the App hotfiles."
+      ]
       }
-    },
-    {
-      "roadmap_path": "docs/plans/telegram-windows-pc-control-roadmap.json",
-      "lane": "coding",
-      "slice": {
-        "id": "TWP-01-repo-control-plane",
-        "state": "running_existing_same_checkout_root_claim",
-        "claimable": false,
-        "depends_on": [],
-        "dependency_evidence": [],
-        "allowed_paths": [
-          "docs/plans/telegram-windows-pc-control-roadmap.json",
-          "plugins/telegram/parsing.py",
-          "plugins/telegram/plugin.py",
-          "plugins/telegram/pc_control.py",
-          "plugins/telegram/routes_pc_control.py",
-          "tests/test_telegram_pc_control.py",
-          "tests/test_telegram_pc_control_routes.py",
-          "tests/test_telegram_plugin.py",
-          "ops/windows/telegram-pc-control/README.md",
-          "ops/windows/telegram-pc-control/pc-agent.ps1",
-          "ops/windows/telegram-pc-control/install-pc-agent.ps1",
-          "ops/homeserver/telegram-pc-control/README.md",
-          "ops/homeserver/redacted_runtime_probe.py",
-          "tests/test_homeserver_redacted_runtime_probe.py"
-        ],
-        "hotfiles": [
-          "plugins/telegram/parsing.py",
-          "plugins/telegram/plugin.py",
-          "ops/homeserver/redacted_runtime_probe.py"
-        ],
-        "master_only_paths": [],
-        "owner": "root existing same-checkout claim",
-        "independent_qa_reviewer": "Charlie/Terra fresh-context",
-        "root_review_depth": "deep",
-        "automatic_gates": [
-          {
-            "id": "TWP-01-focused",
-            "command": "venv\\Scripts\\python.exe -m pytest -q tests\\test_telegram_pc_control.py tests\\test_telegram_pc_control_routes.py tests\\test_telegram_plugin.py -k pc_control tests\\test_homeserver_redacted_runtime_probe.py",
-            "pass_condition": "offline parser, store, HMAC, replay, confirmation, route, redaction and PowerShell contract checks pass"
-          }
-        ],
-        "remaining_user_gates": [
-          {
-            "id": "windows-pc-agent-install-go",
-            "blocks_current_slice": false,
-            "reason": "Separate Windows task and DPAPI secret installation action."
-          },
-          {
-            "id": "windows-wake-settings-go",
-            "blocks_current_slice": false,
-            "reason": "Separate administrative NIC and power-setting action."
-          },
-          {
-            "id": "debian-pc-control-deploy-go",
-            "blocks_current_slice": false,
-            "reason": "Separate Debian deployment and service-restart action."
-          },
-          {
-            "id": "telegram-pc-control-live-smoke-go",
-            "blocks_current_slice": false,
-            "reason": "Separate bounded real Telegram/PC live smoke."
-          }
-        ],
-        "normalization_blockers": [
-          "An existing same-checkout root claim owns all fourteen writer paths; this long run must not duplicate or overlap it."
-        ]
-      },
-      "source_evidence": "current_claim TWP-01-repo-control-plane plus slice_queue and gate_queue in the registered roadmap"
     }
   ],
   "accepted_wave_handoffs": [
@@ -2193,6 +1909,47 @@
         "src/causal_claim_store.py": "5beb5f71d7109cd9b4a8d8d8be82c2fb49fd143c",
         "tests/test_causal_claim_store.py": "889f68100b6395054363090962c0674e40579b1c"
       }
+    }
+  ],
+  "released_nmg05a_v2_claims": [
+    {
+      "claim_id": "ABC-NMG05A-V2-REV221",
+      "slice_id": "NMG-05A-V2-causal-store-and-review-correction",
+      "owner": "Bob/Terra high judgment_required",
+      "thread_id": "/root/nmg05a_v2_writer_r2",
+      "state": "released_blocked_same_class_recurrence",
+      "authority_revision": 224,
+      "ownership_transfer": "one allowed replacement after the original worker channel failed before any write",
+      "lease_expires_at": "2026-08-12T21:20:00+02:00",
+      "mutation_authority": "repo_only",
+      "allowed_paths": [
+        "src/causal_claim_store.py",
+        "tests/test_causal_claim_store.py"
+      ],
+      "hotfiles": [
+        "src/causal_claim_store.py",
+        "tests/test_causal_claim_store.py"
+      ],
+      "baseline_blobs": {
+        "src/causal_claim_store.py": "5beb5f71d7109cd9b4a8d8d8be82c2fb49fd143c",
+        "tests/test_causal_claim_store.py": "889f68100b6395054363090962c0674e40579b1c"
+      },
+      "architecture_path": "docs/plans/abc-nmg05a-causal-store-and-review-v2-architecture.json",
+      "architecture_raw_blob": "71cf603fb3dfdb518041b1de9d3db532e839566f",
+      "correction_budget": {
+        "limit": 1,
+        "used": 1
+      },
+      "candidate_state": "rejected_frozen_candidate",
+      "candidate_blobs": {
+        "src/causal_claim_store.py": "4a797d15da79fc74e193ba3a2175de389740cf7f",
+        "tests/test_causal_claim_store.py": "3e9e8b99c3a81f802f914411321947208daac266"
+      },
+      "candidate_set_digest_sha256": "sha256:ba4465a62743764d2a1ff6fdbdd49b8b74090ae9f9962c98984cd4ad783bce70",
+      "candidate_dirty_diff_digest_sha256": "sha256:f2c0ba223b61c70115edfc63f5b935f2d75836049ee755830f9e806acf27f040",
+      "released_at": "2026-08-12T10:02:00+02:00",
+      "release_outcome": "released_blocked_same_class_stored_corruption_error_code_recurrence_after_correction_1_of_1",
+      "live_actions": false
     }
   ],
   "active_claims": [],

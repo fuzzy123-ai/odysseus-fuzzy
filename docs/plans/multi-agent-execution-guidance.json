@@ -1,14 +1,14 @@
 {
   "schema_version": 1,
   "kind": "odysseus.multi_agent_execution_guidance",
-  "updated_at": "2026-08-15T07:57:50+02:00",
-  "purpose": "Give an AI orchestrator an explicit execution policy for every roadmap-like artifact without rewriting historical evidence files; preserve terminal Round 6 and route Harbor One convergence through the current Round-7 integration spine.",
+  "updated_at": "2026-08-31T00:00:00+02:00",
+  "purpose": "Give an AI orchestrator an explicit execution policy for every roadmap-like artifact without rewriting historical evidence files; preserve completed evidence and route current Harbour One product work through its canonical product roadmap.",
   "inventory": {
     "docs_plans_discovery": "Files directly under docs/plans with extension .md or .json and a name containing roadmap, masterplan, execution, build-plan, implementation, priority-process, or workplan.",
-    "docs_plans_count": 133,
+    "docs_plans_count": 135,
     "structured_specs_discovery": "All JSON files directly under specs/roadmaps.",
     "structured_specs_count": 7,
-    "total_count": 140,
+    "total_count": 142,
     "excluded": [
       "specs/roadmaps/odysseus-multiagent-start-2026-06-22.prompt.txt",
       "docs/plans/multi-agent-execution-guidance.json"
@@ -19,13 +19,14 @@
     "current_open_work_and_gate_state": "docs/plans/open-work-completion-master-roadmap.json",
     "post_round5_parallel_execution": "docs/plans/parallel-roadmap-execution-round6.json",
     "post_round5_parallel_execution_validator": "scripts/validate_parallel_roadmap_execution.py",
-    "harbor_one_integration_spine": "docs/plans/parallel-roadmap-execution-round7.json",
-    "harbor_one_integration_spine_validator": "scripts/validate_integration_spine_convergence.py",
+    "harbour_one_product_authority": "docs/plans/harbour-one-product-roadmap.json",
+    "legacy_harbor_one_round7_spine": "docs/plans/parallel-roadmap-execution-round7.json",
+    "legacy_harbor_one_round7_spine_validator": "scripts/validate_integration_spine_convergence.py",
     "mvp_completion_state": "docs/plans/mvp-roadmap-runner-state.json",
-    "integration_priority": "docs/plans/central-abc-masterplan-2026-06-29.md",
-    "product_direction": "docs/plans/unified-odysseus-roadmap.md",
+    "integration_priority": "docs/plans/open-work-completion-master-roadmap.json $.execution_priority_policy and $.recommended_execution_order",
+    "product_direction": "docs/plans/harbour-one-product-roadmap.json",
     "domain_contract": "The selected domain roadmap after reconciliation with the authorities above.",
-    "conflict_rule": "Current dated completion and gate evidence wins over stale queue prose. A recommendation in the June structured seed is not claimable until reconciled with the July open-work and runner state. Never infer that an old unchecked or next-slice line reopens completed work."
+    "conflict_rule": "Current dated completion and gate evidence wins over stale queue prose. The 2026-08-31 Open Work execution priority policy supplies the thematic rank, but current dependency, claimability and gate evidence decides whether an item can start. Never infer that an old unchecked or next-slice line reopens completed work."
   },
   "abc_claim_protocol": {
     "authority": "docs/plans/parallel-roadmap-execution-round7.json $.change_policy.abc_claim_protocol",
@@ -40,33 +41,29 @@
   },
   "analysis_summary": {
     "profile_counts": {
-      "active_parallel": 11,
-      "active_serial": 19,
-      "canonical_router": 13,
-      "gate_only": 61,
-      "historical_done": 35,
+      "active_parallel": 9,
+      "active_serial": 17,
+      "canonical_router": 14,
+      "gate_only": 63,
+      "historical_done": 38,
       "needs_normalization": 1
     },
     "parallel_write_candidates": [
       "docs/plans/code-lineage-timeline-roadmap.md",
-      "docs/plans/coding-agent-orchestration-consolidation-roadmap.md",
       "docs/plans/diagnostics-legacy-fix-roadmap.md",
       "docs/plans/gemma3-memory-ops-optimization-roadmap.md",
       "docs/plans/graphrag-raptor-observability-prometheus-grafana-roadmap.md",
-      "docs/plans/odysseus-harbor-one-autonomous-workspace-roadmap.md",
       "docs/plans/privacy-safe-tool-analytics-roadmap.md",
       "docs/plans/system-assurance-runtime-hardening-roadmap.json",
       "docs/plans/unified-source-index-domain-adapter-rollout-roadmap.md"
     ],
     "serial_design_or_hotfile_tracks": [
       "docs/plans/abc-frontpage-v2-build-plan.md",
-      "docs/plans/agent-maintenance-safety-harness-roadmap.json",
       "docs/plans/ai-lens-design-roadmap.json",
       "docs/plans/anti-hallucination-evidence-roadmap.md",
       "docs/plans/codebase-memory-integration-roadmap.md",
       "docs/plans/headless-write-agent-orchestration-roadmap.md",
       "docs/plans/lens-code-graph-roadmap.md",
-      "docs/plans/live-contextual-layer-roadmap.json",
       "docs/plans/memory-raptorgraph-consolidation-roadmap.md",
       "docs/plans/planning-definition-editor-roadmap.json",
       "docs/plans/project-versioning-forge-provider-roadmap.md",
@@ -83,27 +80,67 @@
     "round6_parallel_execution": {
       "round5_prerequisite": "accepted_released_at_c27583fccd0fea331aef91a8f27dfb49ab1479b1",
       "inventory_mode": "rolling_projection",
-      "inventory_source_blob": "b64fb4524a98327a3c2c9e17990cb9f0440f7472",
+      "inventory_source_blob": "914b00b318c4003d05a8d1822e7825af9bc492f5",
       "inventory_member_query": "Sort unique entry.path values from $.roadmaps where entry.profile starts with active_",
-      "inventory_member_count": 30,
-      "inventory_member_set_digest": "sha256:0f3bf8d41306facf635edd86a6c481cba702292994ab6c2e78937f86f9ec3bcf",
+      "inventory_member_count": 26,
+      "inventory_member_set_digest": "sha256:d93cce6832fcfe54f1fb28adfe19dc8c7e22ed1415511965765128bda803a83b",
       "inventory_denominator_change": {
-        "old_count": 29,
-        "new_count": 30,
-        "old_digest": "sha256:17cf68c5320ccb9aed72dce26f90404823e001db6f2d64e58f58a53da1145181",
-        "new_digest": "sha256:0f3bf8d41306facf635edd86a6c481cba702292994ab6c2e78937f86f9ec3bcf",
-        "old_round6_blob": "4b459ae502246df6a35aa42cb36db2d8337ed838",
-        "new_round6_blob": "284dbe55bf6efac90fc606c29ce40a437875a9f8",
-        "added": ["docs/plans/forge-usi-code-source-adapter-roadmap.md"],
-        "removed": [],
+        "old_count": 30,
+        "new_count": 28,
+        "old_digest": "sha256:0f3bf8d41306facf635edd86a6c481cba702292994ab6c2e78937f86f9ec3bcf",
+        "new_digest": "sha256:d0dcab6ce61b0e0ab1d39696b647a8f20c205b8172d43fbe0fbaabc33aee9d3d",
+        "old_round6_blob": "284dbe55bf6efac90fc606c29ce40a437875a9f8",
+        "new_round6_blob": "2b96aeb7510e59776b1bba42721804c0c3052dfe",
+        "added": [],
+        "removed": [
+          "docs/plans/agent-maintenance-safety-harness-roadmap.json",
+          "docs/plans/live-contextual-layer-roadmap.json"
+        ],
         "scope": "inventory_membership_only_terminal_waves_and_seven_scheduled_slices_unchanged"
       },
-      "active_roadmap_count": 30,
-      "normalized_frontier_count": 30,
+      "active_membership_reconciliation": {
+        "architecture_path": "docs/plans/evidence/abc-round6-guidance-membership-reconciliation-architecture-20260904.json",
+        "baseline_guidance_blob": "914b00b318c4003d05a8d1822e7825af9bc492f5",
+        "baseline_guidance_active_count": 26,
+        "baseline_guidance_active_digest": "sha256:d93cce6832fcfe54f1fb28adfe19dc8c7e22ed1415511965765128bda803a83b",
+        "baseline_round6_blob": "e5f4e1a93c358874203cba3b00b9b9afc74e5b1f",
+        "baseline_round6_total_frontier_count": 28,
+        "baseline_round6_untyped_frontier_digest": "sha256:d0dcab6ce61b0e0ab1d39696b647a8f20c205b8172d43fbe0fbaabc33aee9d3d",
+        "corrected_round6_blob": "2bda63a2725fd59e2842f0ba8320387315995b09",
+        "corrected_guidance_active_count": 26,
+        "corrected_guidance_active_digest": "sha256:d93cce6832fcfe54f1fb28adfe19dc8c7e22ed1415511965765128bda803a83b",
+        "corrected_round6_active_frontier_count": 26,
+        "corrected_round6_retained_terminal_frontier_count": 1,
+        "corrected_round6_total_frontier_count": 27,
+        "frontier_added": [
+          "docs/plans/harbour-one-product-roadmap.json"
+        ],
+        "frontier_removed": [
+          "docs/plans/coding-agent-orchestration-consolidation-roadmap.md",
+          "docs/plans/odysseus-harbor-one-autonomous-workspace-roadmap.md"
+        ],
+        "frontier_role_reclassified": [
+          {
+            "path": "docs/plans/autonomous-coding-production-readiness-roadmap.json",
+            "from": "untyped_active_assumption",
+            "to": "retained_terminal_wave_evidence"
+          }
+        ],
+        "retained_terminal_paths": [
+          "docs/plans/autonomous-coding-production-readiness-roadmap.json"
+        ],
+        "historical_records_preserved": true,
+        "scope": "current_active_membership_and_retained_terminal_provenance_only"
+      },
+      "active_roadmap_count": 26,
+      "active_frontier_count": 26,
+      "retained_terminal_frontier_count": 1,
+      "total_frontier_count": 27,
+      "normalized_frontier_count": 27,
       "scheduled_repo_slice_count": 7,
       "current_claimable_frontier_count": 0,
       "wave_count": 3,
-      "validation": "pass_30_of_30_coverage_7_scheduled_terminal_slices_3_dependency_ordered_waves_zero_claims",
+      "validation": "pass_26_of_26_active_coverage_plus_1_retained_terminal_frontier_7_scheduled_terminal_slices_3_dependency_ordered_waves_zero_claims",
       "lanes": [
         "coding",
         "memory_data",
@@ -123,7 +160,7 @@
       "The normalized USI/CBM/Lineage/Lens roadmaps are planned follow-ups and do not replace the current TAX/TUA queue. On a future goal, only each roadmap's first declared slice becomes claimable. Productive CBM, Lineage and Lens activation remains independently gated; the UIR/UDA/ULO child closures share the parent USI gate.",
       "USI core is not activation-complete without its three child closures: UIR owns composition and consumers, UDA owns policy-aware domain adapters and best-effort change signals, and ULO owns index participation in existing owner/data lifecycle operations. None may absorb domain truth, existing operations, TAX/TUA, GRO/GMI, CBM/Lineage or Lens ownership.",
       "Clarification is a planning precondition for the Harbor One autonomous workspace; missing product decisions must be asked, not inferred.",
-      "The Live Contextual Layer is an active-serial advisory track: it may produce redacted observations, hypotheses and project-status projections, but Planning/domain truth, USI provenance, Memory/Causal review, CAO execution, ACT semantics and user-owned gates remain authoritative. CAO-08B is accepted; LCL-01 remains unselected until its own explicit implementation goal and exact claim exist.",
+      "The Live Contextual Layer is deferred by the 2026-08-22 operator sequence decision until the remaining system is complete enough for system testing. Preserve its advisory/no-authority architecture, but do not claim LCL-01 or later LCL work; later reactivation requires a fresh explicit goal, dependency readback, architecture and exact claim.",
       "The 2026-08-02 operator goal prioritizes safe parallel development. REPO-CLEANUP-ONE-WORKTREE must first reduce the repository to one canonical worktree with explained retained changes. After cleanup and master-route verification, the first bounded wave pairs CAO-08D coding execution-plane work with NMG-00 native-memory boundary inventory on disjoint new paths, while CAO-08C1 remains a later reclaim and SIRP deploy/delivery stays behind its independent live gates. Central routers remain Root-only; guidance changes require an exact Root-registered authoring claim.",
       "The earlier Root edit to this guidance and the UDA detail roadmap outside its then-active central-router claim remains recorded as a scope deviation in Open Work; no claim was fabricated or backdated. Claim ABC-R7-FCA-UDA-ROUTER-NORM-20260803T160100+0200 is the later exact authority for inherited-diff review and bounded status normalization only.",
       "Round 5 is accepted and released. Round 6A and 6B are repo-locally accepted. CLT-03 recovery is accepted and released after final Terra QA, Root and explicit Sol re-review. TRP-07 recovery is terminally not accepted after fresh architecture and two correction cycles; no claim remains active and no third repair may start. TAX7 UI acceptance and every live gate remain open.",
@@ -188,7 +225,7 @@
   },
   "global_ai_preflight": [
     "Resolve the exact roadmap path and load its entry from this index.",
-    "Load current open-work, MVP runner, integration priority, and domain status before trusting an old queue.",
+    "Load current Open Work, MVP runner, the 2026-08-31 execution priority policy and domain status before trusting an old queue. Visit ranks ascending, then select only the first still-open dependency-ready safely claimable item; accepted work is not restarted.",
     "Inspect git status plus active claims or leases; preserve unrelated dirty files.",
     "Select exactly one claimable slice and record id, class, owner, dependencies, allowed paths, tests, evidence, and gate.",
     "Downgrade to read-only normalization if any required claim field is missing or paths collide.",
@@ -206,7 +243,8 @@
     "evidence_refs",
     "remaining_gate_or_blocker",
     "collision_check",
-    "recommended_next_action"
+    "recommended_next_action",
+    "priority_rank_or_skip_reason"
   ],
   "roadmaps": [
     {
@@ -265,9 +303,9 @@
     },
     {
       "path": "docs/plans/agent-maintenance-safety-harness-roadmap.json",
-      "profile": "active_serial",
-      "state": "roadmap_registered_goal_not_started",
-      "ai_hint": "Do not start implementation without an explicit OWM-23 goal or Open Work reprioritization. Then claim only dependency-ready AMH slices on disjoint handed-off paths; keep Planning JSON, claims, gate_queue and clarification as canonical authorities, redact diagnostics before consumption, require current machine receipts, and perform no automatic commit, push, deploy or live action."
+      "profile": "gate_only",
+      "state": "deferred_until_after_release",
+      "ai_hint": "The operator deferred AMH until after release. Preserve the roadmap and terminal evidence, but do not claim AMH work; later post-release reprioritization still needs fresh architecture, collision checks, a current claim and evidence. No commit, push, deploy or live authority is implied."
     },
     {
       "path": "docs/plans/agent-browser-sense-roadmap.json",
@@ -289,9 +327,9 @@
     },
     {
       "path": "docs/plans/live-contextual-layer-roadmap.json",
-      "profile": "active_serial",
-      "state": "roadmap_authored_dependencies_and_user_gates_open",
-      "ai_hint": "Use LCL only as a bounded advisory observation/hypothesis track. After accepted LCL-00 registration and CAO-08B, claim LCL-01 first; serialize context, candidate-ledger and UI seams, keep hypotheses non-authoritative, and stop at every product, UI, local-process, soak or production gate."
+      "profile": "gate_only",
+      "state": "deferred_until_system_completion_and_testability",
+      "ai_hint": "Preserve the advisory/no-authority LCL roadmap and historical architecture as evidence, but do not claim LCL-01 or later LCL work. After the remaining system is complete enough for system testing, require a fresh explicit activation, dependency readback, architecture and claim; keep all UI, local-process, soak and production actions separately gated."
     },
     {
       "path": "docs/plans/agent-extension-browser-devtools-roadmap.json",
@@ -385,9 +423,9 @@
     },
     {
       "path": "docs/plans/autonomous-coding-production-readiness-roadmap.json",
-      "profile": "active_serial",
-      "state": "acpr00_through_12_repo_accepted_round6_a_handoff",
-      "ai_hint": "ACPR-12 is repo-locally accepted in Round 6A after two bounded Root correction cycles, 79 focused tests and final independent QA. Transaction receipts, exact-read byte binding, duplicate-path rejection, partial-write rollback coverage, independent review and scoped argv-only capsules are verified. Planning remains canonical and RAPTOR/GraphRAG advisory; no real adapter, external dispatch, graph/writeback, commit, push, deploy or live authority exists."
+      "profile": "historical_done",
+      "state": "accepted_foundation_reframed_for_external_executor",
+      "ai_hint": "Preserve ACPR safety, receipt, revision-binding, worker isolation and review evidence as constraints for the capability-based Worker Gateway. Reframe the reusable runtime lane as temporary worker execution, never as a competing Harbour Planning/Memory/Scheduler authority; current product authority is docs/plans/harbour-one-product-roadmap.json."
     },
     {
       "path": "docs/plans/autonomy-calendar-coding-master-roadmap.json",
@@ -415,9 +453,9 @@
     },
     {
       "path": "docs/plans/coding-agent-orchestration-consolidation-roadmap.md",
-      "profile": "active_parallel",
-      "state": "cao08a_through_f_and_c1_accepted_local_fake_adapter_activation_off",
-      "ai_hint": "CAO-08A through CAO-08F plus CAO-08C1 and ACPR-11 are accepted after Root deep review and independent QA. C1 is a pure local/fake bounded delegation and receipt reducer; its earlier released_waiting_on_peer claim remains historical. Start no new central claim in the Round-5 handoff; a later normalization task may register ACPR-12 onward before CAO-08G. Do not activate a real adapter, dispatch a real worker or thread, cross workspace boundaries, mutate productive state, push, deploy or perform any live action."
+      "profile": "historical_done",
+      "state": "accepted_contracts_reframed_for_external_executor",
+      "ai_hint": "Reuse accepted lifecycle, context, fencing and receipt contracts only where they constrain the provider-neutral external executor adapter. Do not continue toward a Harbour-owned worker/controller runtime or infer dispatch/live authority."
     },
     {
       "path": "docs/plans/context-budget-dynamic-abc-roadmap.md",
@@ -630,10 +668,22 @@
       "ai_hint": "All named backend slices are done. Use its G1-G4 entries only as decision context and prefer the current open-work master for execution."
     },
     {
+      "path": "docs/plans/harbour-one-roadmap-realignment-2026-08-29.md",
+      "profile": "canonical_router",
+      "state": "canonical_product_direction_checkpoint_2026_08_29",
+      "ai_hint": "Use this concise checkpoint to orient work, then use docs/plans/harbour-one-product-roadmap.json for the machine-readable queue. It grants no live or deployment authority."
+    },
+    {
+      "path": "docs/plans/harbour-one-product-roadmap.json",
+      "profile": "active_serial",
+      "state": "active_product_authority_5_of_17_priority_governed_by_open_work_20260831",
+      "ai_hint": "This is the current Harbour One product authority. First apply docs/plans/open-work-completion-master-roadmap.json $.execution_priority_policy: Harbour is rank 9, so do not preempt higher-ranked dependency-ready work. When selected, read next_frontier, preserve accepted H1R slices and choose only its first still-open dependency-ready H1R item; do not restart H1R-02 or H1R-04. Harbour owns job/capability/policy/receipt truth; temporary isolated workers own their loops and sessions. Goose is the first adapter, DeepSeek Harness is a developer-preview comparison spike, and Codex/OpenHands/OpenCode are registry candidates. No live or deployment authority is implied."
+    },
+    {
       "path": "docs/plans/odysseus-harbor-one-autonomous-workspace-roadmap.md",
-      "profile": "active_parallel",
-      "state": "researched_proposed_execution_roadmap",
-      "ai_hint": "Complete clarification contracts and ask-state foundations before plan generation. Parallelize read-only audits and disjoint backend contracts; serialize Agent-screen hot files and require design/live gates for frontend or runtime activation."
+      "profile": "historical_done",
+      "state": "superseded_as_product_authority_2026_08_29",
+      "ai_hint": "Retain accepted projection and gate evidence. Use docs/plans/harbour-one-product-roadmap.json for current product work: Planning, knowledge, Forge, Inbox, Nextcloud and the capability-governed Worker Gateway. Do not restore this legacy roadmap as a competing Control Plane."
     },
     {
       "path": "docs/plans/odysseus-mcp-server-roadmap.md",
@@ -650,8 +700,8 @@
     {
       "path": "docs/plans/open-work-completion-master-roadmap.json",
       "profile": "canonical_router",
-      "state": "round7_revision179_uir05b_admin_runtime_status_app_route_accepted_released",
-      "ai_hint": "UIR-05B has one frozen ordinary-v2 three-blob App-route candidate awaiting independent QA and Deep-Sol. Service health, metrics and productive activation remain separate successors."
+      "state": "canonical_open_work_priority_policy_20260831_current_claimability_required",
+      "ai_hint": "This is the execution router. Read $.execution_priority_policy and $.recommended_execution_order before selecting work. The order is thematic rather than a completion denominator: skip accepted work, respect every detailed dependency and gate, and record a rank skip reason. Historical UIR-05B candidate prose is not current dispatch authority."
     },
     {
       "path": "docs/plans/open-roadmaps-priority-and-masterprompt-2026-07-15.md",
@@ -710,8 +760,8 @@
     {
       "path": "docs/plans/product-planning-skills-integration-roadmap.md",
       "profile": "active_serial",
-      "state": "planned_waiting_for_operator_activation",
-      "ai_hint": "This is an execution-ready follow-up created from the Kimchi skill review. Do not dispatch implementation until the operator says GO PPS repo-only implementation. After Go, PPS-1 and PPS-2 may run on their disjoint paths; Charlie alone integrates runtime contracts and roadmap state."
+      "state": "repo_only_go_received_pending_fresh_preflight",
+      "ai_hint": "The operator gave GO PPS repo-only implementation on 2026-08-22. First perform read-only dependency, path-collision, baseline and test-environment preflight; then register only one dependency-ready disjoint PPS claim. PPS-1 and PPS-2 remain parallel only after those independent claims exist; Charlie alone integrates runtime contracts and roadmap state."
     },
     {
       "path": "docs/plans/rag-memory-tokenization-roadmap.md",
@@ -914,8 +964,8 @@
     {
       "path": "docs/plans/lens-code-graph-roadmap.md",
       "profile": "active_serial",
-      "state": "planned_after_bounded_cbm_graph_api_ui_default_off",
-      "ai_hint": "On a future goal claim LCG-00 only. Backend fixture/API work may advance after dependencies, but one UI owner must serialize the selected Knowledge/Lens surface. Preserve the visually strong full-project Code Planet through progressive LOD, keep Code Graph/Timeline/Semantic/Trace truth labels separate, verify responsive/a11y/Playwright/canvas nonblank states, and stop before LCG-UI-LIVE."
+      "state": "product_feature_approved_waiting_on_bounded_cbm_graph_api_and_ui_owner",
+      "ai_hint": "Code Graph is approved as a product feature. Do not claim LCG-00 until the bounded CBM graph API and one UI owner are confirmed. Then serialize the selected Knowledge/Lens surface, preserve Code Planet through progressive LOD, keep Code Graph/Timeline/Semantic/Trace truth labels separate, verify responsive/a11y/Playwright/canvas nonblank states, and stop before LCG-UI-LIVE."
     },
     {
       "path": "docs/plans/unified-source-index-implementation-roadmap.md",

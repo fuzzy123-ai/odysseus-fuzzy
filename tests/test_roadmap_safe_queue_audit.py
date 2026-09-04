@@ -407,6 +407,53 @@ def test_audit_treats_live_evidence_and_done_slice_statuses_as_closed(tmp_path):
     assert report["other_open_items"] == []
 
 
+def test_audit_treats_explicit_terminal_ledger_families_as_closed(tmp_path):
+    plans = tmp_path / "plans"
+    plans.mkdir()
+    _write_json(
+        plans / "roadmap.json",
+        {
+            "slice_queue": [
+                {"id": "ACCEPTED-EXACT", "class": "repo_only", "status": "accepted"},
+                {"id": "ACCEPTED", "class": "repo_only", "status": "accepted_2026-09-04"},
+                {"id": "SOL-EXACT", "class": "repo_only", "status": "sol_accepted"},
+                {"id": "SOL", "class": "repo_only", "status": "sol_accepted_review_passed"},
+                {"id": "IMPLEMENTED", "class": "repo_only", "status": "implemented_locally"},
+                {"id": "DONE", "class": "repo_only", "status": "done_after_review"},
+                {"id": "SATISFIED-EXACT", "class": "repo_only", "status": "satisfied"},
+                {"id": "SATISFIED", "class": "repo_only", "status": "satisfied_contract"},
+                {
+                    "id": "RELEASED-BLOCKED",
+                    "status": "released_blocked_fresh_architecture_required",
+                },
+                {"id": "BLOCKED", "status": "blocked"},
+                {"id": "RECOVERY", "status": "recovery_draft"},
+                {"id": "NOT-ACCEPTED", "status": "not_accepted"},
+                {"id": "RELEASED-ACCEPTED", "status": "released_accepted"},
+                {"id": "UNACCEPTED", "status": "unaccepted"},
+                {"id": "PREACCEPTED", "status": "preaccepted"},
+                {"id": "INFIX-ACCEPTED", "status": "foo_accepted_bar"},
+                {"id": "ACCEPTEDISH", "status": "acceptedish"},
+            ]
+        },
+    )
+
+    report = audit_plan_dir(plans, mvp_state_path=plans / "missing-mvp.json")
+
+    assert report["safe_open_slices"] == []
+    assert [item["id"] for item in report["other_open_items"]] == [
+        "RELEASED-BLOCKED",
+        "BLOCKED",
+        "RECOVERY",
+        "NOT-ACCEPTED",
+        "RELEASED-ACCEPTED",
+        "UNACCEPTED",
+        "PREACCEPTED",
+        "INFIX-ACCEPTED",
+        "ACCEPTEDISH",
+    ]
+
+
 def test_audit_does_not_treat_artifact_or_policy_gate_metadata_as_safe_slices(tmp_path):
     plans = tmp_path / "plans"
     plans.mkdir()

@@ -1,0 +1,154 @@
+{
+  "schema_version": 1,
+  "kind": "harbour_one.h1r04_census_control_plane_decoupling_architecture",
+  "status": "review_candidate",
+  "claimable": true,
+  "live_actions": false,
+  "decision": "H1R-04 remains product-pending. Correct the discovery census so the one exact, schema-validated canonical ABC run record cannot invalidate the product-state snapshot merely because its revision advances. Preserve fail-closed discovery for every other repository document and executable path; do not classify the remaining product candidates in this correction.",
+  "supersedes_acceptance_of": {
+    "path": "docs/plans/evidence/abc-h1r04-currentness-acceptance-architecture-20260904.json",
+    "raw_blob": "0d8a29f451b0d971b059851a704ec302b77a44f4",
+    "scope": "Only the denominator boundary and manifest schema described here are corrected. The 17 seed mappings, ten mandatory post-r3 candidates, Git inventories, path safety, raw-blob framing, limits, no-live boundary and CLI behavior remain authoritative unless this document explicitly changes them."
+  },
+  "observed_failure": {
+    "accepted_manifest_path": "docs/plans/harbour-one-h1r-04-state-census-manifest.json",
+    "accepted_manifest_raw_blob": "d48c2358bc4dbffb8302235509ed236c7906f413",
+    "control_plane_path": "docs/plans/handoffs/abc-go-open-work-10h-run-20260904.json",
+    "manifest_bound_control_plane_raw_blob": "a857783770618e758c7a56a72a02fed47cd24901",
+    "first_observed_post_release_control_plane_raw_blob": "351ff2a828112875c9e56473b4be7d4f1a408d44",
+    "reproduction": "After the discovery candidate passed validation, releasing its ABC claim advanced the canonical run record. The unchanged product tree then failed --expect-unclassified with exit 1 and errors=[\"identity_mismatch\"].",
+    "root_cause": "The mutable orchestration control plane was included in the product-state census. The act of recording acceptance changed a manifest member after validation, creating an unavoidable self-invalidating cycle.",
+    "acceptance_correction": "The prior implementation remains useful rejected evidence but is not a stable accepted census until this correction is implemented, independently reviewed and proven across a post-manifest run-record transition."
+  },
+  "boundary_contract": {
+    "control_plane_records_exact": [
+      "docs/plans/handoffs/abc-go-open-work-10h-run-20260904.json"
+    ],
+    "existing_self_exclusions_exact": [
+      "docs/plans/harbour-one-h1r-04-state-census-manifest.json",
+      "scripts/audit_harbour_knowledge_state_census.py",
+      "tests/test_audit_harbour_knowledge_state_census.py"
+    ],
+    "exact_match_rule": "A control-plane record matches only one normalized POSIX path equal to an item in control_plane_records_exact. No prefix, suffix, case-folded, glob, regex, basename or substring match is allowed. Every other file beneath docs/plans/evidence and docs/plans/handoffs remains in the ordinary census denominator and candidate rules.",
+    "inventory_and_read_rule": "The exact record remains part of the Git inventory. Before exclusion it must be read in full with the existing read_safe_file primitive and max_file_bytes limit, thereby applying normalized-path, containment, component lstat/reparse, regular-file, descriptor identity and post-read TOCTOU checks. Read-and-discard is required; a validate-only shortcut is forbidden. Inventory and path-safety errors retain their existing fail-closed codes.",
+    "document_rule": "The exact raw bytes must contain no NUL, decode as strict UTF-8, not begin with '#!', and parse through the duplicate-key-rejecting JSON loader. The top-level object must have exactly the keys in control_plane_schema.top_level_fields_exact and satisfy every fixed/type invariant there. On POSIX, any executable permission bit fails. The safe-read identity must be strengthened to retain the complete st_mode permission bits and st_ctime_ns: executable bits must be zero and the complete mode must agree across initial component lstat, descriptor fstat before and after reading, and final component lstat. A chmod or permission drift during the read fails toctou_changed; a stable executable bit, content or schema violation fails control_plane_record_invalid.",
+    "authority_rule": "Only the exact validated record is treated as mutable orchestration state and denied Harbour product/canonical/writer authority. It is not a manifest member. All architecture, evidence, roadmap, source and test files, including all siblings in its directory, remain discoverable. No seed or mandatory post-r3 path may equal a control-plane record or self-exclusion.",
+    "enumeration_count_rule": "files_enumerated counts safe inventory members after the three exact self-exclusions and the one exact validated control-plane record exclusion. candidates_detected and member_set_digest cover only the remaining product-state candidates.",
+    "ordering_rule": "Apply exact self-exclusion and exact control-plane record validation in UTF-8 path-byte inventory order. The validated record does not contribute candidate identity, total_text_bytes, counts or member digest.",
+    "no_silent_broadening": "Only the exact record path is accepted. Another run record or path requires a separately reviewed contract amendment and refreshed manifest; it must never be inferred from directory, filename or content.",
+    "control_plane_schema": {
+      "top_level_fields_exact": [
+        "schema_version",
+        "kind",
+        "run_id",
+        "revision",
+        "state",
+        "queue_scope",
+        "scope",
+        "authorization",
+        "started_at",
+        "deadline_at",
+        "max_parallel_workers",
+        "heartbeat_automation_id",
+        "heartbeat_interval_minutes",
+        "heartbeat_policy",
+        "active_claims",
+        "agent_leases",
+        "readiness",
+        "route",
+        "evidence_reviews",
+        "reflect_assessments",
+        "initial_packet",
+        "resume_cursor",
+        "last_durable_progress_at",
+        "correction_history"
+      ],
+      "fixed_values": {
+        "schema_version": 1,
+        "kind": "odysseus.abc_long_run",
+        "run_id": "ABC-GO-OPEN-WORK-10H-20260904T121722+0200",
+        "queue_scope": "open_work",
+        "heartbeat_automation_id": "odysseus-open-work-10h-watchdog"
+      },
+      "state_enum": [
+        "running",
+        "paused",
+        "complete",
+        "blocked"
+      ],
+      "type_invariants": "revision, max_parallel_workers and heartbeat_interval_minutes are nonnegative JSON integers but not booleans; active_claims, agent_leases, evidence_reviews, reflect_assessments and correction_history are arrays; readiness, route and initial_packet are objects; scope, authorization, started_at, deadline_at, heartbeat_policy, resume_cursor and last_durable_progress_at are nonempty strings."
+    }
+  },
+  "effective_contract_patch": {
+    "census_contract_addition_key": "control_plane_record_boundary",
+    "census_contract_addition_value_source": "boundary_contract",
+    "scan_contract_digest_rule": "Compute scan_contract_digest over the complete effective census_contract: the exact r1 census_contract plus a control_plane_record_boundary object containing the entire exact boundary_contract. Do not hash the diagnostic observed_failure object.",
+    "manifest_top_level_fields_exact": [
+      "schema_version",
+      "kind",
+      "mode",
+      "scan_contract_digest",
+      "infrastructure_exclusions",
+      "control_plane_exclusions",
+      "entries"
+    ],
+    "manifest_fixed_values": {
+      "schema_version": 2,
+      "kind": "harbour_one.h1r04_state_census_manifest",
+      "mode": "discovery_snapshot"
+    },
+    "manifest_control_plane_exclusions_exact": [
+      "docs/plans/handoffs/abc-go-open-work-10h-run-20260904.json"
+    ],
+    "manifest_infrastructure_exclusions_exact": [
+      "docs/plans/harbour-one-h1r-04-state-census-manifest.json",
+      "scripts/audit_harbour_knowledge_state_census.py",
+      "tests/test_audit_harbour_knowledge_state_census.py"
+    ],
+    "manifest_rule": "The manifest must contain both exclusion arrays exactly as declared, in order. No manifest entry may equal an exact infrastructure exclusion or exact control-plane record. All r1 entry ordering, classification combinations and seed mapping rules remain unchanged."
+  },
+  "implementation_scope": {
+    "allowed_paths_exact": [
+      "scripts/audit_harbour_knowledge_state_census.py",
+      "tests/test_audit_harbour_knowledge_state_census.py",
+      "docs/plans/harbour-one-h1r-04-state-census-manifest.json"
+    ],
+    "scanner_requirements": [
+      "Bind this correction architecture by exact raw blob and bind the r1 architecture by its existing exact raw blob.",
+      "Construct one effective in-memory contract without editing either architecture artifact.",
+      "Read and validate the exact control-plane record safely before excluding it and fail with the new fixed error control_plane_record_invalid for schema, content, permission or forbidden required-path overlap.",
+      "Strengthen the shared safe-file identity to compare complete st_mode and st_ctime_ns so permission-only races are detected without weakening any existing path check.",
+      "Emit and validate schema_version 2 manifests with the exact control_plane_exclusions field and an effective-contract digest.",
+      "Keep discovery read-only and preserve all r1 failure redaction, deterministic output and no-live guarantees."
+    ],
+    "manifest_regeneration_rule": "Regenerate the complete manifest from a fresh real-repository discovery under the corrected effective contract. Preserve the exact 17 seed classifications and mark every other remaining candidate unclassified. Do not infer any new disposition in this correction.",
+    "forbidden_changes": [
+      "No product-roadmap or H1R-04 status update.",
+      "No state classification beyond the existing 17 seed mappings.",
+      "No migration, database access, provider/network access, private-data read, deletion, deployment, push or other live effect.",
+      "No modification of Codex configuration, skills or runtime files."
+    ]
+  },
+  "acceptance_gates": {
+    "hostile_tests": [
+      "The exact canonical run-record JSON is inventoried, read with read_safe_file, schema-validated and excluded; mutating only legal mutable fields leaves candidate membership, digest and manifest validation unchanged.",
+      "A product-authority-shaped JSON or Markdown created under docs/plans/evidence or docs/plans/handoffs remains governed by ordinary candidate discovery and invalidates a stale manifest when it qualifies.",
+      "A .py, arbitrary JSON, shebang document, duplicate-key JSON, wrong run_id/kind, unexpected top-level field or POSIX executable-mode file at the exact record path fails or remains unexcluded as required; none can hide behind the boundary.",
+      "A reparse point, symlink, nonregular file or descriptor/content mutation at the exact record path still fails with the corresponding existing path-safety or TOCTOU error.",
+      "A chmod that adds, removes or swaps executable permission during the exact-record read is detected from complete mode/ctime identity and fails toctou_changed.",
+      "Near-path siblings remain in the denominator and cannot be hidden by the exclusion.",
+      "Any seed or mandatory path equality with an exclusion fails closed.",
+      "Manifest schema 1, missing/reordered/extra exclusion fields, wrong prefixes or a digest computed over r1 alone fail manifest_mismatch."
+    ],
+    "real_repository": [
+      "Fresh discovery and schema-2 manifest regeneration complete with all 17 exact seeds and at least one unclassified product candidate.",
+      "--expect-unclassified returns exit 0 before release.",
+      "After the implementation claim is released and the canonical run record necessarily changes, the same unchanged manifest again returns exit 0 with identical candidates_detected, classified_count, unclassified_count and member_set_digest.",
+      "The exact record validates in both running and paused lifecycle states, while unknown states fail control_plane_record_invalid; pausing alone cannot recreate census identity drift.",
+      "Default validation still returns exit 2 with only unclassified_candidates while product candidates remain unclassified.",
+      "Harbour/USI dependency tests and the Round6, Integration Spine and Guidance validators remain green."
+    ],
+    "independent_review": "Two independent reviewers must verify exact candidate bytes. At least one must focus on exclusion-boundary bypasses and one on manifest/digest/currentness semantics. Any FAIL keeps the correction and H1R-04 unaccepted."
+  },
+  "next_step_after_acceptance": "Resume the separately reviewed disposition architecture for the remaining product-state candidates. Do not let mutable ABC control-plane documents consume or invalidate that product classification work."
+}

@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "kind": "harbour_one.h1r04_ast_caller_discovery_architecture_r3",
+  "status": "review_candidate",
+  "claimable": true,
+  "live_actions": false,
+  "decision": "Retain the closed R2 semantic-discovery contract and replace exactly three fields to match Python relative-import, package-initializer execution and conservative lexical-scope binding semantics.",
+  "supersedes": {
+    "path": "docs/plans/evidence/abc-h1r04-ast-caller-discovery-architecture-r2-20260904.json",
+    "raw_blob": "59c6f1dc3934b77032658ae1664cf6fa2b71de74",
+    "preserved": "R2 python inventory, file and synthetic-package nodes, exact digest construction, semantic anchors, uncertainty propagation, dynamic-loader argument handling, reachability, terminal two-pass recapture, manifest schema 2, unclassified-only additions and no-live boundary remain authoritative except for the three exact replacement fields below."
+  },
+  "effective_contract_patch": {
+    "base_value_source": "R2.corrected_semantic_contract",
+    "base_value_top_level_keys_exact": [
+      "python_inventory",
+      "module_graph",
+      "semantic_anchors",
+      "binding_grammar",
+      "reachability",
+      "terminal_recapture"
+    ],
+    "replacement_paths_exact": [
+      "module_graph.relative_rule",
+      "module_graph.package_initializer_execution_rule",
+      "binding_grammar.trusted_alias_rule"
+    ],
+    "replacement_value_source": "replacement_values",
+    "construction_rule": "Safe-read and raw-bind R1, R2 and R3, verify both supersedes links, deep-copy R2.corrected_semantic_contract, replace exactly the three declared dotted fields with the corresponding strings from replacement_values, reject any missing path or extra replacement, and place the result beneath the existing census_contract.semantic_python_discovery_boundary key. The inherited canonical scan-contract digest covers that complete effective census_contract only."
+  },
+  "replacement_values": {
+    "module_graph.relative_rule": "Derive importing_package_context from the source path: for a path ending in __init__.py use the file-module identity itself; for every other importable source remove the final segment from its file-module identity. For ImportFrom level L greater than zero, require L to be a positive integer, remove exactly L minus 1 trailing components from importing_package_context, reject only when L minus 1 exceeds its component count, append the written module components when present, and then apply from_rule. A nonimportable source with any relative import is uncertain and receives no guessed edge.",
+    "module_graph.package_initializer_execution_rule": "Whenever import_rule, from_rule or a supported dynamic-loader call resolves a local full target node T, create the full importer-to-T edge and also an importer-to-P edge for every strict ancestor identity P of T that is a file-module node materialized from P/__init__.py. Synthetic-package ancestors have no executable edge. If T itself is a file-backed package initializer, the full target edge covers it. These ancestor edges model package initialization only and never expand a package to descendant modules.",
+    "binding_grammar.trusted_alias_rule": "Lexical scopes are Module, ClassDef, FunctionDef, AsyncFunctionDef, Lambda and each comprehension. A relevant alias reference is trusted only when its innermost lexical scope is the same scope that contains exactly one matching import binding and no other binder of that name anywhere in that scope. A reference that would resolve to an imported alias from any enclosing scope is deliberately not resolved and marks the source uncertain. Any relevant global or nonlocal declaration, or any shadowed or multiply bound relevant name, also marks the source uncertain. For builtin __import__ only, a direct Name reference is trusted when no binder and no global or nonlocal declaration for __import__ exists in its scope or any enclosing lexical scope. This conservative same-scope rule is deterministic and uncertainty still propagates to all runtime importers."
+  },
+  "closed_examples": {
+    "relative_normal_module": {
+      "source_path": "core/models.py",
+      "source_module": "core.models",
+      "package_context": "core",
+      "syntax": "from .session_manager import SessionManager",
+      "level": 1,
+      "resolved_base": "core.session_manager"
+    },
+    "relative_initializer": {
+      "source_path": "core/__init__.py",
+      "source_module": "core",
+      "package_context": "core",
+      "syntax": "from .auth import AuthManager",
+      "level": 1,
+      "resolved_base": "core.auth"
+    },
+    "relative_parent": {
+      "source_path": "pkg/sub/consumer.py",
+      "source_module": "pkg.sub.consumer",
+      "package_context": "pkg.sub",
+      "syntax": "from .. import authority",
+      "level": 2,
+      "resolved_base": "pkg",
+      "resolved_target_when_materialized": "pkg.authority"
+    },
+    "initializer_execution": "Importing pkg.sub.mod creates an edge to pkg.sub.mod plus edges to pkg and pkg.sub only when their respective __init__.py files materialize those exact file-module nodes.",
+    "outer_scope_alias": "With import importlib as I at module scope and I.import_module inside a nested function, the source is uncertain rather than treating I as trusted or silently omitting the call.",
+    "same_scope_alias": "With import importlib as I and I.import_module in the same lexical scope, I is trusted only when no other binder named I exists in that scope."
+  },
+  "hostile_acceptance_additions": [
+    "core/models.py relative level one resolves from package core without ascent.",
+    "core/__init__.py relative level one retains package context core.",
+    "Relative level two removes exactly one component and traversal beyond package context fails identity_mismatch.",
+    "Importing a submodule adds only its materialized file-backed ancestor initializer edges; namespace packages add none and descendants never expand.",
+    "A module-scope loader alias referenced inside a function becomes an uncertainty anchor; a same-scope unique alias remains supported.",
+    "Relevant global, nonlocal, shadowed, rebound and multiply bound names become uncertainty anchors.",
+    "All R2 current-tree, digest, module-node, dynamic-loader, TYPE_CHECKING, uncertainty-propagation, terminal-recapture, positive-ground-truth, schema-2, no-classification and no-live gates remain required."
+  ],
+  "implementation_scope": {
+    "allowed_paths_exact": [
+      "scripts/audit_harbour_knowledge_state_census.py",
+      "tests/test_audit_harbour_knowledge_state_census.py",
+      "docs/plans/harbour-one-h1r-04-state-census-manifest.json"
+    ],
+    "required_delta": "Bind R1, R2 and R3; construct the exact corrected effective semantic boundary; implement the full R2 contract with these three replacements; add every inherited and added hostile gate; regenerate schema-2 discovery membership without changing the 17 inherited classifications.",
+    "forbidden": "No product-roadmap status change, classification decision, migration, activation, private-data read, provider or network action, deployment, deletion, push, Codex configuration change or other live effect."
+  },
+  "independent_review": "Two independent reviewers must pass the exact R3 bytes before implementation. A failure freezes R3 and permits only a fresh correction."
+}

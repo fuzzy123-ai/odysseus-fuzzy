@@ -1,0 +1,258 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.round6_guidance_membership_reconciliation_architecture",
+  "status": "accepted_for_single_root_transaction",
+  "claimable": true,
+  "live_actions": false,
+  "scope": "Repository-local metadata and validator reconciliation only. Preserve all accepted wave history and foreign work. Grant no product implementation, migration, provider, network, private-data, deletion, deployment, push, or live authority.",
+  "authority_precedence": [
+    "docs/plans/harbour-one-product-roadmap.json is the canonical Harbour product authority.",
+    "docs/plans/open-work-completion-master-roadmap.json owns current Open Work and gate state.",
+    "docs/plans/multi-agent-execution-guidance.json roadmap profiles own current active inventory classification.",
+    "docs/plans/parallel-roadmap-execution-round6.json is an operational projection and historical execution record; it cannot erase terminal wave provenance or redefine product membership."
+  ],
+  "observed_failure": {
+    "validator": "scripts/validate_parallel_roadmap_execution.py",
+    "active_guidance_count": 26,
+    "current_round6_frontier_count": 28,
+    "missing_active": [
+      "docs/plans/harbour-one-product-roadmap.json"
+    ],
+    "reported_extra": [
+      "docs/plans/autonomous-coding-production-readiness-roadmap.json",
+      "docs/plans/coding-agent-orchestration-consolidation-roadmap.md",
+      "docs/plans/odysseus-harbor-one-autonomous-workspace-roadmap.md"
+    ],
+    "root_cause": "The validator conflates current active coverage with retained terminal wave evidence, while Round6 still contains two unscheduled superseded frontiers and omits the current Harbour product frontier."
+  },
+  "frozen_raw_baselines": {
+    "docs/plans/parallel-roadmap-execution-round6.json": "e5f4e1a93c358874203cba3b00b9b9afc74e5b1f",
+    "docs/plans/multi-agent-execution-guidance.json": "914b00b318c4003d05a8d1822e7825af9bc492f5",
+    "docs/plans/open-work-completion-master-roadmap.json": "ea2e3f531e900d83dd2c151489bba5d26285ae81",
+    "scripts/validate_parallel_roadmap_execution.py": "22d5be1db6f58906d9fa5132c46a5f358daae300",
+    "tests/test_parallel_roadmap_execution.py": "4bdcb3d5a912e03515c3ec73226b91588891bc0f",
+    "scripts/validate_integration_spine_convergence.py": "b0f3468d66f6213ff701a01e72ee5a32842a3018",
+    "tests/test_integration_spine_convergence.py": "e42a246417ad963f608f035f1a495caa02db4475",
+    "docs/plans/harbour-one-product-roadmap.json": "f60717babc099990d670605366b1c0bff74b0a2e",
+    "docs/plans/parallel-roadmap-execution-round7.json": "7704cff25275d3b21138ed63e4835686a44c9879"
+  },
+  "baseline_materialization": {
+    "verified_at": "2026-09-04T17:43:00+02:00",
+    "method": "git hash-object -w --stdin over exact raw worktree bytes followed by byte-exact git cat-file blob readback",
+    "materialized_count": 9,
+    "readback_exact": true
+  },
+  "ownership": {
+    "active_overlapping_claims": 0,
+    "root_transfer_basis": "User directed Codex to take over the sustainable full-roadmap fix; root must compare every raw baseline immediately before the central claim and preserve all unrelated bytes.",
+    "dirty_paths_to_preserve": [
+      "docs/plans/parallel-roadmap-execution-round6.json",
+      "docs/plans/multi-agent-execution-guidance.json",
+      "docs/plans/open-work-completion-master-roadmap.json",
+      "tests/test_parallel_roadmap_execution.py",
+      "scripts/validate_integration_spine_convergence.py",
+      "tests/test_integration_spine_convergence.py"
+    ],
+    "clean_paths": [
+      "scripts/validate_parallel_roadmap_execution.py"
+    ],
+    "additional_pinned_paths": []
+  },
+  "selected_contract": {
+    "active_member_count": 26,
+    "active_member_set_digest": "sha256:d93cce6832fcfe54f1fb28adfe19dc8c7e22ed1415511965765128bda803a83b",
+    "active_frontier_count": 26,
+    "retained_terminal_frontier_count": 1,
+    "total_frontier_count": 27,
+    "remove_unscheduled_frontiers": [
+      "docs/plans/coding-agent-orchestration-consolidation-roadmap.md",
+      "docs/plans/odysseus-harbor-one-autonomous-workspace-roadmap.md"
+    ],
+    "retain_terminal_frontier": {
+      "roadmap_path": "docs/plans/autonomous-coding-production-readiness-roadmap.json",
+      "slice_id": "ACPR-12-transactional-worktree-and-safe-tool-capsules",
+      "membership_role": "retained_terminal_wave_evidence",
+      "reason": "ROUND6-A is terminal and still schedules this accepted/released slice; removing it would corrupt accepted provenance."
+    },
+    "add_active_frontier": {
+      "roadmap_path": "docs/plans/harbour-one-product-roadmap.json",
+      "lane": "app_integration",
+      "slice": {
+        "id": "H1R-04",
+        "state": "pending_independent_review_after_currentness_refresh",
+        "claimable": false,
+        "depends_on": [
+          "H1R-00"
+        ],
+        "dependency_evidence": [
+          {
+            "id": "H1R-00",
+            "state": "accepted_2026-08-29"
+          }
+        ],
+        "allowed_paths": [],
+        "hotfiles": [],
+        "master_only_paths": [],
+        "owner": "Root/Sol product architecture",
+        "independent_qa_reviewer": "Charlie/Terra fresh-context",
+        "root_review_depth": "deep",
+        "automatic_gates": [
+          {
+            "id": "H1R-04-product-roadmap-json",
+            "command": "venv\\Scripts\\python.exe -B -m json.tool docs\\plans\\harbour-one-product-roadmap.json",
+            "pass_condition": "The canonical Harbour One product roadmap parses as strict JSON."
+          },
+          {
+            "id": "H1R-04-guidance-route",
+            "command": "venv\\Scripts\\python.exe -B scripts\\roadmap_multi_agent_guidance.py --roadmap docs/plans/harbour-one-product-roadmap.json --format json",
+            "pass_condition": "Guidance routes Harbour One as the current active serial product authority."
+          }
+        ],
+        "remaining_user_gates": [],
+        "normalization_blockers": [
+          "H1R-04 current-boundary reconciliation is pending independent review; infer no H1R-05 writer or implementation authority."
+        ]
+      },
+      "source_evidence": "Harbour One product authority H1R-04 is pending independent review after currentness refresh; H1R-02 and H1R-03 are accepted and must not restart."
+    }
+  },
+  "validator_contract": {
+    "membership_role_enum": [
+      "active",
+      "retained_terminal_wave_evidence"
+    ],
+    "default_membership_role": "active",
+    "active_rule": "Default or absent membership_role frontiers must exactly equal Guidance active_* paths.",
+    "retained_terminal_rule": "A retained_terminal_wave_evidence frontier is valid only when its safe canonical repository path occurs exactly once in Guidance with profile historical_done, its slice is nonclaimable and terminal, and its slice ID is referenced by a terminal wave.",
+    "global_rules": [
+      "All roadmap paths and slice IDs remain unique across both membership classes.",
+      "Reject unknown membership roles and retained frontiers that are absent from Guidance, active, non-historical, claimable, nonterminal, unscheduled, duplicated across classes, unsafe paths, or referenced only by a nonterminal wave.",
+      "Report active_roadmap_count, active_frontier_count, retained_terminal_frontier_count, and total frontier_count separately.",
+      "Split unconditional current Guidance/Round6 membership and count validation from conditional active-v2 Evidence receipt and denominator-provenance validation. Empty typed_claims skip only receipt/provenance validation, never current membership validation."
+    ]
+  },
+  "summary_contract": {
+    "guidance_current_projection": {
+      "inventory_mode": "rolling_projection",
+      "inventory_source_blob": "914b00b318c4003d05a8d1822e7825af9bc492f5",
+      "inventory_member_count": 26,
+      "inventory_member_set_digest": "sha256:d93cce6832fcfe54f1fb28adfe19dc8c7e22ed1415511965765128bda803a83b",
+      "active_roadmap_count": 26,
+      "active_frontier_count": 26,
+      "retained_terminal_frontier_count": 1,
+      "total_frontier_count": 27,
+      "normalized_frontier_count": 27,
+      "current_claimable_frontier_count": 0,
+      "scheduled_repo_slice_count": 7,
+      "wave_count": 3,
+      "validation": "pass_26_of_26_active_coverage_plus_1_retained_terminal_frontier_7_scheduled_terminal_slices_3_dependency_ordered_waves_zero_claims"
+    },
+    "shared_append_record": {
+      "field": "active_membership_reconciliation",
+      "storage": "Store this exact record in both Guidance $.analysis_summary.round6_parallel_execution and Open Work $.current_position.round6_parallel_execution; populate corrected_round6_blob after raw candidate materialization.",
+      "value": {
+        "architecture_path": "docs/plans/evidence/abc-round6-guidance-membership-reconciliation-architecture-20260904.json",
+        "baseline_guidance_blob": "914b00b318c4003d05a8d1822e7825af9bc492f5",
+        "baseline_guidance_active_count": 26,
+        "baseline_guidance_active_digest": "sha256:d93cce6832fcfe54f1fb28adfe19dc8c7e22ed1415511965765128bda803a83b",
+        "baseline_round6_blob": "e5f4e1a93c358874203cba3b00b9b9afc74e5b1f",
+        "baseline_round6_total_frontier_count": 28,
+        "baseline_round6_untyped_frontier_digest": "sha256:d0dcab6ce61b0e0ab1d39696b647a8f20c205b8172d43fbe0fbaabc33aee9d3d",
+        "corrected_round6_blob": "populate_after_raw_materialization",
+        "corrected_guidance_active_count": 26,
+        "corrected_guidance_active_digest": "sha256:d93cce6832fcfe54f1fb28adfe19dc8c7e22ed1415511965765128bda803a83b",
+        "corrected_round6_active_frontier_count": 26,
+        "corrected_round6_retained_terminal_frontier_count": 1,
+        "corrected_round6_total_frontier_count": 27,
+        "frontier_added": [
+          "docs/plans/harbour-one-product-roadmap.json"
+        ],
+        "frontier_removed": [
+          "docs/plans/coding-agent-orchestration-consolidation-roadmap.md",
+          "docs/plans/odysseus-harbor-one-autonomous-workspace-roadmap.md"
+        ],
+        "frontier_role_reclassified": [
+          {
+            "path": "docs/plans/autonomous-coding-production-readiness-roadmap.json",
+            "from": "untyped_active_assumption",
+            "to": "retained_terminal_wave_evidence"
+          }
+        ],
+        "retained_terminal_paths": [
+          "docs/plans/autonomous-coding-production-readiness-roadmap.json"
+        ],
+        "historical_records_preserved": true,
+        "scope": "current_active_membership_and_retained_terminal_provenance_only"
+      },
+      "history_rule": "Keep inventory_denominator_change unchanged as the accepted 30-to-28 historical receipt; the shared record describes baseline Guidance 26 active plus baseline Round6 28 untyped becoming corrected Round6 26 active plus 1 retained terminal."
+    },
+    "open_work_current_projection": {
+      "path": "$.current_position.round6_parallel_execution",
+      "active_roadmap_count": 26,
+      "active_frontier_count": 26,
+      "retained_terminal_frontier_count": 1,
+      "total_frontier_count": 27,
+      "normalized_frontier_count": 27,
+      "current_claimable_frontier_count": 0,
+      "scheduled_repo_slice_count": 7,
+      "wave_count": 3,
+      "validation": "pass_26_of_26_active_roadmaps_plus_1_retained_terminal_frontier_7_scheduled_slices_3_terminal_waves_zero_claims",
+      "append_record": "Use summary_contract.shared_append_record.value exactly, including the populated corrected_round6_blob.",
+      "history_rule": "Append active_membership_reconciliation and preserve active_roadmap_count_projection_normalization, operator_deferral_projection_normalization, old accepted handoffs, evidence receipts, and the historical Round6 status token."
+    }
+  },
+  "writer_manifest": {
+    "modify": [
+      "docs/plans/parallel-roadmap-execution-round6.json",
+      "docs/plans/multi-agent-execution-guidance.json",
+      "docs/plans/open-work-completion-master-roadmap.json",
+      "scripts/validate_parallel_roadmap_execution.py",
+      "tests/test_parallel_roadmap_execution.py",
+      "scripts/validate_integration_spine_convergence.py",
+      "tests/test_integration_spine_convergence.py"
+    ],
+    "read_only": [
+      "docs/plans/harbour-one-product-roadmap.json",
+      "docs/plans/parallel-roadmap-execution-round7.json"
+    ],
+    "forbidden": "Every path not explicitly listed above."
+  },
+  "transaction_order": [
+    "Materialize every frozen writer baseline with git hash-object -w --stdin, read it back byte-exactly with git cat-file blob, pin the Round7 claim-protocol authority, and stop on any mismatch or overlapping claim.",
+    "Update Round6 membership without modifying waves or accepted handoff history.",
+    "Update both validators and focused tests for the two-class membership contract and latent no-active-claim integration check.",
+    "Run focused validator tests and all three central validator CLIs before changing router summaries.",
+    "Materialize the corrected Round6 raw blob.",
+    "Update only the current Round6 projection summaries in Guidance and Open Work; preserve historical normalization records and accepted receipts.",
+    "Run JSON parsing, guidance inventory, Round6, integration-spine, safe-queue, focused tests, diff checks, independent QA, and root review.",
+    "Materialize and read back every final candidate blob before release."
+  ],
+  "history_immutability": {
+    "round6_rule": "The corrected Round6 document must be structurally equal to the frozen baseline for every top-level field except roadmap_frontiers. No status, updated_at, authority, lanes, gates, waves, accepted_wave_handoffs, claims, leases, completion, verification, or not_verified history may change.",
+    "guidance_rule": "Only the current round6_parallel_execution projection fields and new active_membership_reconciliation record may change; all roadmap profiles and prior denominator history remain byte-semantically unchanged.",
+    "open_work_rule": "Only the current round6_parallel_execution projection fields, its new active_membership_reconciliation record, and an appended non-destructive current-status token may change; all historical records remain semantically unchanged."
+  },
+  "hostile_tests": [
+    "Reject every unknown membership_role.",
+    "Reject retained frontiers that are claimable, nonterminal, unscheduled, missing from Guidance, not historical_done, active in Guidance, unsafe-path, duplicate-path, duplicate-slice, or referenced only by a nonterminal wave.",
+    "Accept ACPR only as one retained terminal frontier while preserving its terminal ROUND6-A schedule reference.",
+    "Require Harbour H1R-04 as one active nonclaimable frontier and reject invented or mismatched slice identities.",
+    "Mutate current membership/count fields with no active v2 claim and prove unconditional integration validation fails.",
+    "Prove active-v2 receipt/provenance validation still runs unchanged when claims exist.",
+    "Compare frozen and candidate Round6 top-level history outside roadmap_frontiers for exact semantic equality."
+  ],
+  "required_tests": [
+    "venv\\Scripts\\python.exe -B -m pytest -q -p no:cacheprovider --noconftest tests/test_parallel_roadmap_execution.py tests/test_integration_spine_convergence.py --disable-warnings --tb=short",
+    "venv\\Scripts\\python.exe -B scripts/validate_parallel_roadmap_execution.py --format json",
+    "venv\\Scripts\\python.exe -B scripts/validate_integration_spine_convergence.py --format json",
+    "venv\\Scripts\\python.exe -B scripts/roadmap_multi_agent_guidance.py --format json",
+    "venv\\Scripts\\python.exe -B scripts/roadmap_safe_queue_audit.py --format json"
+  ],
+  "acceptance": {
+    "required_reviewer": "fresh independent Sol",
+    "current_verdict": "PASS",
+    "reviewer": "/root/round6_membership_arch_reviewer",
+    "reviewed_at": "2026-09-04T17:53:00+02:00",
+    "implementation_authority": "Exactly one fresh Root-owned seven-path claim matching every frozen raw writer baseline; no other path or effect is authorized."
+  }
+}

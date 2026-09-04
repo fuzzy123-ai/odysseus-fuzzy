@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.h1r05.owner_snapshot_digest_contract",
+  "revision": "v3_simplified_fresh_architecture",
+  "status": "accepted_after_independent_audit_and_focused_tests",
+  "acceptance_evidence": {"current_source_pin": "a08286d0f402c29c726e32f1d3122749cd8b87d1", "test_pin": "c7bd801c6ff63ea0dfbeacbe48ef9e1a1dbb8bd4", "run_record": "docs/plans/handoffs/ABC-GO-OPEN-WORK-10H-RUN-20260904.json", "focused_suite": "51 passed (--noconftest)", "live_effects": "no live effects"},
+  "supersedes_for_writer_authority": ["abc-h1r05-owner-snapshot-v2-architecture-2026-08-31.json"],
+  "pins": {"store": "a08286d0f402c29c726e32f1d3122749cd8b87d1", "product_roadmap": "8d54b67f59de2530f7821474593f7636bd6172bb", "h1r04": "ab0bebf45fb06b242ac6b5b2dc5052b852d53830"},
+  "scope": "Additive synthetic-fixture-only owner snapshot contract. No migration, schema/admission/replay/lifecycle change, payload access, USI activation, network, provider, private-data, deletion or live action.",
+  "hash": "S=odysseus.harbour.knowledge_migration_snapshot.v1. C(v)=ASCII canonical JSON ensure_ascii=true, allow_nan=false, sorted keys and comma/colon separators. H(v)=sha256:hex(SHA256(uint64_be(len(C(v)))||C(v))). D(k,v)=H({schema_id:S,kind:k,value:v}). Existing stored revision_digest verifies only as H(R); every new domain digest uses D.",
+  "inputs": {"R": "exact decoded _revision_record mapping excluding stored revision_digest; preserve all keys, nulls and sequence order", "T": "exact _head_dict(_head_from_row(head_row)) mapping; require agreement with R on owner, knowledge id, kind, current revision id and payload digest"},
+  "field_mapping": [
+    ["owner_ref_digest","owner","authenticated owner id"], ["knowledge_id_digest","knowledge_id","R.knowledge_id"], ["revision_id_digest","revision_id","R.revision_id"], ["classification_digest","classification","R.classification"], ["retention_digest","retention","R.retention"], ["provenance_digest","provenance","R.provenance"], ["source_revisions_digest","source_revisions","R.source_revisions"], ["references_digest","references","R.references"], ["revision_metadata_digest","revision_metadata","complete R"], ["head_metadata_digest","head_metadata","complete T including lifecycle timestamps"]
+  ],
+  "record_and_boundary": "Metadata copies revision=R.revision, generation=T.generation, state=T.state, knowledge_kind=R.knowledge_kind and payload_sha256=R.payload_sha256 without rehash. record_digest=D(head_record,{owner_ref_digest:O,metadata:M}), where M is exactly the preceding fourteen fields. Outer heads sort only by (knowledge_id_digest,revision), duplicate knowledge ids reject. B=D(head_boundary,{owner_ref_digest:O,record_digests:L}); snapshot_digest=D(snapshot,{schema_id:S,owner_ref_digest:O,captured_head_boundary:B,heads:A}). A is all complete fifteen-field records. Empty is L=[] and A=[], never null/sentinel/timestamp.",
+  "validation": "All v2 type, byte, count, owner-filtered deferred-read and cleanup rules remain required. Golden vectors use literal inputs plus hashlib/json only. Wrong stored H(R), domain swapping, dropped null, double hash, raw JSON hashing, changed R/T fields, wrong owner, duplicate/disordered heads and payload access each fail closed.",
+  "writer_packet": {"id":"H1R-05A-owner-snapshot","class":"critical","allowed_paths":["src/harbour_knowledge_store.py","tests/test_harbour_knowledge_store.py"],"forbidden":["migration","USI","payload","schema","live effects"],"review":"fresh independent Sol deep"}
+}
