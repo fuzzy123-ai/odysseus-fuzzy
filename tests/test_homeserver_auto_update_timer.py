@@ -1,4 +1,8 @@
+import shutil
+import subprocess
 from pathlib import Path
+
+import pytest
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -142,3 +146,49 @@ def test_auto_update_wrapper_build_failure_cannot_fall_through_to_switch():
     assert build_call < switch_call
     assert "up -d --build" not in script
     assert "up -d --no-deps --no-build --force-recreate odysseus" in script
+
+
+def test_auto_update_wrapper_reports_a_bounded_failure_stage():
+    script = SCRIPT.read_text(encoding="utf-8")
+
+    assert 'UPDATE_STAGE="initializing"' in script
+    assert "trap report_failed_stage ERR" in script
+    assert "ERROR: stage=%s exit_code=%s" in script
+    assert 'UPDATE_STAGE="release_manifest"' in script
+    assert 'UPDATE_STAGE="app_image_build"' in script
+    assert 'UPDATE_STAGE="app_container_switch"' in script
+    assert 'UPDATE_STAGE="service_readiness"' in script
+
+
+def test_auto_update_wrapper_reports_function_failure_stage(tmp_path):
+    git_bash = Path(r"C:\Program Files\Git\bin\bash.exe")
+    bash = str(git_bash) if git_bash.is_file() else shutil.which("bash")
+    if bash is None:
+        pytest.skip("bash is unavailable on this host")
+
+    script = SCRIPT.read_text(encoding="utf-8")
+    wrapper = script.split("cat >\"$WRAPPER_PATH\" <<'EOF'\n", 1)[1].split(
+        "\nEOF\n", 1
+    )[0]
+    definitions = wrapper.split('\nUPDATE_STAGE="lock"\nrun_locked\n', 1)[0]
+    probe = tmp_path / "wrapper-failure-stage.sh"
+    probe.write_text(
+        definitions
+        + '\nUPDATE_STAGE="app_image_build"\n'
+        + "compose() { return 19; }\n"
+        + "build_app_image\n",
+        encoding="utf-8",
+    )
+
+    try:
+        result = subprocess.run(
+            [bash, str(probe)],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError:
+        pytest.skip("bash cannot execute on this host")
+
+    assert result.returncode == 19
+    assert "ERROR: stage=app_image_build exit_code=19" in result.stderr

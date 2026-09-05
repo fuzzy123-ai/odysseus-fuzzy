@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
 
 ENABLE_NOW=0
 RUN_NOW=0
@@ -63,7 +63,7 @@ mkdir -p "$SERVICE_DIR" "$BIN_DIR"
 
 cat >"$WRAPPER_PATH" <<'EOF'
 #!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
 
 ODYSSEUS_ROOT="${ODYSSEUS_ROOT:-/opt/odysseus}"
 LOCK_FILE="${ODYSSEUS_AUTO_UPDATE_LOCK:-/tmp/odysseus-auto-update.lock}"
@@ -75,10 +75,22 @@ log() {
   printf '[odysseus-auto-update] %s\n' "$*"
 }
 
+UPDATE_STAGE="initializing"
+
+report_failed_stage() {
+  local exit_code=$?
+  printf '[odysseus-auto-update] ERROR: stage=%s exit_code=%s\n' \
+    "$UPDATE_STAGE" "$exit_code" >&2
+  exit "$exit_code"
+}
+
 die() {
-  printf '[odysseus-auto-update] ERROR: %s\n' "$*" >&2
+  printf '[odysseus-auto-update] ERROR: stage=%s reason=%s\n' \
+    "$UPDATE_STAGE" "$*" >&2
   exit 1
 }
+
+trap report_failed_stage ERR
 
 run_locked() {
   if command -v flock >/dev/null 2>&1; then
@@ -170,9 +182,12 @@ wait_http() {
   die "$label did not become ready: $url"
 }
 
+UPDATE_STAGE="lock"
 run_locked
+UPDATE_STAGE="repository_access"
 cd "$ODYSSEUS_ROOT"
 
+UPDATE_STAGE="git_metadata"
 current_branch="$(git branch --show-current)"
 remote_name="$(git config --get "branch.${current_branch}.remote" || true)"
 remote_name="${remote_name:-origin}"
@@ -180,9 +195,11 @@ upstream_ref="$(git config --get "branch.${current_branch}.merge" || true)"
 upstream_ref="${upstream_ref:-refs/heads/${current_branch}}"
 upstream_short="${upstream_ref#refs/heads/}"
 
+UPDATE_STAGE="git_fetch"
 log "fetching ${remote_name}/${upstream_short}"
 git fetch --prune --tags "$remote_name"
 
+UPDATE_STAGE="git_resolution"
 local_commit="$(git rev-parse HEAD)"
 remote_commit="$(git rev-parse "${remote_name}/${upstream_short}")"
 
@@ -203,43 +220,54 @@ if [[ "$local_commit" == "$remote_commit" ]]; then
   esac
 fi
 
+UPDATE_STAGE="fast_forward_check"
 if ! git merge-base --is-ancestor "$local_commit" "$remote_commit"; then
   die "local commit is not an ancestor of ${remote_name}/${upstream_short}; refusing non-fast-forward update"
 fi
 
+UPDATE_STAGE="worktree_check"
 if [[ -n "$(git status --porcelain)" ]]; then
   git status --short >&2
   die "worktree is dirty; refusing scheduled update"
 fi
 
+UPDATE_STAGE="backup_privilege_check"
 if [[ "${RESTIC_USE_SUDO:-0}" == "1" ]]; then
   sudo -n true || die "RESTIC_USE_SUDO=1 but passwordless sudo is unavailable"
 fi
 
+UPDATE_STAGE="snapshot"
 log "creating pre-update snapshot before deploying $(git rev-parse --short "$remote_commit")"
 ODYSSEUS_UPDATE_REASON="$REASON to $(git rev-parse --short "$remote_commit")" \
   ops/homeserver/pre-update-snapshot.sh
 
+UPDATE_STAGE="git_pull"
 log "fast-forwarding checkout"
 git pull --ff-only
 
+UPDATE_STAGE="version_metadata"
 log "refreshing git metadata env"
 ops/homeserver/update-odysseus-version-env.sh
 
 release_revision="$(git rev-parse HEAD)"
+UPDATE_STAGE="release_manifest"
 log "generating revision-bound release manifest"
 prepare_release_manifest "$release_revision" "$current_branch"
 
+UPDATE_STAGE="app_image_build"
 log "building app image"
 build_app_image
 
+UPDATE_STAGE="app_container_switch"
 log "switching to the verified app image"
 switch_to_built_app
 
+UPDATE_STAGE="service_readiness"
 log "waiting for services"
 wait_http "$APP_URL/" "odysseus app"
 wait_http "$CHROMA_URL" "chromadb"
 
+UPDATE_STAGE="version_verification"
 version_json="$(curl -fsS "$APP_URL/api/version")"
 log "version: $version_json"
 short_commit="$(git rev-parse --short HEAD)"
@@ -251,6 +279,7 @@ esac
 runtime_release_manifest_matches "$release_revision" \
   || die "runtime release manifest does not match deployed commit"
 
+UPDATE_STAGE="tool_capability_refresh"
 log "refreshing tool capability knowledge"
 refresh_tool_capability_knowledge "$short_commit"
 
