@@ -1,4 +1,8 @@
+import shutil
+import subprocess
 from pathlib import Path
+
+import pytest
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -34,11 +38,12 @@ def test_auto_update_wrapper_checks_before_backup_and_backs_up_before_pull():
     snapshot_index = script.index("ops/homeserver/pre-update-snapshot.sh")
     pull_index = script.index("git pull --ff-only")
     metadata_index = script.index("ops/homeserver/update-odysseus-version-env.sh")
-    compose_index = script.index("compose_up", metadata_index)
+    build_index = script.index("build_app_image", metadata_index)
+    switch_index = script.index("switch_to_built_app", build_index)
 
     assert fetch_index < manifest_ready_index < no_update_index
     assert no_update_index < stale_runtime_index < snapshot_index
-    assert snapshot_index < pull_index < metadata_index < compose_index
+    assert snapshot_index < pull_index < metadata_index < build_index < switch_index
     assert 'curl -fsS "$APP_URL/api/version" 2>/dev/null || true' in script
     assert "git merge-base --is-ancestor" in script
     assert "worktree is dirty; refusing scheduled update" in script
@@ -54,9 +59,10 @@ def test_auto_update_wrapper_builds_with_revision_bound_release_manifest():
     manifest_index = script.index(
         'prepare_release_manifest "$release_revision" "$current_branch"'
     )
-    compose_index = script.index("compose_up", manifest_index)
+    build_index = script.index("build_app_image", manifest_index)
+    switch_index = script.index("switch_to_built_app", build_index)
 
-    assert pull_index < metadata_index < manifest_index < compose_index
+    assert pull_index < metadata_index < manifest_index < build_index < switch_index
     assert 'release_revision="$(git rev-parse HEAD)"' in script
     assert "python3 scripts/generate_release_manifest.py" in script
     assert "--output runtime/release-manifest.json" in script
@@ -111,10 +117,58 @@ def test_auto_update_wrapper_uses_podman_and_never_docker():
 
     assert 'compose_args=(-f docker-compose.yml)' in script
     assert 'compose_args+=(-f docker-compose.nextcloud.yml)' in script
-    assert 'podman compose "${compose_args[@]}" up -d --build' in script
-    assert 'podman-compose "${compose_args[@]}" up -d --build' in script
+    assert 'podman compose "${compose_args[@]}" "$@"' in script
+    assert 'podman-compose "${compose_args[@]}" "$@"' in script
+    assert "compose build odysseus" in script
+    assert "compose up -d --no-deps --no-build --force-recreate odysseus" in script
     assert "podman image prune -f" in script
     assert "docker compose" not in script.lower()
     assert "docker-compose up" not in script.lower()
     assert "docker image" not in script.lower()
     assert "docker run" not in script.lower()
+
+
+def test_auto_update_wrapper_reports_a_bounded_failure_stage():
+    script = SCRIPT.read_text(encoding="utf-8")
+
+    assert 'UPDATE_STAGE="initializing"' in script
+    assert "trap report_failed_stage ERR" in script
+    assert "ERROR: stage=%s exit_code=%s" in script
+    assert 'UPDATE_STAGE="release_manifest"' in script
+    assert 'UPDATE_STAGE="app_image_build"' in script
+    assert 'UPDATE_STAGE="app_container_switch"' in script
+    assert 'UPDATE_STAGE="service_readiness"' in script
+
+
+def test_auto_update_wrapper_reports_function_failure_stage(tmp_path):
+    git_bash = Path(r"C:\Program Files\Git\bin\bash.exe")
+    bash = str(git_bash) if git_bash.is_file() else shutil.which("bash")
+    if bash is None:
+        pytest.skip("bash is unavailable on this host")
+
+    script = SCRIPT.read_text(encoding="utf-8")
+    wrapper = script.split("cat >\"$WRAPPER_PATH\" <<'EOF'\n", 1)[1].split(
+        "\nEOF\n", 1
+    )[0]
+    definitions = wrapper.split('\nUPDATE_STAGE="lock"\nrun_locked\n', 1)[0]
+    probe = tmp_path / "wrapper-failure-stage.sh"
+    probe.write_text(
+        definitions
+        + '\nUPDATE_STAGE="app_image_build"\n'
+        + "compose() { return 19; }\n"
+        + "build_app_image\n",
+        encoding="utf-8",
+    )
+
+    try:
+        result = subprocess.run(
+            [bash, str(probe)],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError:
+        pytest.skip("bash cannot execute on this host")
+
+    assert result.returncode == 19
+    assert "ERROR: stage=app_image_build exit_code=19" in result.stderr
