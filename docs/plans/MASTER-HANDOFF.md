@@ -9,6 +9,18 @@ reopen accepted or released work.
 
 ## Resume checkpoint: 2026-10-04
 
+The subsequent local commits are `7bb77c4b` (frozen-source LF portability),
+`eb3631ec` (cooperative snapshot deadline/stop checks), `84c17e35` (handoff)
+and `8a117ee9` (opt-in lazy offline guards). The snapshot and lazy guards reuse
+exact hash-matching accepted evidence; their current whole-component reviews
+passed. They do not establish full app shutdown or app-wide offline startup.
+
+The post-census read-race repair maps failures on either later primary or
+supporting reads to fixed `stale_authority`, suppressing raw exception context.
+All fourteen injected missing/unreadable second-read cases passed, followed by
+one terminal migration-module run with 71 passing cases. Corpus authority,
+actual Debian checkout and migration prepare/accept remain separate gates.
+
 Local integration update: commit `2d9029a3` contains the independently reviewed
 Planning Python component (twelve changed paths; the thirteenth reviewed
 contract file was already unchanged in HEAD). The separate Inbox test module
