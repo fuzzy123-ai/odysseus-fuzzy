@@ -1,11 +1,68 @@
 # Odysseus Master Handoff
 
-Current-status pointer (2026-10-04): this document preserves dated execution
+Current-status pointer (2026-10-05): this document preserves dated execution
 snapshots, not the current queue. Read `docs/plans/harbour-one-product-roadmap.json`
 and `docs/plans/open-work-completion-master-roadmap.json`, then the latest
 applicable scoped handoff. See `docs/plans/evidence/harbour-one-plan-reconciliation-20260905.json`
 for the planning reconciliation. Historical next-action text below does not
 reopen accepted or released work.
+
+## Latest checkpoint: 2026-10-05 (canonical revision 2698)
+
+HEAD is `d19b7b402a1584177cfbe4620e1b1ae34174506a`; the local campaign ledger
+contains sixteen commits. The Telegram PC bounded-ingress source pair is an
+independently reviewed local commit. Before authorization it enforces an
+8192-byte total-body ceiling against both declared and actual bytes, plus a
+two-second body-read deadline. Oversize requests receive bounded 413; a
+body-read timeout receives bounded 408. Command and confirmation expiry are
+checked separately and denied when expiry
+is at or before the check time.
+Four focused cases and all thirteen module cases passed, and `py_compile`
+passed. Receipt:
+`.abc-test-tmp/telegram-pc-bounded-ingress-ttl-2685/receipt.json`
+(`02edc917`). This source-only commit does not include the full plugin, parser,
+compose or Windows artifact/test closure, transport cancellation, or live
+activation.
+
+The app startup-task shutdown repair is independently reviewed and accepted
+for its repository slice at `app.py` SHA256
+`118c8c94550e367f83341f3cd38c231307dfed637c0cc30c73279190537aad4a` and
+`tests/test_app_offline_startup.py` SHA256
+`4538a5c523cb2216c52baef7a81e7c2d6b104c5f3fb8cc787c3539d3cb556cfb`. One
+focused case and `py_compile` passed; the two-case offline-module lane passed
+in 11.74s;
+the final receipt is `.abc-test-tmp/app-startup-task-shutdown-20261005/receipt-final-7ea01db9.json`
+(`7ea01db9`). The repair gives cooperative shutdown a bounded wait and retains
+unfinished task references; it does not claim to terminate blocking threads.
+The pair remains uncommitted pending dependency-closed app review.
+
+The corrected isolated import-only overlay passed for 61 frozen dependency
+paths against base HEAD `8f5234956948532e9478b74c3e62ebf75f30860f`. Its manifest
+SHA256 is `21a00c4b6dece8a9fad0065110f6a809869380fc7c14b1d698f1adaea9ef948f`,
+and receipt `.abc-test-tmp/app-head-overlay-20261005/attempt-r4/receipt.json`
+has SHA256 `7bd8cfb68f39619bd04f6366f98e5fbe7d58948cca6320c8aff335571aa23855`.
+This was import-only: no application cases ran, and its base predates current
+HEAD. The earlier three-failure/one-pass run had omitted committed HEAD
+dependencies; later import preflight also found missing current overrides for
+`routes/document_helpers.py` and `src/planning_source_inventory.py`. Both are
+now pinned in the import overlay. Full app composition and its dependency-closed
+commit remain open.
+
+The ULO-02 current-ABI architecture passed independent review and a fresh
+six-path source/test claim has started. The old Rev252 packet remains stale and
+no old claim was revived. Implementation is in progress; no candidate test
+PASS is recorded yet. After the six-file candidate freezes, required checks
+remain the focused lane, the full nine-module dependency lane, three central
+validators, static checks, hostile QA, and fresh deep Root/Sol review (actual
+model identity must be verified). Inbox
+consumer cleanup remains held for bounded architecture work.
+
+Not verified at this checkpoint: full Telegram plugin/parser/compose/Windows
+test closure; transport cancellation or live activation; full app cases and
+whole-app clean-HEAD acceptance; ULO-02 implementation tests and review;
+immutable migration-corpus authority; UI, live, temporal, deployment, backup,
+restore, and push. No live or external action occurred. The prior dated
+checkpoints below are preserved as historical snapshots.
 
 ## Resume checkpoint: 2026-10-05
 
