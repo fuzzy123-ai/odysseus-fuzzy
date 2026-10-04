@@ -317,7 +317,10 @@ def build_h1r03_migration_manifest(repo_root: str | Path) -> dict[str, Any]:
     items: list[dict[str, Any]] = []
     normalized: dict[str, str] = {}
     for path, adapter, roadmap_id, blob, sha in FROZEN_MEMBERS:
-        raw = (root / path).read_bytes()
+        try:
+            raw = (root / path).read_bytes()
+        except OSError:
+            raise DurablePlanningStoreError("stale_authority") from None
         if (
             _git_blob(raw) != blob
             or hashlib.sha256(raw).hexdigest() not in FROZEN_MEMBER_SHA256_VARIANTS[path]
@@ -335,7 +338,10 @@ def build_h1r03_migration_manifest(repo_root: str | Path) -> dict[str, Any]:
             "payload_sha256": "sha256:" + hashlib.sha256(payload).hexdigest(),
             "content_hash": document["roadmaps"][0]["content_hash"],
         })
-    supporting_raw = (root / SUPPORTING_PATH).read_bytes()
+    try:
+        supporting_raw = (root / SUPPORTING_PATH).read_bytes()
+    except OSError:
+        raise DurablePlanningStoreError("stale_authority") from None
     if hashlib.sha256(supporting_raw).hexdigest() != SUPPORTING_PIN[1]:
         raise DurablePlanningStoreError("stale_authority")
     strict_json_object(supporting_raw)

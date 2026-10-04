@@ -11,6 +11,7 @@ import pytest
 
 from src.harbour_authority import AuthenticatedPrincipalIssuer
 from src.planning_definition_contract import compute_roadmap_content_hash
+import src.planning_roadmap_migration as planning_migration
 from src.planning_roadmap_migration import (
     AUTHORITY_PINS,
     DOCS_ONLY_AUTHORITY_MAP_ID,
@@ -29,6 +30,7 @@ from src.planning_roadmap_migration import (
     SUCCESSOR_AUTHORITY_PINS,
     FROZEN_MEMBERS,
     FROZEN_MEMBER_SHA256_VARIANTS,
+    SUPPORTING_PATH,
     accept_h1r03_migration,
     build_h1r03_migration_manifest,
     map_legacy_roadmap,
@@ -474,6 +476,40 @@ def test_each_frozen_source_drift_is_stale_authority(tmp_path: Path, relative: s
     with pytest.raises(DurablePlanningStoreError) as stale:
         build_h1r03_migration_manifest(fixture_root)
     assert stale.value.code == "stale_authority"
+
+
+@pytest.mark.parametrize("relative", [path for path, *_rest in FROZEN_MEMBERS] + [SUPPORTING_PATH])
+@pytest.mark.parametrize("error_type", [FileNotFoundError, PermissionError])
+def test_post_census_primary_and_supporting_read_failures_are_closed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    relative: str,
+    error_type: type[OSError],
+) -> None:
+    fixture_root = _migration_fixture_root(tmp_path)
+    target = (fixture_root / relative).resolve()
+    original_read_bytes = Path.read_bytes
+    original_census = planning_migration.build_h1r03_structural_census
+    armed = False
+
+    def census_then_arm(repo_root: str | Path):
+        nonlocal armed
+        result = original_census(repo_root)
+        armed = True
+        return result
+
+    def fail_after_census(path: Path) -> bytes:
+        if armed and path.resolve() == target:
+            raise error_type
+        return original_read_bytes(path)
+
+    monkeypatch.setattr(planning_migration, "build_h1r03_structural_census", census_then_arm)
+    monkeypatch.setattr(Path, "read_bytes", fail_after_census)
+    with pytest.raises(DurablePlanningStoreError) as stale:
+        build_h1r03_migration_manifest(fixture_root)
+    assert stale.value.code == "stale_authority"
+    assert stale.value.__cause__ is None
+    assert stale.value.__suppress_context__ is True
 
 
 def test_mapping_closes_slice_paths_graph_precedence_and_runtime_fields() -> None:
