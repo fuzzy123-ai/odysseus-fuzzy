@@ -376,11 +376,15 @@ def build_h1r03_structural_census(repo_root: str | Path) -> tuple[list[dict[str,
     rows: list[dict[str, str]] = []
     support_observations: list[tuple[str, str]] = []
     seen_plan_ids: dict[str, list[str]] = {}
+
+    def close_walk_error(_error: OSError) -> None:
+        raise DurablePlanningStoreError("stale_authority") from None
+
     for relative_root in ("specs/roadmaps", "docs/plans"):
         directory = root / relative_root
         if not directory.is_dir():
             raise DurablePlanningStoreError("stale_authority")
-        for dirpath, dirnames, filenames in os.walk(directory):
+        for dirpath, dirnames, filenames in os.walk(directory, onerror=close_walk_error):
             dirnames[:] = sorted(name for name in dirnames if name not in {".git", "__pycache__"})
             for filename in filenames:
                 ext = Path(filename).suffix.lower()

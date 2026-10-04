@@ -512,6 +512,34 @@ def test_post_census_primary_and_supporting_read_failures_are_closed(
     assert stale.value.__suppress_context__ is True
 
 
+@pytest.mark.parametrize("relative", ["docs/plans", "specs/roadmaps"])
+def test_census_walk_errors_are_closed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    relative: str,
+) -> None:
+    fixture_root = _migration_fixture_root(tmp_path)
+    target = (fixture_root / relative).resolve()
+    original_walk = planning_migration.os.walk
+    callback_seen: list[bool] = []
+
+    def denied_walk(directory, topdown=True, onerror=None, followlinks=False):
+        if Path(directory).resolve() == target:
+            assert onerror is not None
+            callback_seen.append(True)
+            onerror(PermissionError())
+            return
+        yield from original_walk(directory, topdown=topdown, onerror=onerror, followlinks=followlinks)
+
+    monkeypatch.setattr(planning_migration.os, "walk", denied_walk)
+    with pytest.raises(DurablePlanningStoreError) as stale:
+        build_h1r03_migration_manifest(fixture_root)
+    assert callback_seen == [True]
+    assert stale.value.code == "stale_authority"
+    assert stale.value.__cause__ is None
+    assert stale.value.__suppress_context__ is True
+
+
 def test_mapping_closes_slice_paths_graph_precedence_and_runtime_fields() -> None:
     manifest = build_h1r03_migration_manifest(ROOT)
     slice_doc = json.loads(manifest["normalized_payloads"]["abc-roadmap-continuation-runtime"])
