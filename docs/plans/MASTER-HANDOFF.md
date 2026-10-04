@@ -1,10 +1,776 @@
 # Odysseus Master Handoff
 
-Snapshot: 2026-08-15T07:19:00+02:00, Europe/Berlin
-Continuity deadline: 2026-08-16 00:00 Europe/Berlin
-Canonical authority at snapshot: Open Work / Round 7 Revision 302
-Verified progress: 173 accepted of 245 canonical units
-Open units: 72 (19 repo, 19 design, 30 live, 4 operator)
+Current-status pointer (2026-10-04): this document preserves dated execution
+snapshots, not the current queue. Read `docs/plans/harbour-one-product-roadmap.json`
+and `docs/plans/open-work-completion-master-roadmap.json`, then the latest
+applicable scoped handoff. See `docs/plans/evidence/harbour-one-plan-reconciliation-20260905.json`
+for the planning reconciliation. Historical next-action text below does not
+reopen accepted or released work.
+
+## Resume checkpoint: 2026-10-04
+
+The current execution record is
+`docs/plans/handoffs/abc-open-work-5h-run-20260905.json`. Its structured claims,
+candidate hashes and verification records take precedence over the historical
+next-action text below. The user renewed implementation, independent review,
+documentation and local commit authority on 2026-10-04. Publication and live
+operations retain their separate action gates.
+
+- Planning durable recovery R8 removes the child-side stale-head precheck for
+  approval and revert. Explicit retries with the same idempotency key reach the
+  store's existing locked replay-before-CAS boundary. A fresh key with an old
+  head still fails as `stale_authority`. Three focused process tests passed in
+  the repository virtual environment, `py_compile` passed, and independent
+  static review passed. The current required durable-family lane is being
+  checked separately; the historical R4 result of 453 passed / 3 failed does
+  not verify this newer candidate.
+- Planning MCP graph depth now limits the returned projection: depth 0 returns
+  the roadmap, depth 1 includes its direct slices/gates and containment edges,
+  and depths 2/3 add known dependency/blocked edges between selected endpoints.
+  Depth 3 is explicitly non-recursive. Two focused tests, `py_compile`, scoped
+  diff-check and independent static review passed. A full-limit depth-3 edge
+  equivalence assertion was not added; the review records this coverage limit.
+- The migration structural-census contract remains `waiting_on_user`. Aggregate
+  counts from the 2026-08-29 freeze do not establish a complete immutable path
+  inventory, and the current mutable working tree cannot replace that authority
+  implicitly.
+- Existing Luna/Terra work is being inventoried for coherent, reviewed local
+  commits. Generated test directories and temporary utilities are excluded from
+  product commit packages. A terminal writer claim alone does not establish
+  acceptance of every later change on the same path.
+
+Not verified at this checkpoint: the current cumulative Planning lane, full
+App/MCP/context integration, production deployment, live Debian maintenance,
+external MCP clients and temporal stability. Refer to the execution record for
+the latest results and commit identities as each package is completed.
+
+Snapshot: 2026-08-24T12:22:00+02:00, Europe/Berlin
+Continuity deadline: 2026-08-24 23:20:34 Europe/Berlin
+Canonical authority at snapshot: Open Work / Round 7 Revision 377; the Round6
+operator-deferral projection is accepted at 28/28 with zero active claims or
+leases. LCG-00 is released before writer dispatch on a current raw-Round6 versus
+Guidance projection-blob mismatch; PPS-1A remains at exact clean origin and
+requires fresh architecture, PPS-2 v3 waits on canonical PPS-1 runtime, and
+PPS-4 v1 architecture is released
+Last historical denominator snapshot: Revision 286 verified 173 accepted of 245
+Current full-goal progress: 173/?; the post-PPS and post-operator-steering
+canonical member set requires reconciliation before another x/y ratio is valid
+
+## Current 12h closure: Revisions 376-377
+
+- **LCG-00 registration was attempted and terminally released before product
+  work.** Root/Sol froze the two-new-path materialized-genesis architecture at
+  `docs/plans/abc-lcg00-lens-code-graph-ux-contract-materialized-genesis-architecture.json`.
+  Luna worker `01a03336-0306-7d92-bc94-a1f6d9be2e2e` verified both product
+  paths absent and changed nothing. The first full `repo_claim_v2` registration
+  correctly mirrored 11/11 external claims, but Integration rejected the
+  current foreign dirty Round6 raw blob
+  `e5f4e1a93c358874203cba3b00b9b9afc74e5b1f` against the Guidance-bound blob
+  `2b96aeb7510e59776b1bba42721804c0c3052dfe`; the initial Evidence receipt also
+  lacked the rolling inventory receipt. `$reflect` forbade normalizing or
+  rebinding that foreign authority inside the feature claim. Revision 377
+  releases `ABC-LCG00-REV376` with no candidate and both product paths absent.
+  Terminal evidence:
+  `docs/plans/evidence/abc-lcg00-rev377-terminal-registration-release.json`,
+  raw blob `83ff699c40e15ec4b6eceef3ea738090d60159ec`; the current terminal Claim
+  evidence is raw blob `45e38a736b6d8843973695b7b505e7b2822b8ef2`.
+  Product correction remains unused 0/1; a fresh registration may reuse only
+  the unchanged frozen architecture after the external authority converges.
+  The exact four-file architecture/claim/terminal/public-preflight Evidence set
+  is committed locally at `0c6c0a1f`; no router, handoff or foreign dirty path
+  was included and no publication followed.
+- **Control-plane readback is green after release.** Integration Spine, Round6
+  and Guidance all pass; Round6 reports 28/28 roadmaps, three waves and zero
+  claimable frontiers. Open Work and Round7 external-claim projections are
+  identical and active claims/leases are empty.
+- **Public projection is clean and locally preflighted.** The clean clone
+  `C:\Users\nkatz\Documents\odysseus-public-release` remains on
+  `codex/public-release` at
+  `ea181f52e72a24d91480757c55a298fbb77249b1`. A read-only local runtime ran
+  graph projection, runtime status, release manifest and CI workflow contract:
+  **52 passed in 38.76s**. A second ten-file release-contract lane covering
+  manifest/status/artifact/readiness/decision/handoff/follow-up/orchestration/
+  evidence/router contracts passed **52 tests in 77.45s**. Final status and
+  diff-check remained clean. Evidence:
+  `docs/plans/evidence/abc-public-release-ea181f52-20260824-preflight.json`.
+  No push, deploy or live action was attempted.
+- **Exact next action:** first converge the foreign Round6 raw/projection byte
+  authority without overwriting foreign work, or wait for its owning change to
+  land. Then register a fresh LCG-00 claim with an exact rolling inventory
+  receipt and repeat tests-first. Stop on another raw/projection mismatch,
+  third product path, source-before-RED, UI/source expansion, or any external
+  action. If authority cannot converge safely, continue public-release
+  verification/documentation or another disjoint recovery precursor.
+
+## Current closure: Revisions 362-375
+
+- **PPS-1A Revision 374 terminal v2 architecture release:** two independent
+  read-only reviews rejected corrected architecture blob
+  `fec200c7bd7ac6e657b6a4fc78119d18d01f132b`. One proved that an emitter value
+  whose first line is more indented than a later line cannot round-trip under
+  the fixed-first-indent parser. The other proved that clean origin treats a
+  block-list item `|+` as an ordinary string while the packet also required
+  block-looking list items to fail, contradicting its legacy-list guarantee.
+  The Revision 371-to-372 correction budget was already consumed, so no second
+  patch or product claim is allowed. Evidence:
+  `docs/plans/evidence/abc-pps1a-v2-rev374-terminal-architecture-release.json`.
+- **PPS-1 Revision 375 safe pause:** after the user's explicit reversal request,
+  Root restored all five modified PPS files to their exact raw clean-origin
+  blobs and removed only `tests/test_skill_format.py` plus the late v6 freeze
+  evidence. The seven-path status is empty and the known baseline reproduces
+  15 passes with two existing warnings. The Rev373 recovery claim is released;
+  there are zero active PPS claims. Resume by freezing a materially fresh
+  Root/Sol PPS-1A architecture and obtaining independent PASS. Only then may a
+  DeepSeek tests-first implementation experiment receive the exact packet;
+  Root/Sol remains acceptance authority. Evidence:
+  `docs/plans/evidence/abc-pps1-rev375-stale-v6-recovery-complete.json`.
+
+- **PPS-1 Revision 373 late-write quarantine and exact recovery:** `$reflect`
+  detected that a previously terminally released v6 worker wrote the exact six
+  PPS product/test paths after Revision 370 despite having no active claim or
+  router authority. Its own late evidence says router registration was absent
+  and identifies the complete candidate tuple. Claimed green tests cannot mint
+  authority, so the tuple is quarantined and must not be reused, reviewed,
+  staged or committed. `ABC-PPS1-STALE-V6-RECOVERY-REV373` owns only those six
+  paths for exact restoration to the recorded Rev334/370 clean origins;
+  `tests/test_skill_format.py` must become absent. In parallel, independent Sol
+  reviews only fresh corrected PPS-1A v2 architecture blob
+  `fec200c7bd7ac6e657b6a4fc78119d18d01f132b`; it grants no product authority.
+  Evidence: `docs/plans/evidence/abc-pps1-rev373-stale-v6-write-recovery-claim.json`.
+
+- **PPS-1A architecture correction and acceptance:** Revision 362 records the
+  first independent Sol `FAIL`: implicit block-scalar indentation was
+  contradictory for a four-space first content line followed by a two-space
+  line. `$reflect` limited the correction to first-nonblank fixed indentation
+  plus one exact RED node. Fresh independent Sol review then passed unchanged
+  architecture blob `aea2fa5d7e043c00a3712869796febb42ca0bf29` at Revision
+  363. Root-level `SKILL.md` is a valid zero-component bundle root and all
+  selection/path failures must precede destination creation. Evidence:
+  `docs/plans/evidence/abc-pps1a-rev362-architecture-review-fail.json` and
+  `docs/plans/evidence/abc-pps1a-rev363-architecture-acceptance.json`.
+- **PPS-1A Revision 364 active claim:** `ABC-PPS1A-REV364` owns only
+  `services/memory/skill_format.py`, `services/memory/skills.py`,
+  `tests/test_skill_format.py`, and
+  `tests/test_skills_manager_owner_isolation.py` through
+  `2026-08-23T21:19:30+02:00`. Critical Sol worker
+  `01a02f69-aa95-7811-acf4-b35598b109e9` must materialize and run every named
+  behavioral RED node before either source edit. Read-only importer and route
+  pins remain exact. Stop on a fifth writer path, source-before-RED, residual
+  write, raw error, regression, stage/commit/push/deploy/live action, or any
+  attempt to call this canonical PPS-1 completion. PPS-1B remains mandatory
+  before PPS-1 acceptance. Claim evidence:
+  `docs/plans/evidence/abc-pps1a-rev364-tests-first-claim.json`.
+- **PPS-2 test-runtime blocker removed:** the unchanged preserved PPS-2 v3
+  candidate passes `tests/test_product_planning_skills.py` 4/4 on the declared
+  Linux namespace-bootstrap route. It remains unfrozen and unaccepted, waiting
+  only on a frozen or accepted PPS-1 runtime tuple.
+- **PPS-1A Revision 365 verified RED and claim transfer:** the initial writer
+  stayed silent after activation; its shutdown raced with completion of exactly
+  the two allowed test edits. Root verified all ten named nodes, both unchanged
+  source blobs and the complete focused result: 27 expected behavioral failures,
+  17 passes, 3 warnings, zero collection/bootstrap errors. The exact test blobs
+  are `70ef7a9ebb605b14b2d02f8c7452d14feba0af38` and
+  `d40f76275c51edc0638efacd74dca215d9eaccd8`. The claim transfers once to
+  replacement critical Sol worker `01a02f71-c9c5-7112-beea-5c084b560d61`,
+  which may now change either source path within the same four-path scope. The
+  replacement budget is exhausted. Evidence:
+  `docs/plans/evidence/abc-pps1a-rev365-red-and-claim-transfer.json`.
+- **PPS-1A Revision 366 frozen candidate:** before freeze Root reproduced a
+  case-sensitive GitHub-root escape (`Pkg/SKILL.md` plus sibling `pkg/...`).
+  One bounded RED/correction changed only the exact prefix comparison. Final
+  immutable blobs are `b64c88971413e2de165fc87b8fe4c63ef3cef782`,
+  `06269a064ed91d2118da2ec835868a90a457acf1`,
+  `70ef7a9ebb605b14b2d02f8c7452d14feba0af38`, and
+  `fce4df6f7465a99fa9d77bbb058049aaeb6c4771`. Root reproduced 45 focused
+  and 20 dependency passes, compile and scoped diff-check. The writer claim is
+  released; no active PPS claim exists. Exact next action: fresh independent
+  Sol review of only this tuple. Even PASS accepts PPS-1A only as an internal
+  baseline; PPS-1B remains mandatory before canonical PPS-1 acceptance.
+  Evidence: `docs/plans/evidence/abc-pps1a-rev366-candidate-freeze.json`.
+- **PPS-1A Revision 367 terminal candidate release:** fresh independent Sol
+  review rejected the immutable tuple because `json.loads()` was applied
+  recursively to inline-list elements. Clean origin preserves the characters
+  backslash+n in `tags: ["line\\nvalue"]`; the rejected candidate produces an
+  actual newline. Root reproduced the mismatch. The only correction budget was
+  already used for the case-sensitive root escape, so no patch or reuse is
+  allowed. Exact next action: recover the four clean-origin states, reproduce
+  the 15-test baseline, then require a fresh architecture that limits canonical
+  escape decoding to the top-level multiline round-trip without changing legacy
+  recursive list parsing. Evidence:
+  `docs/plans/evidence/abc-pps1a-rev367-terminal-candidate-release.json`.
+- **PPS-1A Revision 368 active clean-origin recovery:**
+  `ABC-PPS1A-CLEAN-ORIGIN-REV368` assigns only the four PPS-1A paths to Luna
+  replacement worker `01a02fa5-3cdf-7241-8599-6dbd38ceff5c` through
+  `2026-08-23T21:14:26+02:00`. Restore three exact clean blobs and remove only
+  `tests/test_skill_format.py`; no product implementation or rejected-candidate
+  reuse is allowed. Root must read back the tuple and reproduce the 15-test
+  baseline before release. Evidence:
+  `docs/plans/evidence/abc-pps1a-rev368-clean-origin-recovery-claim.json`.
+- **PPS-1A Revision 369 recovery transfer:** the initial Luna channel made no
+  target edit and returned no blocker after activation, bounded waits and one
+  checkpoint. The unchanged recovery claim transfers once to replacement Luna
+  worker `01a02fa5-3cdf-7241-8599-6dbd38ceff5c`; replacement budget is
+  exhausted. Evidence:
+  `docs/plans/evidence/abc-pps1a-rev369-recovery-claim-transfer.json`.
+- **PPS-1A Revision 370 recovery complete:** all three raw blobs match the
+  recorded clean origins, `tests/test_skill_format.py` is absent, scoped Git
+  status is empty and Root reproduced 15 passes with 2 existing warnings.
+  Integration, parallel-roadmap and 140/140 Guidance validation pass. The
+  recovery claim is released with no accepted product change. Exact next
+  action: fresh architecture separating direct top-level canonical escape
+  decoding from recursive legacy list parsing. Evidence:
+  `docs/plans/evidence/abc-pps1a-rev370-clean-origin-recovery-complete.json`.
+
+## Historical closure: Revisions 336-348
+
+This section supersedes older USI and Round6 continuation statements below.
+It is descriptive evidence only and creates no product, commit, publication or
+live authority.
+
+- **PPS-1 Rev348 reflect release:** `$reflect` found that Rev347 changed
+  `services/memory/skill_format.py` before the complete architecture-required
+  RED body existed; the missing nodes include storage provenance, nested-root
+  rebasing, collision families, post-serialization budgets and zero-residual
+  failure checks. Durable Rev347 acquisition/recovery/router timestamps were
+  also future-dated relative to local Europe/Berlin readback, and its router
+  pins did not match the observed router blobs. Rev347 is therefore released
+  without a candidate or accepted product change; its partial tuple must not be
+  reused, frozen, reviewed, staged or committed. Evidence is
+  `docs/plans/evidence/abc-pps1-rev348-reflect-protocol-release.json`. There are
+  now zero active PPS claims. Exact next action: register one six-path recovery
+  claim, restore the Rev334 clean-origin tuple including absence of
+  `tests/test_skill_format.py`, verify exact blobs/static baseline, then start a
+  fresh v6 tests-first claim with every named RED test present before source
+  edits. Stop on a seventh path, foreign overlap, baseline mismatch or any
+  external/live action. Authority: accepted v6 architecture plus Rev348 release
+  evidence; no push, deployment or live authority exists.
+- **PPS-1 Rev349-350 exact recovery:** Root registered a three-writer-path,
+  six-hotfile recovery claim, reversed only the rejected Rev347 partial diff,
+  removed only the materialized untracked `tests/test_skill_format.py`, and
+  restored the exact Rev334 six-path tuple. All five materialized raw blobs and
+  the required absence match; `py_compile`, scoped `git diff --check`,
+  Integration, Round6 (28/28, zero claimable, three waves) and Guidance
+  (140/140) pass. The exact focused baseline also reproduces `15 passed, 2
+  warnings` under Linux Python using existing pure packages plus a process-local
+  namespace bootstrap; no repository test harness was added and the broken
+  Windows-interop route was not retried. Rev349 is released complete with no product acceptance and
+  zero active claims. Completion evidence is
+  `docs/plans/evidence/abc-pps1-rev350-clean-origin-recovery-complete.json`.
+  Exact next action: one fresh six-path tests-first PPS-1 v6 claim against this
+  tuple; every named RED test must exist before the first product edit.
+- **PPS-1 Rev351-352 active implementation:** initial critical Sol worker
+  `01a02f0b-749d-79d0-92dd-94ba150acfe5` changed no claimed path and returned
+  no blocker after activation, one nudge and a final bounded wait. Root closed
+  it with the clean-origin tuple unchanged and transferred the claim to the
+  one permitted replacement, critical Sol worker
+  `01a02f13-5b18-7831-8253-661dda77b6be`, which owns exactly the six accepted PPS-1
+  product/test paths through `2026-08-23T19:34:03+02:00`. Claim evidence is
+  `docs/plans/evidence/abc-pps1-rev351-v6-tests-first-claim.json`, raw blob
+  claim record. The worker must first add and run
+  the complete three-module RED body; any product edit before that invalidates
+  the claim. Only after valid RED may it implement source-kind/provenance,
+  complete prepublication bundle validation, atomic staging/publication and the
+  bounded block-scalar subset. Root alone owns routers/evidence. No candidate,
+  acceptance, commit, push, deployment or live authority exists yet. The
+  replacement budget is exhausted; another silent channel releases the claim
+  and shifts the run to disjoint safe work rather than spawning again.
+- **PPS-1 Rev353 worker-channel release:** the one permitted replacement also
+  changed no claimed path and returned no blocker after activation, checkpoint
+  and final bounded wait. Root closed it and released Rev351 without a
+  candidate. Exact raw readback proves all five materialized PPS paths still
+  equal Rev334 and `tests/test_skill_format.py` remains absent, so this is a
+  worker-channel failure rather than a target or architecture failure. Evidence
+  is `docs/plans/evidence/abc-pps1-rev353-v6-worker-channel-release.json`.
+  Do not respawn PPS-1 again in this channel cycle. Continue disjoint read-only
+  denominator reconciliation, PPS-2 pin preflight and clean public-release/
+  deployment readiness. A later eligible fresh critical Sol channel may claim
+  the unchanged v6 packet. No product acceptance, commit, push, deployment or
+  live authority exists.
+- **Revision 354 denominator truth correction:** the Revision 286 `173/245`
+  tuple remains valid historical evidence, but it predates the activated PPS
+  roadmap and later operator steering (including deferred post-release
+  maintenance/security work, productized code-graph UI and deferred live-context
+  testing). It therefore cannot be presented as the complete current-goal
+  denominator. Current router mirrors now report `173/?` while preserving the
+  exact Revision 286 snapshot. Exact next action: construct one sorted atomic
+  post-steering membership snapshot, independently review IDs, aliases,
+  acceptance and class, then publish a new denominator in one transaction.
+  Stop on unresolved PPS membership, deferred-vs-cancelled ambiguity, source
+  drift or any attempt to turn this descriptive correction into product/live
+  authority.
+- **Read-only post-steering denominator proposal:** a fresh bounded Terra audit
+  retained all 245 historical IDs and nine aliases, reclassified existing
+  `PPS-G0` as accepted from the recorded operator Go, and identified eleven
+  additional canonical members: `PPS-2` through `PPS-7` and `PPS-G1` through
+  `PPS-G5`. That would yield a provisional eventual-full-goal arithmetic of
+  `174/256`, but it is deliberately **not published**. `PPS-0` counting,
+  `LCG-EXPLICIT-GOAL` versus `LCG-UI-OWNER`, old versus new LCL goal identity,
+  and the non-inferred AMH member expansion still require exact authority
+  resolution. AMH/LCL remain deferred release-projection work, not cancelled
+  full-goal work; Lens Code Graph remains a product feature; PPS-6 remains in
+  the full goal but outside the release-core projection. Root then rejected the
+  proposed `174/256` arithmetic as a publication candidate: Revision 286 counts
+  current open frontiers plus selected gates, while the overlay would count all
+  PPS successors but continue omitting comparable dependency-blocked AMH and
+  LCG successors. Evidence is
+  `docs/plans/evidence/abc-denominator-rev358-membership-method-reflect.json`.
+  Because the active objective is the complete canonical roadmap, the next
+  denominator must be a fresh full-eventual atomic enumeration across every
+  current source, not a rolling-frontier overlay. Current authoritative
+  progress remains `173/?` until that complete inventory and independent review
+  are atomically published.
+- **Revision 359 eventual-unit source census:** Root bound the exact 30
+  full-goal sources to current raw blobs (source-map digest
+  `sha256:4fb449cce439c6aef1134483aa0d73381756dd40b96d2e758bc1e96d8e31dcc9`).
+  Twenty-six match the Rev285 source blobs; AMH, Lens Code Graph, LCL and PPS
+  have current steering changes. A prefix-constrained read-only schema probe
+  found 390 unique **pre-alias candidates** across 27 machine-extractable
+  sources and no cross-source duplicate before semantic alias review.
+  Frontpage v2, Anti-Hallucination and RMT lack one uniform source-native ID
+  grammar and require exact mapping normalization. Evidence is
+  `docs/plans/evidence/abc-denominator-rev359-source-schema-census.json`.
+  Never report 390 as the denominator: revisions, aggregate rows, historical
+  recovery IDs and non-unit headings still require classification. Exact next
+  action is only those three source mappings, followed by candidate-wide
+  canonical/gate/alias/non-unit classification and independent review.
+- **Revision 360 feature-first reflect correction:** `$reflect` challenged the
+  denominator route against the user's actual completion goal. Candidate-wide
+  semantic classification of 390 pre-alias rows is not a dependency of PPS-1
+  or another product slice and would create a new control-plane mega-task.
+  Current progress therefore remains truthfully `173/?`, but denominator
+  reconciliation is nonblocking and deferred until the final complete-roadmap
+  claim or a concrete identity ambiguity blocks a feature. Do not edit source
+  roadmaps merely to make prose countable. Exact next feature route is a later
+  materially fresh independent Sol terminal review of the unchanged PPS-1 v6
+  architecture and clean-origin tuple; only PASS permits a fresh six-path
+  tests-first claim. If that channel is temporarily unavailable, perform only a
+  read-only PPS-2 runtime-pin drift preflight or another disjoint feature
+  precursor. Evidence is
+  `docs/plans/evidence/abc-denominator-rev360-feature-first-reflect.json`.
+- **Revision 361 PPS-1 terminal architecture release and PPS-2 pin preflight:**
+  the fresh read-only architecture reviewer returned terminal `FAIL` on the
+  exact v6 blob. Its skill-root contract selects the containing directory of
+  `SKILL.md` but also rejects an empty root, leaving a valid root-level
+  `SKILL.md` undefined. Root verified the strongest counterevidence: the current
+  importer and focused tests explicitly support repository-root `SKILL.md`.
+  All six PPS-1 clean origins remain exact and no product attempt exists. The
+  pre-writer architecture-churn circuit breaker is active: do not generate v7
+  or register another PPS-1 claim in this cycle. A later materially simpler
+  packet must model root-level selection as a zero-component bundle root and
+  add the matching RED node. Terminal evidence is
+  `docs/plans/evidence/abc-pps1-rev361-v6-terminal-architecture-release.json`.
+  In parallel, exact readback confirmed all eight preserved PPS-2 candidate
+  blobs, five architecture/attribution pins and three clean runtime pins still
+  match Rev327. `py_compile` and scoped diff-check pass. Fresh pytest did not
+  start: system Python lacks pytest and the distinct bundled Python route hit
+  the known WSL interop socket failure before process start; do not repeat that
+  route. PPS-2 remains unaccepted and waits on a frozen/accepted PPS-1 runtime
+  plus a working declared test runtime. Evidence is
+  `docs/plans/evidence/abc-pps2-rev361-preserved-candidate-pin-preflight.json`.
+- **PPS-1 Revision 355 active tests-first claim:** fresh critical Sol worker
+  `01a02f27-0a1e-7072-94e2-d935c874d642` owns exactly the six PPS-1 runtime/test
+  paths through `2026-08-23T20:04:57+02:00` under
+  `ABC-PPS1-V6-TESTS-FIRST-REV355`. Root re-read the accepted v6 architecture
+  blob `cc3ec2056b3681eca4b6813e6e0c90d13b436ad9`, its acceptance and the exact
+  Rev350 clean-origin tuple before registration. The worker must author and run
+  every named three-module RED family before changing any source path. Stop on
+  source-before-RED, a seventh path, baseline/architecture drift, unavailable
+  RED, router/evidence edits, external effects or live actions. Candidate
+  acceptance still requires focused, hostile, central and independent fresh Sol
+  review; this claim grants no commit, push, publication, deployment or live
+  authority.
+- **PPS-1 Revision 356 chronology release:** Root's pre-edit review found that
+  the Rev343 correction freeze declares `18:31 +02:00` and Rev344 architecture
+  acceptance declares `18:35 +02:00`, while current local readback was only
+  `17:11:42 +02:00`. This is the same future-dated control-plane authority class
+  previously rejected by `$reflect`; local filesystem times corroborate an
+  inconsistency but are not substituted as authority. Root stopped the writer
+  before the first claimed-path edit, re-read all six clean origins unchanged
+  and released Rev355 with no candidate. Evidence is
+  `docs/plans/evidence/abc-pps1-rev356-v6-authority-chronology-release.json`.
+  Exact next action: fresh independent review-only Sol PASS on the unchanged
+  architecture and clean-origin tuple, followed by a new current-time
+  acceptance record; only then may another tests-first product claim exist.
+  No commit, push, publication, deployment or live authority exists.
+- **PPS-1 Revision 357 review-channel release:** one fresh read-only Sol channel
+  was assigned the unchanged v6 architecture blob and exact Rev350 clean-origin
+  tuple. It returned no terminal PASS or FAIL after the initial bounded window,
+  one checkpoint request and one final interrupt requiring immediate
+  conclusion. Root closed the channel; absence of a verdict is not PASS and no
+  current-time acceptance was created. All six product/test origins remain
+  exact and no candidate exists. Evidence is
+  `docs/plans/evidence/abc-pps1-rev357-current-time-review-channel-release.json`.
+  Do not retry the identical reviewer channel in this cycle. Continue the
+  bounded denominator identity resolution; a later eligible fresh independent
+  Sol terminal PASS remains prerequisite to any new PPS-1 product claim.
+- **Public-release projection read-only preflight:**
+  `C:\Users\nkatz\Documents\odysseus-public-release` is locally clean on
+  `codex/public-release` at `ea181f52e72a24d91480757c55a298fbb77249b1`.
+  Its local `origin/dev` is `4b59a975a24a9c69a02d216cf56e39e0c2fbcfec`;
+  merge-base is `d691cebc0b850e13b7087ab3866d7902940ead67` and
+  `rev-list --left-right --count HEAD...origin/dev` reports `1 119`. The one
+  projection commit spans 161 files (`49,354` insertions, `536` deletions), so
+  it must not be rebased, merged, pushed or published while PPS and the final
+  accepted-source set are still moving. Exact next action after repo-only
+  feature closure: create a fresh clean projection from the then-current
+  release base, replay only accepted clean commits, run the declared release
+  test matrix, inspect the complete diff, define rollback/readback, and request
+  payload-specific publication authority. Stop on mixed foreign changes,
+  rejected candidates, secret/private paths, failing tests or remote/branch
+  ambiguity. No release-clone mutation or network action occurred in this
+  preflight.
+
+- **USI-07A PRE1A terminal architecture release (Rev336):** the expired
+  six-path claim `ABC-USI07A-PRE1A-REV304` is `released_blocked` with no
+  candidate and no product change. Fresh Sol review proved that the packet
+  simultaneously required bounded cleanup and guaranteed wait/join with zero
+  residual resources even when wait can hang; it also could not enforce the
+  product-registration boundary within its six paths. Terminal evidence is
+  `docs/plans/evidence/abc-usi07a-pre1a-rev336-terminal-architecture-release.json`,
+  raw blob `8af24314b46b84281987aa37a55738bca68e40ce`. Do not reuse the packet.
+- **Round6 v1 scope release (Rev337):** the original four-path 30-to-28
+  normalization candidate was preserved but unaccepted because
+  `tests/test_parallel_roadmap_execution.py` contained a directly coupled
+  literal `30` outside the claim. Scope-release evidence is
+  `docs/plans/evidence/abc-round6-operator-deferral-projection-rev337-scope-release.json`,
+  raw blob `bd10a81aa35a51e0c9a296a4bcc07427ee195797`.
+- **Round6 v2 acceptance (Rev338-340):** the corrected five-path candidate is
+  released and accepted after independent fresh Sol PASS. Guidance and Round6
+  now agree on exactly 28 active roadmaps/frontiers; only AMH and LCL were
+  removed because current operator steering classifies both `gate_only`.
+  Claimable frontiers remain 0, three waves and seven scheduled slices are
+  unchanged. Candidate digest is
+  `sha256:3fddb5989126a0819ddf1a59c4b1d3589cdd61a723a58c73dd32d79322adc270`;
+  acceptance evidence is
+  `docs/plans/evidence/abc-round6-operator-deferral-projection-v2-rev340-acceptance.json`,
+  raw blob `991d3c58849eb5b93668d01fb053fed5ac4c9b71`.
+- **Verification:** focused `1 passed`, Integration module `144 passed`, and
+  the complete parallel module `18 passed` plus exactly one registered
+  pre-existing unresolved-dependency-message failure. Integration, Round6 and
+  Guidance validators pass; current Linux readback reports 28/28, 0 claimable,
+  three waves and Guidance 140/140. A later Windows-Python rerun could not
+  start because WSL interop failed before test startup; this is not a test
+  failure. The independent reviewer found no candidate defect.
+- **Current control plane (Rev341):** Open Work and Round7 external claim
+  projections are byte-equivalent, current active repo claims are empty, the
+  old USI claim is released, and no live action is authorized. The exact next
+  product precursor is one materially fresh PPS-1 source-kind architecture
+  against the verified Rev334 clean origin. Require independent Sol
+  architecture PASS before registering any tests-first PPS product claim.
+- **PPS-1 v6 architecture freeze (Rev342):** the materially fresh source-kind
+  packet is frozen at
+  `docs/plans/abc-pps1-skill-import-compatibility-v6-source-kind-architecture.json`,
+  raw blob `3847d24635ebe9457fc1c971b6e4614d6dcee28b`. All five Rev334 clean-origin
+  blobs and the absence of `tests/test_skill_format.py` match exactly using
+  `git hash-object --no-filters`. The packet preserves distinct repository-root,
+  tree-directory, blob-file and raw-file identities, omits skills.sh provenance
+  without a second request, and requires complete in-memory bundle validation
+  before any write. One bounded fresh Sol architecture reviewer did not return
+  a terminal verdict; no defect was reported. No product claim exists. Next
+  action is one review-only gate on the unchanged packet and clean-origin tuple;
+  only terminal PASS permits an exact six-path tests-first claim. Freeze evidence
+  is `docs/plans/evidence/abc-pps1-rev342-v6-source-kind-architecture-freeze.json`,
+  raw blob `39f5645cd2834af5c3bf9281f36dc3f38dc6bcb5`.
+- **PPS-1 v6 correction and active product claim (Rev343-345):** independent
+  Sol initially rejected the unchanged-route provenance handoff because `_src`
+  is discarded. Correction 1/1 now permits strict pure no-I/O reclassification
+  of direct GitHub URLs in storage and host-only skills.sh recognition with no
+  provenance or second fetch. The corrected architecture blob
+  `cc3ec2056b3681eca4b6813e6e0c90d13b436ad9` received terminal PASS.
+  Exact tests-first claim `ABC-PPS1-V6-REV345` was registered for only the six
+  clean-origin product/test paths, but its worker changed no claimed path and
+  returned no blocker after bounded checkpoints. Rev346 therefore released the
+  lease with no candidate and no product change. All clean-origin blobs still
+  match and `tests/test_skill_format.py` remains absent. Release evidence is
+  `docs/plans/evidence/abc-pps1-rev346-v6-worker-channel-release.json`, raw blob
+  `94664ce2ba00b01e839f2cfc179b4bd0a305bdea`. Next register one fresh transfer
+  claim for a replacement critical Sol writer. No seventh path, route edit,
+  stage, commit, push, publication, deployment, provider mutation or live
+  action is authorized.
+- **Known pre-existing control-plane debt:** one parallel-roadmap test expects
+  an unresolved-dependency diagnostic that the current validator does not emit;
+  one separate Guidance test still hardcodes 139 while current Guidance
+  correctly discovers/lists 140. Neither was changed by the accepted Round6
+  slice. Maintenance/security harness work remains deferred until after
+  release and must not be used to absorb these fixes before reprioritization.
+- **Commit/publication state:** no stage, commit, push, deployment, publication
+  or live action was performed. All five accepted candidate files differ
+  materially from HEAD through preserved foreign prerequisites; staging whole
+  files would create a mixed commit. The index remains empty. Commit only after
+  a clean-origin integration route can include the exact prerequisites without
+  absorbing unrelated work.
+
+## Steering update: 2026-08-22
+
+This update supersedes the older operator-decision rows below, but does not
+revive any expired claim or grant a commit, push, deployment, provider, host,
+private-data, UI-live, or other external action.
+
+- **AMH / maintenance and security harness:** deferred until after release.
+  Keep every AMH slice unclaimed; a later post-release reprioritization still
+  needs fresh architecture, collision checks, claim and evidence.
+- **Lens Code Graph:** approved as a product feature. The remaining prerequisite
+  is one named Frontpage/Lens UI owner plus the bounded graph API; no UI claim or
+  real-project placement is authorized yet.
+- **Live Contextual Layer:** deferred until the remaining system is complete
+  enough for system testing. Do not claim LCL-01 or later LCL work; re-enter via
+  a fresh architecture and claim at that time.
+- **Audit caveat:** the generic safe-queue audit still lists the frozen
+  `abc-lcl01-...-v5-architecture.json` target because that historical packet
+  contains a `repo_only` target class. Treat it as read-only architecture
+  evidence only: the newer Open Work decision log, LCL source roadmap and
+  guidance defer LCL; the packet does not create a claim or writer authority.
+- **PPS:** `GO PPS repo-only implementation` received. Run only fresh,
+  read-only preflight first; then claim one dependency-ready, disjoint
+  safe-offline/repo-only PPS slice. All live/UI/publication actions remain off.
+- **PPS-1 active claim:** `ABC-PPS1-REV305` is registered tests-first through
+  `2026-08-23T00:53:26+02:00` for exactly
+  `services/memory/{skill_format.py,skill_importer.py,skills.py}` and
+  `tests/{test_skill_importer.py,test_skill_format.py,test_skills_manager_owner_isolation.py}`.
+  Root froze `PPS-1-SKILL-IMPORT-COMPATIBILITY-SOL-ARCH-v1`; registration
+  evidence is `docs/plans/evidence/abc-pps1-rev305-registration.json`.
+  The fresh `gpt-5.6-sol` writer must add tests first, then implement only the
+  six paths. Stop on baseline/pin/claim drift, a seventh path, weaker import
+  limits, script execution, publication or any external/live effect. Verify
+  the focused importer/format/owner suites, hostile path/budget cases,
+  `tests/test_workflow_skills.py`, static/diff checks and an independent fresh
+  Deep-Sol review before acceptance. Candidate state is `not_frozen`; no
+  commit, push, deploy, publication or live authority exists.
+- **PPS-1 close-of-session override:** Revision 307 releases the claim without
+  product acceptance. The exact Rev306 six-blob candidate remains preserved
+  and unchanged in `docs/plans/evidence/abc-pps1-rev306-freeze.json` (blob
+  `8fdcef7bbb1187eb36d6e622cb7c36f0cd8cdd6a`). Root reproduced `54 passed`
+  focused and `16 passed` dependency checks, but the initial independent
+  Deep-Sol reviewer and its one replacement both failed to return a terminal
+  verdict after one bounded nudge. Release evidence is
+  `docs/plans/evidence/abc-pps1-rev307-review-channel-release.json`, blob
+  `ded845bcbc07d525539fc76c9d3798ec0d6a13ad`.
+  Next action is one fresh review-only claim on the unchanged Rev306 tuple;
+  any candidate or pin drift after the recorded Rev307 release transition
+  invalidates the freeze and requires fresh PPS-1 preflight. Do not commit,
+  publish or call PPS-1 accepted before that review.
+- **PPS-1 terminal Rev309 override:** the fresh Rev308 independent Deep-Sol
+  review matched all six raw candidate blobs and all read-only pins, then
+  rejected the candidate. Distinct keys such as `plugin/SKILL.md` and
+  `plugin\\SKILL.md` normalize to one path and silently overwrite by mapping
+  order; Windows reserved names, ADS colons and trailing dot/space segments
+  also remain open. This recurs in the declared untrusted bundle-boundary
+  class after correction 1/1. Product acceptance is false, the claim is
+  released, and no commit is allowed. Terminal evidence is
+  `docs/plans/evidence/abc-pps1-rev309-terminal-rejection.json`, blob
+  `602b6b73118b15ec74cb4b2a3ab6c748d298d839`. Next action is
+  a fresh compact Root/Sol architecture plus fresh baselines and claim; never
+  patch, stage, commit or publish the Rev306 candidate.
+- **PPS-1 v2 recovery architecture:**
+  `docs/plans/abc-pps1-skill-import-compatibility-v2-architecture.json`
+  (raw Git blob `0ebaaaafebd1ed39057383f843006a4c6256c158`) supersedes v1 and is
+  frozen only for recovery. Before any new claim, restore exactly the six PPS
+  writer paths to the original raw baselines recorded in that packet, verify
+  the five blobs plus absence of `tests/test_skill_format.py`, and reproduce
+  the 15-test baseline. Then register one fresh tests-first critical Sol claim.
+  The v2 boundary rejects normalized/case-fold aliases, slash/backslash
+  collisions, Windows ADS colons, trailing dot/space aliases and DOS device
+  names before any write. No claim, candidate, commit, publication or live
+  authority currently exists.
+- **PPS-1 v2 recovery gate passed:** all five restored raw blobs match the
+  architecture packet byte-for-byte, `tests/test_skill_format.py` is absent,
+  and the clean baseline reproduced `15 passed, 3 warnings`. Recovery evidence
+  is `docs/plans/evidence/abc-pps1-rev310-v2-recovery.json`, raw Git blob
+  `e7465154b5e3ac64bdcee8a1dd42f45faf7e6cb0`. The rejected Rev306 candidate is
+  no longer present in the six PPS writer paths. No claim exists yet; the only
+  next writer action is one fresh tests-first critical Sol claim bound to the
+  v2 architecture and these restored baselines.
+- **PPS-1 v2 Rev311 active claim:** `ABC-PPS1-V2-REV311` is registered at
+  `docs/plans/evidence/abc-pps1-rev311-v2-claim-registration.json`, raw Git
+  blob `f553ea42524360a0451f6b71e4c2cb4cd11ea248`, for fresh Sol worker
+  `01a02dc8-906b-79f1-b095-4730b996aa0f`. The claim owns exactly the six PPS
+  product/test paths, is bound to Open Work raw blob
+  `1f6464e793f5bff3290813db15fd187ad67ee425`, Round7 raw blob
+  `1914f6a7796b773f1ce2a3016bb64d580e1a2a15` and architecture raw blob
+  `0ebaaaafebd1ed39057383f843006a4c6256c158`, and expires at
+  `2026-08-23T12:42:17+02:00`. Candidate state is `not_frozen`; no commit,
+  push, deployment, publication or live authority exists.
+- **PPS-1 v2 Rev314 frozen candidate:** the fresh Sol worker returned exactly
+  six claimed paths after valid tests-first RED (`45` intended nodes), `61`
+  focused, `16` dependency and `18` hostile-subset passes. Root re-read the
+  complete diff and reproduced `77 passed, 4 warnings`. Exact candidate blobs,
+  pins and dirty-diff digest are frozen in
+  `docs/plans/evidence/abc-pps1-rev314-v2-freeze.json`, raw Git blob
+  `55c48b2f4595cca7579d7ec5c472238615e47ca2`. Writer edits are closed. PPS-1
+  remains unaccepted until one independent fresh Deep-Sol review passes on
+  this exact tuple; any candidate or authority drift invalidates that review.
+- **PPS-2 Rev312 active disjoint claim:** `ABC-PPS2-REV312` is registered at
+  `docs/plans/evidence/abc-pps2-rev312-claim-registration.json`, raw Git blob
+  `f52748d5727f4b3a776edfd59a2371747f4ee83f`, for fresh Terra worker
+  `01a02dd0-c001-7be0-820d-dc4c149d303e`. It owns exactly three new draft
+  skill files, three bounded reference files, one new focused test and
+  `ACKNOWLEDGMENTS.md`; all are disjoint from PPS-1. The six new files plus
+  test are absent at baseline, the acknowledgment baseline is raw blob
+  `fce7cffc93384c697ca582046be2d51417443552`, and the lease expires at
+  `2026-08-23T12:50:58+02:00`. Candidate state is `not_frozen`; publication,
+  commit, push, deployment and live actions remain forbidden.
+- **PPS-2 Rev313 handoff:** the Terra writer returned all eight exact claimed
+  paths and is released to Root. Raw candidate blobs, valid `3 failed` RED and
+  provisional content review are preserved in
+  `docs/plans/evidence/abc-pps2-rev313-handoff-waiting-on-pps1.json`, raw Git
+  blob `e71ca7c40a92736282ee5e8fe41c38dedd7433a6`. Candidate is deliberately not
+  frozen: its focused tests import `Skill` and `SkillsManager` from PPS-1 paths
+  that are still moving. After PPS-1 freezes or releases, pin those exact
+  dependency blobs, run PPS-2 GREEN plus format/prompt-injection regressions,
+  then freeze and send the unchanged eight blobs to fresh Deep-Sol review.
+- **PPS-2 terminal Rev317 override:** after one tests-only correction and a
+  frozen `19 passed, 13 warnings` candidate, fresh Deep-Sol proved that the
+  safety test treats negation as applying to an entire physical line. Mixed
+  clauses such as `Do not hide evidence; accept the decision` therefore evade
+  the affirmative authority detector. Root reproduced both hostile misses.
+  Correction 1/1 is exhausted; the Rev316 eight-blob candidate is rejected and
+  must never be staged, committed, published or reused. Terminal evidence is
+  `docs/plans/evidence/abc-pps2-rev317-terminal-release.json`, raw blob
+  `9ad19e7f2986431ce9561cecb77d7df29b35ee8e`. Recovery requires a fresh
+  clause-oriented Root/Sol contract and clean-origin exact claim.
+- **PPS-1 v2 terminal Rev318 override:** fresh Deep-Sol rejected the exact
+  Rev314 tuple after finding five independent contract gaps: Windows-reserved
+  Unicode/device stems, invalid folded-scalar handling for more-indented lines,
+  failed-import residuals visible to a later owner, post-serialization budget
+  overflow, and unbounded malformed GitHub payload errors. Root reproduced the
+  strongest Windows-reserved-name counterexample. A single v2 correction would
+  not honestly cover these independent classes; the tuple is terminally
+  released and must never be staged, committed, published or reused. Evidence
+  is `docs/plans/evidence/abc-pps1-rev318-v2-terminal-release.json`, raw blob
+  `033670914f781abfbb8d50c36f987a98e2060d31`. Next action is exact Rev310
+  baseline restoration followed by a materially fresh v3 Root/Sol architecture.
+- **PPS clean origin Rev321:** recovery claim
+  `ABC-PPS-CLEAN-ORIGIN-REV320` restored all six non-absent original blobs,
+  removed the eight rejected-only paths, and reproduced the original PPS-1
+  baseline with `15 passed, 3 warnings`. Completion evidence is
+  `docs/plans/evidence/abc-pps-rev321-clean-origin-restoration-complete.json`.
+  Fresh architecture drafts now exist at
+  `docs/plans/abc-pps1-skill-import-compatibility-v3-architecture.json` and
+  `docs/plans/abc-pps2-clause-local-authority-recovery-architecture.json`;
+  neither may authorize a product claim until independent architecture review
+  returns terminal PASS and the exact clean-origin pins remain unchanged.
+- **PPS-1 v4 Rev324 active claim:** independent fresh Sol review passed the
+  materially fresh v3 contract plus its v4 generated-destination correction.
+  Acceptance evidence is
+  `docs/plans/evidence/abc-pps1-rev323-v4-architecture-acceptance.json`, raw
+  blob `fc77037ff6d92436e5121f69aeee8f3fd8752377`. Exact six-path tests-first
+  claim `ABC-PPS1-V4-REV324` is registered in
+  `docs/plans/evidence/abc-pps1-rev324-v4-claim-registration.json`, raw blob
+  `0a88294c543dd236e9239c35c19bfb807cbcefef`, through
+  `2026-08-23T14:44:03+02:00`. Fresh critical Sol worker
+  `01a02e35-fe47-77d2-ab07-cf513f92350a` owns only the recorded six paths.
+  Candidate state is `not_frozen`; no stage, commit, publication, push,
+  deployment or live authority exists.
+- **PPS-2 v3 Rev326 active claim:** independent fresh Sol review passed the
+  clause-local authority-recovery architecture, including exact inflections,
+  direct clause negation and a durable Kimchi attribution pin. Acceptance
+  evidence is `docs/plans/evidence/abc-pps2-rev325-v3-architecture-acceptance.json`,
+  raw blob `f76be7b77e1b54591a37ff1f033b1e516bcddf84`. Exact eight-path tests-first
+  claim `ABC-PPS2-V3-REV326` is registered in
+  `docs/plans/evidence/abc-pps2-rev326-v3-claim-registration.json`, raw blob
+  `2ba95735b2eb8c035f37f60989019e9af3cb1acd`, through
+  `2026-08-23T14:49:29+02:00`. Fresh Terra worker
+  `01a02e3b-a88d-71b0-90b6-51ba9000c638` owns only the recorded eight paths.
+  Root independently completed the interrupted prospective preflight: all new
+  paths are absent, all source and acknowledgment baselines match, the scope is
+  disjoint from PPS-1, and path-scoped status is empty. Candidate state is
+  `not_frozen`; no stage, commit, publication, push, deployment, provider or
+  live authority exists.
+- **PPS-2 v3 Rev327 dependency handoff override:** the Terra writer recorded
+  valid RED, produced eight materially fresh blobs and passed its focused suite
+  with `4 passed, 1 warning`. PPS-1 then legitimately changed all three
+  read-only runtime dependency blobs. Root `$reflect` first distinguished a
+  harmless raw/filtered Git hash mismatch from the later actual raw drift, then
+  released the PPS-2 claim once instead of repeating verification against a
+  moving dependency. The exact unfrozen candidate and manifest are preserved in
+  `docs/plans/evidence/abc-pps2-rev327-v3-handoff-waiting-on-pps1.json`, raw
+  blob `ac27e538fe5dc4000adaabfb1f6b24c4b9b775aa`. No candidate path may change.
+  After PPS-1 freezes or is accepted, register one fresh verification-and-freeze
+  claim bound to the exact runtime blobs, reproduce focused/dependency/hostile
+  checks, then freeze for independent fresh Sol review. No acceptance, stage,
+  commit, publication, push, deployment, provider or live authority exists.
+- **PPS-4 Rev328 architecture precursor:** independent fresh Sol rejected the
+  exact v1 architecture blob `0eb8a03bf63be85f82762604f82877d30d520595`.
+  It left schema/Python partition, empty-evidence `holds`, hostile containers,
+  executable unsafe-content grammars, disjoint evidence refs and deterministic
+  JSON/test-first semantics materially open. Root `$reflect` deferred the one
+  correction because PPS-4 still depends on accepted PPS-2 and a replacement
+  must pin that final candidate. Release evidence is
+  `docs/plans/evidence/abc-pps4-rev328-v1-architecture-release.json`, raw blob
+  `7dcbe1da6d24be076e5df0aa03063fa14e10c259`. V1 is rejected evidence only;
+  no PPS-4 product claim, edit, stage, commit or live authority exists.
+- **PPS-1 v4 Rev329 immutable verification/freeze claim:** the Rev324 writer
+  completed valid RED and returned an exact six-blob candidate after `113`
+  focused, `19` dependency, `98` hostile-subset and `3,624` generated PyYAML
+  parity checks. Its final handoff correctly stopped because Root's descriptive
+  Rev327/328 router updates changed the old pins. Root `$reflect` found no
+  candidate failure and independently reproduced `113` focused, `18`
+  workflow/tag and `3` prompt-injection passes. New verification-only claim
+  `ABC-PPS1-V4-FREEZE-REV329` is registered at
+  `docs/plans/evidence/abc-pps1-rev329-v4-verification-freeze-registration.json`,
+  raw blob `b16c98da3d758a183c5725b36540b0ca58252cb9`, through
+  `2026-08-23T15:19:27+02:00`. It pins Open Work
+  `d3fdc9c850d797d0de5ed94a7a2fa54e394fec23` and Round7
+  `68d18a5e3eda49c8138900502a1acc70c10373da`; all six candidate blobs are
+  immutable. Only readback, test reruns and Root freeze evidence are allowed;
+  no candidate edit, stage, commit, publication, push, deployment or live
+  authority exists.
+- **PPS-1 Rev331 review failure and one correction route:** independent fresh
+  Sol rejected Rev330 because a file `a` plus child `a/b.txt` is not detected as
+  an ancestor-prefix collision before staging; the candidate leaks an unbounded
+  `FileExistsError` only after its first write. Root reproduced that class and
+  separately proved with a synthetic marker that userinfo from the original
+  GitHub URL is persisted verbatim in the generated source note. Evidence is
+  `docs/plans/evidence/abc-pps1-rev331-v4-review-failure-correction-route.json`,
+  raw blob `4cd82425e833f9fe109a3ecbc3f1e314a0000c81`. Rev330 is rejected and cannot
+  be accepted or committed. One final bounded correction architecture exists
+  at `docs/plans/abc-pps1-skill-import-compatibility-v5-architecture.json`, raw
+  blob `db14de49a59585712ea42b910c2b21f939572e69`, covering only complete
+  pre-write prefix validation and credential-free deterministic provenance.
+  It is in independent architecture review; no correction claim or candidate
+  edit is authorized. Any subsequent candidate-review failure terminally
+  releases PPS-1 to clean-origin redesign.
+- **PPS-1 Rev332 terminal architecture release:** independent fresh Sol rejected
+  v5 because repository-root `https://github.com/o/r` and tree-root
+  `https://github.com/o/r/tree/main` collapse to the same current
+  `ResolvedSource(owner=o, repo=r, ref=main, path="")`, while the frozen
+  contract requires different canonical provenance. The correction therefore
+  is not unambiguously implementable. Terminal evidence is
+  `docs/plans/evidence/abc-pps1-rev332-v5-architecture-terminal-release.json`,
+  raw blob `c7027d0a0138f045c21c2e68028dd067b8c0710c`. No active PPS claim exists.
+  Never patch or reuse Rev330/v5. Next register one exact six-path recovery
+  claim, restore Rev321 clean origins, reproduce the `15`-test baseline, then
+  require a materially fresh source-kind-aware architecture and independent
+  PASS before any product claim. Keep PPS-2 unchanged and unfrozen; do not
+  retry PPS-4 before PPS-2 acceptance.
+- **PPS-1 Rev333 exact recovery claim:** `ABC-PPS1-CLEAN-ORIGIN-REV333`
+  belongs to fresh Luna worker `01a02e7f-9f0d-78f0-8715-dbef9a986635`
+  through `2026-08-23T14:47:18+02:00` and owns only the six PPS-1 runtime/test
+  paths. It may restore the five Rev321 blobs and remove
+  `tests/test_skill_format.py`; it may not implement product behavior or touch
+  a seventh path. Registration evidence is
+  `docs/plans/evidence/abc-pps1-rev333-clean-origin-recovery-registration.json`.
+  Root must read back all six targets and reproduce the original `15`-node
+  baseline before releasing recovery. No stage, commit, publication, push,
+  deployment or live authority exists.
+- **PPS-1 Rev334 recovery complete:** Root stopped the mechanical worker after
+  its text patch produced non-exact intermediate bytes, reconstructed the five
+  files from the preserved Git objects, restored the recorded CRLF bytes and
+  removed `tests/test_skill_format.py`. All six targets now match Rev321 exactly;
+  the original baseline reproduced `15 passed, 3 warnings`. Completion evidence
+  is `docs/plans/evidence/abc-pps1-rev334-clean-origin-recovery-complete.json`,
+  raw blob `cb9ae3964555dc28ae9ad8382f21fedfb374353a`. The recovery claim is released
+  and no PPS claim is active. Next action is one materially fresh architecture
+  with explicit source-kind semantics, independent Sol PASS, then a new exact
+  tests-first claim. Rev330/v5 remain terminal evidence only.
+- **Current 12h run:** `ABC-OPEN-WORK-GO-20260823T1028+0200` targets
+  `2026-08-23T22:28:48+02:00`, max three disjoint product workers, repo-only by
+  default. The existing heartbeat id is
+  `odysseus-open-work-continuous-abc-run`, but both a read and one bounded
+  update attempt timed out in the Codex app on 2026-08-23; no duplicate
+  scheduler was created and ACTIVE status is not verified. Continue current
+  safe claims normally. If the task resumes without an active lease, reconcile
+  exact blobs and claim expiry before dispatch; never infer live authority.
 
 This file is a redacted continuation snapshot for an agent that has no chat or
 thread history. It is descriptive evidence, not mutation authority. If this
@@ -62,14 +828,19 @@ Newer accepted/released records override stale earlier `planned`, `blocked`, or
 - Purpose: complete structured authority, accepted product work, foreign work,
   and historical evidence.
 - Branch at snapshot: `codex/implemenetaion`.
-- Authority snapshot HEAD: `7d419494e99666ce20ecd87e9e28cc25150e6a24`.
-  This snapshot includes the terminal Rev302 AHE release Evidence; no active
-  claim or lease remains. The descriptive handoff refresh itself is
-  intentionally uncommitted.
+- Authority/control-plane base HEAD: `01c0ee45`. Revision 304 is materialized
+  and centrally valid in the worktree but not committed because the platform
+  currently denies the required `.git` write after exhausting its approval
+  usage budget. The validated unstaged Rev304 transaction registers exactly
+  one PRE1A claim and lease; it must be committed intact when Git metadata
+  writes become available. Do not reconstruct or restage it from prose.
 - Latest AMH-01 lifecycle commits: Rev299 terminal router `c9d6f601`, terminal
   Evidence `2e68ebf7`, Rev298 claim registration `06f65fb4`, registration
   Evidence `7e91d2e5`, and closed materialized-genesis architecture `07715e94`.
 - Latest committed continuity artifacts before this Master Handoff update:
+  PRE1A Rev303 pin rebind `5a7c3821`, PRE1A architecture and Rev303 router
+  projection `b8fb58e0`, blocked USI-07A architecture plus Guidance inventory
+  registration `43859d4b`, Rev302 handoff refresh `a1dc427e`,
   H1-29 Rev297 terminal-router commit `b9d8012c`, terminal-Evidence commit
   `38b612b8`, Rev296 freeze-router commit `997edad7`, freeze-Evidence commit
   `09b821cb`, Rev295 registration commit
@@ -85,11 +856,11 @@ Newer accepted/released records override stale earlier `planned`, `blocked`, or
   commit `59c5f76aa2532ec120e91cd111480f4a690ed068`; their predecessor is
   `d15cdd7b1cf01a5be1ced846f26abb9fe9404cf7`. Never use a handoff commit
   itself as product authority; use the exact accepted claim tuples instead.
-- Diagnostic state at the Rev302 handoff audit remains intentionally dirty;
+- Diagnostic state at the Rev303 handoff audit remains intentionally dirty;
   re-read the exact status and path-scoped diff at every
   resume; it is evidence, not a stable invariant. Exact path-scoped claims
   remain authoritative.
-- Planning subtree: 0 staged entries, 21 tracked-modified entries, and 126
+- Planning subtree: 0 staged entries, 17 tracked-modified entries, and 126
   untracked entries. The central authorities
   are intentionally modified; the terminal R7-A2 packet and freeze Evidence
   are untracked but exactly hash-pinned by durable authority. Untrackedness
@@ -222,7 +993,10 @@ Still required externally:
 
 5. No exact action-specific push phrase is present in the current authority
    readback. Keep the reviewed public projection local and do not push or
-   deploy until a matching exact authority is durably supplied.
+   deploy until a matching exact authority is durably supplied. The single
+   immediate payload is: `GO: push exactly
+   ea181f52e72a24d91480757c55a298fbb77249b1 to fuzzy/dev.` This line records
+   the required approval payload; it is not itself authority.
 
 Do not call the release public or live before step 5 has both pushed the exact
 commit and produced a terminal Required CI result bound to that SHA.
@@ -260,6 +1034,11 @@ Current external blockers:
   incomplete. A one-time credential migration/repair and fresh redacted
   readback are required before a deployment snapshot. Never expose the
   credential or repair it through an unredacted command.
+- The configured SSH identity metadata exists in the private read-only archive,
+  but its referenced local identity file was absent at the latest redacted
+  audit. No SSH or server contact was attempted. Access repair, backup proof,
+  deployment and live smoke therefore remain later action-specific steps even
+  after a successful push and Required CI result.
 - No exact action-specific push phrase is present in the current authority
   readback. Push therefore remains unauthorized; no workaround or alternate
   remote is permitted.
@@ -274,7 +1053,7 @@ Current external blockers:
 
 ## 6. Global roadmap state
 
-- Open Work and Round 7 are at authority Revision 302.
+- Open Work and Round 7 are at authority Revision 304.
 - The canonical denominator is verified and published: 173 accepted of 245
   unique units, leaving 72 open (19 repo, 19 design, 30 live, 4 operator).
 - The published snapshot binds all 30 active source-roadmap blobs, the exact
@@ -282,7 +1061,14 @@ Current external blockers:
   reviewed deterministic candidate. Do not recompute or replace the
   denominator from stale prose; re-open denominator work only if a current
   source or authority byte changes and the routers explicitly invalidate it.
-- Zero active claims and zero leases remain at Revision 302. The terminal AHE
+- Exactly one active claim and one lease exist at Revision 304:
+  `ABC-USI07A-PRE1A-REV304`, owner
+  `Sol PRE1A critical lifecycle tests-first writer`, thread
+  `01a00419-85fb-71b3-85f1-cbdf6b0eb611`, lease through
+  `2026-08-15T23:50:00+02:00`. Its exact six writer/hotfile paths are the
+  three CBM process/client/query source modules and their three matching test
+  modules. Candidate state is `not_frozen`; no candidate blobs, publication
+  or live authority exist yet. The earlier terminal AHE
   claim `ABC-AHE-GHISS01-RECOVERY-REV302` is evidence only; it grants no writer,
   product, stage, commit, push, deploy, provider, host, UI, or live authority.
   Terminal Evidence is
@@ -426,11 +1212,11 @@ Current external blockers:
   the full persisted dependency corridor, static checks, all three central
   validators, independent hostile QA, and Deep-Sol passed on the unchanged
   frozen tuple.
-- Revision 302 raw `git hash-object --no-filters` readback:
-  Open Work `cde7c5f9051bbe916fe13e345a8ab110686d15bc`, Round 6
+- Revision 304 raw `git hash-object --no-filters` readback:
+  Open Work `239206f189f6d69324882bf76d323fc32592f6b1`, Round 6
   `284dbe55bf6efac90fc606c29ce40a437875a9f8`, Round 7
-  `c0418320fa8c83ddbbd1c128fe077c0539c30740`, Guidance
-  `71dcf844bba2778b5f7c0376759a8a2ec91d0b9f`, AHE architecture packet
+  `1914f6a7796b773f1ce2a3016bb64d580e1a2a15`, Guidance
+  `84fad05c10dc93431e19b94502595e5282088d14`, AHE architecture packet
   `7164d0317f6bd2d280412af3513d9f52d21a9c44`, AHE registration Evidence
   `2f616d23fb60a8f9a745b44000edcd0d0e354916`, TTD terminal Evidence
   `6c98365320916e382e8c24b4d860647c91a32793`, HWA2A-v5 packet
@@ -438,7 +1224,9 @@ Current external blockers:
   `7f72ea51e5bcf6019b7cd4c026db7be53d1d83fe`, R7-A2 packet
   `c4d2974f7cef38c636c960b5e641a26202cf4345`, and freeze Evidence
   `a86820f61d9a952a42f6082c382287cd11b212ad`. The terminal AHE Evidence is
-  `841a71e215471c33823dde2f22d8bbb8b48d14cd`. Do not compare authority
+  `d0e216ff5393d90cee275e1eb6feeda66a1ffcb4`. The blocked USI packet is
+  `79ceedc73cd38c136b031d73f61fb21263d3a55d`; PRE1A is
+  `6186172ed362e1bdafe2da469d81011f8fce2ba2`. Do not compare authority
   pins with filtered `git hash-object` output: `text:auto` normalizes Round 6
   CRLF bytes to a different LF-only blob even though the parsed JSON is equal.
 - A filename or untracked Evidence receipt that contains a larger revision
@@ -481,12 +1269,32 @@ Current external blockers:
   tuples, terminal Evidence, correction budget and no-product-acceptance state
   above. Neither tuple may be resumed, patched, frozen, accepted, staged,
   committed, pushed, deployed, or used as a product baseline.
-- The exact next permitted repo-only work is the disjoint Root/Sol architecture
-  precursor `USI-07A-generation-fenced-cancellable-query-execution` at
-  `docs/plans/abc-usi07a-generation-fenced-cancellable-query-execution-architecture.json`.
-  It is architecture-only and preclaim: runtime, lexical and SQLite owners
-  must freeze one generation-fenced cancellation and join-before-return
-  lifecycle plus exact paths, pins and tests before any USI product claim.
+- The committed USI-07A packet is architecture-only and independently
+  `PASS_AS_BLOCKED_ONLY`: synchronous `provider.query()` plus a timeout check
+  after return proves late-result discard, not interruption or terminal join.
+  It grants no claim or product authority. PRE1A is separately committed and
+  independently `PASS_AS_ARCHITECTURE_ONLY`; it freezes exactly six CBM
+  process/client/query source/test paths and an internal start/interrupt-ack/
+  terminate-kill/bounded-wait/join/terminal-readback lifecycle. The next
+  permitted repo-only action is the now-active tests-first PRE1A
+  implementation under `ABC-USI07A-PRE1A-REV304`. PRE1B immutable UIR
+  context/provider admission may start only after PRE1A is released accepted;
+  a fresh six-path USI-07A sufficiency architecture comes only after both.
+- PRE1A packet details: path
+  `docs/plans/abc-usi07a-pre1a-cancellable-cbm-process-provider-lifecycle-architecture.json`,
+  raw blob `6186172ed362e1bdafe2da469d81011f8fce2ba2`, semantic digest
+  `sha256:3418a839f88db251aace961d22272b4252b34fb46a1bd76081627bf2b96b97e9`.
+  It freezes baselines `{process:c4bcc81cbd77f2d5922a9362e5b106c7af4853e8,
+  client:a439767c1771f574090e00c30279803f66d3f2f5,
+  query:52d8b7df3b54834bc23c7399890a5c7fa3b60466,
+  process_test:25034e3d0183a4db7bdbf0dba294afb91beb2b4a,
+  client_test:805618aa047afe930bc307dd647369d4d474cdbb,
+  query_test:9f755bef9f3fb8c903150eed3043f23141018e6e}` and fifteen
+  tests-first nodes. Implementation must preserve the synchronous legacy
+  provider as fixture-only, allow one private handle, use one monotonic cleanup
+  budget across terminate/kill/wait/join, publish payload at most once only
+  after uninterrupted terminal join, and parse no bytes arriving after cancel.
+  A seventh path or product registration is a hard stop, not scope expansion.
 - `$reflect` after the terminal HWA2A-v5 release selected exactly one disjoint
   repo-only architecture precursor: `AHE-GHISS-01-local-duplicate-search-evidence`.
   Its independently reviewed packet is
@@ -591,16 +1399,16 @@ a snapshot.
 | OWM-15 USI foundation | USI-00..14 accepted; selected native chain advanced | Treat UDA-05 v4 and NMG-03 verification as accepted at Revision 277. Re-audit the next native frontier; USI-15 remains blocked by its declared lifecycle/runtime/scope dependencies. Keep Obsidian excluded and productive sources off. |
 | OWM-16 Codebase Memory | CBM-08 accepted; CBM-09 blocked | Close the declared CBM-09 dependencies before a claim. Keep engine process, hooks, auto-config, productive projection, and direct upstream tools disabled. |
 | OWM-17 Code lineage | CLT-00 accepted; CLT-01 contract next | Use synthetic Git fixtures and read-only history. Preserve first-observable/uncertainty semantics and defer real backfill. |
-| OWM-18 Lens Code Graph | Waits on bounded graph API | Start LCG-00 only after the bounded CBM graph API and one UI-hotfile owner. Fixtures/backend first; no productive graph or placement. |
-| OWM-19 USI runtime | UIR core advanced; runtime default-off | UIR-03A Go-A R2 is accepted despite stale blocked prose. The next permitted work is the Root/Sol USI-07A architecture precursor only; freeze generation-fenced cancellation and join-before-return owner/lifecycle contracts before any product claim. |
+| OWM-18 Lens Code Graph | Product feature approved; waits on bounded graph API and UI owner | After those two prerequisites, start LCG-00 with fixtures/backend first. No productive graph, placement, or UI-live cutover. |
+| OWM-19 USI runtime | UIR core advanced; runtime default-off | The blocked USI-07A parent packet and PRE1A CBM lifecycle packet are committed and independently reviewed. Next register exactly one PRE1A claim on its six frozen paths; after acceptance close PRE1B immutable UIR context/admission, then issue a fresh parent sufficiency architecture. |
 | OWM-20 Domain adapters | UDA-05 v4 and NMG-03 accepted; productive adapters off | Re-audit selected-scope adapter dependencies and continue only an exact fresh claim. Deferred communication domains and Obsidian remain excluded. |
 | OWM-21 Lifecycle/operations | ULO-00/01 accepted; later chain open | Continue the existing ULO dependency chain with synthetic owners and temporary databases. Serialize Auth/backup/wipe hotfiles; every productive lifecycle effect has its own gate. |
-| OWM-22 Telegram Todo truth | Through A5 accepted; A6 Rev301 released blocked | Preserve Notes as Todo truth. `ABC-TTD07A6-REV301` is a terminal non-denominator release after correction 1/1; the original frozen and corrected tuples are rejected, with no product commit or acceptance. The current safe repo-only action is the disjoint USI-07A Root/Sol architecture precursor; no product claim is permitted. |
-| OWM-23 Maintenance harness | AMH-01 verification claim terminally released blocked at Rev299; AMH-02/03 unselected | Do not repeat the old explicit-goal gate: the standing full-roadmap goal selected AMH-01. Before another AMH claim, fresh authority must repair or narrow the executable command/dependency contract that failed before freeze. Extend existing policy/gate/Planning authorities; no parallel state store. |
+| OWM-22 Telegram Todo truth | Through A5 accepted; A6 Rev301 released blocked | Preserve Notes as Todo truth. `ABC-TTD07A6-REV301` is a terminal non-denominator release after correction 1/1; the original frozen and corrected tuples are rejected, with no product commit or acceptance. Continue only the disjoint PRE1A serialized registration/implementation route; no parent USI claim is permitted. |
+| OWM-23 Maintenance harness | Deferred until after release; AMH-01 remains terminally released blocked at Rev299 | Keep AMH unclaimed. After release, a fresh post-release reprioritization must repair/narrow the executable command/dependency contract before any new claim. Extend existing policy/gate/Planning authorities; no parallel state store. |
 | OWM-24 Local transcription | TRP-03..06 accepted; TRP-07 terminal; live off | Newer structured records accept TRP-05 (2026-08-02, independent QA and Deep-Sol) and TRP-06 (`released_accepted`, commit `871ffe64`), overriding the older deferral sentence. Publish only that accepted/default-off lineage plus the reviewed Python 3.11 repair. TRP-07 remained unaccepted after fresh architecture plus two recovery corrections; no third recovery without a new architecture and claim, and no live audio/deploy claim without exact evidence. |
 | OWM-25 Coding loop consolidation | Many CAO/NMG slices accepted | Do not blindly follow stale `ACPR-11 next` prose: current history already contains later ACPR-13D acceptance. Re-run the current frontier audit and claim only the first genuinely unaccepted disjoint predecessor. |
 | OWM-26 Subagent context/delegation | Bounded local/fake contracts accepted | Continue only after current ACPR dependency readback. Real adapter activation and external dispatch remain separately gated. |
-| OWM-27 Live contextual layer | LCL-00 accepted; LCL-01 future frontier | Fresh Root/Sol architecture and exact disjoint claim are required for LCL-01. Hypotheses remain advisory and cannot override Planning/domain/USI/claim authority. |
+| OWM-27 Live contextual layer | Deferred until the remaining system is complete enough for system testing | Keep LCL-01 and successors unclaimed. At later reactivation, require fresh Root/Sol architecture and exact disjoint claim; hypotheses remain advisory and cannot override Planning/domain/USI/claim authority. |
 | OWM-28 Harbor integration | R7-A2 R3R1 terminally released blocked at Rev283 after correction 1/1; RMT8-v2 and HWA/Temporal source normalization accepted; Rev286 denominator verified; HWA2A-v4 released blocked before write at Rev289; HWA2A-v5 released blocked before freeze at Rev292 | Preserve every rejected tuple. Do not patch or promote v5. Run `$reflect` across disjoint repo units; a future HWA2A attempt requires materially fresh architecture from the clean accepted baseline. |
 
 `OWM-24` through `OWM-28` above are continuation overlays derived from later
@@ -617,15 +1425,15 @@ structured authority can open a writer claim.
 
 | Source roadmap | Round 6 frontier / ID | Lane | Disposition | Safe next action |
 |---|---|---|---|---|
-| `agent-maintenance-safety-harness-roadmap.json` | `[0]` / `AMH-01-root-policy-and-runbook` | OWM-23 | `released_blocked_before_freeze_rev299` | The standing goal satisfied selection. Policy 5/5 and central validators pass, but the persisted Windows runner was unavailable in WSL and the pinned broader dependency lane was 50 PASS / 1 foreign Round6-test FAIL. Require fresh executable/dependency authority; do not reuse Rev298. |
+| `agent-maintenance-safety-harness-roadmap.json` | `[0]` / `AMH-01-root-policy-and-runbook` | OWM-23 | `deferred_until_after_release` | Preserve the Rev299 terminal evidence; do not reuse Rev298. After release, a fresh executable/dependency authority and post-release reprioritization are required. |
 | `autonomous-coding-production-readiness-roadmap.json` | `[1]` / `ACPR-12-transactional-worktree-and-safe-tool-capsules` | OWM-25 | `accepted_released_round6_a` | Preserve; do not reclaim. |
 | `coding-agent-orchestration-consolidation-roadmap.md` | `[2]` / `CAO-08G-verification-repair-independent-review` | OWM-25 | `blocked_by_dependency_and_normalization` | Reconcile exact paths, hotfiles, and tests read-only. |
 | `diagnostics-legacy-fix-roadmap.md` | `[3]` / `DLF1B-telegram-history-redaction-fix` | Diagnostics | `normalization_blocked` | Perform only its fresh read-only audit. |
 | `headless-write-agent-orchestration-roadmap.md` | `[4]` / `HWA-2-canonical-subagent-commit-bridge` | OWM-3 support | `normalization_blocked_fresh_architecture_required` | `HWA2-...` is the non-counting historical spelling of this one unit. Any product recovery needs materially fresh architecture and must not revive HWA2A v2. |
 | `system-assurance-runtime-hardening-roadmap.json` | `[5]` / `SAR-02-fresh-release-evidence` | Assurance gate | `blocked_environment` | Wait for the required symlink-capable environment. |
 | `temporal-light-agent-execution-roadmap.json` | `[6]` / `TLR-10-12h-wall-clock-soak` | Temporal gate | `waiting_on_user` | Wait for exact workload, window, limits, and restart injection. |
-| `anti-hallucination-evidence-roadmap.md` | `[7]` / `ANTI-HALLUCINATION-next-domain-audit` | Evidence audit | `Rev302 terminal released_blocked, correction 1/1` | Preserve the frozen/corrected tuples and terminal Evidence; permit only the disjoint USI-07A Root/Sol architecture precursor, never an AHE product claim. |
-| `live-contextual-layer-roadmap.json` | `[8]` / `LCL-01-observation-and-hypothesis-contract` | OWM-27 | `waiting_on_explicit_implementation_goal` | Wait for explicit implementation goal and claim. |
+| `anti-hallucination-evidence-roadmap.md` | `[7]` / `ANTI-HALLUCINATION-next-domain-audit` | Evidence audit | `Rev302 terminal released_blocked, correction 1/1` | Preserve the frozen/corrected tuples and terminal Evidence; permit only the disjoint serialized PRE1A→PRE1B→fresh-USI route, never an AHE product claim. |
+| `live-contextual-layer-roadmap.json` | `[8]` / `LCL-01-observation-and-hypothesis-contract` | OWM-27 | `deferred_until_system_completion_and_testability` | Do not claim LCL work until the remaining system is complete enough for system testing; then require fresh activation, architecture and claim. |
 | `gemma3-memory-ops-optimization-roadmap.md` | `[9]` / `GMI-LIVE-ACTIVATION` | OWM-13 | `waiting_on_user_live_gate` | Keep disabled; revalidate only against native UIR-13 evidence. |
 | `graphrag-raptor-observability-prometheus-grafana-roadmap.md` | `[10]` / `GRO-native-successor-routing` | OWM-14 | `superseded_no_repo_slice` | Preserve evidence; route reusable proof to native successors. |
 | `memory-raptorgraph-consolidation-roadmap.md` | `[11]` / `NMG-05A-causal-store-and-review` | OWM-15 | `normalization_blocked_fresh_architecture_required` | Require fresh Root/Sol architecture; do not patch terminal lineage. |
@@ -640,12 +1448,12 @@ structured authority can open a writer claim.
 | `ai-lens-design-roadmap.json` | `[20]` / `AIL-DESIGN-1-visual-system` | OWM-8 | `needs_design` | Wait for fixed UI paths and independent reviewer. |
 | `odysseus-harbor-one-autonomous-workspace-roadmap.md` | `[21]` / `H1-29-canonical-planning-projection` | OWM-28 | `released_blocked_same_class_recurrence` | Rev297 rejected the frozen two-blob candidate after Deep-Sol proved a hostile `str.__ne__` callback before exact-type validation with correction 1/1. Preserve the bytes; require materially fresh architecture. |
 | `planning-definition-editor-roadmap.json` | `[22]` / `PDE-08-real-save-undo-smoke` | Planning UI | `waiting_on_user` | Wait for user authorization. |
-| `product-planning-skills-integration-roadmap.md` | `[23]` / `PPS-1-skill-import-compatibility` | Planning skills | `waiting_on_user` | Wait for user authorization. |
+| `product-planning-skills-integration-roadmap.md` | `[23]` / `PPS-1-skill-import-compatibility` | Planning skills | `PPS-G0_received_pending_fresh_preflight` | Perform only read-only dependency/path-collision/test-environment preflight, then register one dependency-ready disjoint repo-only claim. |
 | `privacy-safe-tool-analytics-roadmap.md` | `[24]` / `TUA4R-agent-streaming-regression-guard` | OWM-12 | `accepted_released_round6_b` | Preserve; keep capture/backfill disabled. |
 | `telegram-todo-domain-truth-roadmap.md` | `[25]` / `TTD-07A5-poll-webhook-sweep-and-turn-lease` | OWM-22 | `accepted_released_fd2340a6_live_default_off`; A6 terminal Rev301 | Preserve the accepted parent. Rev301 terminally released the disjoint A6 successor after correction 1/1; both candidate tuples are rejected, no product commit or acceptance exists, and any successor requires materially fresh architecture. |
 | `faster-whisper-transcription-protocol-roadmap.json` | `[26]` / `TRP-07-offline-integration-backup-and-live-packet` | OWM-24 | `blocked_after_fresh_architecture_and_two_recovery_corrections_not_accepted` | Preserve TRP-03..06; do not revive TRP-07 without fresh architecture. |
 | `tool-taxonomy-registration-roadmap.md` | `[27]` / `TAX7-existing-admin-ui-consumes-the-catalog` | OWM-11 | `repo_implemented_automated_gates_pass_user_ui_acceptance_open` | Wait for user/UI acceptance; keep activation off. |
-| `lens-code-graph-roadmap.md` | `[28]` / `LCG-00-ux-truth-and-navigation-contract` | OWM-18 | `waiting_on_explicit_goal_and_ui_owner` | Wait for explicit goal and UI owner. |
+| `lens-code-graph-roadmap.md` | `[28]` / `LCG-00-ux-truth-and-navigation-contract` | OWM-18 | `registration_released_before_writer_on_round6_raw_projection_blob_mismatch` | CBM-08 and the existing Knowledge/Lens owner route are verified. Converge the foreign Round6 raw/projection authority, then register a fresh two-path tests-first claim with an exact rolling inventory receipt. Stop before product bytes on repeat mismatch. |
 | `unified-source-index-runtime-integration-roadmap.md` | `[29]` / `UIR-03-composition-root-and-dependency-injection` | OWM-19 | `accepted_released_superseded_aggregate` | Count only accepted UIR-03A Go-A R2 and UIR-03B R2; the generic aggregate and recovery suffixes are non-counting aliases. |
 
 All paths above are under `docs/plans/`. Count proof: Guidance active-profile
@@ -830,7 +1638,7 @@ Historical Rev286 denominator-publication checksum (not current authority):
 
 The authority blobs in this compact receipt are the independently reviewed
 Rev285 compare-before tuple. The block is historical publication evidence only;
-  the current Rev302 router tuple is recorded in section 6. This avoids an
+  the current Rev303 router tuple is recorded in section 6. This avoids an
 impossible self-pin without mixing authority epochs.
 
 ### Overlay authority anchors
@@ -847,7 +1655,7 @@ impossible self-pin without mixing authority epochs.
 - OWM-27: `live-contextual-layer-roadmap.json $.slice_queue[1]`; Round 6
   `$.roadmap_frontiers[8].slice`.
 - OWM-28: Round 7 `$.waves[0].slices[2].execution_claim` holds the terminal
-  R7-A2 R3R1 release. At Revision 302 the long-run and Open Work projections
+  R7-A2 R3R1 release. At Revision 303 the long-run and Open Work projections
   contain zero active claims and zero leases; the AHE-GHISS01 recovery is
   terminal Evidence only;
   `ABC-HWA2A-V5-REV290` is terminally released blocked and retained only as
@@ -942,7 +1750,10 @@ Round 6 row, Open Work history, and any newer accepted record.
   revision-bound Forge content reader; UIR-06 needs generation-fenced
   cancellable query execution and owner decisions; USI-07A is the exact next
   Root/Sol architecture precursor and needs runtime, lexical and SQLite owner
-  lifecycle contracts; CBM-09 needs the runtime and generation contracts.
+  lifecycle contracts. The blocked parent packet and PRE1A lifecycle packet are
+  now committed and independently reviewed; PRE1A claim-origin registration is
+  next, then PRE1B after PRE1A acceptance. CBM-09 still needs the runtime and
+  generation contracts.
   Reconcile these read-only and never invent a parallel API or authority.
 - Historical `queue_status` fields may still carry older labels and
   `next_parallel_wave_registration.active_claims` contains terminal historical
@@ -950,7 +1761,7 @@ Round 6 row, Open Work history, and any newer accepted record.
   `$.current_position.full_goal_progress.long_run_checkpoint` and Round 7
   `$.long_run_state.global_goal_progress.long_run_checkpoint` were normalized
   at Revision 286 to `173/245`, the current deadline, and the verified
-  denominator state. Current Rev302 authority has zero active claims and zero
+  denominator state. Current Rev303 authority has zero active claims and zero
   leases. The AHE-GHISS01 recovery claim described in section 6 is terminal
   evidence only. TTD-07A6 is a terminal non-denominator released-blocked claim after
   correction 1/1, as described in section 6. Its terminal history includes the
@@ -988,8 +1799,8 @@ baseline for a new claim without a materially fresh architecture transaction.
 2. Read `git status --short` and the path-scoped staged/unstaged diff in every
    checkout before any write.
 3. Recompute Open Work/Round 6/Round 7 raw blobs with `--no-filters`; filtered
-   Round 6 hashes are invalid because of CRLF projection. Confirm Revision 302,
-   zero active claims and zero leases, the terminal AHE Evidence and exact
+   Round 6 hashes are invalid because of CRLF projection. Confirm Revision 304,
+   the single PRE1A claim/lease and its exact six paths, the terminal AHE Evidence and exact
    frozen/corrected tuples, plus terminal TTD-07A6, PYRUN, AMH-01,
    H1-29, AHE-GHISS01 and HWA2A-v5 records and all packet/Evidence identities
    from section 6 before any new writer work.
@@ -999,11 +1810,14 @@ baseline for a new claim without a materially fresh architecture transaction.
 5. Do not resume TTD-07A6: its original frozen and corrected tuples are
    terminally rejected after correction 1/1, with terminal Evidence blob
    `6c98365320916e382e8c24b4d860647c91a32793` and no product acceptance. The
-   current safe repo-only action is the disjoint Root/Sol USI-07A architecture
-   precursor; preserve terminal PYRUN, R7-A2 R3R1, HWA2A-v4/v5, AHE-GHISS01,
+   current safe repo-only action is tests-first PRE1A implementation against
+   claim `ABC-USI07A-PRE1A-REV304` and packet blob
+   `6186172ed362e1bdafe2da469d81011f8fce2ba2`;
+   preserve terminal PYRUN, R7-A2 R3R1, HWA2A-v4/v5, AHE-GHISS01,
    H1-29, AMH-01 and TTD evidence without another patch or candidate reuse.
-   Do not resume the AHE product mechanism, register a USI product claim, or
-   write product paths before its owner/lifecycle contract is accepted.
+   Do not resume the AHE product mechanism or register the six-path parent USI
+   product claim. PRE1A writes are limited to the active exact durable claim;
+   PRE1B and the fresh parent architecture remain serialized after acceptance.
 6. The public independent scope review and one-parent/one-commit ancestry are
    complete. No exact action-specific push phrase is currently present, so
    keep push and CI-triggering publication closed.
@@ -1075,8 +1889,8 @@ answer all of the following from repository files alone:
 - What exact redacted deployment, backup, rollback, and health route applies?
 - Which single external action, if any, is still awaiting platform approval?
 
-Current checklist status: **PASS for context-free Rev302 continuity with zero
-active claims and leases**. The terminal AHE Evidence and rejected frozen
+Current checklist status: **PASS for context-free Rev377 continuity with zero
+active claims or leases**. The terminal LCG registration, AHE Evidence and rejected frozen
 and corrected tuples are described above; the enriched 72-record inventory
 contains every required writer-path, test, evidence, authority and drift field,
 preserves all counts and IDs, and is canonical sorted-key JSON+LF. This handoff
@@ -1098,6 +1912,11 @@ identities, release evidence, open-lane rows, immediate sequence, and
 - Debian access recovery through the approved SSH identity path, deployment,
   health/revision readback, or live STT/runtime smoke.
 - UI-live readiness and Version 1.0 release.
+- LCG-00 product acceptance. Revision 377 released the registration before
+  writer dispatch because current foreign Round6 raw bytes do not match the
+  Guidance-bound projection blob and the initial registration Evidence omitted
+  the rolling inventory receipt. Both product paths remain absent; no tests-first
+  RED, candidate, product commit, publication or live result exists.
 - HWA2A-v5 product acceptance. Rev292 terminally released the claim blocked
   before freeze; no product bytes were accepted. Valid 12/12 tests-first RED,
   py_compile, diff-check and terminal Deep-Sol are verified. Complete focused
@@ -1108,10 +1927,11 @@ identities, release evidence, open-lane rows, immediate sequence, and
   `docs/plans/evidence/abc-ahe-ghiss01-recovery-rev302-terminal-release.json`
   with raw blob `d0e216ff5393d90cee275e1eb6feeda66a1ffcb4`; no product was
   accepted. GitHub provider, persistence and live behavior remain outside scope.
-- USI-07A product acceptance. No product claim exists. Only a Root/Sol
-  architecture precursor is permitted, to freeze runtime, lexical and SQLite
-  owner/lifecycle contracts for generation-fenced cancellation and
-  join-before-return before any product path or claim is registered.
+- USI-07A product acceptance. No parent product claim exists. The blocked parent
+  packet and PRE1A architecture are committed and independently reviewed, but
+  PRE1A has no registered claim/candidate/tests yet; PRE1B has no materialized
+  packet; the fresh post-PRE1A/PRE1B six-path parent architecture does not yet
+  exist.
 - H1-29 product acceptance. Rev297 terminally rejected the exact frozen
   candidate after valid RED, focused 8/8, dependency 311/311, static and central
   PASS because Deep-Sol proved same-class hostile callback execution with
