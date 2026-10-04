@@ -278,6 +278,12 @@ def build_embedding_lanes(base_name: str, *, local_only: Optional[bool] = None) 
     embeddings are skipped entirely so document chunks and queries cannot leave
     the local/LAN runtime before higher-level gates run.
     """
+    from src.startup_mode import startup_offline_enabled
+
+    if startup_offline_enabled():
+        logger.info("Embedding lanes unavailable for %s in offline startup mode", base_name)
+        return []
+
     from src.chroma_client import get_chroma_client
 
     chroma_client = get_chroma_client()

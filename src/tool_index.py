@@ -679,6 +679,11 @@ def get_tool_index() -> Optional[ToolIndex]:
     """Get or create the singleton ToolIndex. Returns None if unavailable."""
     global _tool_index, _last_attempt
 
+    from src.startup_mode import startup_offline_enabled
+
+    if startup_offline_enabled():
+        return None
+
     if _tool_index is not None and _tool_index.healthy:
         return _tool_index
 

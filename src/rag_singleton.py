@@ -32,6 +32,11 @@ def get_rag_manager():
     """
     global rag_instance, _last_attempt
 
+    from src.startup_mode import startup_offline_enabled
+
+    if startup_offline_enabled():
+        return None
+
     if rag_instance is not None:
         return rag_instance
 
