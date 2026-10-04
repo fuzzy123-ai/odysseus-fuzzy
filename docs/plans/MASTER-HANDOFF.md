@@ -9,6 +9,27 @@ reopen accepted or released work.
 
 ## Resume checkpoint: 2026-10-04
 
+Local integration update: commit `2d9029a3` contains the independently reviewed
+Planning Python component (twelve changed paths; the thirteenth reviewed
+contract file was already unchanged in HEAD). The separate Inbox test module
+remains outside that commit. The bounded HEAD-Python overlay passed 24 Planning
+and graph cases before an independently reviewed EOF-only whitespace fix.
+
+The frozen-source LF portability candidate allows only nine literal SHA256
+values for six historical members: the existing bytes plus the three known LF
+checkout variants. Historical source-item hashes, manifest identity and strict
+successor authority pins remain unchanged. Four focused cases and the complete
+migration module (57 cases, one terminal run) passed. Independent review and
+local integration of this candidate are tracked in the execution record.
+These fixture checks do not establish an actual Debian checkout, clean corpus
+authority or permission to prepare/accept a migration.
+
+The resumed execution frame is local development without a newly invented
+sprint deadline. Continue scoped ready packets, independent review, focused
+checks and local commits. Stop affected work for overlapping ownership or
+missing owner authority; pause all work on the user's pause request. Push,
+Debian changes, deployment, backup and restore retain their concrete gates.
+
 The current execution record is
 `docs/plans/handoffs/abc-open-work-5h-run-20260905.json`. Its structured claims,
 candidate hashes and verification records take precedence over the historical
