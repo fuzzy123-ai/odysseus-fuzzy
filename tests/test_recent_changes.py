@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import subprocess
+import threading
 
 from src.recent_changes import (
     collect_recent_changes,
@@ -390,3 +391,124 @@ def test_recent_changes_fails_visibly_on_manifest_revision_mismatch(
         snapshot["summary"][0]
     )
     assert "Evidence: filesystem_mtime (degraded)" in snapshot["patch_notes"]
+
+
+def test_startup_snapshot_stop_and_deadline_leave_existing_files_unchanged(
+    tmp_path,
+    monkeypatch,
+):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init")
+    _git(repo, "config", "user.email", "test@example.com")
+    _git(repo, "config", "user.name", "Test User")
+    tracked = repo / "README.md"
+    tracked.write_text("baseline\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "initial")
+
+    history_dir = tmp_path / "history"
+    collect_recent_changes(repo_root=repo, history_dir=history_dir, force=True)
+    history_path = history_dir / "history.jsonl"
+    latest_path = history_dir / "latest.json"
+    before = (history_path.read_bytes(), latest_path.read_bytes())
+
+    import src.recent_changes as recent_changes
+
+    monkeypatch.setattr(recent_changes, "BASE_DIR", str(repo))
+    monkeypatch.setattr(recent_changes, "RECENT_CHANGES_DIR", str(history_dir))
+    stop_event = threading.Event()
+    original_run_git = recent_changes._run_git
+
+    def stop_after_first_git(repo_path, *args, **kwargs):
+        result = original_run_git(repo_path, *args, **kwargs)
+        stop_event.set()
+        return result
+
+    monkeypatch.setattr(recent_changes, "_run_git", stop_after_first_git)
+    recent_changes.maybe_record_startup_snapshot(stop_event=stop_event)
+    assert (history_path.read_bytes(), latest_path.read_bytes()) == before
+
+    monkeypatch.setattr(recent_changes, "_run_git", original_run_git)
+    clock = [10.0]
+    original_monotonic = recent_changes.time.monotonic
+    monkeypatch.setattr(recent_changes.time, "monotonic", lambda: clock[0])
+    timeouts = []
+
+    def expire_after_first_git(repo_path, *args, timeout):
+        timeouts.append(timeout)
+        clock[0] = 26.0
+        return recent_changes.GitCommandResult(True)
+
+    monkeypatch.setattr(recent_changes, "_run_git", expire_after_first_git)
+    recent_changes.maybe_record_startup_snapshot(stop_event=threading.Event())
+    assert (history_path.read_bytes(), latest_path.read_bytes()) == before
+    assert len(timeouts) == 1
+    assert 0 < timeouts[0] <= 8.0
+    assert timeouts[0] <= 15.0
+
+    monkeypatch.setattr(recent_changes, "_run_git", original_run_git)
+    monkeypatch.setattr(recent_changes.time, "monotonic", original_monotonic)
+    manual = recent_changes.collect_recent_changes(
+        repo_root=repo,
+        history_dir=history_dir,
+        force=True,
+    )
+    assert manual["trigger"] == "manual"
+    assert manual["persisted"] is True
+
+
+def test_recent_changes_prunes_transient_artifact_dirs_before_stat_and_reporting(
+    tmp_path,
+    monkeypatch,
+):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init")
+    _git(repo, "config", "user.email", "test@example.com")
+    _git(repo, "config", "user.name", "Test User")
+    tracked = repo / "README.md"
+    tracked.write_text("baseline\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "initial")
+    artifact_paths = []
+    for dirname in (".abc-test-tmp", ".test-tmp", ".pytest-random-case"):
+        artifact = repo / dirname / "nested" / "private.txt"
+        artifact.parent.mkdir(parents=True)
+        artifact.write_text("temporary", encoding="utf-8")
+        artifact_paths.append(artifact)
+
+    import src.recent_changes as recent_changes
+
+    original_stat = recent_changes.Path.stat
+    statted_artifacts = []
+
+    def tracked_stat(path, *args, **kwargs):
+        try:
+            relative_parts = path.relative_to(repo).parts
+        except ValueError:
+            relative_parts = ()
+        if any(
+            component in relative_parts
+            for component in (
+                ".abc-test-tmp",
+                ".test-tmp",
+                ".pytest-random-case",
+            )
+        ):
+            statted_artifacts.append(path)
+        return original_stat(path, *args, **kwargs)
+
+    monkeypatch.setattr(recent_changes.Path, "stat", tracked_stat)
+    snapshot = recent_changes.collect_recent_changes(
+        repo_root=repo,
+        history_dir=tmp_path / "history",
+        persist=False,
+    )
+    dumped = json.dumps(snapshot, sort_keys=True)
+    assert statted_artifacts == []
+    assert all(str(path.relative_to(repo)).replace("\\", "/") not in dumped for path in artifact_paths)
+    assert all(not change["path"].startswith((".abc-test-tmp/", ".test-tmp/", ".pytest-"))
+               for change in snapshot["tracked_changes"])
+    assert all(not path.startswith((".abc-test-tmp/", ".test-tmp/", ".pytest-"))
+               for path in snapshot["untracked_files"])

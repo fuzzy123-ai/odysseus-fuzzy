@@ -11,6 +11,8 @@ import hashlib
 import json
 import os
 import subprocess
+import threading
+import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -86,6 +88,29 @@ _SKIP_SECRET_SUFFIXES = (
     ".p12",
     ".pfx",
 )
+_STARTUP_BUDGET_SECONDS = 15.0
+_STARTUP_GIT_TIMEOUT_SECONDS = 8.0
+
+
+class _StartupSnapshotIncomplete(Exception):
+    """Internal signal that a startup snapshot stopped before it was complete."""
+
+
+@dataclass(frozen=True)
+class _StartupSnapshotControl:
+    deadline: float
+    stop_event: threading.Event
+
+    def remaining(self) -> float:
+        return max(0.0, self.deadline - time.monotonic())
+
+    def checkpoint(self) -> None:
+        if self.stop_event.is_set() or self.remaining() <= 0:
+            raise _StartupSnapshotIncomplete
+
+    def git_timeout(self) -> float:
+        self.checkpoint()
+        return min(_STARTUP_GIT_TIMEOUT_SECONDS, self.remaining())
 
 
 @dataclass(frozen=True)
@@ -111,14 +136,14 @@ def _history_dir(history_dir: str | os.PathLike[str] | None = None) -> Path:
     return Path(history_dir or RECENT_CHANGES_DIR).resolve()
 
 
-def _run_git(repo: Path, *args: str) -> GitCommandResult:
+def _run_git(repo: Path, *args: str, timeout: float = _STARTUP_GIT_TIMEOUT_SECONDS) -> GitCommandResult:
     try:
         completed = subprocess.run(
             ["git", *args],
             cwd=str(repo),
             capture_output=True,
             text=True,
-            timeout=8,
+            timeout=timeout,
             shell=False,
             check=False,
         )
@@ -143,6 +168,10 @@ def _should_skip_rel(rel_path: str) -> bool:
     filename = normalized.rsplit("/", 1)[-1].lower()
     return (
         any(normalized.startswith(prefix) for prefix in _SKIP_PREFIXES)
+        or any(
+            part in {".abc-test-tmp", ".test-tmp"} or part.startswith(".pytest-")
+            for part in normalized.split("/")
+        )
         or any(normalized.endswith(suffix) for suffix in _SKIP_SUFFIXES)
         or filename in _SKIP_EXACT_FILENAMES
         or any(filename.endswith(suffix) for suffix in _SKIP_SECRET_SUFFIXES)
@@ -285,13 +314,22 @@ def _filter_diff_stat(output: str) -> str:
     return "\n".join(lines)
 
 
-def _recent_files(repo: Path, cutoff: datetime) -> list[dict[str, Any]]:
+def _recent_files(
+    repo: Path,
+    cutoff: datetime,
+    *,
+    startup_control: _StartupSnapshotControl | None = None,
+) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     cutoff_ts = cutoff.timestamp()
     for root, dirs, files in os.walk(repo):
+        if startup_control is not None:
+            startup_control.checkpoint()
         dirs[:] = [
             d for d in dirs
-            if d not in _SKIP_DIRS and not d.startswith(".pytest-tmp")
+            if d not in _SKIP_DIRS
+            and d not in {".abc-test-tmp", ".test-tmp"}
+            and not d.startswith((".pytest-", ".pytest-tmp"))
         ]
         root_path = Path(root)
         rel_root = _rel(repo, root_path)
@@ -299,6 +337,8 @@ def _recent_files(repo: Path, cutoff: datetime) -> list[dict[str, Any]]:
             dirs[:] = []
             continue
         for filename in files:
+            if startup_control is not None:
+                startup_control.checkpoint()
             path = root_path / filename
             rel_path = _rel(repo, path)
             if _should_skip_rel(rel_path):
@@ -559,6 +599,7 @@ def collect_recent_changes(
     force: bool = False,
     trigger: str | None = "manual",
     retention_limit: int | None = None,
+    _startup_control: _StartupSnapshotControl | None = None,
 ) -> dict[str, Any]:
     hours = max(1, min(int(hours or DEFAULT_HOURS), 24 * 30))
     repo = _repo_path(repo_root)
@@ -566,11 +607,19 @@ def collect_recent_changes(
     since = now - timedelta(hours=hours)
     since_arg = f"{hours} hours ago"
 
-    log = _run_git(repo, "log", f"--since={since_arg}", "--date=iso", "--pretty=format:%h%x09%ad%x09%an%x09%s")
-    name_status = _run_git(repo, "diff", "--name-status")
-    numstat = _run_git(repo, "diff", "--numstat")
-    diff_stat = _run_git(repo, "diff", "--stat")
-    untracked = _run_git(repo, "ls-files", "--others", "--exclude-standard")
+    def run_git(*args: str) -> GitCommandResult:
+        if _startup_control is None:
+            return _run_git(repo, *args)
+        _startup_control.checkpoint()
+        result = _run_git(repo, *args, timeout=_startup_control.git_timeout())
+        _startup_control.checkpoint()
+        return result
+
+    log = run_git("log", f"--since={since_arg}", "--date=iso", "--pretty=format:%h%x09%ad%x09%an%x09%s")
+    name_status = run_git("diff", "--name-status")
+    numstat = run_git("diff", "--numstat")
+    diff_stat = run_git("diff", "--stat")
+    untracked = run_git("ls-files", "--others", "--exclude-standard")
 
     git_results = (log, name_status, numstat, diff_stat, untracked)
     git_available = all(result.ok for result in git_results)
@@ -625,7 +674,7 @@ def collect_recent_changes(
             for line in (untracked.stdout if untracked.ok else "").splitlines()
             if line.strip() and not _should_skip_rel(line.strip())
         ][:MAX_LIST_ITEMS]
-        recent_files = _recent_files(repo, since)
+        recent_files = _recent_files(repo, since, startup_control=_startup_control)
         evidence_source = (
             "working_tree_git" if git_available else "filesystem_mtime"
         )
@@ -666,6 +715,8 @@ def collect_recent_changes(
     payload["id"] = f"{now.strftime('%Y%m%dT%H%M%SZ')}-{payload['fingerprint'][:10]}"
     payload["patch_notes"] = render_patch_notes(payload)
     if persist:
+        if _startup_control is not None:
+            _startup_control.checkpoint()
         return _write_snapshot(payload, history_dir, force=force, retention_limit=retention_limit)
     payload["persisted"] = False
     payload["retention"] = {
@@ -715,10 +766,22 @@ def read_change_snapshot(
     return None
 
 
-def maybe_record_startup_snapshot() -> None:
+def maybe_record_startup_snapshot(*, stop_event: threading.Event | None = None) -> None:
     """Best-effort startup capture used to keep history warm across restarts."""
+    event = stop_event if stop_event is not None else threading.Event()
+    control = _StartupSnapshotControl(
+        deadline=time.monotonic() + _STARTUP_BUDGET_SECONDS,
+        stop_event=event,
+    )
     try:
-        collect_recent_changes(hours=24, persist=True, trigger="startup")
+        collect_recent_changes(
+            hours=24,
+            persist=True,
+            trigger="startup",
+            _startup_control=control,
+        )
+    except _StartupSnapshotIncomplete:
+        return
     except Exception:
         pass
 
