@@ -48,6 +48,33 @@ FROZEN_MEMBERS = (
     ("specs/roadmaps/private-data-memory-ingestion-roadmap.v1.json", "legacy_graph_v1", "private-data-memory-ingestion", "2b6dd5220f94e4394ef4cbb19df6bc15dcb2824d", "5b2959ec52e2159822d4cbd7a111081bed12eb1987a9eeb0e0bc58964a9c9c81"),
 )
 
+# Frozen raw bytes remain the manifest identity.  These literal alternatives
+# admit only the known all-LF checkout representation of historical text
+# sources; they do not derive or accept arbitrary newline transformations.
+FROZEN_MEMBER_SHA256_VARIANTS = {
+    "specs/roadmaps/abc-roadmap-continuation-runtime.v1.json": frozenset({
+        "9d1e6a876f9a4ada5f60f20c2cb2f0cdb078a987d88c81ed50920410c8085f59",
+    }),
+    "specs/roadmaps/abc-roadmap-reconciliation-import.v1.json": frozenset({
+        "381d0dfd2950875a2d3186a82c7ab3f2e12adf64a5029b8b50a584a0da891d74",
+    }),
+    "specs/roadmaps/odysseus-multiagent-roadmap.v1.json": frozenset({
+        "8fd864ac34bf2df34d1f2b3411b68bb3efe6e5e349a2d22dccd06685082cd2b0",
+        "1432fe063b6747be4780960943871daf57868680c98653ed6b7646ee23b21973",
+    }),
+    "specs/roadmaps/orca-memory-graph-migration-roadmap.v1.json": frozenset({
+        "97732698bfdb201f344c3a165b8781a3bf9225ed8be23043880840d8079eaf80",
+    }),
+    "specs/roadmaps/orca-memory-live-activation-roadmap.v1.json": frozenset({
+        "3338e6f44539884001b3614795d90411d7df6ef45a88ed5f373c2fe79625d786",
+        "c769b3a0a8dd3d77ef3c45dbabd2d84199bc1734cb1ff3a863dc6c973f7bf536",
+    }),
+    "specs/roadmaps/private-data-memory-ingestion-roadmap.v1.json": frozenset({
+        "5b2959ec52e2159822d4cbd7a111081bed12eb1987a9eeb0e0bc58964a9c9c81",
+        "5cdb145b8ad6fdab079bebff6ae843d02a796556e177f200a52778311344a8cf",
+    }),
+}
+
 SUPPORTING_PIN = (SUPPORTING_PATH, "ddf2bc2a5a04017f0616d7bb0857431a70687489de0a9ed0b00a8d393f7954f3")
 AUTHORITY_PINS = {
     "docs/plans/harbour-one-h1r-03-source-census-freeze-2026-08-29.json": "2bcded5358bb2915f4feea8ce5d2f91ccace781b",
@@ -291,7 +318,10 @@ def build_h1r03_migration_manifest(repo_root: str | Path) -> dict[str, Any]:
     normalized: dict[str, str] = {}
     for path, adapter, roadmap_id, blob, sha in FROZEN_MEMBERS:
         raw = (root / path).read_bytes()
-        if _git_blob(raw) != blob or hashlib.sha256(raw).hexdigest() != sha:
+        if (
+            _git_blob(raw) != blob
+            or hashlib.sha256(raw).hexdigest() not in FROZEN_MEMBER_SHA256_VARIANTS[path]
+        ):
             raise DurablePlanningStoreError("stale_authority")
         source = strict_json_object(raw)
         if source.get("plan_id") != roadmap_id:
@@ -621,6 +651,7 @@ def _authority_blob(path: str, raw: bytes, map_id: str) -> str:
 __all__ = [
     "AUTHORITY_MAP_REGISTRY", "AUTHORITY_PINS", "DOCS_ONLY_AUTHORITY_MAP_ID",
     "DOCS_ONLY_AUTHORITY_PINS", "DOCS_ONLY_PRODUCT_RAW_BLOB", "FROZEN_MEMBERS",
+    "FROZEN_MEMBER_SHA256_VARIANTS",
     "H1R04_ACCEPTED_DOCUMENT_PATH", "H1R04_ACCEPTED_DOCUMENT_RAW_BLOB",
     "H1R05_ACCEPTANCE_RECEIPT_PATH", "H1R05_ACCEPTANCE_RECEIPT_RAW_BLOB",
     "HISTORICAL_AUTHORITY_MAP_ID", "HISTORICAL_AUTHORITY_PINS",
