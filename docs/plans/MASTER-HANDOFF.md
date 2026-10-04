@@ -7,6 +7,37 @@ applicable scoped handoff. See `docs/plans/evidence/harbour-one-plan-reconciliat
 for the planning reconciliation. Historical next-action text below does not
 reopen accepted or released work.
 
+## Resume checkpoint: 2026-10-05
+
+The accepted local Knowledge Store component is commit
+`f1d8c0a9d2e2caf2bfa9687a6d445047944233ed`, covering its source and test
+pair. It gives the historical revision-id payload read an owned deferred SQLite
+snapshot across revision, lifecycle head and blob reads. A peer purge between
+the former separate reads now returns the consistent already-read payload
+instead of falsely reporting corruption and quarantining the reader. Three
+focused race, caller-transaction and storage-cleanup cases passed, followed by
+one terminal Store/Active-Runtime lane with **272 passed** (`6d109c`); the
+independent review passed. This is a whole-component local acceptance,
+not a claim that unrelated application composition is clean HEAD.
+
+Earlier worktree composition remains separately bounded: migration commit
+`6e3f27fbd53fe7dde27244771e223f495224de0e` recorded two focused checks and a
+73-case migration-module pass. Fresh actual-app offline startup recorded two
+passes in 12.86 seconds, and the app-migration slice recorded three passes in
+56.71 seconds. These precede the Knowledge Snapshot Repair and are not current
+clean-HEAD acceptance evidence.
+
+The redacted Debian probe reports only fixed booleans: status is OK and the
+container is running. Credential validity, runtime readiness and external
+effects remain unverified. No live Debian change, deployment, backup, restore,
+provider call or push occurred. Before this checkpoint commit, fourteen local
+campaign commits existed; no push was made, and foreign dirty work remains
+outside local commit packages.
+
+Product integration, UI, live and temporal acceptance, and immutable corpus
+authority remain open gates. Preserve the recorded evidence below and continue
+only under the structured current claim and scoped review process.
+
 ## Resume checkpoint: 2026-10-04
 
 The subsequent local commits are `7bb77c4b` (frozen-source LF portability),
