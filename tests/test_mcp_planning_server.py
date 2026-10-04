@@ -137,6 +137,9 @@ def test_planning_tool_surface_is_exact_bounded_and_read_only():
 
     assert planning_tool_names() == PLANNING_TOOL_NAMES
     assert {item["name"] for item in contracts} == set(PLANNING_TOOL_NAMES)
+    assert not set(PLANNING_COMPATIBILITY_TOOL_NAMES).intersection(
+        item["name"] for item in contracts
+    )
     assert all(item["inputSchema"]["additionalProperties"] is False for item in contracts)
     assert all(item["annotations"]["read_only"] is True for item in contracts)
     assert all(item["annotations"]["writes_performed"] is False for item in contracts)
@@ -191,6 +194,16 @@ def test_list_read_search_and_context_tools_use_injected_repo_and_redact_outputs
     assert "[redacted]" in encoded
 
 
+def test_planning_contract_preview_default_preserves_local_stdio_and_http_can_suppress(planning_repo: Path):
+    local = call_planning_tool_contract("planning_list_roadmaps", {}, repo_root=planning_repo)
+    http = call_planning_tool_contract(
+        "planning_list_roadmaps", {}, repo_root=planning_repo, preview_chars=0,
+    )
+
+    assert local["roadmaps"][0]["preview"]
+    assert http["roadmaps"][0]["preview"] == ""
+
+
 def test_graph_summary_is_a_bounded_projection_with_no_raw_source(planning_repo: Path):
     result = call_planning_tool_contract(
         "planning_graph_summary",
@@ -208,6 +221,38 @@ def test_graph_summary_is_a_bounded_projection_with_no_raw_source(planning_repo:
     assert result["absolute_paths_visible"] is False
     assert str(planning_repo) not in json.dumps(result)
     assert '"status"' not in json.dumps(result, sort_keys=True)
+
+
+def test_graph_summary_depth_controls_nodes_and_relation_edges(planning_repo: Path):
+    def summary(depth: int, limit: int = 100):
+        return call_planning_tool_contract(
+            "planning_graph_summary",
+            {"roadmap_ref": "docs/plans/core-roadmap.json", "depth": depth, "limit": limit},
+            repo_root=planning_repo,
+        )
+
+    depth_zero = summary(0)
+    assert [node["kind"] for node in depth_zero["nodes"]] == ["roadmap"]
+    assert depth_zero["edges"] == []
+
+    depth_one = summary(1)
+    assert {node["kind"] for node in depth_one["nodes"]} == {"roadmap", "slice", "gate"}
+    assert {edge["kind"] for edge in depth_one["edges"]} == {"contains", "has_gate"}
+
+    depth_two = summary(2)
+    selected = {node["id"] for node in depth_two["nodes"]}
+    assert {edge["kind"] for edge in depth_two["edges"]} >= {"depends_on", "blocks"}
+    assert all(
+        edge["source_id"] in selected and edge["target_id"] in selected
+        for edge in depth_two["edges"]
+    )
+
+    # Depth 3 remains a bounded one-hop projection, while the existing limit
+    # still clips the node inventory without introducing relation endpoints.
+    depth_three_clipped = summary(3, limit=1)
+    assert depth_three_clipped["depth"] == 3
+    assert [node["kind"] for node in depth_three_clipped["nodes"]] == ["roadmap"]
+    assert depth_three_clipped["edges"] == []
 
 
 def test_gate_definition_tool_drops_legacy_runtime_fields(

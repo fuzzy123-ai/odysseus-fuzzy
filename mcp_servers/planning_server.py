@@ -23,6 +23,9 @@ from src.planning_revision_store import PlanningRevisionStore  # noqa: E402
 server = Server("odysseus-planning")
 
 PLANNING_SERVER_SCHEMA = "odysseus.planning.mcp_server.v1"
+# This is the complete read-only inventory. Authenticated HTTP adapters must
+# preserve this exact list; legacy compatibility tools below remain local
+# stdio-only and are not part of the HTTP dispatch surface.
 PLANNING_TOOL_NAMES = (
     "planning_list_roadmaps",
     "planning_read_roadmap",
@@ -70,6 +73,7 @@ def call_planning_tool_contract(
     arguments: Mapping[str, Any] | None = None,
     *,
     repo_root: str | os.PathLike[str] | None = None,
+    preview_chars: int = 240,
     definition_store: PlanningRevisionStore | None = None,
     definition_owner: str | None = None,
 ) -> dict[str, Any]:
@@ -82,6 +86,7 @@ def call_planning_tool_contract(
         owner = str(definition_owner or os.getenv("ODYSSEUS_SINGLE_USER_OWNER") or "local-user").strip()
         service = PlanningMcpService(
             root,
+            preview_chars=preview_chars,
             definition_store=definition_store or _definition_store(root),
             definition_owner=owner,
         )
@@ -301,6 +306,7 @@ def _tool_contract(name: str) -> dict[str, Any]:
 
 def _graph_summary(read: Mapping[str, Any], *, depth: int, limit: int) -> dict[str, Any]:
     bounded_limit = max(1, min(int(limit), 100))
+    bounded_depth = max(0, min(int(depth), 3))
     roadmap = read.get("roadmap") if isinstance(read.get("roadmap"), Mapping) else {}
     roadmap_id = _safe_id(roadmap.get("roadmap_id"), fallback="roadmap")
     nodes: list[dict[str, Any]] = [{
@@ -311,31 +317,55 @@ def _graph_summary(read: Mapping[str, Any], *, depth: int, limit: int) -> dict[s
     edges: list[dict[str, str]] = []
     slices = read.get("slices") if isinstance(read.get("slices"), list) else []
     gates = read.get("gates") if isinstance(read.get("gates"), list) else []
-    for item in slices:
-        if not isinstance(item, Mapping) or len(nodes) >= bounded_limit:
-            break
-        node_id = _safe_id(item.get("id"), fallback="slice")
-        nodes.append({
-            "id": node_id,
-            "kind": "slice",
-            "label": _bounded_output(item.get("title") or item.get("objective"), 180),
-        })
-        edges.append(_edge(roadmap_id, node_id, "contains"))
-        for dependency in item.get("dependencies") or []:
-            edges.append(_edge(_safe_id(dependency, fallback="dependency"), node_id, "depends_on"))
-    if depth > 0:
+    selected_slice_ids: set[str] = set()
+    selected_gate_ids: set[str] = set()
+    if bounded_depth >= 1:
+        for item in slices:
+            if not isinstance(item, Mapping) or len(nodes) >= bounded_limit:
+                break
+            node_id = _safe_id(item.get("id"), fallback="slice")
+            selected_slice_ids.add(node_id)
+            nodes.append({
+                "id": node_id,
+                "kind": "slice",
+                "label": _bounded_output(item.get("title") or item.get("objective"), 180),
+            })
+            edges.append(_edge(roadmap_id, node_id, "contains"))
         for item in gates:
             if not isinstance(item, Mapping) or len(nodes) >= bounded_limit:
                 break
             gate_id = _safe_id(item.get("id"), fallback="gate")
+            selected_gate_ids.add(gate_id)
             nodes.append({
                 "id": gate_id,
                 "kind": "gate",
                 "label": _bounded_output(item.get("decision_needed") or gate_id, 180),
             })
             edges.append(_edge(roadmap_id, gate_id, "has_gate"))
+    # Depth 2 and 3 expose only relations whose endpoints already exist in this
+    # bounded projection. Depth 3 is intentionally still one-hop: the source
+    # contract has no recursive graph inventory from which to discover nodes.
+    if bounded_depth >= 2:
+        for item in slices:
+            if not isinstance(item, Mapping):
+                continue
+            target_id = _safe_id(item.get("id"), fallback="slice")
+            if target_id not in selected_slice_ids:
+                continue
+            for dependency in item.get("dependencies") or []:
+                source_id = _safe_id(dependency, fallback="dependency")
+                if source_id in selected_slice_ids:
+                    edges.append(_edge(source_id, target_id, "depends_on"))
+        for item in gates:
+            if not isinstance(item, Mapping):
+                continue
+            gate_id = _safe_id(item.get("id"), fallback="gate")
+            if gate_id not in selected_gate_ids:
+                continue
             for blocked in item.get("blocks") or []:
-                edges.append(_edge(gate_id, _safe_id(blocked, fallback="slice"), "blocks"))
+                blocked_id = _safe_id(blocked, fallback="slice")
+                if blocked_id in selected_slice_ids:
+                    edges.append(_edge(gate_id, blocked_id, "blocks"))
     edge_limit = min(200, bounded_limit * 3)
     selected_ids = {node["id"] for node in nodes}
     bounded_edges = [
@@ -347,7 +377,7 @@ def _graph_summary(read: Mapping[str, Any], *, depth: int, limit: int) -> dict[s
         "read_only": True,
         "writes_performed": False,
         "roadmap_ref": read.get("logical_ids") or {},
-        "depth": depth,
+        "depth": bounded_depth,
         "nodes": nodes,
         "edges": bounded_edges,
         "summary": {
@@ -452,7 +482,7 @@ def _description(name: str) -> str:
         "planning_read_roadmap": "Read one roadmap as a bounded structured projection without filesystem-wide access.",
         "planning_search_roadmaps": "Search bounded roadmap metadata, slices, gates and source references.",
         "planning_get_context_pack": "Build a compact source-linked roadmap context pack for an agent handoff.",
-        "planning_graph_summary": "Project one roadmap into bounded roadmap, slice and gate nodes and edges.",
+        "planning_graph_summary": "Project a roadmap at depth 0 (roadmap), 1 (direct slices and gates), or 2–3 (those nodes plus known one-hop relations; depth 3 does not recursively expand).",
         "planning_read_gate_definitions": "Read immutable gate requirements and safe defaults without runtime decisions.",
         "planning_create_agent_handoff": "Create a hash-pinned, non-launching /abc composer handoff.",
     }

@@ -8,13 +8,16 @@ reused by routes and MCP servers in later slices.
 from __future__ import annotations
 
 from copy import deepcopy
+from dataclasses import dataclass
 from datetime import datetime
+from functools import wraps
 import hashlib
 import json
 import ntpath
 import os
 from pathlib import Path
 import re
+import stat
 import unicodedata
 from typing import Any, Iterable, Mapping
 from urllib.parse import unquote
@@ -30,6 +33,10 @@ from src.planning_definition_contract import (
     RUNTIME_FIELD_DENYLIST,
     PlanningDefinitionContractError,
     validate_planning_definition,
+)
+from src.planning_definition_projection import (
+    PlanningDefinitionProjectionError,
+    PlanningDefinitionProjector,
 )
 from src.planning_revision_store import (
     PlanningRevisionStore,
@@ -50,9 +57,58 @@ MAX_SECTION_CONTEXT_BYTES = 32_768
 MAX_RAW_PREVIEW_CHARS = 16_384
 MAX_DRAFT_SLICES = 100
 MAX_DRAFT_GATES = 50
+OWNER_SOURCE_CAPTURE_SCHEMA_ID = "odysseus.planning.owner_source_capture.v1"
+OWNER_SOURCE_DESCRIPTOR_SCHEMA_ID = "odysseus.planning.owner_source_descriptor.v1"
+OWNER_SOURCE_PROJECTION_SCHEMA_ID = "odysseus.planning.owner_source_projection.v1"
+OWNER_SOURCE_READ_SCHEMA_ID = "odysseus.planning.owner_source_projection_read.v1"
+OWNER_SOURCE_POLICY_REF = (
+    "docs/plans/harbor-planning-project-storage-contract.md"
+    "#privacy-and-redaction"
+)
+MAX_OWNER_SOURCE_FILES = 100
+MAX_OWNER_SOURCE_PATH_DEPTH = 32
+MAX_OWNER_SOURCE_PATH_BYTES = 4_096
+MAX_OWNER_SOURCE_BYTES = 2_000_000
+MAX_OWNER_SOURCE_TOTAL_BYTES = 64 * 1_024 * 1_024
+MAX_OWNER_SOURCE_METADATA_BYTES = 65_536
+MAX_OWNER_SOURCE_SUPPORTING_REFS = 24
+OWNER_SOURCE_READ_CHUNK_BYTES = 65_536
+OWNER_MARKDOWN_CAPTURE_SCHEMA_ID = "odysseus.planning.owner_markdown_capture.v1"
+OWNER_MARKDOWN_DESCRIPTOR_SCHEMA_ID = "odysseus.planning.owner_markdown_descriptor.v1"
+OWNER_MARKDOWN_READ_SCHEMA_ID = "odysseus.planning.owner_markdown_body_read.v1"
+OWNER_MARKDOWN_POLICY_REF = (
+    "docs/plans/harbor-planning-project-storage-contract.md"
+    "#explicit-approved-markdown-body-reader"
+)
+MAX_OWNER_MARKDOWN_SELECTIONS = 24
+MAX_OWNER_MARKDOWN_BODY_BYTES = 2_000_000
+MAX_OWNER_MARKDOWN_TOTAL_BODY_BYTES = 8_000_000
+MAX_OWNER_MARKDOWN_METADATA_BYTES = 65_536
+MAX_OWNER_MARKDOWN_PATH_BYTES = 4_096
+MAX_OWNER_MARKDOWN_PATH_DEPTH = 32
 CANONICAL_ROADMAP_KIND = "odysseus.planning.roadmap"
 LEGACY_HARBOR_ROADMAP_KIND = "harbor.planning.roadmap"
 ROADMAP_KIND_ALIASES = frozenset({CANONICAL_ROADMAP_KIND, LEGACY_HARBOR_ROADMAP_KIND})
+_OWNER_SOURCE_IDENTIFIER_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
+_OWNER_SOURCE_WINDOWS_FORBIDDEN = frozenset('<>:"\\|?*')
+_OWNER_SOURCE_WINDOWS_RESERVED = frozenset(
+    {
+        "CON",
+        "PRN",
+        "AUX",
+        "NUL",
+        "CONIN$",
+        "CONOUT$",
+        *(f"COM{index}" for index in range(1, 10)),
+        *(f"LPT{index}" for index in range(1, 10)),
+        "COM¹",
+        "COM²",
+        "COM³",
+        "LPT¹",
+        "LPT²",
+        "LPT³",
+    }
+)
 
 _DRAFT_MODES = frozenset({"Standard ABC", "Overnight Backend Mode"})
 _PATCHABLE_FIELDS = frozenset({
@@ -121,6 +177,74 @@ _REVISION_NOTIFICATION_EVENTS = frozenset(
 )
 
 
+_OwnerSourceIdentity = tuple[int, int, int, int, int, int, int, int]
+
+
+@dataclass(frozen=True, slots=True)
+class _OwnerSourceCandidate:
+    relative_path: str
+    full_path: str
+    identity: _OwnerSourceIdentity
+    parent_identities: tuple[tuple[str, _OwnerSourceIdentity], ...]
+    root_chain: tuple[tuple[str, tuple[int, int, int, int]], ...]
+
+
+@dataclass(frozen=True, slots=True)
+class _OwnerSourceRead:
+    payload: dict[str, Any]
+
+
+@dataclass(frozen=True, slots=True)
+class _OwnerMarkdownSelection:
+    owner_ref: str
+    project_id: str
+    roadmap_id: str
+    source_ref: str
+    expected_body_sha256: str
+
+
+def _owner_source_public_boundary(method):
+    @wraps(method)
+    def guarded(*args, **kwargs):
+        failure: tuple[str, str] | None = None
+        try:
+            return method(*args, **kwargs)
+        except PlanningServiceError as exc:
+            failure = (exc.code, exc.public_message)
+        except Exception:
+            failure = (
+                "owner_source_unavailable",
+                "Owner Planning source is unavailable",
+            )
+        raise PlanningServiceError(*failure) from None
+
+    return guarded
+
+
+def _owner_markdown_public_boundary(method):
+    @wraps(method)
+    def guarded(*args, **kwargs):
+        failure: tuple[str, str] | None = None
+        try:
+            return method(*args, **kwargs)
+        except PlanningServiceError as exc:
+            if exc.code in _OWNER_MARKDOWN_ERROR_MESSAGES:
+                failure = (exc.code, _OWNER_MARKDOWN_ERROR_MESSAGES[exc.code])
+            else:
+                failure = (
+                    "owner_markdown_unavailable",
+                    _OWNER_MARKDOWN_ERROR_MESSAGES["owner_markdown_unavailable"],
+                )
+        except Exception:
+            failure = (
+                "owner_markdown_unavailable",
+                _OWNER_MARKDOWN_ERROR_MESSAGES["owner_markdown_unavailable"],
+            )
+        raise PlanningServiceError(*failure) from None
+
+    return guarded
+
+
 class PlanningMcpService:
     """Read-only Planning operations rooted at one injected repository."""
 
@@ -132,7 +256,11 @@ class PlanningMcpService:
         context_budget_bytes: int = MAX_CONTEXT_BYTES,
         definition_store: PlanningRevisionStore | None = None,
         definition_owner: str = "",
+        owner_markdown_selections: tuple[dict[str, str], ...] = (),
     ) -> None:
+        owner_source_repo_root_input = os.fspath(repo_root)
+        self._owner_source_repo_root_input = owner_source_repo_root_input
+        self._owner_source_repo_root = os.path.abspath(owner_source_repo_root_input)
         self.repo_root = Path(repo_root).resolve(strict=True)
         if not self.repo_root.is_dir():
             raise PlanningServiceError("invalid_repo_root", "Planning repository root is not a directory")
@@ -146,6 +274,21 @@ class PlanningMcpService:
         self._allowed_roots = self._resolve_allowed_roots()
         self._definition_store = definition_store
         self._definition_owner = str(definition_owner or "").strip()
+        self._owner_source_definition_owner = (
+            definition_owner
+            if type(definition_owner) is str
+            and definition_owner
+            and definition_owner == definition_owner.strip()
+            and len(definition_owner) <= 128
+            else None
+        )
+        (
+            self._owner_markdown_selections,
+            self._owner_markdown_selection_digest,
+        ) = _owner_markdown_selection_set(
+            owner_markdown_selections,
+            definition_owner=self._owner_source_definition_owner,
+        )
 
     def list_roadmaps(
         self,
@@ -1108,6 +1251,549 @@ class PlanningMcpService:
         _assert_no_runtime_fields(result)
         return result
 
+    @_owner_markdown_public_boundary
+    def capture_owner_markdown_snapshot(
+        self, expected_owner_ref: str,
+    ) -> dict[str, Any]:
+        """Capture descriptors for explicitly approved exact Markdown bodies."""
+        capture, _bodies = self._capture_owner_markdown_snapshot(expected_owner_ref)
+        return deepcopy(capture)
+
+    @_owner_markdown_public_boundary
+    def read_owner_markdown_body(
+        self, descriptor: Mapping[str, Any], *, expected_owner_ref: str,
+        expected_snapshot_digest: str,
+    ) -> dict[str, Any]:
+        """Recapture and return one exact explicitly approved Markdown body."""
+        owner = _owner_markdown_owner_ref(expected_owner_ref)
+        if not _owner_markdown_is_digest(expected_snapshot_digest):
+            _raise_owner_markdown("owner_markdown_invalid_request")
+        validated = _owner_markdown_descriptor(descriptor, owner=owner)
+        if (
+            validated["selection_digest"] != self._owner_markdown_selection_digest
+            or not _owner_markdown_descriptor_is_selected(
+                validated, self._owner_markdown_selections
+            )
+        ):
+            _raise_owner_markdown("owner_markdown_stale")
+        capture, bodies = self._capture_owner_markdown_snapshot(owner)
+        if capture["snapshot_digest"] != expected_snapshot_digest:
+            _raise_owner_markdown("owner_markdown_stale")
+        key = _owner_markdown_descriptor_key(validated)
+        matches = [
+            item for item in capture["descriptors"]
+            if _owner_markdown_descriptor_key(item) == key
+        ]
+        if len(matches) != 1 or matches[0] != validated or key not in bodies:
+            _raise_owner_markdown("owner_markdown_stale")
+        return {
+            "schema_id": OWNER_MARKDOWN_READ_SCHEMA_ID,
+            "owner_ref": owner,
+            "snapshot_digest": expected_snapshot_digest,
+            "selection_digest": capture["selection_digest"],
+            "planning_snapshot_digest": capture["planning_snapshot_digest"],
+            "descriptor": deepcopy(validated),
+            "content": bodies[key],
+            "body_sha256": validated["body_sha256"],
+            "byte_count": validated["byte_count"],
+            "classification": "private",
+            "content_policy": "inline_local",
+            "owner_policy_ref": OWNER_MARKDOWN_POLICY_REF,
+            "body_exact": True,
+            "canonical_truth": False,
+            "read_only": True,
+            "writes_performed": False,
+        }
+
+    def _capture_owner_markdown_snapshot(
+        self, expected_owner_ref: str,
+    ) -> tuple[dict[str, Any], dict[tuple[str, str, str, str, str], str]]:
+        owner = _owner_markdown_owner_ref(expected_owner_ref)
+        store = self._definition_store
+        root_input = self._owner_source_repo_root_input
+        repo_root = self._owner_source_repo_root
+        resolved_root = self.repo_root
+        definition_owner = self._definition_owner
+        source_definition_owner = self._owner_source_definition_owner
+        selections = self._owner_markdown_selections
+        selection_digest = self._owner_markdown_selection_digest
+        context = dict(
+            store=store, root_input=root_input, repo_root=repo_root,
+            resolved_root=resolved_root, definition_owner=definition_owner,
+            source_definition_owner=source_definition_owner, selections=selections,
+            selection_digest=selection_digest,
+        )
+        _owner_markdown_assert_service_context(self, **context)
+        try:
+            planning_capture, _ = self._capture_owner_source_snapshot(
+                owner, max_sources=MAX_OWNER_SOURCE_FILES
+            )
+        except PlanningServiceError as exc:
+            _raise_owner_markdown_from_owner_source(exc)
+        _owner_markdown_assert_service_context(self, **context)
+        approved = _owner_markdown_approved_selections(
+            selections, owner=owner, planning_capture=planning_capture,
+            selection_digest=selection_digest,
+        )
+        _owner_markdown_check_capture_budget(
+            owner=owner, planning_snapshot_digest=planning_capture["snapshot_digest"],
+            selection_digest=selection_digest, approved=approved,
+        )
+
+        expected_by_ref: dict[str, str] = {}
+        for selection, _planning_descriptor in approved:
+            previous_hash = expected_by_ref.get(selection.source_ref)
+            if previous_hash is not None and previous_hash != selection.expected_body_sha256:
+                _raise_owner_markdown("owner_markdown_invalid_selection")
+            expected_by_ref[selection.source_ref] = selection.expected_body_sha256
+
+        candidates_by_ref: dict[str, _OwnerSourceCandidate] = {}
+        identity_by_ref: dict[str, tuple[int, int, int, int]] = {}
+        candidates_by_identity: dict[
+            tuple[int, int, int, int], _OwnerSourceCandidate
+        ] = {}
+        expected_by_identity: dict[tuple[int, int, int, int], str] = {}
+        total_bytes = 0
+        for source_ref, expected_hash in expected_by_ref.items():
+            try:
+                candidate = _prepare_owner_source_candidate(
+                    repo_root, source_ref, require_json_root=False
+                )
+            except PlanningServiceError as exc:
+                _raise_owner_markdown_from_owner_source(exc)
+            if candidate.identity[3] > MAX_OWNER_MARKDOWN_BODY_BYTES:
+                _raise_owner_markdown("owner_markdown_limit_exceeded")
+            physical_identity = _owner_source_stable_identity(candidate.identity)
+            previous_hash = expected_by_identity.get(physical_identity)
+            if previous_hash is not None and previous_hash != expected_hash:
+                _raise_owner_markdown("owner_markdown_invalid_selection")
+            if physical_identity not in candidates_by_identity:
+                total_bytes += candidate.identity[3]
+                if total_bytes > MAX_OWNER_MARKDOWN_TOTAL_BODY_BYTES:
+                    _raise_owner_markdown("owner_markdown_limit_exceeded")
+                candidates_by_identity[physical_identity] = candidate
+                expected_by_identity[physical_identity] = expected_hash
+            candidates_by_ref[source_ref] = candidate
+            identity_by_ref[source_ref] = physical_identity
+
+        raw_by_identity: dict[tuple[int, int, int, int], bytes] = {}
+        text_by_identity: dict[tuple[int, int, int, int], str] = {}
+        remaining = MAX_OWNER_MARKDOWN_TOTAL_BODY_BYTES
+        for physical_identity, candidate in candidates_by_identity.items():
+            try:
+                raw = _read_owner_source_candidate_raw(
+                    candidate, total_remaining=remaining
+                )
+            except PlanningServiceError as exc:
+                _raise_owner_markdown_from_owner_source(exc)
+            remaining -= len(raw)
+            if ("sha256:" + hashlib.sha256(raw).hexdigest()
+                    != expected_by_identity[physical_identity]):
+                _raise_owner_markdown("owner_markdown_stale")
+            try:
+                content = raw.decode("utf-8", "strict")
+            except UnicodeDecodeError:
+                _raise_owner_markdown("owner_markdown_invalid_body")
+            if "\x00" in content:
+                _raise_owner_markdown("owner_markdown_invalid_body")
+            raw_by_identity[physical_identity] = raw
+            text_by_identity[physical_identity] = content
+
+        _owner_markdown_assert_service_context(self, **context)
+        try:
+            planning_second, _ = self._capture_owner_source_snapshot(
+                owner, max_sources=MAX_OWNER_SOURCE_FILES
+            )
+        except PlanningServiceError as exc:
+            _raise_owner_markdown_from_owner_source(exc)
+        if planning_second != planning_capture:
+            _raise_owner_markdown("owner_markdown_stale")
+        _owner_markdown_assert_service_context(self, **context)
+        for candidate in candidates_by_ref.values():
+            try:
+                _verify_owner_source_candidate(candidate)
+            except PlanningServiceError as exc:
+                _raise_owner_markdown_from_owner_source(exc)
+        _owner_markdown_assert_service_context(self, **context)
+
+        descriptors: list[dict[str, Any]] = []
+        bodies: dict[tuple[str, str, str, str, str], str] = {}
+        for selection, planning_descriptor in approved:
+            physical_identity = identity_by_ref[selection.source_ref]
+            descriptor = _owner_markdown_build_descriptor(
+                owner=owner, selection=selection, planning_descriptor=planning_descriptor,
+                planning_snapshot_digest=planning_capture["snapshot_digest"],
+                selection_digest=selection_digest,
+                byte_count=len(raw_by_identity[physical_identity]),
+            )
+            key = _owner_markdown_descriptor_key(descriptor)
+            if key in bodies:
+                _raise_owner_markdown("owner_markdown_stale")
+            descriptors.append(descriptor)
+            bodies[key] = text_by_identity[physical_identity]
+        descriptors.sort(key=lambda item: (
+            item["project_id"], item["roadmap_id"], item["source_ref"]
+        ))
+        base = {
+            "schema_id": OWNER_MARKDOWN_CAPTURE_SCHEMA_ID,
+            "owner_ref": owner,
+            "selection_mode": "explicit_approved_ref_and_expected_bytes",
+            "selection_digest": selection_digest,
+            "planning_snapshot_digest": planning_capture["snapshot_digest"],
+            "descriptors": descriptors,
+            "eligible_count": len(descriptors),
+            "classification": "private",
+            "content_policy": "inline_local",
+            "owner_policy_ref": OWNER_MARKDOWN_POLICY_REF,
+            "body_exact": True,
+            "canonical_truth": False,
+            "read_only": True,
+            "writes_performed": False,
+        }
+        canonical = _owner_markdown_canonical_bytes(base)
+        capture = {**base, "snapshot_digest": (
+            "sha256:" + hashlib.sha256(canonical).hexdigest()
+        )}
+        if len(_owner_markdown_canonical_bytes(capture)) > MAX_OWNER_MARKDOWN_METADATA_BYTES:
+            _raise_owner_markdown("owner_markdown_limit_exceeded")
+        return capture, bodies
+
+    @_owner_source_public_boundary
+    def capture_owner_source_snapshot(
+        self,
+        expected_owner_ref: str,
+        *,
+        max_sources: int = MAX_OWNER_SOURCE_FILES,
+    ) -> dict[str, Any]:
+        """Capture content-free descriptors for one owner's approved sources."""
+
+        capture, _projections = self._capture_owner_source_snapshot(
+            expected_owner_ref,
+            max_sources=max_sources,
+        )
+        return deepcopy(capture)
+
+    @_owner_source_public_boundary
+    def read_owner_source_projection(
+        self,
+        descriptor: Mapping[str, Any],
+        *,
+        expected_owner_ref: str,
+        expected_snapshot_digest: str,
+    ) -> dict[str, Any]:
+        """Recapture and return one exact approved private projection."""
+
+        owner = _owner_source_owner_ref(expected_owner_ref)
+        if (
+            type(expected_snapshot_digest) is not str
+            or re.fullmatch(r"sha256:[0-9a-f]{64}", expected_snapshot_digest) is None
+        ):
+            raise PlanningServiceError(
+                "owner_source_invalid_request",
+                "Owner Planning source request is invalid",
+            )
+        validated_descriptor = _owner_source_descriptor(descriptor, owner=owner)
+        capture, projections = self._capture_owner_source_snapshot(
+            owner,
+            max_sources=MAX_OWNER_SOURCE_FILES,
+        )
+        if capture["snapshot_digest"] != expected_snapshot_digest:
+            raise PlanningServiceError(
+                "owner_source_stale",
+                "Owner Planning source descriptor is stale",
+            )
+        descriptor_key = _owner_source_descriptor_key(validated_descriptor)
+        matches = [
+            item
+            for item in capture["descriptors"]
+            if _owner_source_descriptor_key(item) == descriptor_key
+        ]
+        if len(matches) != 1 or matches[0] != validated_descriptor:
+            raise PlanningServiceError(
+                "owner_source_stale",
+                "Owner Planning source descriptor is stale",
+            )
+        projection = projections.get(descriptor_key)
+        if projection is None:
+            raise PlanningServiceError(
+                "owner_source_stale",
+                "Owner Planning source descriptor is stale",
+            )
+        return {
+            "schema_id": OWNER_SOURCE_READ_SCHEMA_ID,
+            "owner_ref": owner,
+            "snapshot_digest": expected_snapshot_digest,
+            "descriptor": deepcopy(validated_descriptor),
+            "projection": deepcopy(projection),
+            "classification": "private",
+            "content_policy": "inline_local",
+            "owner_policy_ref": OWNER_SOURCE_POLICY_REF,
+            "projection_exact": True,
+            "raw_source_exact": False,
+            "raw_source_included": False,
+            "read_only": True,
+            "writes_performed": False,
+        }
+
+    def _capture_owner_source_snapshot(
+        self,
+        expected_owner_ref: str,
+        *,
+        max_sources: int,
+    ) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
+        owner = _owner_source_owner_ref(expected_owner_ref)
+        if type(max_sources) is not int or not 1 <= max_sources <= MAX_OWNER_SOURCE_FILES:
+            raise PlanningServiceError(
+                "owner_source_invalid_request",
+                "Owner Planning source request is invalid",
+            )
+        store = self._definition_store
+        if (
+            type(store) is not PlanningRevisionStore
+            or self._definition_owner != owner
+            or self._owner_source_definition_owner != owner
+        ):
+            raise PlanningServiceError(
+                "definition_store_unavailable",
+                "Planning Definition v2 store is unavailable",
+            )
+        repo_root = _owner_source_validate_lexical_repo_root(
+            self._owner_source_repo_root_input,
+            self._owner_source_repo_root,
+        )
+        first = _owner_source_store_snapshot(store, owner)
+        if (
+            self._definition_store is not store
+            or self._definition_owner != owner
+            or self._owner_source_definition_owner != owner
+        ):
+            raise PlanningServiceError(
+                "owner_source_changed",
+                "Owner Planning source changed during capture",
+            )
+        if len(first["eligible"]) > max_sources:
+            raise PlanningServiceError(
+                "owner_source_limit_exceeded",
+                "Owner Planning source exceeds its limit",
+            )
+
+        rows_by_source: dict[str, list[dict[str, Any]]] = {}
+        for row in first["eligible"]:
+            rows_by_source.setdefault(row["source_ref"], []).append(row)
+        if len(rows_by_source) > MAX_OWNER_SOURCE_FILES:
+            raise PlanningServiceError(
+                "owner_source_limit_exceeded",
+                "Owner Planning source exceeds its limit",
+            )
+
+        candidates: dict[str, _OwnerSourceCandidate] = {}
+        total_bytes = 0
+        for source_ref in rows_by_source:
+            candidate = _prepare_owner_source_candidate(
+                repo_root,
+                source_ref,
+            )
+            total_bytes += candidate.identity[3]
+            if total_bytes > MAX_OWNER_SOURCE_TOTAL_BYTES:
+                raise PlanningServiceError(
+                    "owner_source_limit_exceeded",
+                    "Owner Planning source exceeds its limit",
+                )
+            candidates[source_ref] = candidate
+
+        documents: dict[str, _OwnerSourceRead] = {}
+        remaining = MAX_OWNER_SOURCE_TOTAL_BYTES
+        for source_ref, candidate in candidates.items():
+            documents[source_ref] = _read_owner_source_candidate(
+                candidate,
+                total_remaining=remaining,
+            )
+            remaining -= candidate.identity[3]
+
+        projector = PlanningDefinitionProjector()
+        descriptors: list[dict[str, Any]] = []
+        projections: dict[str, dict[str, Any]] = {}
+        for source_ref, selected_rows in rows_by_source.items():
+            try:
+                document = projector.normalize_document(
+                    documents[source_ref].payload,
+                    source_ref=source_ref,
+                )
+            except PlanningDefinitionProjectionError as exc:
+                raise PlanningServiceError(
+                    "source_version_stale",
+                    "Approved Planning source version is stale",
+                ) from exc
+            except RecursionError:
+                raise PlanningServiceError(
+                    "owner_source_invalid_json",
+                    "Owner Planning source is not valid JSON",
+                ) from None
+            target_rows = {
+                (row["project_id"], row["roadmap_id"], row["revision"]): row
+                for row in selected_rows
+            }
+            selected: dict[tuple[str, str, int], dict[str, Any]] = {}
+            try:
+                roadmaps = document["roadmaps"]
+                for roadmap in roadmaps:
+                    key = (
+                        roadmap["project_id"],
+                        roadmap["roadmap_id"],
+                        roadmap["revision"],
+                    )
+                    row = target_rows.get(key)
+                    if row is None:
+                        continue
+                    if key in selected:
+                        raise PlanningServiceError(
+                            "source_version_stale",
+                            "Approved Planning source version is stale",
+                        )
+                    if (
+                        roadmap["revision_state"] != "approved"
+                        or roadmap["content_hash"] != row["content_hash"]
+                    ):
+                        raise PlanningServiceError(
+                            "source_version_stale",
+                            "Approved Planning source version is stale",
+                        )
+                    selected[key] = roadmap
+            except PlanningServiceError:
+                raise
+            except Exception as exc:
+                raise PlanningServiceError(
+                    "source_version_stale",
+                    "Approved Planning source version is stale",
+                ) from exc
+
+            for row in selected_rows:
+                key = (row["project_id"], row["roadmap_id"], row["revision"])
+                roadmap = selected.get(key)
+                if roadmap is None:
+                    raise PlanningServiceError(
+                        "source_version_stale",
+                        "Approved Planning source version is stale",
+                    )
+                projection = {
+                    "schema_id": OWNER_SOURCE_PROJECTION_SCHEMA_ID,
+                    "project_id": row["project_id"],
+                    "roadmap": deepcopy(roadmap),
+                }
+                try:
+                    projection_bytes = projector.canonical_bytes(projection)
+                except PlanningDefinitionProjectionError as exc:
+                    raise PlanningServiceError(
+                        "owner_source_unavailable",
+                        "Owner Planning source is unavailable",
+                    ) from exc
+                if len(projection_bytes) > MAX_OWNER_SOURCE_BYTES:
+                    raise PlanningServiceError(
+                        "owner_source_limit_exceeded",
+                        "Owner Planning source exceeds its limit",
+                    )
+                if _contains_sensitive_value(projection_bytes.decode("utf-8")):
+                    raise PlanningServiceError(
+                        "owner_source_sensitive_content",
+                        "Owner Planning source contains a rejected sensitive pattern",
+                    )
+                descriptor = {
+                    "schema_id": OWNER_SOURCE_DESCRIPTOR_SCHEMA_ID,
+                    "owner_ref": owner,
+                    "project_id": row["project_id"],
+                    "roadmap_id": row["roadmap_id"],
+                    "revision": row["revision"],
+                    "revision_state": "approved",
+                    "source_ref": source_ref,
+                    "content_hash": row["content_hash"],
+                    "canonical_projection_hash": (
+                        "sha256:" + hashlib.sha256(projection_bytes).hexdigest()
+                    ),
+                    "supporting_refs": _owner_source_supporting_refs(
+                        roadmap.get("source_refs")
+                    ),
+                    "classification": "private",
+                    "content_policy": "inline_local",
+                    "owner_policy_ref": OWNER_SOURCE_POLICY_REF,
+                    "projection_exact": True,
+                    "raw_source_exact": False,
+                    "raw_source_included": False,
+                }
+                descriptor = _owner_source_descriptor(descriptor, owner=owner)
+                descriptor_key = _owner_source_descriptor_key(descriptor)
+                if descriptor_key in projections:
+                    raise PlanningServiceError(
+                        "owner_source_integrity_error",
+                        "Owner Planning source metadata failed integrity validation",
+                    )
+                descriptors.append(descriptor)
+                projections[descriptor_key] = projection
+
+        if (
+            self._definition_store is not store
+            or self._definition_owner != owner
+            or self._owner_source_definition_owner != owner
+        ):
+            raise PlanningServiceError(
+                "owner_source_changed",
+                "Owner Planning source changed during capture",
+            )
+        try:
+            second = _owner_source_store_snapshot(store, owner)
+        except PlanningServiceError as exc:
+            raise PlanningServiceError(
+                "owner_source_changed",
+                "Owner Planning source changed during capture",
+            ) from exc
+        if (
+            self._definition_store is not store
+            or self._definition_owner != owner
+            or self._owner_source_definition_owner != owner
+            or first != second
+        ):
+            raise PlanningServiceError(
+                "owner_source_changed",
+                "Owner Planning source changed during capture",
+            )
+        for candidate in candidates.values():
+            _verify_owner_source_candidate(candidate)
+
+        descriptors.sort(
+            key=lambda item: (
+                item["project_id"],
+                item["roadmap_id"],
+                item["revision"],
+            )
+        )
+        manifest = {
+            "schema_id": OWNER_SOURCE_CAPTURE_SCHEMA_ID,
+            "owner_ref": owner,
+            "selection_mode": "latest_approved",
+            "descriptors": descriptors,
+            "ineligible": deepcopy(first["ineligible"]),
+            "classification": "private",
+            "content_policy": "inline_local",
+            "owner_policy_ref": OWNER_SOURCE_POLICY_REF,
+        }
+        canonical = _owner_source_canonical_bytes(manifest)
+        if len(canonical) > MAX_OWNER_SOURCE_METADATA_BYTES:
+            raise PlanningServiceError(
+                "owner_source_limit_exceeded",
+                "Owner Planning source exceeds its limit",
+            )
+        capture = {
+            **manifest,
+            "eligible_count": len(descriptors),
+            "ineligible_count": len(first["ineligible"]),
+            "snapshot_digest": "sha256:" + hashlib.sha256(canonical).hexdigest(),
+            "projection_exact": True,
+            "raw_source_exact": False,
+            "raw_source_included": False,
+            "read_only": True,
+            "writes_performed": False,
+        }
+        return capture, projections
+
     def _definition_revision(
         self,
         project_id: str,
@@ -1763,6 +2449,1346 @@ def planning_propose_patch(
     **kwargs: Any,
 ) -> dict[str, Any]:
     return PlanningMcpService(repo_root).propose_patch(roadmap_ref, proposal, **kwargs)
+
+
+_OWNER_MARKDOWN_ERROR_MESSAGES = {
+    "owner_markdown_invalid_request": "Owner Markdown request is invalid",
+    "owner_markdown_invalid_selection": "Owner Markdown selection is invalid",
+    "owner_markdown_limit_exceeded": "Owner Markdown request exceeds its limit",
+    "owner_markdown_stale": "Owner Markdown snapshot is stale",
+    "owner_markdown_unsafe_filesystem": "Owner Markdown filesystem is unsafe",
+    "owner_markdown_invalid_body": "Owner Markdown body is invalid",
+    "owner_markdown_unavailable": "Owner Markdown body is unavailable",
+}
+
+
+def _raise_owner_markdown(code: str) -> None:
+    raise PlanningServiceError(code, _OWNER_MARKDOWN_ERROR_MESSAGES[code]) from None
+
+
+def _raise_owner_markdown_from_owner_source(exc: PlanningServiceError) -> None:
+    if exc.code == "owner_source_limit_exceeded":
+        _raise_owner_markdown("owner_markdown_limit_exceeded")
+    if exc.code == "owner_source_unsafe_filesystem":
+        _raise_owner_markdown("owner_markdown_unsafe_filesystem")
+    if exc.code in {
+        "owner_source_changed", "owner_source_integrity_error",
+        "owner_source_invalid_json", "owner_source_sensitive_content",
+        "owner_source_unsafe_ref", "owner_not_found", "source_version_stale",
+    }:
+        _raise_owner_markdown("owner_markdown_stale")
+    _raise_owner_markdown("owner_markdown_unavailable")
+
+
+def _owner_markdown_is_digest(value: Any) -> bool:
+    return type(value) is str and re.fullmatch(r"sha256:[0-9a-f]{64}", value) is not None
+
+
+def _owner_markdown_owner_ref(value: Any) -> str:
+    if (type(value) is not str or not value or value != value.strip()
+            or len(value) > 128 or any(ord(ch) < 32 for ch in value)):
+        _raise_owner_markdown("owner_markdown_invalid_request")
+    return value
+
+
+def _owner_markdown_identifier(value: Any, *, request: bool) -> str:
+    if type(value) is not str or _OWNER_SOURCE_IDENTIFIER_RE.fullmatch(value) is None:
+        _raise_owner_markdown(
+            "owner_markdown_invalid_request" if request else "owner_markdown_invalid_selection"
+        )
+    return value
+
+
+def _owner_markdown_source_ref(value: Any, *, request: bool) -> str:
+    code = "owner_markdown_invalid_request" if request else "owner_markdown_invalid_selection"
+    if (type(value) is not str or not value or value != value.strip()
+            or unicodedata.normalize("NFC", value) != value or "\\" in value
+            or value.startswith(("/", "~")) or ntpath.splitdrive(value)[0]
+            or _URI_RE.match(value) or any(ord(ch) < 32 for ch in value)):
+        _raise_owner_markdown(code)
+    try:
+        encoded = value.encode("utf-8", "strict")
+    except UnicodeEncodeError:
+        _raise_owner_markdown(code)
+    parts = tuple(value.split("/"))
+    roots = [root for root in PLANNING_ROOTS if value.startswith(root + "/")]
+    if (len(encoded) > MAX_OWNER_MARKDOWN_PATH_BYTES
+            or len(parts) > MAX_OWNER_MARKDOWN_PATH_DEPTH
+            or any(part in {"", ".", ".."} for part in parts)
+            or any(not _owner_source_windows_component_is_safe(part) for part in parts)
+            or len(roots) != 1
+            or not value.lower().endswith((".md", ".markdown"))):
+        _raise_owner_markdown(code)
+    return value
+
+
+def _owner_markdown_canonical_bytes(value: Any) -> bytes:
+    try:
+        return json.dumps(
+            value, ensure_ascii=False, allow_nan=False, separators=(",", ":"),
+            sort_keys=True,
+        ).encode("utf-8")
+    except (TypeError, ValueError, UnicodeError):
+        _raise_owner_markdown("owner_markdown_unavailable")
+
+
+def _owner_markdown_selection_dict(selection: _OwnerMarkdownSelection) -> dict[str, str]:
+    return {
+        "owner_ref": selection.owner_ref, "project_id": selection.project_id,
+        "roadmap_id": selection.roadmap_id, "source_ref": selection.source_ref,
+        "expected_body_sha256": selection.expected_body_sha256,
+    }
+
+
+def _owner_markdown_selection_digest(
+    selections: tuple[_OwnerMarkdownSelection, ...],
+) -> str:
+    canonical = _owner_markdown_canonical_bytes({
+        "schema_id": "odysseus.planning.owner_markdown_selection.v1",
+        "rows": [_owner_markdown_selection_dict(item) for item in selections],
+    })
+    if len(canonical) > MAX_OWNER_MARKDOWN_METADATA_BYTES:
+        _raise_owner_markdown("owner_markdown_limit_exceeded")
+    return "sha256:" + hashlib.sha256(canonical).hexdigest()
+
+
+def _owner_markdown_selection_set_impl(
+    value: Any, *, definition_owner: str | None,
+) -> tuple[tuple[_OwnerMarkdownSelection, ...], str]:
+    if type(value) is not tuple:
+        _raise_owner_markdown("owner_markdown_invalid_selection")
+    if len(value) > MAX_OWNER_MARKDOWN_SELECTIONS:
+        _raise_owner_markdown("owner_markdown_limit_exceeded")
+    keys = {"owner_ref", "project_id", "roadmap_id", "source_ref",
+            "expected_body_sha256"}
+    detached: list[_OwnerMarkdownSelection] = []
+    for row in value:
+        if (type(row) is not dict
+                or any(type(key) is not str for key in row)
+                or set(row) != keys
+                or any(type(item) is not str for item in row.values())):
+            _raise_owner_markdown("owner_markdown_invalid_selection")
+        owner = row["owner_ref"]
+        if (not owner or owner != owner.strip() or len(owner) > 128
+                or any(ord(ch) < 32 for ch in owner)):
+            _raise_owner_markdown("owner_markdown_invalid_selection")
+        project = _owner_markdown_identifier(row["project_id"], request=False)
+        roadmap = _owner_markdown_identifier(row["roadmap_id"], request=False)
+        source = _owner_markdown_source_ref(row["source_ref"], request=False)
+        body_hash = row["expected_body_sha256"]
+        if not _owner_markdown_is_digest(body_hash):
+            _raise_owner_markdown("owner_markdown_invalid_selection")
+        detached.append(_OwnerMarkdownSelection(owner, project, roadmap, source, body_hash))
+    detached.sort(key=lambda item: (item.owner_ref, item.project_id, item.roadmap_id,
+                                     item.source_ref, item.expected_body_sha256))
+    if detached:
+        owners = {item.owner_ref for item in detached}
+        if len(owners) != 1 or definition_owner not in owners:
+            _raise_owner_markdown("owner_markdown_invalid_selection")
+    logical: set[tuple[str, str, str, str]] = set()
+    aliases: dict[tuple[str, str, str, str], str] = {}
+    physical_hashes: dict[tuple[str, str], str] = {}
+    for item in detached:
+        logical_key = (item.owner_ref, item.project_id, item.roadmap_id, item.source_ref)
+        if logical_key in logical:
+            _raise_owner_markdown("owner_markdown_invalid_selection")
+        logical.add(logical_key)
+        alias_key = (item.owner_ref, item.project_id, item.roadmap_id,
+                     ntpath.normcase(item.source_ref))
+        previous_path = aliases.get(alias_key)
+        if previous_path is not None and previous_path != item.source_ref:
+            _raise_owner_markdown("owner_markdown_invalid_selection")
+        aliases[alias_key] = item.source_ref
+        physical_key = (item.owner_ref, ntpath.normcase(item.source_ref))
+        previous_hash = physical_hashes.get(physical_key)
+        if previous_hash is not None and previous_hash != item.expected_body_sha256:
+            _raise_owner_markdown("owner_markdown_invalid_selection")
+        physical_hashes[physical_key] = item.expected_body_sha256
+    selections = tuple(detached)
+    return selections, _owner_markdown_selection_digest(selections)
+
+
+def _owner_markdown_selection_set(
+    value: Any, *, definition_owner: str | None,
+) -> tuple[tuple[_OwnerMarkdownSelection, ...], str]:
+    failure: tuple[str, str] | None = None
+    try:
+        return _owner_markdown_selection_set_impl(
+            value, definition_owner=definition_owner
+        )
+    except PlanningServiceError as exc:
+        code = (exc.code if exc.code in {
+            "owner_markdown_invalid_selection", "owner_markdown_limit_exceeded"
+        } else "owner_markdown_invalid_selection")
+        failure = (code, _OWNER_MARKDOWN_ERROR_MESSAGES[code])
+    except Exception:
+        failure = (
+            "owner_markdown_invalid_selection",
+            _OWNER_MARKDOWN_ERROR_MESSAGES["owner_markdown_invalid_selection"],
+        )
+    raise PlanningServiceError(*failure) from None
+
+
+def _owner_markdown_assert_service_context(
+    service: PlanningMcpService, *, store: Any, root_input: str, repo_root: str,
+    resolved_root: Path, definition_owner: str,
+    source_definition_owner: str | None,
+    selections: tuple[_OwnerMarkdownSelection, ...], selection_digest: str,
+) -> None:
+    if (service._definition_store is not store
+            or service._owner_source_repo_root_input is not root_input
+            or service._owner_source_repo_root is not repo_root
+            or service.repo_root is not resolved_root
+            or service._definition_owner is not definition_owner
+            or service._owner_source_definition_owner is not source_definition_owner
+            or service._owner_markdown_selections is not selections
+            or service._owner_markdown_selection_digest != selection_digest
+            or _owner_markdown_selection_digest(selections) != selection_digest):
+        _raise_owner_markdown("owner_markdown_stale")
+
+
+def _owner_markdown_approved_selections(
+    selections: tuple[_OwnerMarkdownSelection, ...], *, owner: str,
+    planning_capture: dict[str, Any], selection_digest: str,
+) -> list[tuple[_OwnerMarkdownSelection, dict[str, Any]]]:
+    if selection_digest != _owner_markdown_selection_digest(selections):
+        _raise_owner_markdown("owner_markdown_stale")
+    approved: list[tuple[_OwnerMarkdownSelection, dict[str, Any]]] = []
+    for selection in selections:
+        if selection.owner_ref != owner:
+            _raise_owner_markdown("owner_markdown_stale")
+        matches = []
+        for descriptor in planning_capture["descriptors"]:
+            expected_ref = {
+                "source_ref": selection.source_ref,
+                "kind": "rendered_handoff_ref",
+                "access": "reference_only",
+            }
+            if (descriptor["project_id"] == selection.project_id
+                    and descriptor["roadmap_id"] == selection.roadmap_id
+                    and any(ref == expected_ref for ref in descriptor["supporting_refs"])):
+                matches.append(descriptor)
+        if len(matches) != 1:
+            _raise_owner_markdown("owner_markdown_stale")
+        approved.append((selection, deepcopy(matches[0])))
+    return approved
+
+
+def _owner_markdown_build_descriptor(
+    *, owner: str, selection: _OwnerMarkdownSelection,
+    planning_descriptor: Mapping[str, Any], planning_snapshot_digest: str,
+    selection_digest: str, byte_count: int,
+) -> dict[str, Any]:
+    descriptor = {
+        "schema_id": OWNER_MARKDOWN_DESCRIPTOR_SCHEMA_ID,
+        "owner_ref": owner, "project_id": selection.project_id,
+        "roadmap_id": selection.roadmap_id,
+        "approved_revision": planning_descriptor["revision"],
+        "domain_content_hash": planning_descriptor["content_hash"],
+        "canonical_projection_hash": planning_descriptor["canonical_projection_hash"],
+        "planning_source_ref": planning_descriptor["source_ref"],
+        "planning_snapshot_digest": planning_snapshot_digest,
+        "selection_digest": selection_digest, "source_ref": selection.source_ref,
+        "body_sha256": selection.expected_body_sha256, "byte_count": byte_count,
+        "classification": "private", "content_policy": "inline_local",
+        "owner_policy_ref": OWNER_MARKDOWN_POLICY_REF, "body_exact": True,
+        "canonical_truth": False,
+    }
+    descriptor["version_digest"] = (
+        "sha256:" + hashlib.sha256(_owner_markdown_canonical_bytes(descriptor)).hexdigest()
+    )
+    return descriptor
+
+
+def _owner_markdown_check_capture_budget(
+    *, owner: str, planning_snapshot_digest: str, selection_digest: str,
+    approved: list[tuple[_OwnerMarkdownSelection, dict[str, Any]]],
+) -> None:
+    descriptors = [
+        _owner_markdown_build_descriptor(
+            owner=owner, selection=selection, planning_descriptor=planning_descriptor,
+            planning_snapshot_digest=planning_snapshot_digest,
+            selection_digest=selection_digest, byte_count=MAX_OWNER_MARKDOWN_BODY_BYTES,
+        )
+        for selection, planning_descriptor in approved
+    ]
+    projected = {
+        "schema_id": OWNER_MARKDOWN_CAPTURE_SCHEMA_ID, "owner_ref": owner,
+        "selection_mode": "explicit_approved_ref_and_expected_bytes",
+        "selection_digest": selection_digest,
+        "planning_snapshot_digest": planning_snapshot_digest,
+        "descriptors": descriptors, "eligible_count": len(descriptors),
+        "classification": "private", "content_policy": "inline_local",
+        "owner_policy_ref": OWNER_MARKDOWN_POLICY_REF, "body_exact": True,
+        "canonical_truth": False, "read_only": True, "writes_performed": False,
+        "snapshot_digest": "sha256:" + ("0" * 64),
+    }
+    if len(_owner_markdown_canonical_bytes(projected)) > MAX_OWNER_MARKDOWN_METADATA_BYTES:
+        _raise_owner_markdown("owner_markdown_limit_exceeded")
+
+
+def _owner_markdown_descriptor(value: Any, *, owner: str) -> dict[str, Any]:
+    keys = {
+        "schema_id", "owner_ref", "project_id", "roadmap_id",
+        "approved_revision", "domain_content_hash", "canonical_projection_hash",
+        "planning_source_ref", "planning_snapshot_digest", "selection_digest",
+        "source_ref", "body_sha256", "byte_count", "classification",
+        "content_policy", "owner_policy_ref", "body_exact", "canonical_truth",
+        "version_digest",
+    }
+    if (type(value) is not dict
+            or any(type(key) is not str for key in value)
+            or set(value) != keys):
+        _raise_owner_markdown("owner_markdown_invalid_request")
+    string_fields = {
+        "schema_id", "owner_ref", "project_id", "roadmap_id",
+        "domain_content_hash", "canonical_projection_hash",
+        "planning_source_ref", "planning_snapshot_digest", "selection_digest",
+        "source_ref", "body_sha256", "classification", "content_policy",
+        "owner_policy_ref", "version_digest",
+    }
+    if (any(type(value.get(field)) is not str for field in string_fields)
+            or type(value.get("approved_revision")) is not int
+            or type(value.get("byte_count")) is not int
+            or type(value.get("body_exact")) is not bool
+            or type(value.get("canonical_truth")) is not bool):
+        _raise_owner_markdown("owner_markdown_invalid_request")
+    if (value["schema_id"] != OWNER_MARKDOWN_DESCRIPTOR_SCHEMA_ID
+            or value["owner_ref"] != owner
+            or value["classification"] != "private"
+            or value["content_policy"] != "inline_local"
+            or value["owner_policy_ref"] != OWNER_MARKDOWN_POLICY_REF
+            or value["body_exact"] is not True
+            or value["canonical_truth"] is not False):
+        _raise_owner_markdown("owner_markdown_invalid_request")
+    project = _owner_markdown_identifier(value["project_id"], request=True)
+    roadmap = _owner_markdown_identifier(value["roadmap_id"], request=True)
+    source = _owner_markdown_source_ref(value["source_ref"], request=True)
+    revision = value["approved_revision"]
+    count = value["byte_count"]
+    if (not 1 <= revision <= 2**63 - 1
+            or not 0 <= count <= MAX_OWNER_MARKDOWN_BODY_BYTES
+            or any(not _owner_markdown_is_digest(value[field]) for field in (
+                "domain_content_hash", "canonical_projection_hash",
+                "planning_snapshot_digest", "selection_digest", "body_sha256",
+                "version_digest"))):
+        _raise_owner_markdown("owner_markdown_invalid_request")
+    try:
+        planning_ref = _owner_source_source_ref(value.get("planning_source_ref"))
+    except PlanningServiceError:
+        _raise_owner_markdown("owner_markdown_invalid_request")
+    result = {
+        "schema_id": OWNER_MARKDOWN_DESCRIPTOR_SCHEMA_ID, "owner_ref": owner,
+        "project_id": project, "roadmap_id": roadmap, "approved_revision": revision,
+        "domain_content_hash": value["domain_content_hash"],
+        "canonical_projection_hash": value["canonical_projection_hash"],
+        "planning_source_ref": planning_ref,
+        "planning_snapshot_digest": value["planning_snapshot_digest"],
+        "selection_digest": value["selection_digest"], "source_ref": source,
+        "body_sha256": value["body_sha256"], "byte_count": count,
+        "classification": "private", "content_policy": "inline_local",
+        "owner_policy_ref": OWNER_MARKDOWN_POLICY_REF, "body_exact": True,
+        "canonical_truth": False,
+    }
+    version = "sha256:" + hashlib.sha256(_owner_markdown_canonical_bytes(result)).hexdigest()
+    if value["version_digest"] != version:
+        _raise_owner_markdown("owner_markdown_invalid_request")
+    return {**result, "version_digest": version}
+
+
+def _owner_markdown_descriptor_key(
+    value: Mapping[str, Any],
+) -> tuple[str, str, str, str, str]:
+    return (value["owner_ref"], value["project_id"], value["roadmap_id"],
+            value["source_ref"], value["version_digest"])
+
+
+def _owner_markdown_descriptor_is_selected(
+    descriptor: Mapping[str, Any], selections: tuple[_OwnerMarkdownSelection, ...],
+) -> bool:
+    return any(
+        item.owner_ref == descriptor["owner_ref"]
+        and item.project_id == descriptor["project_id"]
+        and item.roadmap_id == descriptor["roadmap_id"]
+        and item.source_ref == descriptor["source_ref"]
+        and item.expected_body_sha256 == descriptor["body_sha256"]
+        for item in selections
+    )
+
+
+def _owner_source_owner_ref(value: Any) -> str:
+    if (
+        type(value) is not str
+        or not value
+        or value != value.strip()
+        or len(value) > 128
+        or any(ord(character) < 32 for character in value)
+    ):
+        raise PlanningServiceError(
+            "owner_source_invalid_request",
+            "Owner Planning source request is invalid",
+        )
+    return value
+
+
+def _owner_source_identifier(value: Any) -> str:
+    if type(value) is not str or _OWNER_SOURCE_IDENTIFIER_RE.fullmatch(value) is None:
+        raise PlanningServiceError(
+            "owner_source_integrity_error",
+            "Owner Planning source metadata failed integrity validation",
+        )
+    return value
+
+
+def _owner_source_revision(value: Any) -> int:
+    if type(value) is not int or not 1 <= value <= (2**63 - 1):
+        raise PlanningServiceError(
+            "owner_source_integrity_error",
+            "Owner Planning source metadata failed integrity validation",
+        )
+    return value
+
+
+def _owner_source_content_hash(value: Any) -> str:
+    if (
+        type(value) is not str
+        or re.fullmatch(r"sha256:[0-9a-f]{64}", value) is None
+    ):
+        raise PlanningServiceError(
+            "owner_source_integrity_error",
+            "Owner Planning source metadata failed integrity validation",
+        )
+    return value
+
+
+def _owner_source_timestamp(value: Any) -> str:
+    if type(value) is not str or not value or value != value.strip() or len(value) > 64:
+        raise PlanningServiceError(
+            "owner_source_integrity_error",
+            "Owner Planning source metadata failed integrity validation",
+        )
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise PlanningServiceError(
+            "owner_source_integrity_error",
+            "Owner Planning source metadata failed integrity validation",
+        ) from exc
+    if parsed.tzinfo is None:
+        raise PlanningServiceError(
+            "owner_source_integrity_error",
+            "Owner Planning source metadata failed integrity validation",
+        )
+    return value
+
+
+def _owner_source_path_parts(value: Any, *, require_json_root: bool) -> tuple[str, tuple[str, ...]]:
+    if (
+        type(value) is not str
+        or not value
+        or value != value.strip()
+        or len(value) > 240
+        or unicodedata.normalize("NFC", value) != value
+        or "\\" in value
+        or value.startswith(("/", "~"))
+        or ntpath.splitdrive(value)[0]
+        or _URI_RE.match(value)
+        or any(ord(character) < 32 for character in value)
+    ):
+        raise PlanningServiceError(
+            "owner_source_unsafe_ref",
+            "Owner Planning source reference is unsafe",
+        )
+    try:
+        encoded = value.encode("utf-8", "strict")
+    except UnicodeEncodeError as exc:
+        raise PlanningServiceError(
+            "owner_source_unsafe_ref",
+            "Owner Planning source reference is unsafe",
+        ) from exc
+    parts = tuple(value.split("/"))
+    if (
+        len(encoded) > MAX_OWNER_SOURCE_PATH_BYTES
+        or len(parts) > MAX_OWNER_SOURCE_PATH_DEPTH
+        or any(part in {"", ".", ".."} for part in parts)
+        or any(not _owner_source_windows_component_is_safe(part) for part in parts)
+    ):
+        raise PlanningServiceError(
+            "owner_source_unsafe_ref",
+            "Owner Planning source reference is unsafe",
+        )
+    if require_json_root:
+        roots = [
+            root
+            for root in PLANNING_ROOTS
+            if value.startswith(root + "/")
+        ]
+        if len(roots) != 1 or not value.lower().endswith(".json"):
+            raise PlanningServiceError(
+                "owner_source_unsafe_ref",
+                "Owner Planning source reference is unsafe",
+            )
+    return value, parts
+
+
+def _owner_source_windows_component_is_safe(component: str) -> bool:
+    if (
+        not component
+        or component in {".", ".."}
+        or component.endswith((".", " "))
+        or any(
+            ord(character) < 32
+            or character in _OWNER_SOURCE_WINDOWS_FORBIDDEN
+            for character in component
+        )
+    ):
+        return False
+    reserved_stem = component.partition(".")[0].rstrip(" ").upper()
+    return reserved_stem not in _OWNER_SOURCE_WINDOWS_RESERVED
+
+
+def _owner_source_validate_lexical_repo_root(value: Any, expected: Any) -> str:
+    unsafe = False
+    if (
+        type(value) is not str
+        or type(expected) is not str
+        or not value
+        or value != value.strip()
+        or unicodedata.normalize("NFC", value) != value
+        or _URI_RE.match(value)
+        or any(ord(character) < 32 for character in value)
+    ):
+        unsafe = True
+
+    encoded = b""
+    drive = ""
+    tail = ""
+    if not unsafe:
+        try:
+            encoded = value.encode("utf-8", "strict")
+            drive, tail = ntpath.splitdrive(value)
+        except (UnicodeEncodeError, TypeError, ValueError):
+            unsafe = True
+    if len(encoded) > MAX_OWNER_SOURCE_PATH_BYTES:
+        unsafe = True
+
+    anchor_components: list[str] = []
+    if not unsafe and drive:
+        if drive.startswith(("\\\\", "//")):
+            anchor_components = [
+                part for part in re.split(r"[\\/]", drive) if part
+            ]
+            if len(anchor_components) != 2:
+                unsafe = True
+        elif re.fullmatch(r"[A-Za-z]:", drive) is None:
+            unsafe = True
+    if not unsafe:
+        if os.name == "nt":
+            if not drive or not tail.startswith(("\\", "/")):
+                unsafe = True
+        elif drive or not tail.startswith("/"):
+            unsafe = True
+
+    path_components: list[str] = []
+    if not unsafe:
+        slash_tail = tail.replace("\\", "/")
+        body = slash_tail[1:]
+        if body.endswith("/"):
+            body = body[:-1]
+        path_components = body.split("/") if body else []
+        if "" in path_components:
+            unsafe = True
+    if not unsafe and any(
+        not _owner_source_windows_component_is_safe(component)
+        for component in (*anchor_components, *path_components)
+    ):
+        unsafe = True
+
+    if not unsafe:
+        try:
+            rebound = os.path.abspath(value)
+        except (OSError, TypeError, ValueError):
+            unsafe = True
+        else:
+            if os.path.normcase(rebound) != os.path.normcase(expected):
+                unsafe = True
+    if unsafe:
+        raise PlanningServiceError(
+            "owner_source_unsafe_filesystem",
+            "Owner Planning source filesystem is unsafe",
+        )
+    return expected
+
+
+def _owner_source_source_ref(value: Any) -> str:
+    return _owner_source_path_parts(value, require_json_root=True)[0]
+
+
+def _owner_source_reference_ref(value: Any) -> str:
+    reference, _parts = _owner_source_path_parts(value, require_json_root=False)
+    if not reference.lower().endswith((".md", ".markdown")):
+        raise PlanningServiceError(
+            "owner_source_unsafe_ref",
+            "Owner Planning source reference is unsafe",
+        )
+    return reference
+
+
+def _owner_source_store_snapshot(
+    store: PlanningRevisionStore,
+    owner: str,
+) -> dict[str, Any]:
+    try:
+        value = store.snapshot_owner_sources(owner)
+    except PlanningRevisionStoreError as exc:
+        code = {
+            "owner_not_found": "owner_not_found",
+            "owner_source_limit_exceeded": "owner_source_limit_exceeded",
+            "owner_source_integrity_error": "owner_source_integrity_error",
+            "owner_source_invalid_request": "owner_source_invalid_request",
+        }.get(exc.code, "owner_source_unavailable")
+        messages = {
+            "owner_not_found": "Planning owner was not found",
+            "owner_source_limit_exceeded": "Owner Planning source exceeds its limit",
+            "owner_source_integrity_error": (
+                "Owner Planning source metadata failed integrity validation"
+            ),
+            "owner_source_invalid_request": "Owner Planning source request is invalid",
+            "owner_source_unavailable": "Owner Planning source is unavailable",
+        }
+        raise PlanningServiceError(code, messages[code]) from exc
+    except Exception as exc:
+        raise PlanningServiceError(
+            "owner_source_unavailable",
+            "Owner Planning source is unavailable",
+        ) from exc
+    return _validated_owner_source_snapshot(value, owner=owner)
+
+
+def _validated_owner_source_snapshot(
+    value: Any,
+    *,
+    owner: str,
+) -> dict[str, Any]:
+    if type(value) is not dict:
+        raise PlanningServiceError(
+            "owner_source_integrity_error",
+            "Owner Planning source metadata failed integrity validation",
+        )
+    expected_keys = {
+        "schema_id",
+        "owner",
+        "selection_mode",
+        "eligible",
+        "ineligible",
+        "eligible_count",
+        "ineligible_count",
+        "snapshot_digest",
+    }
+    if (
+        set(value) != expected_keys
+        or value.get("schema_id") != "odysseus.planning.owner_source_snapshot.v1"
+        or value.get("owner") != owner
+        or value.get("selection_mode") != "latest_approved"
+        or type(value.get("eligible")) is not list
+        or type(value.get("ineligible")) is not list
+    ):
+        raise PlanningServiceError(
+            "owner_source_integrity_error",
+            "Owner Planning source metadata failed integrity validation",
+        )
+    eligible = [
+        _owner_source_eligible_row(item, owner=owner)
+        for item in value["eligible"]
+    ]
+    ineligible = [
+        _owner_source_ineligible_row(item)
+        for item in value["ineligible"]
+    ]
+    if (
+        len(eligible) + len(ineligible) > MAX_OWNER_SOURCE_FILES
+        or type(value.get("eligible_count")) is not int
+        or value["eligible_count"] != len(eligible)
+        or type(value.get("ineligible_count")) is not int
+        or value["ineligible_count"] != len(ineligible)
+    ):
+        raise PlanningServiceError(
+            "owner_source_integrity_error",
+            "Owner Planning source metadata failed integrity validation",
+        )
+    manifest = {
+        "schema_id": value["schema_id"],
+        "owner": owner,
+        "selection_mode": value["selection_mode"],
+        "eligible": eligible,
+        "ineligible": ineligible,
+    }
+    canonical = _owner_source_canonical_bytes(manifest)
+    digest = "sha256:" + hashlib.sha256(canonical).hexdigest()
+    if (
+        type(value.get("snapshot_digest")) is not str
+        or value["snapshot_digest"] != digest
+        or len(canonical) > MAX_OWNER_SOURCE_METADATA_BYTES
+    ):
+        raise PlanningServiceError(
+            "owner_source_integrity_error",
+            "Owner Planning source metadata failed integrity validation",
+        )
+    return {
+        **manifest,
+        "eligible_count": len(eligible),
+        "ineligible_count": len(ineligible),
+        "snapshot_digest": digest,
+    }
+
+
+def _owner_source_eligible_row(value: Any, *, owner: str) -> dict[str, Any]:
+    expected = {
+        "project_id",
+        "roadmap_id",
+        "eligibility",
+        "revision",
+        "revision_state",
+        "content_hash",
+        "updated_at",
+        "source_ref",
+    }
+    if (
+        type(value) is not dict
+        or set(value) != expected
+        or value.get("eligibility") != "eligible_approved"
+        or value.get("revision_state") != "approved"
+    ):
+        raise PlanningServiceError(
+            "owner_source_integrity_error",
+            "Owner Planning source metadata failed integrity validation",
+        )
+    return {
+        "project_id": _owner_source_identifier(value.get("project_id")),
+        "roadmap_id": _owner_source_identifier(value.get("roadmap_id")),
+        "eligibility": "eligible_approved",
+        "revision": _owner_source_revision(value.get("revision")),
+        "revision_state": "approved",
+        "content_hash": _owner_source_content_hash(value.get("content_hash")),
+        "updated_at": _owner_source_timestamp(value.get("updated_at")),
+        "source_ref": _owner_source_source_ref(value.get("source_ref")),
+    }
+
+
+def _owner_source_ineligible_row(value: Any) -> dict[str, Any]:
+    expected = {
+        "project_id",
+        "roadmap_id",
+        "eligibility",
+        "revision",
+        "revision_state",
+        "content_hash",
+        "updated_at",
+        "source_ref",
+    }
+    if (
+        type(value) is not dict
+        or set(value) != expected
+        or value.get("eligibility") != "ineligible_no_approved_revision"
+        or value.get("revision") is not None
+        or value.get("revision_state") != ""
+        or value.get("content_hash") != ""
+        or value.get("updated_at") != ""
+        or value.get("source_ref") != ""
+    ):
+        raise PlanningServiceError(
+            "owner_source_integrity_error",
+            "Owner Planning source metadata failed integrity validation",
+        )
+    return {
+        "project_id": _owner_source_identifier(value.get("project_id")),
+        "roadmap_id": _owner_source_identifier(value.get("roadmap_id")),
+        "eligibility": "ineligible_no_approved_revision",
+        "revision": None,
+        "revision_state": "",
+        "content_hash": "",
+        "updated_at": "",
+        "source_ref": "",
+    }
+
+
+def _owner_source_supporting_refs(value: Any) -> list[dict[str, str]]:
+    if type(value) is not list:
+        raise PlanningServiceError(
+            "owner_source_integrity_error",
+            "Owner Planning source metadata failed integrity validation",
+        )
+    selected: set[str] = set()
+    for item in value:
+        if type(item) is not str:
+            raise PlanningServiceError(
+                "owner_source_integrity_error",
+                "Owner Planning source metadata failed integrity validation",
+            )
+        if not item.lower().endswith((".md", ".markdown")):
+            continue
+        selected.add(_owner_source_reference_ref(item))
+        if len(selected) > MAX_OWNER_SOURCE_SUPPORTING_REFS:
+            raise PlanningServiceError(
+                "owner_source_limit_exceeded",
+                "Owner Planning source exceeds its limit",
+            )
+    return [
+        {
+            "source_ref": reference,
+            "kind": "rendered_handoff_ref",
+            "access": "reference_only",
+        }
+        for reference in sorted(selected)
+    ]
+
+
+def _owner_source_descriptor(value: Any, *, owner: str) -> dict[str, Any]:
+    expected = {
+        "schema_id",
+        "owner_ref",
+        "project_id",
+        "roadmap_id",
+        "revision",
+        "revision_state",
+        "source_ref",
+        "content_hash",
+        "canonical_projection_hash",
+        "supporting_refs",
+        "classification",
+        "content_policy",
+        "owner_policy_ref",
+        "projection_exact",
+        "raw_source_exact",
+        "raw_source_included",
+    }
+    if (
+        type(value) is not dict
+        or set(value) != expected
+        or value.get("schema_id") != OWNER_SOURCE_DESCRIPTOR_SCHEMA_ID
+        or value.get("owner_ref") != owner
+        or value.get("revision_state") != "approved"
+        or value.get("classification") != "private"
+        or value.get("content_policy") != "inline_local"
+        or value.get("owner_policy_ref") != OWNER_SOURCE_POLICY_REF
+        or value.get("projection_exact") is not True
+        or value.get("raw_source_exact") is not False
+        or value.get("raw_source_included") is not False
+        or type(value.get("supporting_refs")) is not list
+    ):
+        raise PlanningServiceError(
+            "owner_source_stale",
+            "Owner Planning source descriptor is stale",
+        )
+    supporting: list[dict[str, str]] = []
+    for item in value["supporting_refs"]:
+        if (
+            type(item) is not dict
+            or set(item) != {"source_ref", "kind", "access"}
+            or item.get("kind") != "rendered_handoff_ref"
+            or item.get("access") != "reference_only"
+        ):
+            raise PlanningServiceError(
+                "owner_source_stale",
+                "Owner Planning source descriptor is stale",
+            )
+        try:
+            supporting_ref = _owner_source_reference_ref(item.get("source_ref"))
+        except PlanningServiceError as exc:
+            raise PlanningServiceError(
+                "owner_source_stale",
+                "Owner Planning source descriptor is stale",
+            ) from exc
+        supporting.append(
+            {
+                "source_ref": supporting_ref,
+                "kind": "rendered_handoff_ref",
+                "access": "reference_only",
+            }
+        )
+    if len(supporting) > MAX_OWNER_SOURCE_SUPPORTING_REFS:
+        raise PlanningServiceError(
+            "owner_source_stale",
+            "Owner Planning source descriptor is stale",
+        )
+    try:
+        project_id = _owner_source_identifier(value.get("project_id"))
+        roadmap_id = _owner_source_identifier(value.get("roadmap_id"))
+        revision = _owner_source_revision(value.get("revision"))
+        source_ref = _owner_source_source_ref(value.get("source_ref"))
+        content_hash = _owner_source_content_hash(value.get("content_hash"))
+        projection_hash = _owner_source_content_hash(
+            value.get("canonical_projection_hash")
+        )
+    except PlanningServiceError as exc:
+        raise PlanningServiceError(
+            "owner_source_stale",
+            "Owner Planning source descriptor is stale",
+        ) from exc
+    return {
+        "schema_id": OWNER_SOURCE_DESCRIPTOR_SCHEMA_ID,
+        "owner_ref": owner,
+        "project_id": project_id,
+        "roadmap_id": roadmap_id,
+        "revision": revision,
+        "revision_state": "approved",
+        "source_ref": source_ref,
+        "content_hash": content_hash,
+        "canonical_projection_hash": projection_hash,
+        "supporting_refs": supporting,
+        "classification": "private",
+        "content_policy": "inline_local",
+        "owner_policy_ref": OWNER_SOURCE_POLICY_REF,
+        "projection_exact": True,
+        "raw_source_exact": False,
+        "raw_source_included": False,
+    }
+
+
+def _owner_source_descriptor_key(value: Mapping[str, Any]) -> str:
+    return hashlib.sha256(_owner_source_canonical_bytes(dict(value))).hexdigest()
+
+
+def _owner_source_canonical_bytes(value: Any) -> bytes:
+    try:
+        return json.dumps(
+            value,
+            ensure_ascii=False,
+            allow_nan=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode("utf-8")
+    except (TypeError, ValueError, UnicodeError) as exc:
+        raise PlanningServiceError(
+            "owner_source_integrity_error",
+            "Owner Planning source metadata failed integrity validation",
+        ) from exc
+
+
+def _owner_source_nanoseconds(value: Any, fallback: float) -> int:
+    return value if type(value) is int else int(fallback * 1_000_000_000)
+
+
+def _owner_source_is_reparse(info: os.stat_result) -> bool:
+    attributes = getattr(info, "st_file_attributes", 0)
+    marker = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
+    return type(attributes) is int and bool(attributes & marker)
+
+
+def _owner_source_identity(info: os.stat_result) -> _OwnerSourceIdentity:
+    mtime = _owner_source_nanoseconds(
+        getattr(info, "st_mtime_ns", None),
+        info.st_mtime,
+    )
+    ctime = _owner_source_nanoseconds(
+        getattr(info, "st_ctime_ns", None),
+        info.st_ctime,
+    )
+    birthtime_value = getattr(info, "st_birthtime_ns", None)
+    birthtime = ctime if birthtime_value is None else int(birthtime_value)
+    return (
+        int(info.st_dev),
+        int(info.st_ino),
+        int(info.st_mode),
+        int(info.st_size),
+        mtime,
+        ctime,
+        1 if _owner_source_is_reparse(info) else 0,
+        birthtime,
+    )
+
+
+def _owner_source_stable_identity(
+    value: _OwnerSourceIdentity,
+) -> tuple[int, int, int, int]:
+    return value[0], value[1], stat.S_IFMT(value[2]), value[6]
+
+
+def _owner_source_path_handle_match(
+    path: _OwnerSourceIdentity,
+    handle: _OwnerSourceIdentity,
+) -> bool:
+    if os.name != "nt":
+        return path == handle
+    return path[:5] == handle[:5] and path[6:] == handle[6:]
+
+
+def _owner_source_lstat(path: str, *, missing_stale: bool = False) -> os.stat_result:
+    try:
+        return os.lstat(path)
+    except FileNotFoundError as exc:
+        code = "source_version_stale" if missing_stale else "owner_source_unsafe_filesystem"
+        message = (
+            "Approved Planning source version is stale"
+            if missing_stale
+            else "Owner Planning source filesystem is unsafe"
+        )
+        raise PlanningServiceError(code, message) from exc
+    except (PermissionError, OSError) as exc:
+        raise PlanningServiceError(
+            "owner_source_unsafe_filesystem",
+            "Owner Planning source filesystem is unsafe",
+        ) from exc
+
+
+def _owner_source_ancestor_paths(path: str) -> tuple[str, ...]:
+    result: list[str] = []
+    current = path
+    while True:
+        result.append(current)
+        parent = os.path.dirname(current)
+        if parent == current:
+            break
+        if not parent:
+            raise PlanningServiceError(
+                "owner_source_unsafe_filesystem",
+                "Owner Planning source filesystem is unsafe",
+            )
+        current = parent
+    result.reverse()
+    return tuple(result)
+
+
+def _owner_source_capture_root_chain(
+    repo_root: str,
+) -> tuple[tuple[str, tuple[int, int, int, int]], ...]:
+    pins: list[tuple[str, tuple[int, int, int, int]]] = []
+    for path in _owner_source_ancestor_paths(repo_root):
+        identity = _owner_source_identity(_owner_source_lstat(path))
+        if (
+            not stat.S_ISDIR(identity[2])
+            or stat.S_ISLNK(identity[2])
+            or identity[6]
+        ):
+            raise PlanningServiceError(
+                "owner_source_unsafe_filesystem",
+                "Owner Planning source filesystem is unsafe",
+            )
+        pins.append((path, _owner_source_stable_identity(identity)))
+    return tuple(pins)
+
+
+def _owner_source_verify_root_chain(
+    pins: tuple[tuple[str, tuple[int, int, int, int]], ...],
+) -> None:
+    if not pins:
+        raise PlanningServiceError(
+            "owner_source_unsafe_filesystem",
+            "Owner Planning source filesystem is unsafe",
+        )
+    for path, expected in pins:
+        identity = _owner_source_identity(_owner_source_lstat(path))
+        if (
+            not stat.S_ISDIR(identity[2])
+            or stat.S_ISLNK(identity[2])
+            or identity[6]
+            or _owner_source_stable_identity(identity) != expected
+        ):
+            raise PlanningServiceError(
+                "owner_source_unsafe_filesystem",
+                "Owner Planning source filesystem is unsafe",
+            )
+
+
+def _owner_source_joined_child(parent: str, name: str) -> str:
+    child = os.path.join(parent, name)
+    if os.path.normpath(child) != child or os.path.dirname(child) != parent:
+        raise PlanningServiceError(
+            "owner_source_unsafe_filesystem",
+            "Owner Planning source filesystem is unsafe",
+        )
+    return child
+
+
+def _prepare_owner_source_candidate(
+    repo_root: str,
+    source_ref: str,
+    *,
+    require_json_root: bool = True,
+) -> _OwnerSourceCandidate:
+    if require_json_root:
+        normalized, parts = _owner_source_path_parts(
+            source_ref, require_json_root=True
+        )
+    else:
+        normalized = _owner_markdown_source_ref(source_ref, request=False)
+        parts = tuple(normalized.split("/"))
+    root_chain = _owner_source_capture_root_chain(repo_root)
+    current = repo_root
+    parents: list[tuple[str, _OwnerSourceIdentity]] = []
+    root_identity = _owner_source_identity(_owner_source_lstat(current))
+    parents.append((current, root_identity))
+    for part in parts[:-1]:
+        current = _owner_source_joined_child(current, part)
+        identity = _owner_source_identity(_owner_source_lstat(current))
+        if (
+            not stat.S_ISDIR(identity[2])
+            or stat.S_ISLNK(identity[2])
+            or identity[6]
+        ):
+            raise PlanningServiceError(
+                "owner_source_unsafe_filesystem",
+                "Owner Planning source filesystem is unsafe",
+            )
+        parents.append((current, identity))
+    full_path = _owner_source_joined_child(current, parts[-1])
+    identity = _owner_source_identity(
+        _owner_source_lstat(full_path, missing_stale=True)
+    )
+    if (
+        not stat.S_ISREG(identity[2])
+        or stat.S_ISLNK(identity[2])
+        or identity[6]
+    ):
+        raise PlanningServiceError(
+            "owner_source_unsafe_filesystem",
+            "Owner Planning source filesystem is unsafe",
+        )
+    if identity[3] > MAX_OWNER_SOURCE_BYTES:
+        raise PlanningServiceError(
+            "owner_source_limit_exceeded",
+            "Owner Planning source exceeds its limit",
+        )
+    return _OwnerSourceCandidate(
+        normalized,
+        full_path,
+        identity,
+        tuple(parents),
+        root_chain,
+    )
+
+
+def _verify_owner_source_parents(candidate: _OwnerSourceCandidate) -> None:
+    _owner_source_verify_root_chain(candidate.root_chain)
+    for path, expected in candidate.parent_identities:
+        identity = _owner_source_identity(_owner_source_lstat(path))
+        if (
+            not stat.S_ISDIR(identity[2])
+            or stat.S_ISLNK(identity[2])
+            or identity[6]
+            or _owner_source_stable_identity(identity)
+            != _owner_source_stable_identity(expected)
+        ):
+            raise PlanningServiceError(
+                "owner_source_unsafe_filesystem",
+                "Owner Planning source filesystem is unsafe",
+            )
+
+
+def _owner_source_open_flags() -> int:
+    flags = os.O_RDONLY
+    for name in ("O_NONBLOCK", "O_NOFOLLOW", "O_BINARY", "O_NOINHERIT"):
+        value = getattr(os, name, 0)
+        if type(value) is int:
+            flags |= value
+    return flags
+
+
+class _OwnerSourceJsonFailure(ValueError):
+    pass
+
+
+def _owner_source_json_object(raw: bytes) -> dict[str, Any]:
+    try:
+        text = raw.decode("utf-8", "strict")
+
+        def pairs(items: list[tuple[str, Any]]) -> dict[str, Any]:
+            result: dict[str, Any] = {}
+            for key, value in items:
+                if key in result:
+                    raise _OwnerSourceJsonFailure()
+                result[key] = value
+            return result
+
+        def constant(_value: str) -> None:
+            raise _OwnerSourceJsonFailure()
+
+        value = json.loads(
+            text,
+            object_pairs_hook=pairs,
+            parse_constant=constant,
+        )
+    except (UnicodeDecodeError, ValueError, RecursionError):
+        raise PlanningServiceError(
+            "owner_source_invalid_json",
+            "Owner Planning source is not valid JSON",
+        ) from None
+    if type(value) is not dict:
+        raise PlanningServiceError(
+            "owner_source_invalid_json",
+            "Owner Planning source is not valid JSON",
+        )
+    return value
+
+
+def _read_owner_source_candidate(
+    candidate: _OwnerSourceCandidate,
+    *,
+    total_remaining: int,
+) -> _OwnerSourceRead:
+    raw = _read_owner_source_candidate_raw(
+        candidate, total_remaining=total_remaining
+    )
+    return _OwnerSourceRead(_owner_source_json_object(raw))
+
+
+def _read_owner_source_candidate_raw(
+    candidate: _OwnerSourceCandidate,
+    *,
+    total_remaining: int,
+) -> bytes:
+    _verify_owner_source_parents(candidate)
+    before = _owner_source_identity(
+        _owner_source_lstat(candidate.full_path, missing_stale=True)
+    )
+    if (
+        before[6]
+        or not stat.S_ISREG(before[2])
+        or _owner_source_stable_identity(before)
+        != _owner_source_stable_identity(candidate.identity)
+    ):
+        raise PlanningServiceError(
+            "owner_source_unsafe_filesystem",
+            "Owner Planning source filesystem is unsafe",
+        )
+    if before != candidate.identity:
+        raise PlanningServiceError(
+            "owner_source_changed",
+            "Owner Planning source changed during capture",
+        )
+    if before[3] > MAX_OWNER_SOURCE_BYTES or before[3] > total_remaining:
+        raise PlanningServiceError(
+            "owner_source_limit_exceeded",
+            "Owner Planning source exceeds its limit",
+        )
+
+    descriptor: int | None = None
+    try:
+        try:
+            descriptor = os.open(candidate.full_path, _owner_source_open_flags())
+        except (PermissionError, FileNotFoundError, OSError) as exc:
+            raise PlanningServiceError(
+                "owner_source_unavailable",
+                "Owner Planning source is unavailable",
+            ) from exc
+        try:
+            opened = _owner_source_identity(os.fstat(descriptor))
+        except Exception as exc:
+            raise PlanningServiceError(
+                "owner_source_unavailable",
+                "Owner Planning source is unavailable",
+            ) from exc
+        second = _owner_source_identity(
+            _owner_source_lstat(candidate.full_path, missing_stale=True)
+        )
+        _verify_owner_source_parents(candidate)
+        if (
+            opened[6]
+            or second[6]
+            or not stat.S_ISREG(opened[2])
+            or not stat.S_ISREG(second[2])
+            or not _owner_source_path_handle_match(candidate.identity, opened)
+            or second != candidate.identity
+        ):
+            if (
+                _owner_source_stable_identity(opened)
+                != _owner_source_stable_identity(candidate.identity)
+                or _owner_source_stable_identity(second)
+                != _owner_source_stable_identity(candidate.identity)
+            ):
+                raise PlanningServiceError(
+                    "owner_source_unsafe_filesystem",
+                    "Owner Planning source filesystem is unsafe",
+                )
+            raise PlanningServiceError(
+                "owner_source_changed",
+                "Owner Planning source changed during capture",
+            )
+
+        chunks: list[bytes] = []
+        total = 0
+        while total <= candidate.identity[3]:
+            requested = min(
+                OWNER_SOURCE_READ_CHUNK_BYTES,
+                candidate.identity[3] + 1 - total,
+            )
+            try:
+                chunk = os.read(descriptor, requested)
+            except Exception as exc:
+                raise PlanningServiceError(
+                    "owner_source_unavailable",
+                    "Owner Planning source is unavailable",
+                ) from exc
+            if not chunk:
+                break
+            chunks.append(chunk)
+            total += len(chunk)
+        raw = b"".join(chunks)
+        if len(raw) > candidate.identity[3] or len(raw) > total_remaining:
+            raise PlanningServiceError(
+                "owner_source_changed",
+                "Owner Planning source changed during capture",
+            )
+        try:
+            final_opened = _owner_source_identity(os.fstat(descriptor))
+        except Exception as exc:
+            raise PlanningServiceError(
+                "owner_source_unavailable",
+                "Owner Planning source is unavailable",
+            ) from exc
+        final_path = _owner_source_identity(
+            _owner_source_lstat(candidate.full_path, missing_stale=True)
+        )
+        _verify_owner_source_parents(candidate)
+        if (
+            final_opened != opened
+            or not _owner_source_path_handle_match(candidate.identity, final_opened)
+            or final_path != candidate.identity
+            or len(raw) != candidate.identity[3]
+        ):
+            if (
+                _owner_source_stable_identity(final_opened)
+                != _owner_source_stable_identity(candidate.identity)
+                or _owner_source_stable_identity(final_path)
+                != _owner_source_stable_identity(candidate.identity)
+            ):
+                raise PlanningServiceError(
+                    "owner_source_unsafe_filesystem",
+                    "Owner Planning source filesystem is unsafe",
+                )
+            raise PlanningServiceError(
+                "owner_source_changed",
+                "Owner Planning source changed during capture",
+            )
+    finally:
+        if descriptor is not None:
+            try:
+                os.close(descriptor)
+            except OSError:
+                pass
+    return raw
+
+
+def _verify_owner_source_candidate(candidate: _OwnerSourceCandidate) -> None:
+    _verify_owner_source_parents(candidate)
+    identity = _owner_source_identity(
+        _owner_source_lstat(candidate.full_path, missing_stale=True)
+    )
+    if (
+        identity[6]
+        or not stat.S_ISREG(identity[2])
+        or _owner_source_stable_identity(identity)
+        != _owner_source_stable_identity(candidate.identity)
+    ):
+        raise PlanningServiceError(
+            "owner_source_unsafe_filesystem",
+            "Owner Planning source filesystem is unsafe",
+        )
+    if identity != candidate.identity:
+        raise PlanningServiceError(
+            "owner_source_changed",
+            "Owner Planning source changed during capture",
+        )
 
 
 def _create_roadmap_draft(
