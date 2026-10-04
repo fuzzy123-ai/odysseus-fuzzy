@@ -30,6 +30,23 @@ operations retain their separate action gates.
   Depth 3 is explicitly non-recursive. Two focused tests, `py_compile`, scoped
   diff-check and independent static review passed. A full-limit depth-3 edge
   equivalence assertion was not added; the review records this coverage limit.
+- The process graph wrapper now returns a bounded, empty, incomplete summary
+  for the producer's valid unavailable-lens state, instead of `child_failed`.
+  Malformed available or unavailable lenses still fail closed. Three graph
+  contract tests and the previously failing real-process namespace test passed;
+  independent delta review passed. The fresh four-module cumulative lane is
+  running separately on the final source hashes, so its result is not yet PASS.
+- Local reviewed commits are `d9fe9505` (handoff and MCP runbook), `0823f7bc`
+  (four runtime-readiness probe files; 76 current tests passed), and `a6243fc6`
+  (eleven backup-helper/installer/transport source and test files; 95 current
+  tests passed). Each package received independent review and an exact staged
+  content check. These commits do not cover every remaining dirty file.
+- The backup unit now uses `TimeoutStartSec=1860s` for its `Type=oneshot`
+  activation, with the existing five-second stop bound and control-group kill.
+  The installer embeds the same unit. The new candidate installation transport
+  is digest-bound and explicitly gated by `execute=True`; the published pins
+  remain unchanged from its recorded starting point. Live installation,
+  systemd execution, backup and restore have not been performed.
 - The migration structural-census contract remains `waiting_on_user`. Aggregate
   counts from the 2026-08-29 freeze do not establish a complete immutable path
   inventory, and the current mutable working tree cannot replace that authority

@@ -219,6 +219,12 @@ The first five are bounded repository projections with `source_of_truth: false`.
 The last two require accepted durable Planning definitions. A generated handoff
 is read-only and never authorizes launch or execution.
 
+The isolated process wrapper preserves a valid unavailable lens as an empty,
+incomplete `graph_summary.v1` result with `available=false`; it does not invent
+an active node. The unavailable producer shape must have empty nodes and edges,
+`incomplete=true`, `clipped=false`, and no `active_node_id`. Malformed shapes
+remain `child_failed`. This does not establish App/MCP integration readiness.
+
 `planning_graph_summary` uses depth 0 for the roadmap node alone, depth 1 for
 direct slice/gate nodes and `contains`/`has_gate` edges, and depths 2 or 3 for
 known `depends_on`/`blocks` edges between selected nodes. Depth 3 does not
