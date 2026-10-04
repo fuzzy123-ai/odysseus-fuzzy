@@ -70,6 +70,78 @@ def test_docx_best_effort_extracts_document_xml_text(tmp_path):
     assert "First paragraph" not in json.dumps(packet.to_dict(), sort_keys=True)
 
 
+def _padded_docx_xml(target_size: int) -> bytes:
+    prefix = (
+        b'<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+        b"<w:body><w:p><w:r><w:t>Bounded</w:t></w:r></w:p></w:body></w:document>"
+    )
+    comment_overhead = len(b"<!---->")
+    assert target_size >= len(prefix) + comment_overhead
+    return prefix + b"<!--" + b"x" * (target_size - len(prefix) - comment_overhead) + b"-->"
+
+
+def _write_docx_xml(path, document_xml):
+    with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr("word/document.xml", document_xml)
+
+
+def test_docx_expansion_over_limit_is_bounded_and_never_parsed(tmp_path, monkeypatch):
+    source = tmp_path / "expanded.docx"
+    cap = 2048
+    _write_docx_xml(source, _padded_docx_xml(cap * 8))
+    assert source.stat().st_size < cap
+
+    read_sizes = []
+    original_read = zipfile.ZipExtFile.read
+
+    def bounded_read(self, n=-1):
+        read_sizes.append(n)
+        return original_read(self, n)
+
+    def unexpected_parse(_document_xml):
+        pytest.fail("oversized DOCX XML must not be parsed")
+
+    monkeypatch.setattr(zipfile.ZipExtFile, "read", bounded_read)
+    monkeypatch.setattr("src.universal_inbox_extraction.ElementTree.fromstring", unexpected_parse)
+
+    packet = extract_universal_inbox_content(
+        source, relative_path="expanded.docx", max_extract_bytes=cap
+    )
+
+    assert read_sizes == [cap + 1]
+    assert packet.raw_text == ""
+    assert packet.warnings[0].to_dict() == {
+        "code": "docx_expansion_limit_exceeded",
+        "relative_path": "expanded.docx",
+    }
+    assert "Bounded" not in json.dumps(packet.to_dict(), sort_keys=True)
+
+
+def test_docx_xml_at_expansion_limit_still_extracts(tmp_path, monkeypatch):
+    source = tmp_path / "boundary.docx"
+    cap = 2048
+    document_xml = _padded_docx_xml(cap)
+    _write_docx_xml(source, document_xml)
+    assert source.stat().st_size <= cap
+
+    read_sizes = []
+    original_read = zipfile.ZipExtFile.read
+
+    def bounded_read(self, n=-1):
+        read_sizes.append(n)
+        return original_read(self, n)
+
+    monkeypatch.setattr(zipfile.ZipExtFile, "read", bounded_read)
+    packet = extract_universal_inbox_content(
+        source, relative_path="boundary.docx", max_extract_bytes=cap
+    )
+
+    assert read_sizes == [cap + 1]
+    assert packet.status == "completed"
+    assert packet.raw_text == "Bounded"
+    assert packet.warnings == ()
+
+
 def test_pdf_extracts_runtime_text_with_pypdf_adapter(tmp_path):
     source = tmp_path / "file.pdf"
     _write_simple_text_pdf("Invoice text from PDF", source)

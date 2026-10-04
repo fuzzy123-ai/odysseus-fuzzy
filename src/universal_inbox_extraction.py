@@ -157,7 +157,9 @@ def extract_universal_inbox_content(
     elif suffix == ".xml":
         raw_text, warning = _read_text(path, normalized_relative_path)
     elif suffix == DOCX_SUFFIX:
-        raw_text, warning = _read_docx(path, normalized_relative_path)
+        raw_text, warning = _read_docx(
+            path, normalized_relative_path, max_extract_bytes=max_extract_bytes
+        )
     elif suffix == PDF_SUFFIX:
         return _read_pdf_packet(
             path,
@@ -342,12 +344,20 @@ def _read_html(
 def _read_docx(
     path: Path,
     relative_path: str,
+    *,
+    max_extract_bytes: int,
 ) -> tuple[str, UniversalInboxExtractionWarning | None]:
     try:
         with zipfile.ZipFile(path) as archive:
-            document_xml = archive.read("word/document.xml")
+            with archive.open("word/document.xml") as document_xml_stream:
+                document_xml = document_xml_stream.read(max_extract_bytes + 1)
     except (KeyError, OSError, zipfile.BadZipFile):
         return "", UniversalInboxExtractionWarning("docx_parse_failed", relative_path)
+
+    if len(document_xml) > max_extract_bytes:
+        return "", UniversalInboxExtractionWarning(
+            "docx_expansion_limit_exceeded", relative_path
+        )
 
     try:
         root = ElementTree.fromstring(document_xml)
