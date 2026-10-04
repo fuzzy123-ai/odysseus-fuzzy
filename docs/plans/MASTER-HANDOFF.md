@@ -21,9 +21,9 @@ operations retain their separate action gates.
   store's existing locked replay-before-CAS boundary. A fresh key with an old
   head still fails as `stale_authority`. Three focused process tests passed in
   the repository virtual environment, `py_compile` passed, and independent
-  static review passed. The current required durable-family lane is being
-  checked separately; the historical R4 result of 453 passed / 3 failed does
-  not verify this newer candidate.
+  static review passed. The four-module lane passed 488 tests on the frozen pre-import-isolation
+  candidate. That result remains tied to its recorded source hashes; it does
+  not verify the later dispatch or fixture edits.
 - Planning MCP graph depth now limits the returned projection: depth 0 returns
   the roadmap, depth 1 includes its direct slices/gates and containment edges,
   and depths 2/3 add known dependency/blocked edges between selected endpoints.
@@ -34,8 +34,22 @@ operations retain their separate action gates.
   for the producer's valid unavailable-lens state, instead of `child_failed`.
   Malformed available or unavailable lenses still fail closed. Three graph
   contract tests and the previously failing real-process namespace test passed;
-  independent delta review passed. The fresh four-module cumulative lane is
-  running separately on the final source hashes, so its result is not yet PASS.
+  independent delta review passed. The four-module cumulative lane passed 488 tests before the later
+  import-isolation repair; its exact hash binding remains in the execution
+  record rather than being relabeled as a PASS for later revisions.
+- Planning dispatch now avoids loading the Inbox/Knowledge family for Planning
+  requests. Inbox type imports occur only within guarded Inbox paths; failures
+  cannot escape the fixed error mapping. Independent R2 review passed, as did
+  its two isolated import regressions and 33 dispatch cases. The same 33 cases
+  are now separated into 22 Planning and 11 Inbox cases with the seven moved
+  functions/decorators unchanged; independent split review passed.
+- The store-only fixture removes an unused native/private-context dependency
+  from four store tests without weakening their assertions. It retains six
+  accepted heads and twelve revisions. All 369 store tests and independent
+  review passed. Six focused bundle cases also passed against an overlay using
+  HEAD Python dependencies with zero Inbox-import attempts. The overlay still
+  uses the working-tree roadmap corpus: complete clean-checkout migration and
+  corpus authority are not verified by that result.
 - Local reviewed commits are `d9fe9505` (handoff and MCP runbook), `0823f7bc`
   (four runtime-readiness probe files; 76 current tests passed), and `a6243fc6`
   (eleven backup-helper/installer/transport source and test files; 95 current
@@ -1110,7 +1124,7 @@ Current external blockers:
   `sha256:8df08259ccc0868bd335ae72092b1a1f0e98480bed23bbce9c8a516b7c920023`.
   Independent QA and Deep-Sol found that the frozen grammar still supported a
   bare contracted contradiction after an exact positive clause; the sole
-  correction misspelled the contraction as `did['’]t`, so the same class
+  correction misspelled the contraction as `did['â€™]t`, so the same class
   remained RED. Preserve both tuples only at the preservation-only locator
   `../Documents/odysseus-preserved-ahe-main-prefreeze-rev302`.
 - The non-denominator `ABC-TTD07A6-REV301` claim remains terminally
@@ -1449,7 +1463,7 @@ structured authority can open a writer claim.
 | `headless-write-agent-orchestration-roadmap.md` | `[4]` / `HWA-2-canonical-subagent-commit-bridge` | OWM-3 support | `normalization_blocked_fresh_architecture_required` | `HWA2-...` is the non-counting historical spelling of this one unit. Any product recovery needs materially fresh architecture and must not revive HWA2A v2. |
 | `system-assurance-runtime-hardening-roadmap.json` | `[5]` / `SAR-02-fresh-release-evidence` | Assurance gate | `blocked_environment` | Wait for the required symlink-capable environment. |
 | `temporal-light-agent-execution-roadmap.json` | `[6]` / `TLR-10-12h-wall-clock-soak` | Temporal gate | `waiting_on_user` | Wait for exact workload, window, limits, and restart injection. |
-| `anti-hallucination-evidence-roadmap.md` | `[7]` / `ANTI-HALLUCINATION-next-domain-audit` | Evidence audit | `Rev302 terminal released_blocked, correction 1/1` | Preserve the frozen/corrected tuples and terminal Evidence; permit only the disjoint serialized PRE1A→PRE1B→fresh-USI route, never an AHE product claim. |
+| `anti-hallucination-evidence-roadmap.md` | `[7]` / `ANTI-HALLUCINATION-next-domain-audit` | Evidence audit | `Rev302 terminal released_blocked, correction 1/1` | Preserve the frozen/corrected tuples and terminal Evidence; permit only the disjoint serialized PRE1Aâ†’PRE1Bâ†’fresh-USI route, never an AHE product claim. |
 | `live-contextual-layer-roadmap.json` | `[8]` / `LCL-01-observation-and-hypothesis-contract` | OWM-27 | `deferred_until_system_completion_and_testability` | Do not claim LCL work until the remaining system is complete enough for system testing; then require fresh activation, architecture and claim. |
 | `gemma3-memory-ops-optimization-roadmap.md` | `[9]` / `GMI-LIVE-ACTIVATION` | OWM-13 | `waiting_on_user_live_gate` | Keep disabled; revalidate only against native UIR-13 evidence. |
 | `graphrag-raptor-observability-prometheus-grafana-roadmap.md` | `[10]` / `GRO-native-successor-routing` | OWM-14 | `superseded_no_repo_slice` | Preserve evidence; route reusable proof to native successors. |

@@ -219,6 +219,13 @@ The first five are bounded repository projections with `source_of_truth: false`.
 The last two require accepted durable Planning definitions. A generated handoff
 is read-only and never authorizes launch or execution.
 
+The authenticated dispatcher loads Inbox-specific error and outcome types only
+within guarded Inbox paths. Planning requests do not require the Inbox module;
+missing Inbox dependencies yield a fixed error response rather than an import
+exception. Timeouts and cancellation still join the worker before returning.
+The Planning and Inbox dispatch tests remain separate families with all existing
+assertions retained; this does not grant product or live acceptance.
+
 The isolated process wrapper preserves a valid unavailable lens as an empty,
 incomplete `graph_summary.v1` result with `available=false`; it does not invent
 an active node. The unavailable producer shape must have empty nodes and edges,
