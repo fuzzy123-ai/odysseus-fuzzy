@@ -16,10 +16,10 @@ from typing import Any, Mapping
 
 
 SCHEMA_ID = "odysseus.predeploy_backup_root_helper_install.v1"
-HELPER_SHA256 = "dbcbac4c5a4b65edcc4d4facd9204674a8e9114179f406c88d067c7f96185a97"
+HELPER_SHA256 = "f5e6f90169c59daee07dbb82880912b8c959d2bf991748e3363b6dbbc7b57952"
 HELPER_PATH = "/usr/local/libexec/odysseus-predeploy-backup-root-helper.py"
 READBACK_PATH = "/usr/local/libexec/odysseus-predeploy-backup-root-helper-readback.py"
-READBACK_SHA256 = "8201653d392d1556a81f6ca236e9f5dd94b6d425dc03ae699f74280b4ae9b722"
+READBACK_SHA256 = "8d01a6e5ec7593f57136b7bbd2af8b35a9a94f428ec623a14dd2a0e870ab516e"
 UNIT_PATH = "/etc/systemd/system/odysseus-predeploy-backup-root-helper.service"
 SUDOERS_PATH = "/etc/sudoers.d/odysseus-predeploy-backup-root-helper"
 STATE_DIR = "/var/lib/odysseus-predeploy-backup-root-helper"
@@ -50,7 +50,7 @@ User=root
 Group=root
 UMask=0077
 ExecStart=/usr/bin/python3 -I /usr/local/libexec/odysseus-predeploy-backup-root-helper.py
-RuntimeMaxSec=1860s
+TimeoutStartSec=1860s
 TimeoutStopSec=5s
 KillMode=control-group
 SendSIGKILL=yes
@@ -75,7 +75,8 @@ ReadWritePaths=/mnt/backup /run/odysseus-predeploy-backup-root-helper /var/lib/o
 SUDOERS_TEXT = """# Exact argv-free backup trigger; no command arguments or environment preservation.
 Cmnd_Alias ODYSSEUS_PREDEPLOY_BACKUP = /usr/bin/systemctl start --wait odysseus-predeploy-backup-root-helper.service
 Cmnd_Alias ODYSSEUS_PREDEPLOY_READBACK = /usr/bin/python3 -I /usr/local/libexec/odysseus-predeploy-backup-root-helper-readback.py
-homebase ALL=(root) NOSETENV: ODYSSEUS_PREDEPLOY_BACKUP, ODYSSEUS_PREDEPLOY_READBACK
+Cmnd_Alias ODYSSEUS_PREDEPLOY_READBACK_DIAGNOSTIC = /usr/bin/python3 -I /usr/local/libexec/odysseus-predeploy-backup-root-helper-readback.py --diagnostic-v2
+homebase ALL=(root) NOSETENV: ODYSSEUS_PREDEPLOY_BACKUP, ODYSSEUS_PREDEPLOY_READBACK, ODYSSEUS_PREDEPLOY_READBACK_DIAGNOSTIC
 """
 
 
@@ -90,19 +91,28 @@ def receipt(status: str, error_code: str, *, helper: bool = False, unit: bool = 
 
 
 def validate_receipt(value: Any) -> bool:
-    if not (type(value) is dict and set(value) == _KEYS and value.get("schema_id") == SCHEMA_ID and value.get("error_code") in _CODES and all(value.get(key) is False for key in ("raw_output_visible", "environment_visible", "paths_visible", "secret_values_visible")) and isinstance(value.get("evidence_sha256"), str) and value["evidence_sha256"] == _digest(value)):
+    boolean_fields = ("helper_installed", "unit_installed", "sudo_policy_installed", "rollback_attempted", "rollback_succeeded", "raw_output_visible", "environment_visible", "paths_visible", "secret_values_visible")
+    try:
+        if type(value) is not dict or set(value) != _KEYS: return False
+        if type(value.get("schema_id")) is not str or value["schema_id"] != SCHEMA_ID: return False
+        if type(value.get("status")) is not str or type(value.get("error_code")) is not str or value["error_code"] not in _CODES: return False
+        if type(value.get("evidence_sha256")) is not str or any(type(value.get(key)) is not bool for key in boolean_fields): return False
+        if any(value.get(key) is not False for key in ("raw_output_visible", "environment_visible", "paths_visible", "secret_values_visible")): return False
+        if value["evidence_sha256"] != _digest(value): return False
+        status = value["status"]
+        installed = all(value.get(key) is True for key in ("helper_installed", "unit_installed", "sudo_policy_installed"))
+        clean = all(value.get(key) is False for key in ("helper_installed", "unit_installed", "sudo_policy_installed"))
+        if status == "installed": return installed and value["rollback_attempted"] is False and value["rollback_succeeded"] is False and value["error_code"] == "execution_disabled"
+        if status == "blocked": return clean and value["rollback_attempted"] is False and value["rollback_succeeded"] is False
+        if status == "rolled_back": return clean and value["rollback_attempted"] is True and value["rollback_succeeded"] is True
+        return status == "unknown" and clean and value["rollback_attempted"] is True and value["rollback_succeeded"] is False and value["error_code"] == "rollback_failed"
+    except Exception:
         return False
-    status = value.get("status")
-    installed = all(value.get(key) is True for key in ("helper_installed", "unit_installed", "sudo_policy_installed"))
-    clean = all(value.get(key) is False for key in ("helper_installed", "unit_installed", "sudo_policy_installed"))
-    if status == "installed": return installed and value.get("rollback_attempted") is False and value.get("rollback_succeeded") is False and value.get("error_code") == "execution_disabled"
-    if status == "blocked": return clean and value.get("rollback_attempted") is False and value.get("rollback_succeeded") is False
-    if status == "rolled_back": return clean and value.get("rollback_attempted") is True and value.get("rollback_succeeded") is True
-    return bool(status == "unknown" and clean and value.get("rollback_attempted") is True and value.get("rollback_succeeded") is False and value.get("error_code") == "rollback_failed")
 
 
 def validate_assets(helper_source: bytes, readback_source: bytes) -> bool:
-    return bool(type(helper_source) is bytes and type(readback_source) is bytes and readback_source.startswith(b"#!/usr/bin/python3\n") and b"/usr/bin/env" not in readback_source and 0 < len(helper_source) <= _MAX_SOURCE and 0 < len(readback_source) <= _MAX_SOURCE and _HEX.fullmatch(HELPER_SHA256) and _HEX.fullmatch(READBACK_SHA256) and hashlib.sha256(helper_source).hexdigest() == HELPER_SHA256 and hashlib.sha256(readback_source).hexdigest() == READBACK_SHA256 and SERVICE_TEXT.endswith("\n") and SUDOERS_TEXT.endswith("\n") and "EnvironmentFile" not in SERVICE_TEXT and "ExecStart=/usr/bin/python3 -I " + HELPER_PATH in SERVICE_TEXT and READBACK_EXEC in SUDOERS_TEXT and "systemctl start --wait odysseus-predeploy-backup-root-helper.service" in SUDOERS_TEXT and "ALL" not in SUDOERS_TEXT.replace("homebase ALL=(root)", ""))
+    diagnostic_exec = READBACK_EXEC + " --diagnostic-v2"
+    return bool(type(helper_source) is bytes and type(readback_source) is bytes and readback_source.startswith(b"#!/usr/bin/python3\n") and b"/usr/bin/env" not in readback_source and 0 < len(helper_source) <= _MAX_SOURCE and 0 < len(readback_source) <= _MAX_SOURCE and _HEX.fullmatch(HELPER_SHA256) and _HEX.fullmatch(READBACK_SHA256) and hashlib.sha256(helper_source).hexdigest() == HELPER_SHA256 and hashlib.sha256(readback_source).hexdigest() == READBACK_SHA256 and SERVICE_TEXT.endswith("\n") and SUDOERS_TEXT.endswith("\n") and "EnvironmentFile" not in SERVICE_TEXT and "ExecStart=/usr/bin/python3 -I " + HELPER_PATH in SERVICE_TEXT and READBACK_EXEC in SUDOERS_TEXT and diagnostic_exec in SUDOERS_TEXT and "systemctl start --wait odysseus-predeploy-backup-root-helper.service" in SUDOERS_TEXT and "NOSETENV" in SUDOERS_TEXT and "*" not in SUDOERS_TEXT and "ALL" not in SUDOERS_TEXT.replace("homebase ALL=(root)", ""))
 
 
 @dataclass

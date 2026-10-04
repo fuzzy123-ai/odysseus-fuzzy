@@ -42,6 +42,7 @@ def test_installer_is_inert_default_and_assets_are_fixed() -> None:
     assert subject.SERVICE_TEXT == open("ops/homeserver/root-helper/odysseus-predeploy-backup-root-helper.service", encoding="ascii").read()
     assert subject.SUDOERS_TEXT == open("ops/homeserver/root-helper/odysseus-predeploy-backup-root-helper.sudoers", encoding="ascii").read()
     assert subject.READBACK_EXEC in subject.SUDOERS_TEXT and "/usr/bin/env" not in open("ops/homeserver/redacted_predeploy_backup_root_helper_readback.py", encoding="ascii").read()
+    assert subject.READBACK_EXEC + " --diagnostic-v2" in subject.SUDOERS_TEXT
 
 
 def test_no_clobber_exact_baseline_and_rollback() -> None:
@@ -89,6 +90,22 @@ def test_durability_and_receipt_cross_product_are_required() -> None:
     assert subject.HELPER_PATH in memory.synced and subject.STATE_DIR in memory.synced
     forged = dict(result); forged["helper_installed"] = False; forged["evidence_sha256"] = subject._digest(forged)
     assert not subject.validate_receipt(forged)
+
+
+def test_receipt_validator_is_total_typed_and_accepts_all_closed_states() -> None:
+    valid = (
+        subject.receipt("installed", "execution_disabled", helper=True, unit=True, sudo=True),
+        subject.receipt("blocked", "preflight_failed"),
+        subject.receipt("rolled_back", "preflight_failed", rollback_attempted=True, rollback_succeeded=True),
+        subject.receipt("unknown", "rollback_failed", rollback_attempted=True),
+    )
+    assert all(subject.validate_receipt(value) for value in valid)
+    for change in ({"error_code": []}, {"error_code": {}}, {"status": 1}, {"helper_installed": 1}):
+        forged = dict(valid[0]); forged.update(change); forged["evidence_sha256"] = subject._digest(forged)
+        assert not subject.validate_receipt(forged)
+    forged = dict(valid[0]); forged["error_code"] = object()
+    assert not subject.validate_receipt(forged)
+    assert not subject.validate_receipt(object())
 
 
 def test_conflict_after_fresh_directories_rolls_back_instead_of_claiming_blocked() -> None:
