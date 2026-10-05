@@ -193,9 +193,11 @@ def test_partial_incident_context_replay_recovers_without_duplicate_action(tmp_p
 def test_auth_ingress_emits_one_combined_record_for_success_and_failure_without_secret_values(tmp_path):
     class Auth:
         signup_enabled = False
+        def __init__(self): self._captured_login_fence = object()
         def verify_password(self, username, password): return username == "admin" and password == "correct"
         def totp_enabled(self, _username): return False
-        def create_session_trusted(self, username): return "session" if username == "admin" else None
+        def capture_login_identity(self, username): return self._captured_login_fence if username == "admin" else None
+        def create_session_trusted(self, username, *, identity_fence=None): return "session" if username == "admin" and identity_fence is self._captured_login_fence else None
 
     store = SecurityIncidentStore(tmp_path / "route.sqlite", clock=lambda: 100)
     app = FastAPI(); app.state.security_auth_incident_bridge = SecurityAuthIncidentBridge(store)

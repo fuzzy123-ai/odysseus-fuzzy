@@ -1146,10 +1146,14 @@ def test_chat_active_document_lookup_is_owner_scoped():
 
     src = Path(__file__).resolve().parents[1] / "routes" / "chat_routes.py"
     text = src.read_text()
-    # The frontend-supplied id is resolved through the shared owner filter.
-    assert "_owner_session_filter(_doc_q, ctx.user)" in text
-    assert "_owner_session_filter(_session_doc_q, ctx.user)" in text
-    assert "_owner_session_filter(_mem_q, ctx.user)" in text
+    # All three lookup paths use the centralized lease/SID-or-legacy owner guard.
+    assert "def _scope_chat_document_query(query, lease, owner" in text
+    compact = re.sub(r"\s+", "", text)
+    assert "_scope_chat_document_query(_doc_q,_doc_lease,ctx.user)" in compact
+    assert "_scope_chat_document_query(_session_doc_q,_doc_lease,ctx.user)" in compact
+    assert "_scope_chat_document_query(_mem_q,_doc_lease,ctx.user)" in compact
+    assert "return scope_document_web_query(query, lease, model=DBDocument)" in text
+    assert "return _owner_session_filter(legacy, owner)" in text
     # And never by id alone (the previous IDOR shape, whitespace-insensitive).
     flat = re.sub(r"\s+", " ", text)
     assert "filter( DBDocument.id == active_doc_id, ).first()" not in flat

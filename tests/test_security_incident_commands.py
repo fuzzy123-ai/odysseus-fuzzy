@@ -22,7 +22,9 @@ def _ref(kind, value="a"):
 
 
 class _Auth:
-    def __init__(self): self.admin = True; self.live = True; self.valid = True; self.principal = "admin"; self.revision = 0
+    def __init__(self):
+        self.admin = True; self.live = True; self.valid = True; self.principal = "admin"; self.revision = 0
+        self._captured_login_fence = object()
     def validate_token(self, token): return self.valid and token == "session"
     def get_username_for_token(self, token): return self.principal if self.valid and token == "session" else None
     def is_admin(self, username): return self.admin and username == "admin"
@@ -31,7 +33,10 @@ class _Auth:
     def totp_verify(self, username, code): return self.live and username == "admin" and code == "123456"
     def totp_enabled(self, username): return self.live and username == "admin"
     def security_action_revision(self): return self.revision
-    def create_session_trusted(self, username): return "session" if username == "admin" else None
+    def capture_login_identity(self, username):
+        return self._captured_login_fence if username == "admin" else None
+    def create_session_trusted(self, username, *, identity_fence=None):
+        return "session" if username == "admin" and identity_fence is self._captured_login_fence else None
     signup_enabled = False
     def status(self, token): return {"authenticated": self.valid and token == "session", "username": self.principal if self.valid and token == "session" else None, "is_admin": self.admin}
     def get_privileges(self, username): return {}

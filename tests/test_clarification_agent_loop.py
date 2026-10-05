@@ -4,8 +4,13 @@ from sqlalchemy.pool import StaticPool
 
 from core.database import Base
 from routes.chat_routes import _clarification_gate_for_session
+from src.auth_helpers import SessionPrincipal
 from src.clarification_store import ClarificationStore
 from src.tool_policy import build_effective_tool_policy
+
+
+def _principal(owner="alice", sid="owner_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"):
+    return SessionPrincipal(owner=owner, creator_subject_id=sid, authority="browser_session")
 
 
 def _session_factory():
@@ -40,9 +45,9 @@ def _request():
 
 def test_active_clarification_session_blocks_plan_and_mutation_policy():
     store = ClarificationStore(session_factory=_session_factory())
-    created = store.create_run(owner="alice", session_id="sess-1", request=_request())
+    created = store.create_run(principal=_principal(), session_id="sess-1", request=_request())
 
-    gate = _clarification_gate_for_session(owner="alice", session_id="sess-1", store=store)
+    gate = _clarification_gate_for_session(principal=_principal(), session_id="sess-1", store=store)
     policy = build_effective_tool_policy(
         clarification_open=bool(gate["open"]),
         clarification_reason=gate["reason"],
@@ -55,7 +60,7 @@ def test_active_clarification_session_blocks_plan_and_mutation_policy():
     assert not policy.blocks("ask_user")
 
     answered = store.answer_question(
-        owner="alice",
+        principal=_principal(),
         clarification_id=created.run["clarification_id"],
         question_id="target_documents",
         answer="reports",
@@ -63,12 +68,12 @@ def test_active_clarification_session_blocks_plan_and_mutation_policy():
         idempotency_key="idem-answer",
     )
     store.confirm_understanding(
-        owner="alice",
+        principal=_principal(),
         clarification_id=created.run["clarification_id"],
         understanding_summary="Review reports first.",
         expected_version=answered.run["version"],
         idempotency_key="idem-complete",
     )
 
-    ready_gate = _clarification_gate_for_session(owner="alice", session_id="sess-1", store=store)
+    ready_gate = _clarification_gate_for_session(principal=_principal(), session_id="sess-1", store=store)
     assert ready_gate["open"] is False

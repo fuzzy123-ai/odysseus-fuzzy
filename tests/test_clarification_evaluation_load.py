@@ -5,8 +5,13 @@ from sqlalchemy.pool import StaticPool
 
 from core.database import Base
 from src.clarification_policy import evaluate_clarification_completeness
+from src.auth_helpers import SessionPrincipal
 from src.clarification_store import ClarificationStore, ClarificationStoreError
 from src.local_model_scheduler import classify_local_model_request
+
+
+def _principal(owner="alice", sid="owner_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"):
+    return SessionPrincipal(owner=owner, creator_subject_id=sid, authority="browser_session")
 
 
 def _session_factory():
@@ -101,16 +106,16 @@ def test_large_run_resume_conflict_and_revision_survive_store_reload() -> None:
     factory = _session_factory()
     store = ClarificationStore(session_factory=factory)
     questions = [_question(f"q{i:03d}") for i in range(55)]
-    created = store.create_run(owner="alice", session_id="sess-load", request=_request(questions), project_slug="demo")
+    created = store.create_run(principal=_principal(), session_id="sess-load", request=_request(questions), project_slug="demo")
     clarification_id = created.run["clarification_id"]
 
     assert created.run["unresolved_required_count"] == 55
-    resumed = store.read_active_run_for_session(owner="alice", session_id="sess-load")
+    resumed = store.read_active_run_for_session(principal=_principal(), session_id="sess-load")
     assert resumed is not None
     assert resumed["clarification_id"] == clarification_id
 
     answered = store.answer_question(
-        owner="alice",
+        principal=_principal(),
         clarification_id=clarification_id,
         question_id="q000",
         answer={"text": "local PDFs first"},
@@ -119,7 +124,7 @@ def test_large_run_resume_conflict_and_revision_survive_store_reload() -> None:
     )
     with pytest.raises(ClarificationStoreError) as stale:
         store.answer_question(
-            owner="alice",
+            principal=_principal(),
             clarification_id=clarification_id,
             question_id="q001",
             answer={"text": "DOCX too"},
@@ -127,14 +132,14 @@ def test_large_run_resume_conflict_and_revision_survive_store_reload() -> None:
             idempotency_key="idem-q001-stale",
         )
     revised = store.answer_question(
-        owner="alice",
+        principal=_principal(),
         clarification_id=clarification_id,
         question_id="q000",
         answer={"text": "local PDFs and DOCX first"},
         expected_version=answered.run["version"],
         idempotency_key="idem-q000-b",
     )
-    events = store.read_events(owner="alice", clarification_id=clarification_id)
+    events = store.read_events(principal=_principal(), clarification_id=clarification_id)
 
     assert stale.value.code == "version_conflict"
     assert revised.event["event_type"] == "answer_revised"
@@ -145,7 +150,7 @@ def test_large_run_resume_conflict_and_revision_survive_store_reload() -> None:
 def test_conditional_followups_are_persisted_without_expanding_visible_batch() -> None:
     store = ClarificationStore(session_factory=_session_factory())
     created = store.create_run(
-        owner="alice",
+        principal=_principal(),
         session_id="sess-conditional",
         request=_request([
             _question("q_parent"),
