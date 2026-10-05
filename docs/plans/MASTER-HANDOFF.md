@@ -7,7 +7,59 @@ applicable scoped handoff. See `docs/plans/evidence/harbour-one-plan-reconciliat
 for the planning reconciliation. Historical next-action text below does not
 reopen accepted or released work.
 
-## Latest checkpoint: 2026-10-05 (canonical revision 2758)
+## Latest checkpoint: 2026-10-05 (canonical revision 2799)
+
+This snapshot is bound to canonical revision 2799 in
+`docs/plans/handoffs/abc-open-work-5h-run-20260905.json`. HEAD is
+`105cb867d4241fc6f18fb99508d7f6dfbc4f8d20`; the campaign ledger contains
+twenty-six local commits before this documentation change. The index is empty;
+unrelated working-tree and untracked files remain preserved.
+
+Auth and the subject schema are now followed by committed document authority
+(`70bf362`), legacy helper isolation (`4cdaf8e`), PDF/Office/email factory
+authority (`e026708`), and the Inbox session-factory flow (`105cb867`).
+The provider passed fifteen cases against committed HEAD plus its exact two
+files; the helper passed four cases against its exact two-file HEAD overlay.
+Both lanes had observed exit code 0 and unchanged candidate hashes.
+
+The final Inbox flow holds no database Session or request lease during
+extraction. Fresh guarded phases revalidate authority and perform conditional
+document updates with version insertion atomically. Its route now returns a
+fixed 401 response when a real browser session is revoked during extraction,
+while unexpected exceptions retain the sanitized 500 response. The regression
+proves no open Session during extraction and no residual document/version
+writes on revocation.
+
+A fresh isolated tree used committed HEAD plus only the four producer files
+and four corrected Inbox files. All twenty-six email-helper, working-copy and
+subject-ingress cases passed in 31.13 seconds with observed exit code 0;
+overlay and checkout hashes remained unchanged. Receipt:
+`.abc-test-tmp/INBOX-ROUTE-REVOCATION-STATUS-R1-20261005/root-head-producer8/receipt.json`.
+The earlier fourteen-pass/two-failure overlay omitted the email producer
+dependency; it remains recorded as failed evidence. The two four-file commits
+preserve the reviewed representation after line-ending normalization.
+
+ULO-02 remains unaccepted. Its exact-projection candidate passed seventy-six
+author cases and independent review; three central validator modules passed
+205 cases. Required runtime evidence remains incomplete. The retained-read
+performance successor passed fifty store cases and twenty-nine lifecycle/policy
+cases, but the isolated 12,296-record memory case exceeded its controlled
+240-second limit. Independent review reproduced a concurrent first-read cache
+publication race. One bounded correction is authorized under
+`USI-RETAINED-READ-PERFORMANCE-R1-20261005`; no acceptance or commit is claimed.
+Receipt for the incomplete large-memory lane:
+`.abc-test-tmp/USI-RETAINED-READ-PERFORMANCE-R1-20261005/root-memory12296/receipt.json`.
+
+Not verified at this snapshot: final Store/ULO dependency acceptance including
+the large SQLite case; complete authenticated persistent MCP application flow,
+restart/rollback and whole-app integration; all guarded document tool/reader
+access in committed HEAD; parser wall-clock bounds; shared active-document
+selection; remaining foreign-change commits; UI, live, temporal, production
+migration, deployment, backup, restore and push. Component acceptance does not
+establish application or product completion. The goal remains active and no
+live or external action occurred.
+
+## Historical checkpoint: 2026-10-05 (canonical revision 2758)
 
 This snapshot is bound to canonical revision 2758 in
 `docs/plans/handoffs/abc-open-work-5h-run-20260905.json`, before this
