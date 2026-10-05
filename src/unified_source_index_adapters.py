@@ -8,10 +8,11 @@ without reading user or provider data.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from enum import StrEnum
 import hashlib
 import json
+import math
 import re
 from typing import Protocol, runtime_checkable
 from urllib.parse import urlsplit
@@ -19,18 +20,29 @@ from urllib.parse import urlsplit
 from src.unified_source_index_contract import (
     ChunkRecord,
     Classification,
+    CodeRangeLocator,
     ContentPolicy,
     EntityRecord,
+    EntityKind,
     EvidenceRef,
+    LocatorKind,
+    MessageRangeLocator,
+    MAX_EVIDENCE_REFS,
+    PageRangeLocator,
+    PolicyEvidence,
     RecordKind,
     RecordRef,
     RelationRecord,
+    RelationKind,
+    RowRangeLocator,
     SourceKind,
     SourceRecord,
     SourceVersionRecord,
     TextRangeLocator,
+    UnifiedSourceIndexContractError,
     canonical_json,
     content_hash,
+    record_from_json,
 )
 from src.unified_source_index_stores import _owner_scope
 
@@ -39,6 +51,10 @@ MAX_ADAPTER_PAGE_SIZE = 1_000
 MAX_ADAPTER_CURSOR_CHARS = 512
 MAX_ADAPTER_WARNINGS = 32
 MAX_EXACT_READ_CHARS = 1_000_000
+MAX_TOTAL_EXTRACTION_CHARS = 8_388_608
+MAX_PAGED_EXTRACTION_PAGE_RECORDS = 100
+MAX_PAGED_EXTRACTION_RECORDS = 12_296
+MAX_PAGED_EXTRACTION_PAGES = 123
 
 _TOKEN_RE = re.compile(r"^[a-z][a-z0-9_.:-]{0,127}$")
 _SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
@@ -55,19 +71,91 @@ _CLASSIFICATION_RANK = {
 }
 
 
+class UnavailableReason(StrEnum):
+    DELETED = "deleted"
+    ACCESS_REVOKED = "access_revoked"
+    PROVIDER_MISSING = "provider_missing"
+    POLICY_BLOCKED = "policy_blocked"
+
+_ENUM_LITERALS = {
+    Classification: {
+        Classification.PUBLIC: "public",
+        Classification.PRIVATE: "private",
+        Classification.SENSITIVE: "sensitive",
+        Classification.SECRET: "secret",
+        Classification.UNKNOWN: "unknown",
+    },
+    ContentPolicy: {
+        ContentPolicy.INLINE_LOCAL: "inline_local",
+        ContentPolicy.REFERENCE_ONLY: "reference_only",
+        ContentPolicy.METADATA_ONLY: "metadata_only",
+    },
+    EntityKind: {
+        EntityKind.SYMBOL: "symbol",
+        EntityKind.PERSON: "person",
+        EntityKind.TASK: "task",
+        EntityKind.DOCUMENT_SECTION: "document_section",
+        EntityKind.MESSAGE: "message",
+        EntityKind.TABLE_ROW: "table_row",
+        EntityKind.CONCEPT: "concept",
+        EntityKind.OTHER: "other",
+    },
+    LocatorKind: {
+        LocatorKind.TEXT_RANGE: "text_range",
+        LocatorKind.PAGE_RANGE: "page_range",
+        LocatorKind.ROW_RANGE: "row_range",
+        LocatorKind.MESSAGE_RANGE: "message_range",
+        LocatorKind.CODE_RANGE: "code_range",
+    },
+    RecordKind: {
+        RecordKind.SOURCE: "source",
+        RecordKind.SOURCE_VERSION: "source_version",
+        RecordKind.CHUNK: "chunk",
+        RecordKind.ENTITY: "entity",
+        RecordKind.RELATION: "relation",
+        RecordKind.LINEAGE: "lineage",
+        RecordKind.PROJECTION: "projection",
+        RecordKind.DERIVED_RUN: "derived_run",
+        RecordKind.JOB: "job",
+    },
+    RelationKind: {
+        RelationKind.DEFINES: "defines",
+        RelationKind.IMPORTS: "imports",
+        RelationKind.CALLS: "calls",
+        RelationKind.INHERITS: "inherits",
+        RelationKind.REFERENCES: "references",
+        RelationKind.TESTS: "tests",
+        RelationKind.MENTIONS: "mentions",
+        RelationKind.BELONGS_TO: "belongs_to",
+        RelationKind.SUPERSEDES: "supersedes",
+        RelationKind.RELATED_TO: "related_to",
+    },
+    SourceKind: {
+        SourceKind.TEXT: "text",
+        SourceKind.DOCUMENT: "document",
+        SourceKind.TABLE: "table",
+        SourceKind.MESSAGE: "message",
+        SourceKind.CODE: "code",
+        SourceKind.MEMORY: "memory",
+        SourceKind.PLANNING: "planning",
+        SourceKind.INBOX: "inbox",
+        SourceKind.OTHER: "other",
+    },
+    UnavailableReason: {
+        UnavailableReason.DELETED: "deleted",
+        UnavailableReason.ACCESS_REVOKED: "access_revoked",
+        UnavailableReason.PROVIDER_MISSING: "provider_missing",
+        UnavailableReason.POLICY_BLOCKED: "policy_blocked",
+    },
+}
+
+
 class SourceAdapterError(ValueError):
     """Raised when an adapter violates bounds, identity or policy."""
 
 
 class SourceUnavailableError(SourceAdapterError):
     """Raised when a source can no longer be observed or read."""
-
-
-class UnavailableReason(StrEnum):
-    DELETED = "deleted"
-    ACCESS_REVOKED = "access_revoked"
-    PROVIDER_MISSING = "provider_missing"
-    POLICY_BLOCKED = "policy_blocked"
 
 
 @dataclass(frozen=True, slots=True)
@@ -82,6 +170,9 @@ class AdapterCapability:
     supports_exact_reads: bool
     max_discovery_page: int = 100
     max_extract_items: int = 100
+    required_job_profile_ref: str = ""
+    max_total_extract_chars: int = 1_000_000
+    supports_budgeted_paging: bool = False
 
     def __post_init__(self) -> None:
         for field_name in ("adapter_id", "adapter_version", "domain_kind"):
@@ -124,6 +215,35 @@ class AdapterCapability:
                 maximum=MAX_ADAPTER_PAGE_SIZE,
             ),
         )
+        if type(self.required_job_profile_ref) is not str:
+            raise SourceAdapterError("required_job_profile_ref must use exact text")
+        if self.required_job_profile_ref:
+            object.__setattr__(
+                self,
+                "required_job_profile_ref",
+                _token(self.required_job_profile_ref, "required_job_profile_ref"),
+            )
+        if type(self.max_total_extract_chars) is not int:
+            raise SourceAdapterError("max_total_extract_chars must be exact integer")
+        object.__setattr__(
+            self,
+            "max_total_extract_chars",
+            _bounded_integer(
+                self.max_total_extract_chars,
+                "max_total_extract_chars",
+                minimum=1,
+                maximum=MAX_TOTAL_EXTRACTION_CHARS,
+            ),
+        )
+        if type(self.supports_budgeted_paging) is not bool:
+            raise SourceAdapterError("supports_budgeted_paging must be exact boolean")
+        if self.supports_budgeted_paging and not self.required_job_profile_ref:
+            raise SourceAdapterError("budgeted paging requires a generation-bound job profile")
+        if (
+            not self.supports_budgeted_paging
+            and self.max_total_extract_chars > 1_000_000
+        ):
+            raise SourceAdapterError("aggregate budgets above 1 MiB require budgeted paging")
         if self.supports_exact_reads and self.content_policy is ContentPolicy.METADATA_ONLY:
             raise SourceAdapterError("metadata-only adapters cannot advertise exact reads")
 
@@ -229,6 +349,52 @@ class ExtractionProfile:
 
 
 @dataclass(frozen=True, slots=True)
+class ExtractionPageBudget:
+    """One bounded operation allowance under an immutable extraction profile."""
+
+    max_items: int
+    max_chars: int
+    time_budget_ms: int
+
+    def __post_init__(self) -> None:
+        if any(
+            type(value) is not int
+            for value in (self.max_items, self.max_chars, self.time_budget_ms)
+        ):
+            raise SourceAdapterError("page budget fields must be exact integers")
+        object.__setattr__(
+            self,
+            "max_items",
+            _bounded_integer(
+                self.max_items,
+                "page max_items",
+                minimum=1,
+                maximum=MAX_PAGED_EXTRACTION_PAGE_RECORDS,
+            ),
+        )
+        object.__setattr__(
+            self,
+            "max_chars",
+            _bounded_integer(
+                self.max_chars,
+                "page max_chars",
+                minimum=0,
+                maximum=MAX_EXACT_READ_CHARS,
+            ),
+        )
+        object.__setattr__(
+            self,
+            "time_budget_ms",
+            _bounded_integer(
+                self.time_budget_ms,
+                "page time_budget_ms",
+                minimum=1,
+                maximum=86_400_000,
+            ),
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class ExtractionResult:
     source_version: SourceVersionRecord
     chunks: tuple[ChunkRecord, ...] = ()
@@ -264,6 +430,66 @@ class ExtractionResult:
     @property
     def records(self) -> tuple[ChunkRecord | EntityRecord | RelationRecord, ...]:
         return (*self.chunks, *self.entities, *self.relations)
+
+
+@dataclass(frozen=True, slots=True)
+class PagedExtractionPage:
+    source_version: SourceVersionRecord
+    sequence_start: int
+    records: tuple[ChunkRecord | EntityRecord | RelationRecord, ...]
+    next_cursor: str = ""
+    final_record_count: int | None = None
+    final_records_digest: str = ""
+    warnings: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        if type(self.source_version) is not SourceVersionRecord:
+            raise SourceAdapterError("paged extraction requires an exact source version")
+        if type(self.sequence_start) is not int or not 0 <= self.sequence_start <= MAX_PAGED_EXTRACTION_RECORDS:
+            raise SourceAdapterError("sequence_start is invalid or unbounded")
+        if type(self.records) is not tuple or len(self.records) > MAX_PAGED_EXTRACTION_PAGE_RECORDS:
+            raise SourceAdapterError("paged extraction records must be a bounded tuple")
+        allowed = (ChunkRecord, EntityRecord, RelationRecord)
+        if any(not _has_exact_type(record, allowed) for record in self.records):
+            raise SourceAdapterError("paged extraction contains an invalid record")
+        if type(self.next_cursor) is not str or len(self.next_cursor) > MAX_ADAPTER_CURSOR_CHARS:
+            raise SourceAdapterError("paged extraction cursor is invalid or unbounded")
+        if self.final_record_count is not None and (
+            type(self.final_record_count) is not int
+            or not 0 <= self.final_record_count <= MAX_PAGED_EXTRACTION_RECORDS
+        ):
+            raise SourceAdapterError("final_record_count is invalid or unbounded")
+        if type(self.final_records_digest) is not str:
+            raise SourceAdapterError("final_records_digest must use exact text")
+        if self.final_records_digest:
+            object.__setattr__(
+                self,
+                "final_records_digest",
+                _sha256(self.final_records_digest, "final_records_digest"),
+            )
+        if self.next_cursor:
+            if not self.records:
+                raise SourceAdapterError("nonterminal paged extraction must contain records")
+            if self.final_record_count is not None or self.final_records_digest:
+                raise SourceAdapterError("nonterminal paged extraction cannot contain terminal fields")
+        elif self.final_record_count is None or not self.final_records_digest:
+            raise SourceAdapterError("terminal paged extraction requires count and digest")
+        if (
+            type(self.warnings) is not tuple
+            or len(self.warnings) > MAX_ADAPTER_WARNINGS
+            or any(type(warning) is not str for warning in self.warnings)
+        ):
+            raise SourceAdapterError("warnings must use exact tuple and text values")
+        object.__setattr__(self, "warnings", _warnings(self.warnings))
+
+        detached_version = _detach_exact_record(
+            self.source_version, (SourceVersionRecord,)
+        )
+        detached_records = tuple(
+            _detach_exact_record(record, allowed) for record in self.records
+        )
+        object.__setattr__(self, "source_version", detached_version)
+        object.__setattr__(self, "records", detached_records)
 
 
 @dataclass(frozen=True, slots=True)
@@ -336,6 +562,31 @@ class UnavailableObservation:
         object.__setattr__(self, "owner_scope", _owner_scope(self.owner_scope))
         object.__setattr__(self, "reason", _enum(self.reason, UnavailableReason, "reason"))
         object.__setattr__(self, "fingerprint", _sha256(self.fingerprint, "fingerprint"))
+
+
+@runtime_checkable
+class PagedSourceAdapter(Protocol):
+    def extract_page(
+        self,
+        source_version: SourceVersionRecord,
+        profile: ExtractionProfile,
+        *,
+        cursor: str,
+        sequence_start: int,
+    ) -> PagedExtractionPage: ...
+
+
+@runtime_checkable
+class BudgetedPagedSourceAdapter(Protocol):
+    def extract_page_budgeted(
+        self,
+        source_version: SourceVersionRecord,
+        profile: ExtractionProfile,
+        budget: ExtractionPageBudget,
+        *,
+        cursor: str,
+        sequence_start: int,
+    ) -> PagedExtractionPage: ...
 
 
 @runtime_checkable
@@ -669,10 +920,11 @@ def validate_adapter_output(
     for record in extraction.records:
         if record.owner_scope != source.owner_scope:
             raise SourceAdapterError("extracted record crosses owner scope")
-        if _CLASSIFICATION_RANK[record.classification] < _CLASSIFICATION_RANK[
-            source.classification
-        ]:
-            raise SourceAdapterError("extracted record weakens classification propagation")
+        _require_classification(
+            record.classification,
+            source.classification,
+            "extracted record weakens classification propagation",
+        )
         if isinstance(record, ChunkRecord):
             if record.content_policy is not source.content_policy:
                 raise SourceAdapterError("chunk changes inherited content policy")
@@ -793,12 +1045,40 @@ def _token(value: str, field_name: str) -> str:
 
 
 def _enum(value, enum_type, field_name: str):
-    if isinstance(value, enum_type):
+    literals = _ENUM_LITERALS.get(enum_type)
+    if literals is None:
+        raise SourceAdapterError(f"{field_name} is invalid")
+    if type(value) is enum_type:
+        expected = next(
+            (literal for member, literal in literals.items() if value is member),
+            None,
+        )
+        try:
+            raw = object.__getattribute__(value, "_value_")
+        except Exception as exc:
+            raise SourceAdapterError(f"{field_name} is invalid") from exc
+        if expected is None or type(raw) is not str or raw != expected:
+            raise SourceAdapterError(f"{field_name} is invalid")
         return value
-    try:
-        return enum_type(value)
-    except (TypeError, ValueError) as exc:
-        raise SourceAdapterError(f"{field_name} is invalid") from exc
+    if type(value) is str:
+        for member, expected in literals.items():
+            if value == expected:
+                try:
+                    raw = object.__getattribute__(member, "_value_")
+                except Exception as exc:
+                    raise SourceAdapterError(f"{field_name} is invalid") from exc
+                if type(raw) is not str or raw != expected:
+                    raise SourceAdapterError(f"{field_name} is invalid")
+                return member
+    raise SourceAdapterError(f"{field_name} is invalid")
+
+
+def _enum_literal(value, enum_type, field_name: str) -> str:
+    member = _enum(value, enum_type, field_name)
+    for candidate, literal in _ENUM_LITERALS[enum_type].items():
+        if member is candidate:
+            return literal
+    raise SourceAdapterError(f"{field_name} is invalid")
 
 
 def _bounded_integer(
@@ -815,11 +1095,123 @@ def _bounded_integer(
     return value
 
 
+def _has_exact_type(value: object, allowed: tuple[type, ...]) -> bool:
+    actual = type(value)
+    return any(actual is expected for expected in allowed)
+
+
+def _capture_exact_contract_value(
+    value: object,
+    *,
+    depth: int = 0,
+    ancestors: tuple[int, ...] = (),
+) -> object:
+    if depth > 64:
+        raise SourceAdapterError("paged extraction nested data exceeds its depth bound")
+    actual = type(value)
+    if value is None or actual is str or actual is int or actual is bool:
+        return value
+    if actual is float:
+        if not math.isfinite(value):
+            raise SourceAdapterError("paged extraction contains non-finite data")
+        return value
+    enum_types = (
+        Classification,
+        ContentPolicy,
+        EntityKind,
+        RecordKind,
+        RelationKind,
+        SourceKind,
+    )
+    if any(actual is expected for expected in enum_types):
+        return _enum_literal(value, actual, "paged extraction enum")
+    if actual is tuple:
+        if len(value) > MAX_EVIDENCE_REFS or id(value) in ancestors:
+            raise SourceAdapterError("paged extraction tuple is cyclic or unbounded")
+        lineage = (*ancestors, id(value))
+        return tuple(
+            _capture_exact_contract_value(item, depth=depth + 1, ancestors=lineage)
+            for item in value
+        )
+
+    locator_types = (
+        TextRangeLocator,
+        PageRangeLocator,
+        RowRangeLocator,
+        MessageRangeLocator,
+        CodeRangeLocator,
+    )
+    if any(actual is expected for expected in locator_types):
+        kind = type.__getattribute__(actual, "kind")
+        kind = _enum(kind, LocatorKind, "paged extraction locator kind")
+        if id(value) in ancestors:
+            raise SourceAdapterError("paged extraction nested data is cyclic")
+        lineage = (*ancestors, id(value))
+        body = {
+            field.name: _capture_exact_contract_value(
+                object.__getattribute__(value, field.name),
+                depth=depth + 1,
+                ancestors=lineage,
+            )
+            for field in fields(actual)
+        }
+        return {
+            "kind": _enum_literal(kind, LocatorKind, "paged extraction locator kind"),
+            **body,
+        }
+
+    canonical_types = (
+        PolicyEvidence,
+        RecordRef,
+        EvidenceRef,
+        SourceRecord,
+        SourceVersionRecord,
+        ChunkRecord,
+        EntityRecord,
+        RelationRecord,
+    )
+    if any(actual is expected for expected in canonical_types):
+        if id(value) in ancestors:
+            raise SourceAdapterError("paged extraction nested data is cyclic")
+        lineage = (*ancestors, id(value))
+        body = {
+            field.name: _capture_exact_contract_value(
+                object.__getattribute__(value, field.name),
+                depth=depth + 1,
+                ancestors=lineage,
+            )
+            for field in fields(actual)
+        }
+        schema = type.__getattribute__(actual, "SCHEMA")
+        if type(schema) is not str:
+            raise SourceAdapterError("paged extraction record schema is invalid")
+        return {"schema": schema, **body}
+    raise SourceAdapterError("paged extraction contains a non-exact nested value")
+
+
+def _detach_exact_record(record: object, allowed: tuple[type, ...]) -> object:
+    if not _has_exact_type(record, allowed):
+        raise SourceAdapterError("paged extraction contains an invalid record")
+    payload = _capture_exact_contract_value(record)
+    encoded = canonical_json(payload)
+    try:
+        detached = record_from_json(encoded)
+    except UnifiedSourceIndexContractError as exc:
+        raise SourceAdapterError("paged extraction record is not canonical") from exc
+    if not _has_exact_type(detached, allowed):
+        raise SourceAdapterError("paged extraction canonical detachment changed record types")
+    if canonical_json(_capture_exact_contract_value(detached)) != encoded:
+        raise SourceAdapterError("paged extraction canonical detachment changed record bytes")
+    return detached
+
+
 def _require_classification(
     value: Classification,
     ceiling: Classification,
     message: str,
 ) -> None:
+    value = _enum(value, Classification, "classification")
+    ceiling = _enum(ceiling, Classification, "classification ceiling")
     if _CLASSIFICATION_RANK[value] > _CLASSIFICATION_RANK[ceiling]:
         raise SourceAdapterError(message)
 
@@ -827,16 +1219,24 @@ def _require_classification(
 __all__ = [
     "AdapterCapability",
     "AdapterScope",
+    "BudgetedPagedSourceAdapter",
     "DeterministicFakeSourceAdapter",
     "DiscoveryItem",
     "DiscoveryPage",
     "ExactReadRequest",
     "ExactReadResult",
     "ExtractionProfile",
+    "ExtractionPageBudget",
     "ExtractionResult",
     "FakeAdapterDocument",
     "MAX_ADAPTER_CURSOR_CHARS",
     "MAX_ADAPTER_PAGE_SIZE",
+    "MAX_TOTAL_EXTRACTION_CHARS",
+    "MAX_PAGED_EXTRACTION_PAGE_RECORDS",
+    "MAX_PAGED_EXTRACTION_PAGES",
+    "MAX_PAGED_EXTRACTION_RECORDS",
+    "PagedExtractionPage",
+    "PagedSourceAdapter",
     "PolicyReadContext",
     "SourceAdapter",
     "SourceAdapterError",
