@@ -7,7 +7,23 @@ applicable scoped handoff. See `docs/plans/evidence/harbour-one-plan-reconciliat
 for the planning reconciliation. Historical next-action text below does not
 reopen accepted or released work.
 
-## Latest checkpoint: 2026-10-05 (canonical revision 3143)
+## Latest checkpoint: 2026-10-05 (canonical revision 3173)
+
+HEAD is `651a76773840fb7f583c49aa3195826381c52f44`; 58 accepted local commits precede this documentation update. The canonical local execution queue is running. Product-roadmap progress remains 9/17; the results below do not grant whole-product or live acceptance.
+
+The committed-head combined H1R05/Inbox lane actually ran all 57 modules, covering every required strong33 and Inbox53 module. At `4e41891c6b0a899b825cb72f549d72827ec0fa88` it returned exit 1: 2019 passed, 11 failed, 3 skipped, with unchanged source pins. Receipt: `.abc-test-tmp/h1r05-current-parent-rebind-20261005/current-head57/receipt.json`. Historical acceptance does not replace this result.
+
+Seven failures were stale Clarification principal, login identity-fence and centralized document-query fixtures. The exact five-file correction is committed as `651a76773840fb7f583c49aa3195826381c52f44` after independent complete review and final runtime binding. All seven reproduced failures passed; the complete five-module lane passed 123 tests with one skip, exit 0 and unchanged pins. Receipt: `.abc-test-tmp/current57-fixture5-repair-20261005/full-r2/receipt.json`. The intermediate whitespace-sensitive assertion failure and corrected review-pin history are retained. No production source changed in this fixture commit.
+
+The remaining four failures concern historical migration digest vectors bound to a changing repository census. Their expected digests and immutable receipt bytes remain fixed. An ancestor-directory fallback candidate was rejected before tests because it escaped the isolated committed tree. A separate exact three-file claim now prepares a portable serialized historical manifest fixture bound to the canonical prepromotion digest; independent review and runtime acceptance remain pending.
+
+The source-owned Planning current-receipt reader has a separate exact two-file implementation candidate. Its contract requires authenticated immutable SID/issuer binding, exact current-head freshness, verified ordinary receipt provenance and an opaque frozen read-only DTO. It grants no mutation authority. The first independent candidate review rejected malformed timestamp handling, a naive restart clock and missing meaningful boundary coverage. A bounded correction is running under the same exact two-file claim; renewed review and runtime evidence remain required. No Inbox integration acceptance is claimed.
+
+Next: independently accept the portable historical fixture and the receipt-reader candidate, run their smallest affected lanes, commit only reviewed owned paths, then rebind the required combined composition to the resulting committed revision. The historical H1R05 accepted input set remains exactly 99 paths. Foreign working-tree changes are preserved; the index was empty after the exact fixture commit.
+
+Not verified: current whole authenticated persistent MCP App/strong33/Inbox composition acceptance, the new reader runtime and integration, UI, live providers, production migration/activation, temporal behavior, deployment, backup, restore and push. All actual skips and failure histories remain visible.
+
+## Historical checkpoint: 2026-10-05 (canonical revision 3143)
 
 HEAD is `1d072f10a2e650e5c44fde0795e781e74c4c72e8`; 56 accepted local commits precede this documentation update. The canonical execution queue is running. These are scoped repository results; Product-roadmap progress remains 9/17.
 
