@@ -7,19 +7,14 @@ from routes.workspace_snapshot_routes import setup_workspace_snapshot_routes
 from src.workspace_snapshot import WORKSPACE_SNAPSHOT_SCHEMA, build_workspace_snapshot
 
 
-class _AuthManager:
-    is_configured = True
-
-    def __init__(self, admins=("admin",)):
-        self._admins = set(admins)
-
-    def is_admin(self, user):
-        return user in self._admins
-
-
-def _app(*, user="admin", admins=("admin",), **providers) -> FastAPI:
+def _app(tmp_path, *, user="admin", admins=("admin",), **providers) -> FastAPI:
     app = FastAPI()
-    app.state.auth_manager = _AuthManager(admins=admins)
+    from core.auth import AuthManager
+    manager = AuthManager(str(tmp_path / "workspace-auth.json"))
+    for owner in set(admins) | ({user} if user is not None else set()):
+        assert manager.create_user(owner, "workspace-fixture-password-123", is_admin=owner in admins)
+    app.state.auth_manager = manager
+    app.state.test_cookie = manager.create_session(user, "workspace-fixture-password-123") if user is not None else None
 
     @app.middleware("http")
     async def _stamp_user(request, call_next):
@@ -29,6 +24,13 @@ def _app(*, user="admin", admins=("admin",), **providers) -> FastAPI:
 
     app.include_router(setup_workspace_snapshot_routes(**providers))
     return app
+
+
+def _client(app: FastAPI) -> TestClient:
+    client = TestClient(app)
+    if app.state.test_cookie:
+        client.cookies.set("odysseus_session", app.state.test_cookie)
+    return client
 
 
 def test_workspace_snapshot_normalizes_sections_and_fixture_state():
@@ -89,9 +91,9 @@ def test_workspace_snapshot_redacts_secrets_and_private_paths():
     assert sections["coding"]["summary"] == "coding unknown"
 
 
-def test_workspace_snapshot_route_is_admin_gated_and_redacted():
-    response = TestClient(
-        _app(
+def test_workspace_snapshot_route_is_admin_gated_and_redacted(tmp_path):
+    response = _client(
+        _app(tmp_path,
             operator_provider=lambda: {"schema": "odysseus.operator.v1", "status": "ok", "summary": "operator ok"},
             projects_provider=lambda: {
                 "schema": "odysseus.projects.v1",
@@ -156,8 +158,8 @@ def test_workspace_snapshot_route_is_admin_gated_and_redacted():
     assert "--token" not in encoded
 
 
-def test_workspace_snapshot_route_requires_admin():
-    response = TestClient(_app(user="alice", admins=("admin",))).get("/api/workspace/snapshot")
+def test_workspace_snapshot_route_requires_admin(tmp_path):
+    response = _client(_app(tmp_path, user="alice", admins=("admin",))).get("/api/workspace/snapshot")
 
     assert response.status_code == 403
 
@@ -202,9 +204,9 @@ def test_workspace_snapshot_exposes_degradation_contract_for_frontend():
     assert sections["knowledge"]["frontend_hint"] == "render_live"
 
 
-def test_workspace_snapshot_route_marks_provider_failure_as_partial():
-    response = TestClient(
-        _app(
+def test_workspace_snapshot_route_marks_provider_failure_as_partial(tmp_path):
+    response = _client(
+        _app(tmp_path,
             operator_provider=lambda: {"schema": "odysseus.operator.v1", "status": "ok"},
             planning_provider=lambda: (_ for _ in ()).throw(RuntimeError("boom token SECRET")),
         )

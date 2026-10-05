@@ -2,6 +2,7 @@ import hashlib
 import json
 import os
 import re
+from copy import deepcopy
 from datetime import datetime, timezone
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
@@ -14,6 +15,7 @@ SECRET_PATTERNS = (
     re.compile(r"Bearer\s+[A-Za-z0-9._\-]{12,}", re.IGNORECASE),
     re.compile(r"(?i)(api[_-]?key|token|secret|password)\s*[:=]\s*['\"]?[^'\"\s]+"),
 )
+_SUPERSEDED_STATUSES = frozenset({"superseded", "historical", "archived", "deprecated", "retired", "obsolete"})
 
 
 def build_planning_source_inventory(
@@ -21,6 +23,7 @@ def build_planning_source_inventory(
     *,
     allowlist: Iterable[str] = DEFAULT_ALLOWLIST,
     preview_chars: int = DEFAULT_PREVIEW_CHARS,
+    migration_batch: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Return a read-only inventory of repo planning documents.
 
@@ -41,6 +44,12 @@ def build_planning_source_inventory(
                     continue
                 abs_path = os.path.join(dirpath, filename)
                 rel_path = _normalize_path(os.path.relpath(abs_path, root))
+                try:
+                    _safe_join(root, rel_path)
+                except ValueError:
+                    # A file symlink must not turn the allowlisted walk into
+                    # an authority over bytes outside the repository root.
+                    continue
                 sources.append(_source_record(abs_path, rel_path, preview_chars=preview_chars))
     sources.sort(key=lambda item: item["path"].lower())
     by_kind: Dict[str, int] = {}
@@ -49,7 +58,7 @@ def build_planning_source_inventory(
         by_kind[item["kind"]] = by_kind.get(item["kind"], 0) + 1
         by_extension[item["extension"]] = by_extension.get(item["extension"], 0) + 1
     preview_limit = max(0, int(preview_chars or 0))
-    return {
+    inventory = {
         "schema": "planning-source-inventory-v1",
         "read_only": True,
         "writes_supported": False,
@@ -65,6 +74,122 @@ def build_planning_source_inventory(
         },
         "sources": sources,
     }
+    return project_planning_migration_inventory(inventory, migration_batch) if migration_batch is not None else inventory
+
+
+def migration_primary_digest_matches(item: Dict[str, Any], source_hash: str) -> bool:
+    """Match exact bytes or an already declared frozen metadata variant.
+
+    Frozen command identity retains its historical digest.  Only the existing
+    immutable member declaration and predeclared raw-byte variants may bridge
+    that digest to current archival metadata; arbitrary content never can.
+    """
+    if type(item) is not dict or type(source_hash) is not str:
+        return False
+    if not re.fullmatch(r"sha256:[a-f0-9]{64}", source_hash):
+        return False
+    expected = _manifest_sha256(item.get("sha256"))
+    if expected is None:
+        return False
+    from src.planning_roadmap_migration import FROZEN_MEMBERS, FROZEN_MEMBER_SHA256_VARIANTS
+    for path, adapter, roadmap_id, blob, digest in FROZEN_MEMBERS:
+        if item.get("path") == path:
+            return (
+                item.get("role") == "primary"
+                and item.get("adapter") == adapter
+                and item.get("roadmap_id") == roadmap_id
+                and item.get("blob") == blob
+                and item.get("sha256") == digest
+                and source_hash[7:] in FROZEN_MEMBER_SHA256_VARIANTS[path]
+            )
+    return source_hash == expected
+
+
+def project_planning_migration_inventory(
+    inventory: Dict[str, Any], migration_batch: Dict[str, Any]
+) -> Dict[str, Any]:
+    """Return a detached read-only classification projection for one batch.
+
+    This never changes source bytes.  Supporting-relation drift is represented
+    independently and cannot promote, remove, or otherwise alter a Planning
+    head.
+    """
+    if type(inventory) is not dict or type(migration_batch) is not dict:
+        raise ValueError("inventory and migration batch must be exact objects")
+    required = {
+        "batch_id", "manifest_digest", "owner_id", "project_id", "state",
+        "source_items", "supporting_relations", "expected_subjects", "accepted_subjects",
+        "normalized_payloads", "prepared_receipt_id", "accepted_receipt_id", "terminal_receipt_id",
+    }
+    prior_modern = required | {"census_observation", "structural_census", "principal_identity"}
+    current_modern = prior_modern | {"manifest_identity"}
+    if set(migration_batch) not in (required, prior_modern, current_modern) or migration_batch["state"] not in {
+        "prepared", "accepted", "aborted", "rolled_back"
+    }:
+        raise ValueError("migration batch shape is invalid")
+    if "manifest_identity" in migration_batch:
+        from src.planning_roadmap_migration import resolve_migration_manifest_identity
+        try:
+            resolve_migration_manifest_identity(migration_batch["manifest_identity"])
+        except (TypeError, ValueError):
+            raise ValueError("migration manifest identity shape is invalid") from None
+    projected = deepcopy(inventory)
+    sources = projected.get("sources")
+    if type(sources) is not list or any(type(item) is not dict for item in sources):
+        raise ValueError("inventory sources are invalid")
+    primary_items = [item for item in migration_batch["source_items"]
+                     if type(item) is dict and type(item.get("path")) is str]
+    relation_items = [item for item in migration_batch["supporting_relations"]
+                      if type(item) is dict and type(item.get("path")) is str]
+    primary_paths = [item["path"] for item in primary_items]
+    relation_paths = [item["path"] for item in relation_items]
+    if len(primary_paths) != len(set(primary_paths)) or len(relation_paths) != len(set(relation_paths)):
+        raise ValueError("migration source paths must be unique")
+    primary = {item["path"]: item for item in primary_items}
+    relations = {item["path"]: item for item in relation_items}
+    state = migration_batch["state"]
+    present_paths = {item.get("path") for item in sources if type(item.get("path")) is str}
+    relation_valid = all(path in present_paths for path in relations)
+    primary_valid = all(path in present_paths for path in primary)
+    migrated_count = 0
+    for item in sources:
+        path = item.get("path")
+        if path in primary:
+            inventory_hash = item.get("source_hash")
+            if not migration_primary_digest_matches(primary[path], inventory_hash):
+                primary_valid = False
+                item["authority_disposition"] = "primary_source_drift"
+            elif state == "accepted":
+                item["authority_disposition"] = "migrated_read_only"
+                migrated_count += 1
+            else:
+                item["authority_disposition"] = "active_import_candidate"
+        elif path in relations:
+            expected = "sha256:" + str(relations[path].get("sha256", ""))
+            if item.get("source_hash") == expected:
+                item["authority_disposition"] = "supporting_reference"
+            else:
+                item["authority_disposition"] = "supporting_relation_invalid"
+                relation_valid = False
+        elif str(path or "").lower().endswith((".md", ".markdown")):
+            item["authority_disposition"] = "historical_evidence"
+    counts: Dict[str, int] = {}
+    for item in sources:
+        disposition = item.get("authority_disposition")
+        if type(disposition) is str:
+            counts[disposition] = counts.get(disposition, 0) + 1
+    projected["migration_projection"] = {
+        "schema": "odysseus.harbour.planning_migration_inventory.v1",
+        "batch_id": migration_batch["batch_id"],
+        "batch_state": state,
+        "migrated_read_only_count": migrated_count,
+        "primary_source_valid": primary_valid,
+        "supporting_relation_valid": relation_valid,
+        "authority_disposition_counts": dict(sorted(counts.items())),
+        "read_only": True,
+        "writes_supported": False,
+    }
+    return projected
 
 
 def diff_planning_source_inventories(previous: Dict[str, Any], current: Dict[str, Any]) -> Dict[str, Any]:
@@ -101,14 +226,11 @@ def diff_planning_source_inventories(previous: Dict[str, Any], current: Dict[str
 
 
 def _source_record(abs_path: str, rel_path: str, *, preview_chars: int) -> Dict[str, Any]:
-    raw = _read_text(abs_path)
+    raw_bytes = _read_bytes(abs_path)
+    raw = raw_bytes.decode("utf-8", errors="replace")
     parsed_json: Optional[Dict[str, Any]] = None
     if rel_path.lower().endswith(".json"):
-        try:
-            loaded = json.loads(raw)
-            parsed_json = loaded if isinstance(loaded, dict) else None
-        except json.JSONDecodeError:
-            parsed_json = None
+        parsed_json = _load_json_object(raw)
     stat = os.stat(abs_path)
     title, plan_id = _title_and_plan_id(rel_path, raw, parsed_json)
     dependencies, source_refs = _dependency_hints(parsed_json)
@@ -120,26 +242,56 @@ def _source_record(abs_path: str, rel_path: str, *, preview_chars: int) -> Dict[
         "extension": ext.lstrip("."),
         "title": title,
         "plan_id": plan_id,
-        "source_hash": _sha256(raw),
+        "source_hash": _sha256_bytes(raw_bytes),
         "size_bytes": int(stat.st_size),
         "mtime": _mtime_iso(stat.st_mtime),
         "dependency_hints": dependencies,
         "source_refs": source_refs,
+        "authority_disposition": _authority_disposition(rel_path, parsed_json),
         "preview": _bounded_preview(raw, preview_chars),
         "repo_relative": True,
         "absolute_path_recorded": False,
     }
 
 
+def _load_json_object(raw: str) -> Optional[Dict[str, Any]]:
+    def reject_duplicate_keys(pairs: List[Tuple[str, Any]]) -> Dict[str, Any]:
+        result: Dict[str, Any] = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError("duplicate JSON key")
+            result[key] = value
+        return result
+
+    try:
+        loaded = json.loads(raw, object_pairs_hook=reject_duplicate_keys)
+    except (json.JSONDecodeError, ValueError):
+        return None
+    return loaded if type(loaded) is dict else None
+
+
+def _authority_disposition(path: str, parsed: Optional[Dict[str, Any]]) -> str:
+    normalized = _normalize_path(path).lower()
+    if not normalized.startswith("specs/roadmaps/") or not normalized.endswith(".json"):
+        return "supporting_plan_source"
+    if parsed is None:
+        return "invalid_plan_source"
+
+    if type(parsed.get("plan_id")) is not str or not parsed["plan_id"].strip():
+        return "invalid_plan_source"
+    return "current_source_of_truth"
+
+
 def _safe_join(root: str, rel_path: str) -> str:
-    candidate = os.path.abspath(os.path.join(root, rel_path.replace("/", os.sep)))
-    if candidate != root and not candidate.startswith(root + os.sep):
+    canonical_root = os.path.realpath(os.path.abspath(root))
+    candidate = os.path.realpath(os.path.abspath(os.path.join(root, rel_path.replace("/", os.sep))))
+    if os.path.normcase(candidate) != os.path.normcase(canonical_root) and not os.path.normcase(candidate).startswith(os.path.normcase(canonical_root + os.sep)):
         raise ValueError(f"Planning source path escapes repo root: {rel_path}")
     return candidate
 
 
-def _read_text(path: str) -> str:
-    with open(path, "r", encoding="utf-8", errors="replace") as handle:
+def _read_bytes(path: str) -> bytes:
+    with open(path, "rb") as handle:
         return handle.read()
 
 
@@ -153,8 +305,14 @@ def _stable_source_id(path: str) -> str:
     return f"repo-plan:{digest}"
 
 
-def _sha256(text: str) -> str:
-    return "sha256:" + hashlib.sha256((text or "").encode("utf-8")).hexdigest()
+def _sha256_bytes(raw: bytes) -> str:
+    return "sha256:" + hashlib.sha256(raw).hexdigest()
+
+
+def _manifest_sha256(value: Any) -> Optional[str]:
+    if type(value) is not str or re.fullmatch(r"[0-9a-fA-F]{64}", value) is None:
+        return None
+    return "sha256:" + value.lower()
 
 
 def _mtime_iso(value: float) -> str:

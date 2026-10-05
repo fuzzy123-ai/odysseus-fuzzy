@@ -62,6 +62,11 @@ def test_uir03b_initializer_builds_exactly_one_runtime_from_one_config_near_retu
     tree = ast.parse(_source("src/app_initializer.py"))
     initializer = _function(tree, "initialize_managers")
     assert len(_calls(initializer, "from_environment")) == 1
+    compositions = _calls(initializer, "build_active_knowledge_composition")
+    assert len(compositions) == 1
+    assert [ast.unparse(item) for item in compositions[0].args] == [
+        "knowledge_runtime_config", "auth_manager"
+    ]
     builds = _calls(initializer, "build_knowledge_runtime")
     assert len(builds) == 1
     build = builds[0]
@@ -69,13 +74,18 @@ def test_uir03b_initializer_builds_exactly_one_runtime_from_one_config_near_retu
     assert [ast.unparse(item) for item in build.args[0].elts] == [
         "knowledge_runtime_config.mode.value", "knowledge_runtime_config.runtime_enabled"
     ]
-    assert isinstance(build.keywords[0].value, ast.Constant)
-    assert build.keywords[0].arg == "planner" and build.keywords[0].value.value is None
+    assert build.keywords[0].arg == "planner"
+    assert ast.unparse(build.keywords[0].value) == "knowledge_composition"
     returned = next(node for node in initializer.body if isinstance(node, ast.Return))
     assert isinstance(returned.value, ast.Dict)
     assert any(
         isinstance(key, ast.Constant) and key.value == "knowledge_runtime"
         and isinstance(value, ast.Name) and value.id == "knowledge_runtime"
+        for key, value in zip(returned.value.keys, returned.value.values)
+    )
+    assert any(
+        isinstance(key, ast.Constant) and key.value == "knowledge_composition"
+        and isinstance(value, ast.Name) and value.id == "knowledge_composition"
         for key, value in zip(returned.value.keys, returned.value.values)
     )
     assert build.lineno < returned.lineno
@@ -106,9 +116,10 @@ def test_uir03b_app_stores_the_initializer_runtime_by_identity_and_rejects_missi
     assert source.count('components["knowledge_runtime"]') == 1
     assert "type(knowledge_runtime) is not KnowledgeRuntime" in source
     assert "app.state.knowledge_runtime = knowledge_runtime" in source
-    assert source.index('components = initialize_managers(BASE_DIR, rag_manager)') < source.index('components["knowledge_runtime"]')
+    assert source.index('components = initialize_managers(BASE_DIR, rag_manager, auth_manager=auth_manager)') < source.index('components["knowledge_runtime"]')
     assert "Knowledge runtime component invalid" in source
     assert "knowledge_runtime_component_invalid" in source
+    assert "app.state.knowledge_composition = knowledge_composition" in source
     assert not any(
         isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
         and node.func.id == "build_knowledge_runtime"
@@ -130,7 +141,7 @@ def test_uir03b_lifecycle_import_boundary_is_one_guarded_explicit_sequence():
     imports = [node for node in guarded.body if isinstance(node, ast.ImportFrom)]
     assert [(node.module, [alias.name for alias in node.names]) for node in imports] == [
         ("src.agent_tools", ["set_mcp_manager"]),
-        ("src.agent_tools.knowledge_tools", ["set_query_knowledge_planner"]),
+        ("src.agent_tools.knowledge_tools", ["set_query_knowledge_owner_resolver", "set_query_knowledge_planner"]),
         ("src.unified_source_index_runtime", [
             "KnowledgeRuntime", "bind_knowledge_runtime", "close_knowledge_runtime",
         ]),
@@ -361,13 +372,14 @@ def _uir04c_pump_try(tree: ast.AST) -> ast.Try:
 
 def _uir04c_config(tmp_path: Path, mode: str):
     from src.unified_source_index_runtime_config import UnifiedSourceIndexRuntimeConfig
+    from src.unified_source_index_sources.knowledge import knowledge_source_capability_manifest
 
     values = {}
     if mode != "disabled":
         values = {
             "ODYSSEUS_USI_RUNTIME_MODE": mode,
             "ODYSSEUS_USI_RUNTIME_ENABLED": "true",
-            "ODYSSEUS_USI_SELECTED_GENERATION": "usi_generation_" + "a" * 64,
+            "ODYSSEUS_USI_SELECTED_GENERATION": knowledge_source_capability_manifest().generation_ref,
             "ODYSSEUS_USI_ALLOWED_OWNERS": "user:alice",
             "ODYSSEUS_USI_ALLOWED_SOURCES": "source:one",
             "ODYSSEUS_USI_ALLOWED_DOMAINS": "code",
@@ -404,9 +416,11 @@ def test_uir04c_initializer_pump_failure_is_fixed_content_free_and_returns_no_pa
     assert len(pump_try.handlers) == 1
     handler = pump_try.handlers[0]
     assert isinstance(handler.type, ast.Name) and handler.type.id == "Exception"
-    assert ast.unparse(handler.body[0]) == "logger.warning('Index job pump initialization failed')"
-    assert ast.unparse(handler.body[1].exc) == "RuntimeError('index_job_pump_initialization_failed')"
-    assert isinstance(handler.body[1].cause, ast.Constant) and handler.body[1].cause.value is None
+    assert isinstance(handler.body[0], ast.Try)
+    assert "knowledge_composition.close()" in ast.unparse(handler.body[0])
+    assert ast.unparse(handler.body[1]) == "logger.warning('Index job pump initialization failed')"
+    assert ast.unparse(handler.body[2].exc) == "RuntimeError('index_job_pump_initialization_failed')"
+    assert isinstance(handler.body[2].cause, ast.Constant) and handler.body[2].cause.value is None
 
     marker = "private-pump-builder-marker"
     runner = types.SimpleNamespace()
@@ -428,9 +442,12 @@ def test_uir04c_initializer_pump_failure_is_fixed_content_free_and_returns_no_pa
             self.warnings.append(value)
 
     logger = Logger()
+    closed = []
+    composition = types.SimpleNamespace(close=lambda: closed.append(True))
     namespace = {
         "__builtins__": {**vars(builtins), "__import__": importing},
         "knowledge_runtime_config": object(),
+        "knowledge_composition": composition,
         "logger": logger,
     }
     isolated = ast.fix_missing_locations(ast.Module(body=[pump_try], type_ignores=[]))
@@ -443,6 +460,7 @@ def test_uir04c_initializer_pump_failure_is_fixed_content_free_and_returns_no_pa
     else:
         raise AssertionError("pump builder bomb did not fail closed")
     assert "index_job_pump" not in namespace
+    assert closed == [True]
     assert logger.warnings == ["Index job pump initialization failed"]
 
 
@@ -525,7 +543,7 @@ def test_uir04c_shutdown_continues_pump_close_after_knowledge_close_failure_and_
             for call in ast.walk(node)
         )
     )
-    assert shutdown.body.index(pump_try) == shutdown.body.index(knowledge_try) + 1
+    assert shutdown.body.index(pump_try) > shutdown.body.index(knowledge_try) + 1
     assert _string_calls(knowledge_try, "warning") == [
         "Knowledge runtime close failed; query_knowledge remains unavailable"
     ]
@@ -614,7 +632,7 @@ def test_uir04c_composition_adds_no_sqlite_store_provider_adapter_filesystem_net
         and isinstance(call.func, (ast.Attribute, ast.Name))
     }
     assert pump_calls == {
-        "build_inert_cooperative_index_job_pump", "warning", "RuntimeError"
+        "build_inert_cooperative_index_job_pump", "warning", "RuntimeError", "close"
     }
     forbidden = {
         "open", "connect", "SQLiteJobStore", "UnifiedSourceIndexJobRuntime",

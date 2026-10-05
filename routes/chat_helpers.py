@@ -399,6 +399,8 @@ async def preprocess(
     chat_handler, message, att_ids, sess,
     auto_opened_docs: Optional[list] = None,
     allow_tool_preprocessing: bool = True,
+    *,
+    document_authority=None,
 ) -> PreprocessedMessage:
     """Run chat_handler.preprocess_message and wrap the result."""
     enhanced, user_content, text_ctx, yt_transcripts, att_meta = (
@@ -408,6 +410,7 @@ async def preprocess(
             sess,
             auto_opened_docs=auto_opened_docs,
             allow_tool_preprocessing=allow_tool_preprocessing,
+            document_authority=document_authority,
         )
     )
     return PreprocessedMessage(
@@ -689,6 +692,8 @@ async def build_chat_context(
     use_enhanced_message: bool = False,
     agent_mode: bool = False,
     allow_tool_preprocessing: bool = True,
+    *,
+    document_authority=None,
 ) -> ChatContext:
     """Build the full context (preface + messages) for an LLM call.
 
@@ -707,6 +712,7 @@ async def build_chat_context(
         chat_handler, message, att_ids or [], sess,
         auto_opened_docs=auto_opened_docs,
         allow_tool_preprocessing=allow_tool_preprocessing,
+        document_authority=document_authority,
     )
 
     # Add user message to history

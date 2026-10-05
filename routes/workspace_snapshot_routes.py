@@ -11,6 +11,7 @@ from core.middleware import require_admin
 from plugins.system_health_checker.health_model import build_agent_offline_snapshot
 from src.agent_sandbox_contract import DEFAULT_SANDBOX_CAPABILITIES, SANDBOX_JOB_SCHEMA
 from src.clarification_attention import build_workspace_clarification_status
+from src.auth_helpers import require_trusted_session_principal
 from src.constants import APP_VERSION
 from src.live_affordance_readiness import build_live_affordance_readiness
 from src.local_model_memory_status import build_local_model_memory_status
@@ -42,13 +43,14 @@ def setup_workspace_snapshot_routes(
     @router.get("/api/workspace/snapshot")
     def workspace_snapshot(request: Request):
         require_admin(request)
+        principal = require_trusted_session_principal(request)
         snapshot = build_workspace_snapshot(
             operator_status=_safe_provider(operator_provider, fallback=lambda: _default_operator_status(mcp_manager)),
             projects_status=_safe_provider(projects_provider, fallback=_default_unavailable("projects", "project snapshot adapter not connected")),
             clarification_status=_safe_provider(
                 clarification_provider,
                 fallback=lambda: build_workspace_clarification_status(
-                    owner=getattr(request.state, "current_user", None) or None,
+                    principal=principal,
                 ),
             ),
             planning_status=_safe_provider(planning_provider, fallback=_default_unavailable("planning", "planning snapshot adapter not connected")),

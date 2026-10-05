@@ -103,6 +103,8 @@ class ChatHandler:
         sess,
         auto_opened_docs: Optional[List[Dict[str, Any]]] = None,
         allow_tool_preprocessing: bool = True,
+        *,
+        document_authority=None,
     ) -> tuple:
         """
         Common preprocessing for both chat endpoints.
@@ -270,6 +272,7 @@ class ChatHandler:
             resolved_uploads=files_by_id,
             session_endpoint_url=getattr(sess, "endpoint_url", "") or "",
             session_model=getattr(sess, "model", "") or "",
+            document_authority=document_authority,
         )
 
         # Strip image_url entries for text-only models (VL description is already in the text)

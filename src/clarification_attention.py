@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any, Mapping
+from src.auth_helpers import SessionPrincipal
 
 
 CLARIFICATION_ATTENTION_SCHEMA = "odysseus.clarification_attention.v1"
@@ -12,7 +13,7 @@ _OPEN_STATUSES = {"clarifying", "understanding_review", "paused", "blocked"}
 
 def build_session_clarification_attention(
     *,
-    owner: str | None,
+    principal: SessionPrincipal,
     session_id: str | None,
     store: Any = None,
 ) -> dict[str, Any]:
@@ -23,7 +24,7 @@ def build_session_clarification_attention(
             from src.clarification_store import ClarificationStore
 
             store = ClarificationStore()
-        run = store.read_active_run_for_session(owner=owner or "local", session_id=session_id)
+        run = store.read_active_run_for_session(principal=principal, session_id=session_id)
     except Exception:
         return {**_empty_attention(), "state": "unknown", "provider_failed": True}
     if not isinstance(run, Mapping):
@@ -33,7 +34,7 @@ def build_session_clarification_attention(
 
 def build_workspace_clarification_status(
     *,
-    owner: str | None = None,
+    principal: SessionPrincipal,
     store: Any = None,
     limit: int = 25,
 ) -> dict[str, Any]:
@@ -42,7 +43,9 @@ def build_workspace_clarification_status(
             from src.clarification_store import ClarificationStore
 
             store = ClarificationStore()
-        runs = tuple(store.list_active_runs(owner=owner, limit=limit))
+        # The store's closed SQL projection intentionally excludes content and
+        # identity columns that workspace attention does not need.
+        runs = tuple(store.list_active_metadata(principal=principal, limit=limit))
     except Exception:
         return {
             "schema": CLARIFICATION_WORKSPACE_STATUS_SCHEMA,

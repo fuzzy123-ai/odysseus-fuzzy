@@ -271,12 +271,52 @@ def _fit_inline_attachment_text(
     return text[:remaining] + marker, 0
 
 
+def _load_created_document_projection(
+    doc_id: str,
+    *,
+    owner: str | None,
+    document_authority=None,
+) -> dict[str, Any] | None:
+    """Reload a created row only through its request scope, then detach it."""
+    from src.database import Document, SessionLocal
+    from src.document_subject_scope import guard_document_request_authority, scope_document_web_query
+
+    guard = guard_document_request_authority(document_authority) if document_authority is not None else None
+    lease = guard.__enter__() if guard is not None else None
+    try:
+        db = SessionLocal()
+        try:
+            query = db.query(Document).filter(Document.id == doc_id)
+            if lease is not None:
+                query = scope_document_web_query(query, lease, model=Document)
+            else:
+                query = query.filter(Document.creator_subject_id.is_(None))
+                if owner:
+                    query = query.filter(Document.owner == owner)
+            doc = query.first()
+            if doc is None:
+                return None
+            return {
+                "doc_id": doc.id,
+                "title": doc.title,
+                "language": doc.language,
+                "content": doc.current_content,
+                "version": doc.version_count,
+            }
+        finally:
+            db.close()
+    finally:
+        if guard is not None:
+            guard.__exit__(None, None, None)
+
+
 def _process_office_document(
     path: str,
     display_name: str,
     session_id: str | None = None,
     auto_opened_docs: list[Dict[str, Any]] | None = None,
     owner: str | None = None,
+    document_authority=None,
 ) -> str:
     """Extract an Office/EPUB document to Markdown via the optional markitdown dep.
 
@@ -311,22 +351,14 @@ def _process_office_document(
                     upload_id=os.path.basename(path),
                     title=title,
                     body_text=markdown,
+                    document_authority=document_authority,
                 )
                 if doc_id and auto_opened_docs is not None:
-                    from src.database import SessionLocal, Document
-                    _db = SessionLocal()
-                    try:
-                        _d = _db.query(Document).filter(Document.id == doc_id).first()
-                        if _d:
-                            auto_opened_docs.append({
-                                "doc_id": _d.id,
-                                "title": _d.title,
-                                "language": _d.language,
-                                "content": _d.current_content,
-                                "version": _d.version_count,
-                            })
-                    finally:
-                        _db.close()
+                    opened = _load_created_document_projection(
+                        doc_id, owner=owner, document_authority=document_authority
+                    )
+                    if opened is not None:
+                        auto_opened_docs.append(opened)
             except Exception as e:
                 logger.warning("Office auto-doc creation failed for %s: %s", path, e)
 
@@ -487,6 +519,7 @@ def build_user_content(
     resolved_uploads: dict[str, Dict[str, Any]] | None = None,
     session_endpoint_url: str | None = None,
     session_model: str | None = None,
+    document_authority=None,
 ) -> str | List[Dict[str, Any]]:
     """Build user content with attachments (text, images, audio, documents).
 
@@ -610,6 +643,7 @@ def build_user_content(
                                 upload_id=os.path.basename(path),
                                 title=title,
                                 intro_text=pdf_body_text,
+                                document_authority=document_authority,
                             )
                             if doc_id:
                                 extracted_text = (
@@ -627,6 +661,7 @@ def build_user_content(
                                 upload_id=os.path.basename(path),
                                 title=title,
                                 body_text=pdf_body_text,
+                                document_authority=document_authority,
                             )
                             if doc_id:
                                 extracted_text = (
@@ -638,22 +673,11 @@ def build_user_content(
                                     )
 
                         if doc_id and auto_opened_docs is not None:
-                            from src.database import SessionLocal, Document
-                            _db = SessionLocal()
-                            try:
-                                _d = _db.query(Document).filter(
-                                    Document.id == doc_id
-                                ).first()
-                                if _d:
-                                    auto_opened_docs.append({
-                                        "doc_id": _d.id,
-                                        "title": _d.title,
-                                        "language": _d.language,
-                                        "content": _d.current_content,
-                                        "version": _d.version_count,
-                                    })
-                            finally:
-                                _db.close()
+                            opened = _load_created_document_projection(
+                                doc_id, owner=owner, document_authority=document_authority
+                            )
+                            if opened is not None:
+                                auto_opened_docs.append(opened)
                     except Exception as e:
                         logger.warning(f"PDF auto-doc creation failed for {path}: {e}")
                 if extracted_text is None:
@@ -667,6 +691,7 @@ def build_user_content(
                     session_id=session_id,
                     auto_opened_docs=auto_opened_docs,
                     owner=owner,
+                    document_authority=document_authority,
                 )
 
             extracted_text, inline_attachment_remaining = _fit_inline_attachment_text(

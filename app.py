@@ -4,6 +4,7 @@ import json
 import os
 import re
 import sys
+import threading
 
 
 def register_static_mime_types() -> None:
@@ -37,6 +38,12 @@ from dotenv import load_dotenv
 # is silently ignored and the user is unexpectedly forced to log in (issue #142).
 # utf-8-sig reads plain UTF-8 (no BOM) identically, so this is safe everywhere.
 load_dotenv(encoding="utf-8-sig")
+
+from src.startup_mode import startup_offline_enabled
+
+# Resolve this before importing components that may initialize vector or
+# provider-backed services. The parser fails closed on invalid configuration.
+STARTUP_OFFLINE = startup_offline_enabled()
 
 from src.runtime_topology import assert_supported_runtime_topology
 
@@ -346,31 +353,62 @@ if AUTH_ENABLED:
             return True
         return any(p.match(path) for p in AUTH_EXEMPT_PATTERNS)
 
-    # In-memory token cache: prefix → list[(token_id, token_hash, owner, scopes)]. The DB
+    # In-memory token cache: prefix → list[(token_id, hash, owner, scopes, subject)]. The DB
     # query was running on every API-bearer request and scanning bcrypt
     # checks linearly. With this cache, we hit the DB only when the cache
     # version bumps (token created/revoked) — see _token_cache_invalidate
     # in app.state, called by routes/api_token_routes.
     _token_cache: dict = {}
     _token_cache_lock = _asyncio.Lock()
-    _token_cache_dirty = True
+    _token_cache_generation_lock = threading.Lock()
+    _token_cache_generation = 0
+    _token_cache_built_generation = -1
 
     def _token_cache_invalidate():
-        nonlocal_dict = app.state.__dict__
-        nonlocal_dict["_token_cache_dirty"] = True
+        global _token_cache_generation
+        with _token_cache_generation_lock:
+            _token_cache_generation += 1
+            app.state._token_cache_generation = _token_cache_generation
+            app.state._token_cache_dirty = True
+
+    def _current_token_cache_generation():
+        with _token_cache_generation_lock:
+            return _token_cache_generation
+
     app.state.invalidate_token_cache = _token_cache_invalidate
     app.state._token_cache = _token_cache
     app.state._token_cache_dirty = True
+    app.state._token_cache_generation = _token_cache_generation
 
     def _refresh_token_cache():
         """Rebuild the prefix→[(id,hash)] map from the DB."""
+        global _token_cache_built_generation
         from collections import defaultdict
+        generation = _current_token_cache_generation()
         new_map = defaultdict(list)
         db = SessionLocal()
         try:
             rows = db.query(ApiToken).filter(ApiToken.is_active == True).all()
             for r in rows:
-                owner_key = normalize_known_username(auth_manager.users, getattr(r, "owner", None))
+                scopes = [s.strip() for s in (getattr(r, "scopes", "") or "chat").split(",") if s.strip()]
+                subject_id = getattr(r, "owner_subject_id", None)
+                if scopes == ["mcp:planning:read"]:
+                    try:
+                        active_identity = auth_manager.active_admin_subject_identity(subject_id=subject_id)
+                    except Exception:
+                        active_identity = None
+                    persisted_owner = getattr(r, "owner", None)
+                    owner_key = (
+                        active_identity[0]
+                        if (
+                            active_identity is not None
+                            and active_identity[1] == subject_id
+                            and persisted_owner == active_identity[0]
+                        )
+                        else None
+                    )
+                else:
+                    owner_key = normalize_known_username(auth_manager.users, getattr(r, "owner", None))
                 if not owner_key:
                     logger.warning(
                         "Ignoring active API token '%s' for unknown auth user '%s'",
@@ -378,13 +416,18 @@ if AUTH_ENABLED:
                         getattr(r, "owner", None),
                     )
                     continue
-                scopes = [s.strip() for s in (getattr(r, "scopes", "") or "chat").split(",") if s.strip()]
-                new_map[r.token_prefix].append((r.id, r.token_hash, owner_key, scopes))
+                new_map[r.token_prefix].append((r.id, r.token_hash, owner_key, scopes, subject_id))
         finally:
             db.close()
-        _token_cache.clear()
-        _token_cache.update(new_map)
-        app.state._token_cache_dirty = False
+        with _token_cache_generation_lock:
+            if generation != _token_cache_generation:
+                app.state._token_cache_dirty = True
+                return
+            _token_cache.clear()
+            _token_cache.update(new_map)
+            _token_cache_built_generation = generation
+            app.state._token_cache_generation = generation
+            app.state._token_cache_dirty = False
 
     # Headers that prove a request was forwarded by a proxy/tunnel (cloudflared,
     # nginx, Caddy, Tailscale Funnel, …). cloudflared connects to the app FROM
@@ -471,19 +514,35 @@ if AUTH_ENABLED:
                 try:
                     if app.state._token_cache_dirty:
                         async with _token_cache_lock:
-                            if app.state._token_cache_dirty:
+                            if (
+                                app.state._token_cache_dirty
+                                or _token_cache_built_generation != _current_token_cache_generation()
+                            ):
                                 await _asyncio.to_thread(_refresh_token_cache)
+                    cache_generation = _current_token_cache_generation()
+                    if (
+                        app.state._token_cache_dirty
+                        or _token_cache_built_generation != cache_generation
+                    ):
+                        return _JSONResponse(status_code=401, content={"error": "Invalid API token"})
                     candidates = list(_token_cache.get(prefix, ()))
                     matched_id = None
                     matched_owner = None
                     matched_scopes = []
-                    for tid, thash, owner, scopes in candidates:
+                    matched_subject_id = None
+                    for tid, thash, owner, scopes, subject_id in candidates:
                         if _bcrypt.checkpw(raw_token.encode(), thash.encode()):
                             matched_id = tid
                             matched_owner = owner
                             matched_scopes = scopes or []
+                            matched_subject_id = subject_id
                             break
                     if matched_id:
+                        if (
+                            _current_token_cache_generation() != cache_generation
+                            or app.state._token_cache_dirty
+                        ):
+                            return _JSONResponse(status_code=401, content={"error": "Invalid API token"})
                         # Update last_used_at off the hot path. Doing it
                         # inline used to keep the request open across an
                         # extra commit; do it fire-and-forget instead.
@@ -509,6 +568,8 @@ if AUTH_ENABLED:
                         request.state.api_token_prefix = prefix
                         request.state.api_token_owner = matched_owner
                         request.state.api_token_scopes = matched_scopes
+                        request.state.api_token_owner_subject_id = matched_subject_id
+                        request.state.api_token_cache_generation = cache_generation
                         return await call_next(request)
                 except Exception:
                     logger.warning("API token auth error", exc_info=False)
@@ -630,7 +691,10 @@ from src.app_initializer import initialize_managers
 
 try:
     from src.agent_tools import set_mcp_manager
-    from src.agent_tools.knowledge_tools import set_query_knowledge_planner
+    from src.agent_tools.knowledge_tools import (
+        set_query_knowledge_owner_resolver,
+        set_query_knowledge_planner,
+    )
     from src.unified_source_index_runtime import (
         KnowledgeRuntime,
         bind_knowledge_runtime,
@@ -645,10 +709,11 @@ except Exception:
     logger.warning("Knowledge runtime lifecycle import failed")
     raise RuntimeError("knowledge_runtime_lifecycle_import_failed") from None
 
-components = initialize_managers(BASE_DIR, rag_manager)
+components = initialize_managers(BASE_DIR, rag_manager, auth_manager=auth_manager)
 
 try:
     knowledge_runtime = components["knowledge_runtime"]
+    knowledge_composition = components.get("knowledge_composition")
     if type(knowledge_runtime) is not KnowledgeRuntime:
         raise TypeError("invalid knowledge runtime component")
 except Exception:
@@ -664,6 +729,7 @@ except Exception:
     raise RuntimeError("index_job_pump_component_invalid") from None
 
 app.state.knowledge_runtime = knowledge_runtime
+app.state.knowledge_composition = knowledge_composition
 app.state.index_job_pump = index_job_pump
 
 
@@ -889,7 +955,8 @@ app.include_router(setup_repo_routes())
 
 # Project versions and provider policy (local persistence/outbox only)
 from routes.project_versioning_routes import setup_default_project_versioning_routes
-app.include_router(setup_default_project_versioning_routes())
+_project_versioning_router = setup_default_project_versioning_routes()
+app.include_router(_project_versioning_router)
 
 # GitHub issue intelligence route contracts
 from routes.github_issue_routes import setup_github_issue_routes
@@ -935,7 +1002,35 @@ app.include_router(setup_recent_changes_routes())
 
 # Immutable Planning Definition v2 reads
 from routes.planning_definition_routes import setup_default_planning_definition_routes
-app.include_router(setup_default_planning_definition_routes())
+_planning_definition_router = setup_default_planning_definition_routes()
+app.state.planning_mcp_runtime = getattr(_planning_definition_router, "_planning_mcp_runtime", None)
+app.include_router(_planning_definition_router)
+
+# Reuse the routers' actual stores and the already owned Knowledge lifecycle.
+from src.context_source_app import install_context_sources
+from src.planning_durable_context_source import (
+    DEFAULT_DURABLE_PLANNING_CONTEXT_POLICY,
+    DurablePlanningContextError,
+    DurablePlanningContextSource,
+)
+try:
+    durable_planning_source = DurablePlanningContextSource(
+        runtime=_planning_definition_router._planning_mcp_runtime,
+        auth_manager=auth_manager,
+        project_id="harbour-one",
+        policy=DEFAULT_DURABLE_PLANNING_CONTEXT_POLICY,
+    )
+except DurablePlanningContextError:
+    durable_planning_source = None
+context_sources = install_context_sources(
+    app, auth_manager=auth_manager, session_factory=SessionLocal,
+    forge_router=_project_versioning_router,
+    planning_router=_planning_definition_router,
+    knowledge_composition=knowledge_composition,
+    durable_planning_source=durable_planning_source,
+    require_durable_planning=True,
+)
+private_context_confirmation = app.state.private_context_confirmation
 
 # Owner-scoped Temporal Light Agent operations (lazy localhost connection only)
 from routes.agent_operation_routes import setup_default_agent_operation_routes
@@ -1493,6 +1588,46 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
                 "error": "telegram_dsgvo_provider_gate_failed",
                 "reply_text": _telegram_dsgvo_model_block_reply("telegram_dsgvo_provider_gate_failed"),
             }
+        workflow_skill_resolution = None
+        workflow_context = bridge.get("workflow_context") if isinstance(bridge.get("workflow_context"), dict) else None
+        if workflow_context:
+            try:
+                resolution = resolve_workflow_skills(
+                    workflow_context,
+                    skills=skills_manager.load(owner=owner),
+                )
+            except WorkflowSkillError as exc:
+                return {
+                    "status": "blocked",
+                    "error": f"telegram_workflow_context_invalid:{exc}",
+                    "reply_text": "Ich kann diesen Workflow nicht sicher routen, weil die Telegram-Metadaten nicht sauber sind.",
+                }
+            workflow_skill_resolution = resolution.to_dict()
+            if resolution.blocked:
+                return {
+                    "status": "blocked",
+                    "error": "telegram_required_workflow_skill_blocked",
+                    "workflow_skill_resolution": workflow_skill_resolution,
+                    "reply_text": (
+                        "Ich kann diesen Workflow noch nicht ausfuehren, weil ein erforderlicher "
+                        "Workflow-Skill fehlt oder nicht freigegeben ist."
+                    ),
+                }
+
+        archived_session_tail = None
+        rollover_runtime = getattr(app.state, "telegram_rollover_runtime", None)
+        consume_archived_tail = getattr(
+            rollover_runtime,
+            "consume_archived_session_tail",
+            None,
+        )
+        if callable(consume_archived_tail):
+            try:
+                archived_session_tail = consume_archived_tail(session_id=session_id)
+            except Exception:
+                # Continuity is optional and fail-closed.  Do not surface
+                # database/provider details or restore a consumed capability.
+                logger.warning("Telegram archived continuity tail was refused")
         headers = _telegram_refresh_session_headers(session_id) or getattr(session, "headers", None)
         context = session.get_context_messages()
         trusted_system_messages = []
@@ -1549,6 +1684,7 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
             prompt,
             trusted_system_messages=trusted_system_messages,
             supplemental_messages=supplemental_messages,
+            archived_session_tail=archived_session_tail,
         )
         messages = list(context_window.messages)
         logger.info(
@@ -1562,32 +1698,6 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
             context_window.evidence["history_message_limit"],
             context_window.evidence["history_character_limit"],
         )
-        workflow_skill_resolution = None
-        workflow_context = bridge.get("workflow_context") if isinstance(bridge.get("workflow_context"), dict) else None
-        if workflow_context:
-            try:
-                resolution = resolve_workflow_skills(
-                    workflow_context,
-                    skills=skills_manager.load(owner=owner),
-                )
-            except WorkflowSkillError as exc:
-                return {
-                    "status": "blocked",
-                    "error": f"telegram_workflow_context_invalid:{exc}",
-                    "reply_text": "Ich kann diesen Workflow nicht sicher routen, weil die Telegram-Metadaten nicht sauber sind.",
-                }
-            workflow_skill_resolution = resolution.to_dict()
-            if resolution.blocked:
-                return {
-                    "status": "blocked",
-                    "error": "telegram_required_workflow_skill_blocked",
-                    "workflow_skill_resolution": workflow_skill_resolution,
-                    "reply_text": (
-                        "Ich kann diesen Workflow noch nicht ausfuehren, weil ein erforderlicher "
-                        "Workflow-Skill fehlt oder nicht freigegeben ist."
-                    ),
-                }
-
         try:
             from src.endpoint_resolver import resolve_chat_fallback_candidates
 
@@ -1956,12 +2066,19 @@ async def _startup_event():
     async def _startup_recent_changes_snapshot():
         try:
             from src.recent_changes import maybe_record_startup_snapshot
-            await asyncio.to_thread(maybe_record_startup_snapshot)
+            await asyncio.to_thread(
+                maybe_record_startup_snapshot,
+                stop_event=startup_snapshot_stop_event,
+            )
             logger.info("[startup] Recent-change snapshot checked")
         except Exception as e:
             logger.warning(f"Recent-change startup snapshot failed (non-critical): {type(e).__name__}: {e}")
 
-    _startup_tasks.append(asyncio.create_task(_startup_recent_changes_snapshot()))
+    startup_snapshot_stop_event = threading.Event()
+    startup_snapshot_task = asyncio.create_task(_startup_recent_changes_snapshot())
+    app.state._startup_recent_changes_stop_event = startup_snapshot_stop_event
+    app.state._startup_recent_changes_task = startup_snapshot_task
+    _startup_tasks.append(startup_snapshot_task)
     # MCP servers can be slow or blocked by local tooling. Connect them after
     # the web server is accepting traffic instead of delaying the whole UI.
     async def _startup_mcp_connections():
@@ -1997,7 +2114,8 @@ async def _startup_event():
         except Exception as e:
             logger.warning(f"Tool index warmup failed (non-critical): {type(e).__name__}: {e}")
 
-    _startup_tasks.append(asyncio.create_task(_warmup_tool_index()))
+    if not STARTUP_OFFLINE:
+        _startup_tasks.append(asyncio.create_task(_warmup_tool_index()))
     # Warmup: ping all known LLM endpoints to prime connections
     async def _warmup_endpoints():
         try:
@@ -2020,7 +2138,8 @@ async def _startup_event():
         except Exception as e:
             logger.debug(f"Warmup ping skipped: {e}")
 
-    _startup_tasks.append(asyncio.create_task(_warmup_endpoints()))
+    if not STARTUP_OFFLINE:
+        _startup_tasks.append(asyncio.create_task(_warmup_endpoints()))
 
     # Keep-alive: ping endpoints every 60 seconds to prevent cold starts
     async def _keepalive_loop():
@@ -2032,7 +2151,8 @@ async def _startup_event():
                 logger.warning(f"Keepalive loop error: {e}")
                 await asyncio.sleep(300)  # Back off on error
 
-    _startup_tasks.append(asyncio.create_task(_keepalive_loop()))
+    if not STARTUP_OFFLINE:
+        _startup_tasks.append(asyncio.create_task(_keepalive_loop()))
 
     async def _ensure_default_tasks():
         # Create/reconcile default automation tasks + personal assistant for every user.
@@ -2187,17 +2307,170 @@ async def _startup_event():
     _startup_tasks.append(asyncio.create_task(cookbook_serve_lifecycle_loop()))
 
     try:
+        set_query_knowledge_owner_resolver(auth_manager.subject_id_for_username)
         bind_knowledge_runtime(knowledge_runtime, set_query_knowledge_planner)
     except Exception:
         logger.warning("Knowledge runtime bind failed; query_knowledge remains unavailable")
     logger.info("Application startup complete")
 
+
+_STARTUP_TASK_SHUTDOWN_TIMEOUT_SECONDS = 2.0
+
+
+def _observe_finished_startup_tasks(tasks: tuple[asyncio.Task, ...]) -> int:
+    """Consume completed task exceptions without exposing task details."""
+    failed = 0
+    for task in tasks:
+        try:
+            if task.exception() is not None:
+                failed += 1
+        except asyncio.CancelledError:
+            pass
+        except BaseException:
+            failed += 1
+    return failed
+
+
+def _retain_registered_startup_task(task: asyncio.Task) -> None:
+    if not any(registered is task for registered in app.state._startup_tasks):
+        app.state._startup_tasks.append(task)
+
+
+async def _await_recent_changes_snapshot_shutdown(
+    stop_event: threading.Event | None,
+    task: asyncio.Task | None,
+    *, timeout_seconds: float = _STARTUP_TASK_SHUTDOWN_TIMEOUT_SECONDS,
+) -> bool:
+    """Signal the cooperative snapshot and retain ownership if it outlives shutdown."""
+    if stop_event is not None:
+        stop_event.set()
+    if task is None:
+        return True
+    done, pending = await asyncio.wait((task,), timeout=timeout_seconds)
+    if pending or task.cancelled():
+        _retain_registered_startup_task(task)
+        if pending:
+            def clear_if_completed(completed: asyncio.Task) -> None:
+                if completed.cancelled():
+                    logger.warning("Recent-change snapshot retained incomplete task")
+                    return
+                failures = _observe_finished_startup_tasks((completed,))
+                if failures:
+                    logger.warning("Recent-change snapshot observed %d failed task(s)", failures)
+                if app.state._startup_recent_changes_task is completed:
+                    app.state._startup_recent_changes_task = None
+                    if app.state._startup_recent_changes_stop_event is stop_event:
+                        app.state._startup_recent_changes_stop_event = None
+                app.state._startup_tasks = [registered for registered in app.state._startup_tasks if registered is not completed]
+
+            task.add_done_callback(clear_if_completed)
+            logger.warning("Recent-change snapshot shutdown retained %d pending task(s)", len(pending))
+        else:
+            logger.warning("Recent-change snapshot retained incomplete task")
+        return False
+    failures = _observe_finished_startup_tasks(tuple(done))
+    if failures:
+        logger.warning("Recent-change snapshot observed %d failed task(s)", failures)
+    return True
+
+
+async def _shutdown_registered_startup_tasks(
+    *, excluded: tuple[asyncio.Task | None, ...] = (), timeout_seconds: float = _STARTUP_TASK_SHUTDOWN_TIMEOUT_SECONDS,
+) -> None:
+    """Cancel only registered tasks we own and retain any noncooperative task."""
+    current = asyncio.current_task()
+    excluded_ids = {id(task) for task in excluded if task is not None}
+    seen: set[int] = set()
+    retained: list[asyncio.Task] = []
+    cancelling: list[asyncio.Task] = []
+    finished: list[asyncio.Task] = []
+    unsupported = 0
+    for task in tuple(getattr(app.state, "_startup_tasks", ())):
+        if not isinstance(task, asyncio.Task):
+            unsupported += 1
+            continue
+        task_id = id(task)
+        if task_id in seen:
+            continue
+        seen.add(task_id)
+        if task is current or task_id in excluded_ids:
+            retained.append(task)
+        elif task.done():
+            finished.append(task)
+        else:
+            task.cancel()
+            cancelling.append(task)
+    pending: tuple[asyncio.Task, ...] = ()
+    if cancelling:
+        done, pending_set = await asyncio.wait(cancelling, timeout=timeout_seconds)
+        finished.extend(done)
+        pending = tuple(pending_set)
+        retained.extend(pending)
+    app.state._startup_tasks = retained
+    failed = _observe_finished_startup_tasks(tuple(finished))
+    if pending:
+        logger.warning("Startup task shutdown retained %d pending task(s)", len(pending))
+    if failed:
+        logger.warning("Startup task shutdown observed %d failed task(s)", failed)
+    if unsupported:
+        logger.warning("Startup task shutdown observed %d unsupported reference(s)", unsupported)
+
+
+async def _stop_dedicated_startup_task(task: asyncio.Task, *, label: str) -> bool:
+    """Bound a dedicated task's existing shutdown slot without losing its ref."""
+    if not task.done():
+        task.cancel()
+        done, pending = await asyncio.wait((task,), timeout=_STARTUP_TASK_SHUTDOWN_TIMEOUT_SECONDS)
+        if pending:
+            if task not in app.state._startup_tasks:
+                app.state._startup_tasks.append(task)
+            logger.warning("%s shutdown retained %d pending task(s)", label, len(pending))
+            return False
+        _observe_finished_startup_tasks(tuple(done))
+    else:
+        _observe_finished_startup_tasks((task,))
+    app.state._startup_tasks = [registered for registered in app.state._startup_tasks if registered is not task]
+    return True
+
+
 async def _shutdown_event():
+    global upload_cleanup_task
     logger.info("Application shutting down...")
+    startup_snapshot_stop_event = getattr(
+        app.state,
+        "_startup_recent_changes_stop_event",
+        None,
+    )
+    startup_snapshot_task = getattr(app.state, "_startup_recent_changes_task", None)
+    snapshot_completed = await _await_recent_changes_snapshot_shutdown(
+        startup_snapshot_stop_event, startup_snapshot_task,
+    )
+    if snapshot_completed and app.state._startup_recent_changes_task is startup_snapshot_task:
+        app.state._startup_recent_changes_task = None
+        if app.state._startup_recent_changes_stop_event is startup_snapshot_stop_event:
+            app.state._startup_recent_changes_stop_event = None
+    delivery_task = getattr(app.state, "_security_access_alert_delivery_task", None)
+    egress_task = getattr(app.state, "_security_public_egress_refresh_task", None)
+    await _shutdown_registered_startup_tasks(excluded=(
+        startup_snapshot_task if not snapshot_completed else None,
+        delivery_task,
+        egress_task,
+        upload_cleanup_task,
+    ))
     try:
         close_knowledge_runtime(knowledge_runtime)
     except Exception:
         logger.warning("Knowledge runtime close failed; query_knowledge remains unavailable")
+    try:
+        if knowledge_composition is not None:
+            knowledge_composition.close()
+    except Exception:
+        logger.warning("Knowledge composition cleanup failed")
+    try:
+        from src.agent_tools.knowledge_tools import set_query_knowledge_owner_resolver
+        set_query_knowledge_owner_resolver(None)
+    except Exception:
+        logger.warning("Knowledge owner resolver cleanup failed")
     try:
         index_job_pump.close()
     except Exception:
@@ -2205,24 +2478,22 @@ async def _shutdown_event():
     # Bound shutdown before tearing down the rest of the application; no
     # generic FastAPI background task owns this worker.
     await asyncio.to_thread(transcription_runtime.stop)
-    delivery_task = getattr(app.state, "_security_access_alert_delivery_task", None)
     if delivery_task is not None and not delivery_task.done():
-        delivery_task.cancel()
-        try:
-            await delivery_task
-        except asyncio.CancelledError:
-            pass
-    app.state._security_access_alert_delivery_task = None
+        if await _stop_dedicated_startup_task(delivery_task, label="Security alert delivery"):
+            app.state._security_access_alert_delivery_task = None
+    else:
+        if delivery_task is not None:
+            await _stop_dedicated_startup_task(delivery_task, label="Security alert delivery")
+        app.state._security_access_alert_delivery_task = None
     app.state._security_access_alert_delivery_wake = None
     app.state._security_access_alert_delivery_loop = None
-    egress_task = getattr(app.state, "_security_public_egress_refresh_task", None)
     if egress_task is not None and not egress_task.done():
-        egress_task.cancel()
-        try:
-            await egress_task
-        except asyncio.CancelledError:
-            pass
-    app.state._security_public_egress_refresh_task = None
+        if await _stop_dedicated_startup_task(egress_task, label="Security egress refresh"):
+            app.state._security_public_egress_refresh_task = None
+    else:
+        if egress_task is not None:
+            await _stop_dedicated_startup_task(egress_task, label="Security egress refresh")
+        app.state._security_public_egress_refresh_task = None
     app.state.security_own_public_egress_snapshot = None
     try:
         from src.plugin_system import get_manager
@@ -2232,11 +2503,8 @@ async def _shutdown_event():
     except Exception as e:
         logger.warning(f"Plugin shutdown skipped: {e}")
     if upload_cleanup_task:
-        upload_cleanup_task.cancel()
-        try:
-            await upload_cleanup_task
-        except asyncio.CancelledError:
-            pass
+        if await _stop_dedicated_startup_task(upload_cleanup_task, label="Upload cleanup"):
+            upload_cleanup_task = None
     # Stop task scheduler (no-op if it never started under the gate)
     try:
         await task_scheduler.stop()

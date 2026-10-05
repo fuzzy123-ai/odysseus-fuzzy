@@ -15,6 +15,17 @@ from typing import Any, Mapping
 
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, JSONResponse, Response
+from src.mcp_authenticated_dispatch import (
+    MCP_HARBOUR_INBOX_SCOPE,
+    MCP_TOTAL_BUDGET_SECONDS,
+    McpDispatchFailure,
+    _AuthorityFinalizedPayload,
+    authenticate_mcp_request,
+    dispatch_failure_response,
+    dispatch_http_payload,
+    parse_json_body,
+    read_bounded_body,
+)
 
 from src.mcp_server_tool_policy import (
     McpToolPolicyOptions,
@@ -179,7 +190,7 @@ class McpServerState:
                 duration_ms=duration_ms,
                 arguments=arguments or {},
                 options=options,
-                metadata={"argument_values_stored": False},
+                metadata={"argument_values_stored": "false"},
             ).to_dict()
             # Preserve the legacy key while standardizing on tool_name.
             entry["tool"] = entry["tool_name"]
@@ -254,7 +265,7 @@ class McpServerState:
                 return (f"Unknown tool: {name!r}", True)
             _desc, result = await execute_tool_block(block)
         except Exception as exc:
-            return (f"Tool execution failed: {exc}", True)
+            return ("Tool execution failed", True)
         if not isinstance(result, dict):
             return (str(result), False)
         text = result.get("output")
@@ -348,7 +359,6 @@ def _static_prompts() -> list[dict[str, Any]]:
 
 def _prompt_payload(name: str, args: Mapping[str, Any]) -> dict[str, Any] | None:
     if name == "odysseus_mcp_safe_notification":
-        message = str(args.get("message") or "Task complete.")
         return {
             "messages": [
                 {
@@ -357,7 +367,7 @@ def _prompt_payload(name: str, args: Mapping[str, Any]) -> dict[str, Any] | None
                         "type": "text",
                         "text": (
                             "Call `odysseus_notify_user` with dry_run=true first. "
-                            f"Use this redacted message: {message}"
+                            "Use the configured redacted message from the trusted notification flow."
                         ),
                     },
                 }
@@ -457,7 +467,7 @@ async def _handle_jsonrpc(
                     "- Review the redacted audit log after live smoke tests.\n"
                 )
             else:
-                return _jsonrpc_error(message_id, -32602, f"Unknown resource: {uri}")
+                return _jsonrpc_error(message_id, -32602, "Unknown resource")
             result = {"contents": [{"uri": uri, "mimeType": "application/json" if uri.endswith("readiness") else "text/markdown", "text": text}]}
         elif method == "prompts/list":
             result = {"prompts": _static_prompts()}
@@ -469,12 +479,12 @@ async def _handle_jsonrpc(
         else:
             if is_notification:
                 return None
-            return _jsonrpc_error(message_id, -32601, f"Method not found: {method}")
+        return _jsonrpc_error(message_id, -32601, "Method not found")
     except Exception as exc:
         state.audit(method=method, status="error", client_id=client_id, reason=type(exc).__name__, options=options)
         if is_notification:
             return None
-        return _jsonrpc_error(message_id, -32603, f"Internal error: {exc}")
+        return _jsonrpc_error(message_id, -32603, "Internal error")
 
     state.audit(
         method=method,
@@ -517,6 +527,26 @@ def setup(ctx):
         gate = getattr(ctx, "require_admin", None) or _core_require_admin
         if callable(gate):
             gate(request)
+        if gate is not _core_require_admin:
+            return
+        try:
+            if "authorization" in request.headers or request.headers.get("x-odysseus-internal-token"):
+                raise ValueError
+            session = request.cookies.get("odysseus_session")
+            manager = request.app.state.auth_manager
+            username = manager.get_username_for_token(session)
+            if (
+                type(session) is not str
+                or not session
+                or manager.validate_token(session) is not True
+                or type(username) is not str
+                or getattr(request.state, "current_user", None) != username
+                or manager.active_admin_subject_identity(username=username) is None
+            ):
+                raise ValueError
+        except Exception:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=403, detail="Admin only") from None
 
     def _client_ref(request: Request) -> str:
         current_user = getattr(request.state, "current_user", None)
@@ -527,25 +557,92 @@ def setup(ctx):
     @router.post("")
     @router.post("/")
     async def mcp_endpoint(request: Request):
-        _require_admin(request)
+        started = time.monotonic()
+        try:
+            identity = authenticate_mcp_request(request)
+            bearer_proof = getattr(request.state, "_mcp_bearer_proof", None)
+            if identity.scope == MCP_HARBOUR_INBOX_SCOPE and bearer_proof is None:
+                raise ValueError
+        except Exception:
+            return JSONResponse(
+                dispatch_failure_response("unauthorized"), status_code=401,
+            )
         config = state.load_config()
         if not config.get("enabled"):
-            return JSONResponse(_jsonrpc_error(None, -32000, "MCP server is disabled"), status_code=403)
+            return JSONResponse(
+                dispatch_failure_response("disabled"), status_code=403,
+            )
+        def _authentication_fence() -> None:
+            current_config = state.load_config()
+            if not current_config.get("enabled"):
+                raise McpDispatchFailure("disabled")
+            current = (
+                authenticate_mcp_request(request, bearer_proof)
+                if identity.scope == MCP_HARBOUR_INBOX_SCOPE
+                else authenticate_mcp_request(request)
+            )
+            if current != identity:
+                raise McpDispatchFailure("stale_authentication")
+        def _request_fence(method=None) -> None:
+            _authentication_fence()
+            if (
+                identity.scope != MCP_HARBOUR_INBOX_SCOPE
+                and method in {"tools/list", "tools/call"}
+                and not state.load_config().get("allow_planning_reads")
+            ):
+                raise McpDispatchFailure("planning_unavailable")
         try:
-            payload = await request.json()
+            raw = await read_bounded_body(request, started)
+            _request_fence()
+            payload = parse_json_body(raw)
+            if identity.scope == MCP_HARBOUR_INBOX_SCOPE:
+                from src.harbour_inbox_service import HarbourInboxService
+                runtime = HarbourInboxService(
+                    auth_manager=request.app.state.auth_manager,
+                    bearer_proof=bearer_proof,
+                    planning_runtime=getattr(request.app.state, "planning_mcp_runtime", None),
+                    knowledge_composition=getattr(request.app.state, "knowledge_composition", None),
+                )
+            else:
+                runtime = getattr(request.app.state, "planning_mcp_runtime", None)
+                if runtime is None:
+                    raise McpDispatchFailure("planning_unavailable")
+            result = await dispatch_http_payload(
+                payload,
+                identity=identity,
+                runtime=runtime,
+                started=started,
+                fence=_request_fence,
+                planning_reads_enabled=True,
+                audit=lambda _message: state.audit(
+                    method="authenticated_planning_rpc", status="ok",
+                ),
+            )
+            is_authority_payload = type(result) is _AuthorityFinalizedPayload
+            authority_finalized = is_authority_payload
+            if is_authority_payload:
+                result = result.payload
+            if not authority_finalized:
+                # A batch is authority-finalized only when every response is a
+                # committed compatibility action.  Any unified read, in either
+                # order, retains the complete HTTP auth/config deadline fence.
+                _authentication_fence()
+        except McpDispatchFailure as exc:
+            status = (
+                401 if exc.code in {"unauthorized", "stale_authentication"}
+                else 403 if exc.code in {"planning_unavailable", "disabled"}
+                else 413 if exc.code == "budget_exceeded"
+                else 400 if exc.code == "parse_error"
+                else 200
+            )
+            return JSONResponse(dispatch_failure_response(exc.code), status_code=status)
         except Exception:
-            return JSONResponse(_jsonrpc_error(None, -32700, "Parse error"), status_code=400)
-        batch = isinstance(payload, list)
-        messages = payload if batch else [payload]
-        client_id = _client_ref(request)
-        responses = [
-            response
-            for msg in messages
-            if (response := await _handle_jsonrpc(state, msg, config, client_id=client_id)) is not None
-        ]
-        if not responses:
+            return JSONResponse(dispatch_failure_response("planning_failed"), status_code=200)
+        if not authority_finalized and time.monotonic() - started > MCP_TOTAL_BUDGET_SECONDS:
+            return JSONResponse(dispatch_failure_response("timeout"), status_code=200)
+        if result is None:
             return Response(status_code=202)
-        return JSONResponse(responses if batch else responses[0])
+        return JSONResponse(result)
 
     @router.get("")
     async def mcp_get(request: Request):

@@ -30,7 +30,7 @@ def create_directories():
     for directory in (DATA_DIR, PERSONAL_DIR, RUNBOOK_DIR, UPLOAD_DIR):
         os.makedirs(directory, exist_ok=True)
         
-def initialize_managers(base_dir: str, rag_manager=None) -> Dict[str, Any]:
+def initialize_managers(base_dir: str, rag_manager=None, auth_manager=None) -> Dict[str, Any]:
     """
     Initialize all manager and handler instances.
 
@@ -55,44 +55,51 @@ def initialize_managers(base_dir: str, rag_manager=None) -> Dict[str, Any]:
     api_key_manager = APIKeyManager(DATA_DIR)
     preset_manager = PresetManager(DATA_DIR)
 
-    # Initialize memory vector store (share embedding model with RAG if available)
+    # Initialize memory vector store (share embedding model with RAG if available).
+    # Offline startup keeps the core memory manager available while leaving
+    # vector recall explicitly unavailable.
     memory_vector = None
-    try:
-        from src.memory_vector import MemoryVectorStore
-        embedding_model = getattr(rag_manager, '_model', None) if rag_manager else None
-        memory_vector = MemoryVectorStore(DATA_DIR, embedding_model=embedding_model)
-        if memory_vector.healthy:
-            # Rebuild index from existing memories if empty
-            if memory_vector.count() == 0:
-                existing = memory_manager.load()
-                if existing:
-                    memory_vector.rebuild(existing)
-                    try:
-                        from src.memory_provenance_ledger import record_memory_provenance
+    from src.startup_mode import startup_offline_enabled
 
-                        record_memory_provenance(
-                            "memory_maintenance",
-                            owner="unknown",
-                            surface="startup",
-                            source="memory_vector",
-                            action="rebuild",
-                            status="success",
-                            reason="startup_empty_index",
-                            before_count=0,
-                            after_count=len(existing),
-                            node_count=len(existing),
-                            writes_performed=True,
-                        )
-                    except Exception:
-                        pass
-                    logger.info(f"Rebuilt memory vector index from {len(existing)} existing entries")
-            logger.info("MemoryVectorStore initialized")
-        else:
-            logger.warning("MemoryVectorStore DEGRADED: ChromaDB vector memory unavailable")
+    if startup_offline_enabled():
+        logger.info("MemoryVectorStore unavailable in offline startup mode")
+    else:
+        try:
+            from src.memory_vector import MemoryVectorStore
+            embedding_model = getattr(rag_manager, '_model', None) if rag_manager else None
+            memory_vector = MemoryVectorStore(DATA_DIR, embedding_model=embedding_model)
+            if memory_vector.healthy:
+                # Rebuild index from existing memories if empty
+                if memory_vector.count() == 0:
+                    existing = memory_manager.load()
+                    if existing:
+                        memory_vector.rebuild(existing)
+                        try:
+                            from src.memory_provenance_ledger import record_memory_provenance
+
+                            record_memory_provenance(
+                                "memory_maintenance",
+                                owner="unknown",
+                                surface="startup",
+                                source="memory_vector",
+                                action="rebuild",
+                                status="success",
+                                reason="startup_empty_index",
+                                before_count=0,
+                                after_count=len(existing),
+                                node_count=len(existing),
+                                writes_performed=True,
+                            )
+                        except Exception:
+                            pass
+                        logger.info(f"Rebuilt memory vector index from {len(existing)} existing entries")
+                logger.info("MemoryVectorStore initialized")
+            else:
+                logger.warning("MemoryVectorStore DEGRADED: ChromaDB vector memory unavailable")
+                memory_vector = None
+        except Exception as e:
+            logger.warning(f"MemoryVectorStore DEGRADED: {e}")
             memory_vector = None
-    except Exception as e:
-        logger.warning(f"MemoryVectorStore DEGRADED: {e}")
-        memory_vector = None
 
     memory_provider_registry = MemoryProviderRegistry([
         NativeMemoryProvider(memory_manager, memory_vector),
@@ -121,16 +128,26 @@ def initialize_managers(base_dir: str, rag_manager=None) -> Dict[str, Any]:
         update_search_config(api_key=saved_keys["brave"])
         logger.info("Loaded Brave API key from saved configuration")
 
+    knowledge_composition = None
     try:
         from src.unified_source_index_runtime_config import UnifiedSourceIndexRuntimeConfig
         from src.unified_source_index_runtime import build_knowledge_runtime
+        from src.harbour_knowledge_active_runtime import build_active_knowledge_composition
 
         knowledge_runtime_config = UnifiedSourceIndexRuntimeConfig.from_environment()
+        knowledge_composition = build_active_knowledge_composition(
+            knowledge_runtime_config, auth_manager,
+        )
         knowledge_runtime = build_knowledge_runtime(
             (knowledge_runtime_config.mode.value, knowledge_runtime_config.runtime_enabled),
-            planner=None,
+            planner=knowledge_composition,
         )
     except Exception:
+        try:
+            if knowledge_composition is not None:
+                knowledge_composition.close()
+        except Exception:
+            logger.warning("Knowledge composition cleanup failed")
         logger.warning("Knowledge runtime initialization failed")
         raise RuntimeError("knowledge_runtime_initialization_failed") from None
 
@@ -141,6 +158,11 @@ def initialize_managers(base_dir: str, rag_manager=None) -> Dict[str, Any]:
 
         index_job_pump = build_inert_cooperative_index_job_pump(knowledge_runtime_config)
     except Exception:
+        try:
+            if knowledge_composition is not None:
+                knowledge_composition.close()
+        except Exception:
+            logger.warning("Knowledge composition cleanup failed")
         logger.warning("Index job pump initialization failed")
         raise RuntimeError("index_job_pump_initialization_failed") from None
     
@@ -161,5 +183,6 @@ def initialize_managers(base_dir: str, rag_manager=None) -> Dict[str, Any]:
         "current_presets": preset_manager.presets,
         "PERSONAL_INDEX": personal_docs_manager.index,
         "knowledge_runtime": knowledge_runtime,
+        "knowledge_composition": knowledge_composition,
         "index_job_pump": index_job_pump,
     }

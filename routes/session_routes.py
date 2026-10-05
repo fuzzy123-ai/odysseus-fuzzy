@@ -11,7 +11,7 @@ from core.session_manager import SessionManager
 from core.models import ChatMessage
 from src.request_models import SessionResponse
 from core.database import Session as DbSession, SessionLocal, Document, GalleryImage, utcnow_naive
-from src.auth_helpers import _auth_disabled, owner_filter, scoped_effective_user
+from src.auth_helpers import _auth_disabled, owner_filter, scoped_effective_user, require_trusted_session_principal
 from src.clarification_attention import build_session_clarification_attention
 from src.session_actions import is_session_recently_active
 from routes.session_format_helpers import (
@@ -231,6 +231,12 @@ def setup_session_routes(session_manager: SessionManager, config: dict, webhook_
             q = db.query(DbSession.id, DbSession.folder, DbSession.total_input_tokens, DbSession.total_output_tokens, DbSession.is_important, DbSession.created_at, DbSession.updated_at, DbSession.last_message_at, DbSession.mode, DbSession.message_count).filter(DbSession.archived == False)
             q = owner_filter(q, DbSession, user)
             rows = q.all()
+            # Attention is SID-owned.  An unauthenticated/shared session list
+            # keeps its ordinary behavior but never queries clarification data.
+            try:
+                clarification_principal = require_trusted_session_principal(request)
+            except HTTPException:
+                clarification_principal = None
             for row in rows:
                 folder_map[row.id] = row.folder
                 token_map[row.id] = (row.total_input_tokens or 0) + (row.total_output_tokens or 0)
@@ -263,7 +269,10 @@ def setup_session_routes(session_manager: SessionManager, config: dict, webhook_
                 
                 # Determine is_attention (waiting for ask_user input)
                 is_attention = False
-                clarification_attention = build_session_clarification_attention(owner=user, session_id=sid)
+                clarification_attention = (
+                    build_session_clarification_attention(principal=clarification_principal, session_id=sid)
+                    if clarification_principal is not None else {"active": False}
+                )
                 if clarification_attention.get("active"):
                     is_attention = True
                     status_reason_map[sid] = "clarification_required"
