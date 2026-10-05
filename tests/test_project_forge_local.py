@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
@@ -7,7 +8,11 @@ from unittest.mock import patch
 
 import pytest
 
-from src.project_forge_local import LocalProjectForge, LocalProjectForgeError
+from src.project_forge_local import (
+    LocalProjectForge,
+    LocalProjectForgeError,
+    _windows_path_units_including_nul,
+)
 from src.project_version_store import ProjectVersionConflictError, ProjectVersionIntegrityError, owner_key_for
 
 
@@ -121,7 +126,10 @@ def test_completed_idempotent_replay_does_not_fetch_or_create_another_manifest(t
     first = forge.store_commit(**kwargs)
     manifests_before = list((forge.store.project_root(owner_id="alice", repo_id="my-game") / "versions").glob("*/manifest.json"))
 
-    with patch.object(forge, "_retain_commit", wraps=forge._retain_commit) as retain:
+    with (
+        patch.object(forge, "_retain_commit", wraps=forge._retain_commit) as retain,
+        patch.object(forge, "_assert_ref_lock_path_supported", side_effect=AssertionError("replay was blocked")),
+    ):
         second = forge.store_commit(**kwargs)
     manifests_after = list((forge.store.project_root(owner_id="alice", repo_id="my-game") / "versions").glob("*/manifest.json"))
 
@@ -131,6 +139,127 @@ def test_completed_idempotent_replay_does_not_fetch_or_create_another_manifest(t
 
     with pytest.raises(ProjectVersionConflictError, match="different request"):
         forge.store_commit(**{**kwargs, "version_label": "v2"})
+
+
+def test_windows_path_unit_count_includes_utf16_units_and_terminating_nul() -> None:
+    assert _windows_path_units_including_nul("x" * 259) == 260
+    assert _windows_path_units_including_nul("x" * 260) == 261
+    assert _windows_path_units_including_nul("x" * 257 + "😀") == 260
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows Git ref-lock boundary")
+def test_windows_git_update_ref_fails_when_only_ref_lock_crosses_max_path(tmp_path) -> None:
+    projects = tmp_path / "projects"
+    projects.mkdir()
+    source, commit_sha = _source_repo(projects)
+    version_id = "pv_" + ("a" * 32)
+
+    bare = None
+    for width in range(1, 180):
+        candidate = tmp_path / ("g" * width) / "repository.git"
+        lock_path = candidate / "refs" / "odysseus" / "versions" / f"{version_id}.lock"
+        candidate_units = _windows_path_units_including_nul(os.path.abspath(os.fspath(candidate)))
+        lock_units = _windows_path_units_including_nul(os.path.abspath(os.fspath(lock_path)))
+        if candidate_units <= 260 and lock_units > 260:
+            bare = candidate
+            break
+
+    assert bare is not None, "test fixture could not place only the ref lock beyond MAX_PATH"
+    bare.parent.mkdir(parents=True)
+    env = os.environ.copy()
+    env.update(
+        {
+            "GIT_CONFIG_NOSYSTEM": "1",
+            "GIT_CONFIG_GLOBAL": os.devnull,
+            "GIT_OBJECT_DIRECTORY": str(source / ".git" / "objects"),
+            "GIT_TERMINAL_PROMPT": "0",
+        }
+    )
+    initialized = subprocess.run(
+        ["git", "init", "--quiet", "--bare", str(bare)],
+        shell=False,
+        check=False,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert initialized.returncode == 0
+
+    updated = subprocess.run(
+        [
+            "git",
+            "--git-dir",
+            str(bare),
+            "update-ref",
+            f"refs/odysseus/versions/{version_id}",
+            commit_sha,
+            "0" * len(commit_sha),
+        ],
+        shell=False,
+        check=False,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    stderr = updated.stderr.lower()
+    has_lock_error = "cannot lock ref" in stderr
+    has_path_error = "too long" in stderr
+    assert updated.returncode != 0
+    assert (has_lock_error, has_path_error) == (True, True)
+    assert not (bare / "refs" / "odysseus" / "versions" / version_id).exists()
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows Git ref-lock boundary")
+def test_long_ref_lock_path_is_rejected_before_any_git_write(tmp_path) -> None:
+    projects = tmp_path / "projects"
+    projects.mkdir()
+    source, commit_sha = _source_repo(projects)
+
+    selected_root = None
+    selected_lock_units = 0
+    for width in range(1, 180):
+        candidate_root = tmp_path / ("r" * width)
+        candidate_forge = LocalProjectForge(root=candidate_root, source_roots=(projects,))
+        repository = candidate_forge.store.repository_path(owner_id="alice", repo_id="my-game")
+        lock_path = repository / "refs" / "odysseus" / "versions" / ("pv_" + ("0" * 32) + ".lock")
+        lock_units = _windows_path_units_including_nul(os.path.abspath(os.fspath(lock_path)))
+        repository_units = _windows_path_units_including_nul(os.path.abspath(os.fspath(repository)))
+        if lock_units > 260 and repository_units <= 260:
+            selected_root = candidate_root
+            selected_lock_units = lock_units
+            break
+
+    assert selected_root is not None, "test fixture could not isolate the Git ref-lock boundary"
+    forge = LocalProjectForge(root=selected_root, source_roots=(projects,))
+    repository = forge.store.repository_path(owner_id="alice", repo_id="my-game")
+    assert selected_lock_units > 260
+    assert _windows_path_units_including_nul(os.path.abspath(os.fspath(repository))) <= 260
+    assert not repository.exists()
+
+    git_operations: list[tuple[str, ...]] = []
+    run_git = forge._run_git
+
+    def track_git(arguments, **kwargs):
+        git_operations.append(tuple(str(argument) for argument in arguments))
+        return run_git(arguments, **kwargs)
+
+    with patch.object(forge, "_run_git", side_effect=track_git):
+        with pytest.raises(LocalProjectForgeError, match="shorter durable Forge root") as error:
+            forge.store_commit(
+                owner_id="alice",
+                repo_id="my-game",
+                source_repo=source,
+                commit_sha=commit_sha,
+                idempotency_key="long-ref-lock",
+            )
+
+    assert str(repository) not in str(error.value)
+    assert repository.exists() is False
+    assert not any(
+        operation == "init" or operation == "fetch" or operation == "update-ref"
+        for arguments in git_operations
+        for operation in arguments
+    )
 
 
 def test_retry_finishes_from_durable_ref_after_source_workspace_is_gone(tmp_path) -> None:

@@ -22,6 +22,9 @@ from src.project_version_store import (
 )
 
 
+_WINDOWS_MAX_PATH_UNITS_WITH_NUL = 260
+
+
 class LocalProjectForgeError(ProjectVersionStoreError):
     """Raised when a local Git source or bare Forge operation is unsafe."""
 
@@ -125,6 +128,7 @@ class LocalProjectForge:
                     )
                     self._verify_git_version(owner_id=owner_id, repo_id=repo, stored=stored)
                     return stored
+            self._assert_ref_lock_path_supported(repository, reservation.version_id)
             source = self._resolve_source_repo(source_repo)
             self._verify_source_commit(source=source, commit_sha=commit)
             self._ensure_bare_repository(repository)
@@ -229,6 +233,7 @@ class LocalProjectForge:
         version = validate_version_id(version_id)
         if self._retained_commit_exists(repository=repository, commit_sha=commit_sha, version_id=version):
             return
+        self._assert_ref_lock_path_supported(repository, version)
         ref = f"refs/odysseus/versions/{version}"
 
         self._run_git(
@@ -255,6 +260,26 @@ class LocalProjectForge:
             ("--git-dir", str(repository), "update-ref", ref, commit_sha, zero_object_id),
             store_path=repository,
         )
+
+    def _assert_ref_lock_path_supported(self, repository: Path, version_id: str) -> None:
+        """Reject new Git writes whose effective Windows ref lock exceeds MAX_PATH.
+
+        Completed idempotent replays and already-retained refs are resolved before
+        this check, so readable immutable evidence remains available when a store
+        root is later moved or lengthened.
+        """
+
+        if os.name != "nt":
+            return
+        repository = self._assert_store_path(repository)
+        version = validate_version_id(version_id)
+        lock_path = os.path.abspath(
+            os.fspath(repository / "refs" / "odysseus" / "versions" / f"{version}.lock")
+        )
+        if _windows_path_units_including_nul(lock_path) > _WINDOWS_MAX_PATH_UNITS_WITH_NUL:
+            raise LocalProjectForgeError(
+                "local Forge ref-lock path exceeds the Windows MAX_PATH limit; configure a shorter durable Forge root"
+            )
 
     def _retained_commit_exists(self, *, repository: Path, commit_sha: str, version_id: str) -> bool:
         repository = self._assert_store_path(repository)
@@ -377,3 +402,9 @@ def _git_environment() -> dict[str, str]:
     environment["GIT_ASKPASS"] = ""
     environment["GIT_CONFIG_NOSYSTEM"] = "1"
     return environment
+
+
+def _windows_path_units_including_nul(path: str | os.PathLike[str]) -> int:
+    """Count Windows UTF-16 path units and the terminating NUL code unit."""
+
+    return len(os.fspath(path).encode("utf-16-le", errors="surrogatepass")) // 2 + 1
