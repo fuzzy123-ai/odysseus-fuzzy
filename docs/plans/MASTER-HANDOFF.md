@@ -7,7 +7,54 @@ applicable scoped handoff. See `docs/plans/evidence/harbour-one-plan-reconciliat
 for the planning reconciliation. Historical next-action text below does not
 reopen accepted or released work.
 
-## Latest checkpoint: 2026-10-05 (canonical revision 2944)
+## Latest checkpoint: 2026-10-05 (canonical revision 3036)
+
+HEAD is `f3c897128834ee10eaa7ca4c2eaa462e3d259647`; 49 accepted local commits
+precede this documentation commit. The overall implementation goal remains active.
+These are scoped repository results, not whole-product or production acceptance.
+
+- Knowledge staging, migration, active read-only runtime, native query routing,
+  SID owner resolution and matching tool schema are committed in the exact
+  twenty-path bundle `6ce0e5b625215a9a8f03021fdb763fd804e89f33`.
+  The isolated HEAD-plus-twenty full ten-module lane passed 434 tests, exit 0,
+  stable pins, with complete independent component and final binding reviews.
+  Receipt: `.abc-test-tmp/harbour-knowledge-head-dependency-20261005/root-head20-full10/receipt.json`.
+- Token-route authority guards and strict MCP subject binding are committed as
+  `5005fcb174007a02a23ffce8a0925fba10de1e73`: 101 tests passed in the isolated
+  route, auth-subject and authenticated-dispatch lane, exit 0, stable pins and
+  independent final review. The issuance fixture now uses a real isolated
+  AuthManager and actual subject IDs. Earlier failed fixtures and the prior
+  unexplained logout result remain preserved; no logout source fix is claimed.
+  Receipt: `.abc-test-tmp/token-route-current2-head-closure-20261005/root-head2-full3-final/receipt.json`.
+- Inbox and Clarification are committed as the exact four-path bundle
+  `5d15bde7e38b355f027c0f52929cf2ae9618287a`: 157 tests passed in the isolated
+  full four-module lane after the Knowledge and token-route dependencies were
+  committed, exit 0, stable pins and independent final review.
+  Receipt: `.abc-test-tmp/harbour-inbox-current2-closure-20261005/root-head4-full4-dependencies-closed/receipt.json`.
+- The separate preexisting legacy-cursor parser-depth error is corrected in
+  `f3c897128834ee10eaa7ca4c2eaa462e3d259647`. Parser RecursionError becomes a
+  fixed LexicalRetrievalError with suppressed cause; guarded wire behavior is
+  preserved. Lexical, QueryContract and HarbourQuery passed 63 tests, exit 0,
+  stable pins, with independent source/test and final runtime reviews.
+  Receipt: `.abc-test-tmp/lexical-parser-depth-r2-head-closure-20261005/root-head2-full3/receipt.json`.
+
+Context provider/app integration now owns eleven changed paths, including the
+independently reviewed Forge service extension in the project-versioning route.
+Its actual six-module lane returned exit 1, 15 passed and 29 setup errors;
+acceptance and publication remain gated on concrete diagnosis and correction.
+Receipt: `.abc-test-tmp/context-provider-app-current10-closure-20261005/root-head11-full6/receipt.json`.
+The route's unchanged matching test is a baseline verification input, not a
+changed publication path. Current App source/test review is proceeding separately.
+
+Next: resolve the Context11 setup errors, integrate its exact verified scope,
+then close the current App source/test dependency boundary and rebind the H1R05
+parent to current inputs. Product-roadmap progress remains 9/17. Not verified:
+current whole authenticated persistent MCP App/strong33, UI, live, production
+migration/activation, temporal behavior, deployment, backup, restore and push.
+Foreign working-tree changes remain preserved; the staging index is empty after
+each scoped publication. Old failure receipts remain historical evidence.
+
+## Historical checkpoint: 2026-10-05 (canonical revision 2944)
 
 HEAD is `fafa3069b8f7776f45ac5181b70b01723e780329`; 43 accepted local commits precede this
 documentation commit. The overall implementation goal remains active.
