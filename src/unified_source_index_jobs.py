@@ -15,35 +15,57 @@ from enum import StrEnum
 import hashlib
 import json
 import re
+import time
 from typing import Protocol, cast, runtime_checkable
 
 from src.unified_source_index_adapters import (
     AdapterCapability,
     AdapterScope,
+    BudgetedPagedSourceAdapter,
     DiscoveryItem,
+    DiscoveryPage,
     ExtractionProfile,
+    ExtractionPageBudget,
     ExtractionResult,
+    MAX_ADAPTER_CURSOR_CHARS,
+    MAX_ADAPTER_PAGE_SIZE,
+    MAX_ADAPTER_WARNINGS,
+    MAX_PAGED_EXTRACTION_PAGE_RECORDS,
+    MAX_PAGED_EXTRACTION_PAGES,
+    MAX_PAGED_EXTRACTION_RECORDS,
+    MAX_TOTAL_EXTRACTION_CHARS,
+    PagedExtractionPage,
+    PagedSourceAdapter,
     SourceAdapter,
     SourceAdapterError,
     UnavailableObservation,
+    _capture_exact_contract_value,
+    _detach_exact_record,
     validate_adapter_output,
 )
 from src.unified_source_index_contract import (
     ChunkRecord,
+    Classification,
     DerivedRunRecord,
     EntityRecord,
     IndexJobRecord,
     JobStatus,
     LineageRecord,
     ProjectionManifest,
+    ContentPolicy,
     RecordKind,
     RecordRef,
     RelationRecord,
+    SourceKind,
     SourceRecord,
     SourceVersionRecord,
+    UnifiedSourceIndexContractError,
     canonical_json,
+    record_from_json,
 )
+from src.unified_source_index_code_coverage import CoverageManifest
 from src.unified_source_index_stores import (
+    InMemoryStoreWriteTransaction,
     MAX_PAGE_SIZE,
     StoreRecord,
     StoreSnapshot,
@@ -270,6 +292,26 @@ class UnifiedSourceIndexJobRuntime:
         now: str,
         lease_seconds: int = 60,
     ) -> JobLease:
+        lease, _ = self._acquire(
+            job_id,
+            owner_scope=owner_scope,
+            worker_id=worker_id,
+            adapter=adapter,
+            now=now,
+            lease_seconds=lease_seconds,
+        )
+        return lease
+
+    def _acquire(
+        self,
+        job_id: str,
+        *,
+        owner_scope: str,
+        worker_id: str,
+        adapter: SourceAdapter,
+        now: str,
+        lease_seconds: int = 60,
+    ) -> tuple[JobLease, StoreSnapshot | None]:
         owner = _owner_scope(owner_scope)
         worker = _worker(worker_id)
         normalized_now = _timestamp(now, "now")
@@ -285,6 +327,23 @@ class UnifiedSourceIndexJobRuntime:
         job = stored.record
         _validate_job_capability(job, capability)
         checkpoint = _decode_checkpoint(job.cursor, job, capability)
+        if checkpoint.stage is JobStage.TRUTH_COMMIT and job.status is JobStatus.RUNNING:
+            if capability.adapter_id == "forge.code":
+                raise IndexJobExecutionError(
+                    "coverage_publication_required", job=job
+                )
+            recovered = self._finalize_truth_commit(
+                JobLease(job, stored.revision, checkpoint),
+                capability,
+                normalized_now,
+                truth_snapshot=snapshot,
+            )
+            if recovered.lease.job.status is JobStatus.COMPLETED:
+                return recovered.lease, recovered.truth_snapshot
+            snapshot, stored = self._load_job(job_id, owner)
+            assert stored is not None
+            job = stored.record
+            checkpoint = _decode_checkpoint(job.cursor, job, capability)
         if job.status in {JobStatus.COMPLETED, JobStatus.CANCELLED}:
             raise IndexJobTerminalError(f"job is already {job.status.value}")
         if (
@@ -315,7 +374,7 @@ class UnifiedSourceIndexJobRuntime:
             started_at=job.started_at or normalized_now,
             completed_at="",
         )
-        return self._replace_job(snapshot, stored, leased_job, capability)
+        return self._replace_job(snapshot, stored, leased_job, capability), None
 
     def cancel(
         self,
@@ -336,6 +395,11 @@ class UnifiedSourceIndexJobRuntime:
         cancelled = replace(
             checkpoint,
             stage=JobStage.CANCELLED,
+            truth_snapshot_ref=(
+                snapshot.snapshot_ref
+                if checkpoint.stage is JobStage.TRUTH_COMMIT
+                else checkpoint.truth_snapshot_ref
+            ),
             lease_owner="",
             lease_expires_at="",
             error_code=_error_code(reason),
@@ -361,26 +425,73 @@ class UnifiedSourceIndexJobRuntime:
             raise IndexJobRuntimeError("lease must be typed")
         normalized_now = _timestamp(now, "now")
         capability = _capability(adapter)
+        _validate_job_capability(lease.job, capability)
         current = self._require_current_lease(lease, capability, normalized_now)
+        if current.checkpoint.stage is JobStage.TRUTH_COMMIT:
+            if capability.adapter_id == "forge.code":
+                raise IndexJobExecutionError(
+                    "coverage_publication_required", job=current.job
+                )
+            return self._finalize_truth_commit(current, capability, normalized_now)
+
         job = current.job
         checkpoint = current.checkpoint
+        paged = bool(capability.required_job_profile_ref)
+        if paged and projection is not None:
+            failed = self._fail_paged_job(
+                current,
+                capability,
+                normalized_now,
+                stage=JobStage.EXTRACTION,
+                error_code="paged_projection_unsupported",
+                projection_stale=False,
+                truth_snapshot_ref=checkpoint.truth_snapshot_ref,
+            )
+            raise IndexJobExecutionError(
+                "paged extraction does not support legacy projection",
+                job=failed.job,
+            )
+
         scope = AdapterScope(
             job.owner_scope,
             job.classification,
             job.source_scope.source_ids,
         )
+        started = time.monotonic()
+        deadline = started + (job.time_budget_ms / 1_000)
         try:
-            page = adapter.discover(
-                scope,
+            discovery_budget = (
+                _remaining_time_budget_ms(deadline) if paged else job.time_budget_ms
+            )
+            discovery_scope = (
+                AdapterScope(
+                    scope.owner_scope,
+                    scope.classification_ceiling,
+                    scope.source_ids,
+                )
+                if paged
+                else scope
+            )
+            raw_page = adapter.discover(
+                discovery_scope,
                 cursor=checkpoint.discovery_cursor,
                 limit=1,
-                time_budget_ms=job.time_budget_ms,
+                time_budget_ms=discovery_budget,
             )
+            page = _detach_paged_discovery_page(raw_page) if paged else raw_page
             if len(page.items) > 1:
                 raise SourceAdapterError("job discovery returned more than one item")
             if not page.items:
                 if page.next_cursor:
                     raise SourceAdapterError("empty discovery page cannot advance a cursor")
+                if paged:
+                    return self._finish_paged_empty(
+                        current,
+                        capability,
+                        normalized_now,
+                        started=started,
+                        deadline=deadline,
+                    )
                 completed = self._finish_job(
                     current,
                     capability,
@@ -390,34 +501,124 @@ class UnifiedSourceIndexJobRuntime:
                 return JobStepResult(completed, self._store.current_snapshot())
 
             discovery = page.items[0]
-            observed = adapter.observe_version(discovery.source.ref())
-            if isinstance(observed, UnavailableObservation):
-                raise SourceAdapterError("source_unavailable_requires_tombstone_plan")
-            profile = ExtractionProfile(
-                job.profile_ref,
-                max_items=min(job.max_items, capability.max_extract_items),
-                max_chars=MAX_EXTRACTION_CHARS,
-                time_budget_ms=job.time_budget_ms,
-            )
-            extraction = adapter.extract(observed, profile)
-            validate_adapter_output(
-                capability,
-                scope,
-                discovery,
-                observed,
-                extraction,
-            )
+            raw_observed = adapter.observe_version(discovery.source.ref())
+            if paged:
+                if type(raw_observed) is UnavailableObservation:
+                    raise SourceAdapterError("source_unavailable_requires_tombstone_plan")
+                detached_observed = cast(
+                    SourceVersionRecord,
+                    _detach_exact_record(raw_observed, (SourceVersionRecord,)),
+                )
+                observed_authority = _source_version_authority_bytes(
+                    detached_observed
+                )
+                records, precommit = self._extract_paged_records(
+                    current,
+                    adapter=cast(PagedSourceAdapter, adapter),
+                    capability=capability,
+                    scope=scope,
+                    discovery=discovery,
+                    observed_authority=observed_authority,
+                    normalized_now=normalized_now,
+                    started=started,
+                    deadline=deadline,
+                )
+                observed = _source_version_from_authority(observed_authority)
+            else:
+                if isinstance(raw_observed, UnavailableObservation):
+                    raise SourceAdapterError("source_unavailable_requires_tombstone_plan")
+                observed = raw_observed
+                profile = ExtractionProfile(
+                    job.profile_ref,
+                    max_items=min(job.max_items, capability.max_extract_items),
+                    max_chars=min(MAX_EXTRACTION_CHARS, capability.max_total_extract_chars),
+                    time_budget_ms=job.time_budget_ms,
+                )
+                extraction = adapter.extract(observed, profile)
+                validate_adapter_output(
+                    capability,
+                    scope,
+                    discovery,
+                    observed,
+                    extraction,
+                )
+        except IndexJobLeaseConflict:
+            raise
         except Exception as exc:
-            failed = self._fail_job(
+            fail = self._fail_paged_job if paged else self._fail_job
+            failed = fail(
                 current,
                 capability,
                 normalized_now,
                 stage=JobStage.EXTRACTION,
                 error_code=_exception_code(exc, "adapter_error"),
                 projection_stale=False,
-                truth_snapshot_ref="",
+                truth_snapshot_ref=checkpoint.truth_snapshot_ref,
             )
             raise IndexJobExecutionError("adapter job step failed", job=failed.job) from exc
+
+        item_budget_exhausted = (
+            bool(page.next_cursor)
+            and precommit.checkpoint.items_completed + 1 >= job.max_items
+        ) if paged else False
+        completed = not page.next_cursor or item_budget_exhausted
+        if paged:
+            try:
+                truth_snapshot, truth_lease = self._commit_paged_truth(
+                    precommit,
+                    capability=capability,
+                    discovery=discovery,
+                    observed=observed,
+                    records=records,
+                    discovery_cursor=page.next_cursor,
+                    item_budget_exhausted=item_budget_exhausted,
+                    normalized_now=normalized_now,
+                    started=started,
+                    deadline=deadline,
+                )
+            except IndexJobLeaseConflict:
+                raise
+            except Exception as exc:
+                _, stored = self._load_job(job.job_id, job.owner_scope)
+                assert stored is not None
+                stored_checkpoint = _decode_checkpoint(
+                    stored.record.cursor, stored.record, capability
+                )
+                if (
+                    stored.record.status is JobStatus.RUNNING
+                    and stored.revision != precommit.record_revision
+                    and stored_checkpoint.stage is JobStage.TRUTH_COMMIT
+                ):
+                    raise IndexJobExecutionError(
+                        "paged truth committed; finalization remains pending",
+                        job=stored.record,
+                    ) from exc
+                failed = self._fail_paged_job(
+                    precommit,
+                    capability,
+                    normalized_now,
+                    stage=JobStage.EXTRACTION,
+                    error_code=_exception_code(exc, "truth_commit_error"),
+                    projection_stale=False,
+                    truth_snapshot_ref=precommit.checkpoint.truth_snapshot_ref,
+                )
+                raise IndexJobExecutionError("paged truth commit failed", job=failed.job) from exc
+            try:
+                return self._finalize_truth_commit(
+                    truth_lease,
+                    capability,
+                    normalized_now,
+                    truth_snapshot=truth_snapshot,
+                )
+            except IndexJobLeaseConflict:
+                raise
+            except Exception as exc:
+                _, stored = self._load_job(job.job_id, job.owner_scope)
+                assert stored is not None
+                raise IndexJobExecutionError(
+                    "paged truth committed; finalization remains pending",
+                    job=stored.record,
+                ) from exc
 
         truth_snapshot = self._persist_records(
             (discovery.source, observed, *extraction.records)
@@ -508,7 +709,7 @@ class UnifiedSourceIndexJobRuntime:
             minimum=1,
             maximum=MAX_JOB_STEPS,
         )
-        lease = self.acquire(
+        lease, recovered_truth_snapshot = self._acquire(
             job_id,
             owner_scope=owner_scope,
             worker_id=worker_id,
@@ -516,7 +717,12 @@ class UnifiedSourceIndexJobRuntime:
             now=now,
             lease_seconds=lease_seconds,
         )
-        result = JobStepResult(lease, self._store.current_snapshot())
+        result = JobStepResult(
+            lease,
+            recovered_truth_snapshot or self._store.current_snapshot(),
+        )
+        if result.terminal:
+            return result
         for _ in range(step_limit):
             result = self.run_next(
                 result.lease,
@@ -527,6 +733,580 @@ class UnifiedSourceIndexJobRuntime:
             if result.terminal:
                 return result
         raise IndexJobRuntimeError("job did not finish within max_steps")
+
+    def _finish_paged_empty(
+        self,
+        lease: JobLease,
+        capability: AdapterCapability,
+        now: str,
+        *,
+        started: float,
+        deadline: float,
+    ) -> JobStepResult:
+        snapshot, stored = self._load_job(lease.job.job_id, lease.job.owner_scope)
+        assert stored is not None
+        checkpoint = _decode_checkpoint(stored.record.cursor, stored.record, capability)
+        if (
+            stored.revision != lease.record_revision
+            or stored.record != lease.job
+            or stored.record.status is not JobStatus.RUNNING
+            or checkpoint.lease_owner != lease.checkpoint.lease_owner
+        ):
+            raise IndexJobLeaseConflict(
+                "job changed before paged empty completion"
+            )
+        completed_checkpoint = replace(
+            checkpoint,
+            stage=JobStage.COMPLETE,
+            lease_owner="",
+            lease_expires_at="",
+            truth_snapshot_ref=snapshot.snapshot_ref,
+            projection_stale=False,
+            error_code="",
+        )
+        completed_job = replace(
+            stored.record,
+            status=JobStatus.COMPLETED,
+            cursor=_encode_checkpoint(completed_checkpoint),
+            completed_at=now,
+        )
+        write = self._store.begin_write(snapshot)
+        try:
+            write.compare_and_swap(
+                completed_job,
+                expected_record_revision=stored.revision,
+            )
+            _require_fresh_paged_commit_time(
+                JobLease(stored.record, stored.revision, checkpoint),
+                normalized_now=now,
+                started=started,
+                deadline=deadline,
+            )
+        except BaseException:
+            write.rollback()
+            raise
+        write.commit()
+        _, updated = self._load_job(completed_job.job_id, completed_job.owner_scope)
+        assert updated is not None
+        updated_checkpoint = _decode_checkpoint(
+            updated.record.cursor, updated.record, capability
+        )
+        return JobStepResult(
+            JobLease(updated.record, updated.revision, updated_checkpoint),
+            snapshot,
+        )
+
+    def _extract_paged_records(
+        self,
+        lease: JobLease,
+        *,
+        adapter: PagedSourceAdapter,
+        capability: AdapterCapability,
+        scope: AdapterScope,
+        discovery: DiscoveryItem,
+        observed_authority: bytes,
+        normalized_now: str,
+        started: float,
+        deadline: float,
+    ) -> tuple[tuple[ChunkRecord | EntityRecord | RelationRecord, ...], JobLease]:
+        records: list[ChunkRecord | EntityRecord | RelationRecord] = []
+        seen_keys: set[tuple[str, str]] = set()
+        seen_cursors = {""}
+        cursor = ""
+        last_key: tuple[str, str] | None = None
+        inline_chars = 0
+        pages = 0
+        current = lease
+        while True:
+            remaining_records = MAX_PAGED_EXTRACTION_RECORDS - len(records)
+            if remaining_records < 1:
+                raise SourceAdapterError("paged extraction exceeds aggregate record bound")
+            total_char_limit = capability.max_total_extract_chars
+            remaining_chars = total_char_limit - inline_chars
+            requested_page_max_items = min(
+                MAX_PAGED_EXTRACTION_PAGE_RECORDS,
+                capability.max_extract_items,
+                remaining_records,
+            )
+            budgeted = capability.supports_budgeted_paging
+            if budgeted:
+                profile = ExtractionProfile(
+                    lease.job.profile_ref,
+                    max_items=min(
+                        MAX_PAGED_EXTRACTION_PAGE_RECORDS,
+                        capability.max_extract_items,
+                    ),
+                    max_chars=min(MAX_EXTRACTION_CHARS, total_char_limit),
+                    time_budget_ms=min(lease.job.time_budget_ms, 86_400_000),
+                )
+                requested_page_max_items = min(
+                    profile.max_items,
+                    remaining_records,
+                )
+                page_budget = ExtractionPageBudget(
+                    max_items=requested_page_max_items,
+                    max_chars=min(
+                        profile.max_chars,
+                        remaining_chars,
+                    ),
+                    time_budget_ms=min(
+                        profile.time_budget_ms,
+                        _remaining_time_budget_ms(deadline),
+                    ),
+                )
+                profile_authority = (
+                    profile.profile_ref,
+                    profile.max_items,
+                    profile.max_chars,
+                    profile.time_budget_ms,
+                )
+                budget_authority = (
+                    page_budget.max_items,
+                    page_budget.max_chars,
+                    page_budget.time_budget_ms,
+                )
+            else:
+                profile = ExtractionProfile(
+                    lease.job.profile_ref,
+                    max_items=requested_page_max_items,
+                    max_chars=max(1, remaining_chars),
+                    time_budget_ms=_remaining_time_budget_ms(deadline),
+                )
+                page_budget = None
+                profile_authority = ()
+                budget_authority = ()
+            page_input_version = _source_version_from_authority(
+                observed_authority
+            )
+            if budgeted:
+                if not isinstance(adapter, BudgetedPagedSourceAdapter):
+                    raise SourceAdapterError("budgeted paged adapter protocol is missing")
+                raw_page = adapter.extract_page_budgeted(
+                    page_input_version,
+                    profile,
+                    page_budget,
+                    cursor=cursor,
+                    sequence_start=len(records),
+                )
+            else:
+                raw_page = adapter.extract_page(
+                    page_input_version,
+                    profile,
+                    cursor=cursor,
+                    sequence_start=len(records),
+                )
+            if budgeted and (
+                type(profile) is not ExtractionProfile
+                or (
+                    profile.profile_ref,
+                    profile.max_items,
+                    profile.max_chars,
+                    profile.time_budget_ms,
+                ) != profile_authority
+                or type(profile.profile_ref) is not str
+                or type(profile.max_items) is not int
+                or type(profile.max_chars) is not int
+                or type(profile.time_budget_ms) is not int
+                or type(page_budget) is not ExtractionPageBudget
+                or (
+                    page_budget.max_items,
+                    page_budget.max_chars,
+                    page_budget.time_budget_ms,
+                ) != budget_authority
+                or type(page_budget.max_items) is not int
+                or type(page_budget.max_chars) is not int
+                or type(page_budget.time_budget_ms) is not int
+            ):
+                raise SourceAdapterError("paged extraction request budget mutated")
+            _remaining_time_budget_ms(deadline)
+            page = _detach_paged_extraction_page(raw_page)
+            if len(page.records) > requested_page_max_items:
+                raise SourceAdapterError(
+                    "paged extraction returned more records than requested"
+                )
+            if _source_version_authority_bytes(page.source_version) != observed_authority:
+                raise SourceAdapterError("paged extraction source version drifted")
+            if page.sequence_start != len(records):
+                raise SourceAdapterError("paged extraction sequence_start drifted")
+            temporary = ExtractionResult(
+                page.source_version,
+                chunks=tuple(record for record in page.records if type(record) is ChunkRecord),
+                entities=tuple(record for record in page.records if type(record) is EntityRecord),
+                relations=tuple(record for record in page.records if type(record) is RelationRecord),
+                warnings=page.warnings,
+            )
+            validation_version = _source_version_from_authority(
+                observed_authority
+            )
+            validate_adapter_output(
+                capability, scope, discovery, validation_version, temporary
+            )
+            page_inline_chars_before = inline_chars
+            for record in page.records:
+                key = _paged_record_key(record)
+                if key in seen_keys:
+                    raise SourceAdapterError("paged extraction repeats a record identity")
+                if last_key is not None and key <= last_key:
+                    raise SourceAdapterError("paged extraction records are not globally ordered")
+                seen_keys.add(key)
+                last_key = key
+                records.append(record)
+                if type(record) is ChunkRecord and record.content is not None:
+                    inline_chars += len(record.content)
+                    if inline_chars > total_char_limit:
+                        raise SourceAdapterError("paged extraction exceeds inline character bound")
+                    if budgeted and inline_chars - page_inline_chars_before > page_budget.max_chars:
+                        raise SourceAdapterError("paged extraction exceeds requested page character budget")
+            pages += 1
+            if len(records) > MAX_PAGED_EXTRACTION_RECORDS:
+                raise SourceAdapterError("paged extraction exceeds aggregate record bound")
+            current = self._require_current_lease(
+                lease,
+                capability,
+                _mapped_now(normalized_now, started),
+            )
+            if page.next_cursor:
+                if pages >= MAX_PAGED_EXTRACTION_PAGES:
+                    raise SourceAdapterError("paged extraction exceeds page bound")
+                if len(records) >= MAX_PAGED_EXTRACTION_RECORDS:
+                    raise SourceAdapterError("paged extraction cannot advance at aggregate bound")
+                if page.next_cursor == cursor or page.next_cursor in seen_cursors:
+                    raise SourceAdapterError("paged extraction cursor repeats")
+                seen_cursors.add(page.next_cursor)
+                cursor = page.next_cursor
+                continue
+            if page.final_record_count != len(records):
+                raise SourceAdapterError("paged extraction final record count does not match")
+            if page.final_records_digest != _paged_records_digest(tuple(records)):
+                raise SourceAdapterError("paged extraction final record digest does not match")
+            counts = {kind: 0 for kind in (RecordKind.CHUNK, RecordKind.ENTITY, RecordKind.RELATION)}
+            for record in records:
+                kind, _, _ = _record_descriptor(record)
+                counts[kind] += 1
+                if counts[kind] > MAX_PAGED_EXTRACTION_RECORDS:
+                    raise SourceAdapterError("paged extraction kind count is unbounded")
+            if sum(counts.values()) != len(records):
+                raise SourceAdapterError("paged extraction kind counts do not sum")
+            _remaining_time_budget_ms(deadline)
+            current = self._require_current_lease(
+                lease,
+                capability,
+                _mapped_now(normalized_now, started),
+            )
+            return tuple(records), current
+
+    def _commit_paged_truth(
+        self,
+        lease: JobLease,
+        *,
+        capability: AdapterCapability,
+        discovery: DiscoveryItem,
+        observed: SourceVersionRecord,
+        records: tuple[ChunkRecord | EntityRecord | RelationRecord, ...],
+        discovery_cursor: str,
+        item_budget_exhausted: bool,
+        normalized_now: str,
+        started: float,
+        deadline: float,
+    ) -> tuple[StoreSnapshot, JobLease]:
+        snapshot, stored = self._load_job(lease.job.job_id, lease.job.owner_scope)
+        assert stored is not None
+        if stored.revision != lease.record_revision or stored.record != lease.job:
+            raise IndexJobLeaseConflict("job changed before paged truth commit")
+        truth_checkpoint = replace(
+            lease.checkpoint,
+            stage=JobStage.TRUTH_COMMIT,
+            discovery_cursor=discovery_cursor,
+            items_completed=lease.checkpoint.items_completed + 1,
+            projection_stale=False,
+            error_code="item_budget_exhausted" if item_budget_exhausted else "",
+        )
+        truth_job = replace(
+            lease.job,
+            status=JobStatus.RUNNING,
+            cursor=_encode_checkpoint(truth_checkpoint),
+            completed_at="",
+        )
+        candidates = (discovery.source, observed, *records)
+        target_keys: set[tuple[RecordKind, str, str]] = set()
+        groups: set[tuple[RecordKind, str]] = set()
+        for record in candidates:
+            kind, record_id, owner = _record_descriptor(record)
+            target_keys.add((kind, record_id, owner))
+            groups.add((kind, owner))
+        existing_by_key: dict[
+            tuple[RecordKind, str, str], StoredRecord | TombstoneRecord
+        ] = {}
+        with self._store.begin_read(snapshot) as read:
+            for kind, owner in sorted(groups, key=lambda item: (item[0].value, item[1])):
+                cursor = ""
+                while True:
+                    _remaining_time_budget_ms(deadline)
+                    page = read.list_records(
+                        kind,
+                        owner_scope=owner,
+                        limit=MAX_PAGE_SIZE,
+                        cursor=cursor,
+                        include_tombstones=True,
+                    )
+                    for existing in page.items:
+                        key = (
+                            existing.record_kind,
+                            existing.record_id,
+                            existing.owner_scope,
+                        )
+                        if key in target_keys:
+                            existing_by_key[key] = existing
+                    if not page.next_cursor:
+                        break
+                    cursor = page.next_cursor
+        pending: list[tuple[StoreRecord, int]] = []
+        for record in candidates:
+            kind, record_id, owner = _record_descriptor(record)
+            existing = existing_by_key.get((kind, record_id, owner))
+            if isinstance(existing, TombstoneRecord):
+                raise StoreTombstoneError(
+                    "job output targets a tombstoned record identity"
+                )
+            if isinstance(existing, StoredRecord):
+                if existing.record == record:
+                    continue
+                pending.append((cast(StoreRecord, record), existing.revision))
+            else:
+                pending.append((cast(StoreRecord, record), 0))
+        write = self._store.begin_write(snapshot)
+        try:
+            if type(write) is InMemoryStoreWriteTransaction:
+                write.put_many_paged_truth(tuple(pending))
+            else:
+                for record, expected_revision in pending:
+                    write.put(record, expected_record_revision=expected_revision)
+            write.compare_and_swap(
+                truth_job, expected_record_revision=stored.revision
+            )
+            checked = self._require_current_lease(
+                lease,
+                capability,
+                _mapped_now(normalized_now, started),
+            )
+            _require_fresh_paged_commit_time(
+                checked,
+                normalized_now=normalized_now,
+                started=started,
+                deadline=deadline,
+            )
+        except BaseException:
+            write.rollback()
+            raise
+        truth_snapshot = write.commit()
+        _, updated = self._load_job(truth_job.job_id, truth_job.owner_scope)
+        assert updated is not None
+        updated_checkpoint = _decode_checkpoint(
+            updated.record.cursor, updated.record, capability
+        )
+        return truth_snapshot, JobLease(
+            updated.record, updated.revision, updated_checkpoint
+        )
+
+    def _finalize_truth_commit(
+        self,
+        lease: JobLease,
+        capability: AdapterCapability,
+        now: str,
+        *,
+        truth_snapshot: StoreSnapshot | None = None,
+    ) -> JobStepResult:
+        if capability.adapter_id == "forge.code":
+            raise IndexJobExecutionError(
+                "coverage_publication_required", job=lease.job
+            )
+        snapshot, stored = self._load_job(lease.job.job_id, lease.job.owner_scope)
+        assert stored is not None
+        checkpoint = _decode_checkpoint(stored.record.cursor, stored.record, capability)
+        if (
+            stored.revision != lease.record_revision
+            or stored.record.status is not JobStatus.RUNNING
+            or checkpoint.stage is not JobStage.TRUTH_COMMIT
+        ):
+            raise IndexJobLeaseConflict("paged truth finalization lost its job lease")
+        if truth_snapshot is not None and snapshot != truth_snapshot:
+            raise IndexJobLeaseConflict("paged truth snapshot changed before finalization")
+        completed = (
+            not checkpoint.discovery_cursor
+            or checkpoint.error_code == "item_budget_exhausted"
+        )
+        finalized_checkpoint = replace(
+            checkpoint,
+            stage=JobStage.COMPLETE if completed else JobStage.DISCOVERY,
+            truth_snapshot_ref=snapshot.snapshot_ref,
+            lease_owner="" if completed else checkpoint.lease_owner,
+            lease_expires_at="" if completed else checkpoint.lease_expires_at,
+        )
+        finalized_job = replace(
+            stored.record,
+            status=JobStatus.COMPLETED if completed else JobStatus.RUNNING,
+            cursor=_encode_checkpoint(finalized_checkpoint),
+            completed_at=now if completed else "",
+        )
+        updated = self._replace_job(snapshot, stored, finalized_job, capability)
+        return JobStepResult(updated, snapshot)
+
+    def finalize_selected_coverage(
+        self,
+        lease: JobLease,
+        *,
+        adapter: SourceAdapter,
+        manifest: CoverageManifest,
+        expected_ledger_head_digest: str,
+        expected_selection_event_digest: str,
+        now: str,
+    ) -> JobStepResult:
+        """Publish Forge coverage and terminal job state in one P transaction."""
+        from src.unified_source_index_sqlite import (
+            SQLiteStoreWriteTransaction,
+            SQLiteUnifiedSourceIndexStore,
+        )
+
+        normalized_now = _timestamp(now, "now")
+        capability = _capability(adapter)
+        _validate_job_capability(lease.job, capability)
+        if (
+            capability.adapter_id != "forge.code"
+            or type(manifest) is not CoverageManifest
+            or not isinstance(self._store, SQLiteUnifiedSourceIndexStore)
+        ):
+            raise IndexJobRuntimeError("coverage_publication_required")
+        canonical = CoverageManifest.from_canonical_bytes(manifest.canonical_bytes())
+        attempt = canonical.attempt
+        _latest_snapshot, latest_stored = self._load_job(
+            lease.job.job_id, lease.job.owner_scope
+        )
+        assert latest_stored is not None
+        if latest_stored.record.status is JobStatus.COMPLETED:
+            try:
+                persisted_original_checkpoint = _decode_checkpoint(
+                    lease.job.cursor, lease.job, capability
+                )
+            except Exception:
+                raise IndexJobExecutionError(
+                    "terminal_job_mismatch", job=lease.job
+                ) from None
+            if (
+                lease.job.status is not JobStatus.RUNNING
+                or persisted_original_checkpoint != lease.checkpoint
+                or lease.checkpoint.stage is not JobStage.TRUTH_COMMIT
+                or lease.record_revision != attempt.store_revision
+                or attempt.job_id != lease.job.job_id
+                or attempt.adapter_id != capability.adapter_id
+                or attempt.adapter_version != capability.adapter_version
+                or lease.checkpoint.adapter_id != capability.adapter_id
+                or lease.checkpoint.adapter_version != capability.adapter_version
+                or canonical.authority_binding[:2]
+                != (capability.adapter_id, capability.adapter_version)
+            ):
+                raise IndexJobExecutionError("terminal_job_mismatch", job=lease.job)
+            completed_checkpoint = replace(
+                lease.checkpoint,
+                stage=JobStage.COMPLETE,
+                lease_owner="",
+                lease_expires_at="",
+                error_code="",
+            )
+            completed_job = replace(
+                lease.job,
+                status=JobStatus.COMPLETED,
+                cursor=_encode_checkpoint(completed_checkpoint),
+                completed_at=latest_stored.record.completed_at,
+            )
+            try:
+                replay_snapshot = self._store.verify_selected_coverage_replay(
+                    canonical,
+                    original_job=lease.job,
+                    terminal_job=completed_job,
+                    expected_ledger_head_digest=expected_ledger_head_digest,
+                    expected_selection_event_digest=expected_selection_event_digest,
+                    adapter_authority_binding=canonical.authority_binding,
+                )
+            except Exception:
+                raise IndexJobExecutionError(
+                    "terminal_job_mismatch", job=lease.job
+                ) from None
+            checkpoint = _decode_checkpoint(
+                latest_stored.record.cursor, latest_stored.record, capability
+            )
+            return JobStepResult(
+                JobLease(latest_stored.record, latest_stored.revision, checkpoint),
+                replay_snapshot,
+            )
+        current = self._require_current_lease(lease, capability, normalized_now)
+        if current.checkpoint.stage is not JobStage.TRUTH_COMMIT:
+            raise IndexJobRuntimeError("coverage_publication_required")
+        truth_snapshot = StoreSnapshot(
+            attempt.store_revision,
+            attempt.store_state_hash,
+            attempt.store_record_count,
+            attempt.store_tombstone_count,
+            attempt.store_snapshot_ref,
+        )
+        if (
+            attempt.job_id != current.job.job_id
+            or attempt.adapter_id != capability.adapter_id
+            or attempt.adapter_version != capability.adapter_version
+            or attempt.adapter_id != current.checkpoint.adapter_id
+            or attempt.adapter_version != current.checkpoint.adapter_version
+            or attempt.store_revision != current.record_revision
+        ):
+            raise IndexJobExecutionError("terminal_job_mismatch", job=current.job)
+        try:
+            with self._store.begin_read(truth_snapshot):
+                pass
+            write_snapshot = self._store.current_snapshot()
+        except Exception:
+            raise IndexJobExecutionError("truth_snapshot_mismatch", job=current.job) from None
+        completed_checkpoint = replace(
+            current.checkpoint,
+            stage=JobStage.COMPLETE,
+            lease_owner="",
+            lease_expires_at="",
+            error_code="",
+        )
+        completed_job = replace(
+            current.job,
+            status=JobStatus.COMPLETED,
+            cursor=_encode_checkpoint(completed_checkpoint),
+            completed_at=normalized_now,
+        )
+        if (
+            attempt.job_status is not JobStatus.COMPLETED
+            or attempt.job_record_digest
+            != "sha256:" + hashlib.sha256(completed_job.to_json().encode("utf-8")).hexdigest()
+        ):
+            raise IndexJobExecutionError("terminal_job_mismatch", job=current.job)
+        write = self._store.begin_write(write_snapshot)
+        if not isinstance(write, SQLiteStoreWriteTransaction):
+            write.rollback()
+            raise IndexJobRuntimeError("coverage_publication_required")
+        try:
+            write.compare_and_swap(
+                completed_job,
+                expected_record_revision=current.record_revision,
+            )
+            write.publish_selected_coverage(
+                canonical,
+                expected_ledger_head_digest=expected_ledger_head_digest,
+                expected_selection_event_digest=expected_selection_event_digest,
+            )
+            checked = self._require_current_lease(lease, capability, normalized_now)
+            if checked.record_revision != current.record_revision:
+                raise IndexJobLeaseConflict("job changed before coverage publication")
+        except BaseException:
+            write.rollback()
+            raise
+        published_snapshot = write.commit()
+        _, stored = self._load_job(completed_job.job_id, completed_job.owner_scope)
+        assert stored is not None
+        checkpoint = _decode_checkpoint(stored.record.cursor, stored.record, capability)
+        return JobStepResult(JobLease(stored.record, stored.revision, checkpoint), published_snapshot)
 
     def _require_current_lease(
         self,
@@ -587,6 +1367,42 @@ class UnifiedSourceIndexJobRuntime:
         snapshot, stored = self._load_job(job.job_id, job.owner_scope)
         assert stored is not None
         return self._replace_job(snapshot, stored, job, capability)
+
+    def _fail_paged_job(
+        self,
+        lease: JobLease,
+        capability: AdapterCapability,
+        now: str,
+        *,
+        stage: JobStage,
+        error_code: str,
+        projection_stale: bool,
+        truth_snapshot_ref: str,
+    ) -> JobLease:
+        snapshot, stored = self._load_job(lease.job.job_id, lease.job.owner_scope)
+        assert stored is not None
+        if (
+            stored.revision != lease.record_revision
+            or stored.record != lease.job
+            or stored.record.status is not JobStatus.RUNNING
+        ):
+            raise IndexJobLeaseConflict("job changed before paged failure commit")
+        checkpoint = replace(
+            lease.checkpoint,
+            stage=stage,
+            lease_owner="",
+            lease_expires_at="",
+            truth_snapshot_ref=truth_snapshot_ref,
+            projection_stale=projection_stale,
+            error_code=_error_code(error_code),
+        )
+        failed_job = replace(
+            lease.job,
+            status=JobStatus.FAILED,
+            cursor=_encode_checkpoint(checkpoint),
+            completed_at=now,
+        )
+        return self._replace_job(snapshot, stored, failed_job, capability)
 
     def _fail_job(
         self,
@@ -780,6 +1596,128 @@ def _record_mentions_source(record: object, source_id: str) -> bool:
     return False
 
 
+def _source_version_authority_bytes(value: SourceVersionRecord) -> bytes:
+    if type(value) is not SourceVersionRecord:
+        raise SourceAdapterError("paged source version authority must be exact")
+    return canonical_json(_capture_exact_contract_value(value)).encode("utf-8")
+
+
+def _source_version_from_authority(value: bytes) -> SourceVersionRecord:
+    if type(value) is not bytes:
+        raise SourceAdapterError("paged source version authority must be exact bytes")
+    try:
+        record = record_from_json(value.decode("utf-8"))
+    except (UnicodeDecodeError, UnifiedSourceIndexContractError) as exc:
+        raise SourceAdapterError("paged source version authority is invalid") from exc
+    if type(record) is not SourceVersionRecord:
+        raise SourceAdapterError("paged source version authority changed type")
+    if _source_version_authority_bytes(record) != value:
+        raise SourceAdapterError("paged source version authority changed bytes")
+    return record
+
+
+def _detach_paged_discovery_page(value: object) -> DiscoveryPage:
+    if type(value) is not DiscoveryPage:
+        raise SourceAdapterError("paged discovery requires an exact page")
+    items = object.__getattribute__(value, "items")
+    cursor = object.__getattribute__(value, "next_cursor")
+    warnings = object.__getattribute__(value, "warnings")
+    if (
+        type(items) is not tuple
+        or len(items) > MAX_ADAPTER_PAGE_SIZE
+        or any(type(item) is not DiscoveryItem for item in items)
+    ):
+        raise SourceAdapterError("paged discovery items must use exact bounded types")
+    if type(cursor) is not str or len(cursor) > MAX_ADAPTER_CURSOR_CHARS:
+        raise SourceAdapterError("paged discovery cursor must use exact bounded text")
+    if (
+        type(warnings) is not tuple
+        or len(warnings) > MAX_ADAPTER_WARNINGS
+        or any(type(item) is not str for item in warnings)
+    ):
+        raise SourceAdapterError("paged discovery warnings must use exact bounded types")
+    detached_items = []
+    for item in items:
+        source = object.__getattribute__(item, "source")
+        fingerprint = object.__getattribute__(item, "fingerprint")
+        if type(fingerprint) is not str:
+            raise SourceAdapterError("paged discovery fingerprint must use exact text")
+        detached_items.append(
+            DiscoveryItem(
+                cast(SourceRecord, _detach_exact_record(source, (SourceRecord,))),
+                fingerprint,
+            )
+        )
+    return DiscoveryPage(tuple(detached_items), cursor, warnings)
+
+
+def _detach_paged_extraction_page(value: object) -> PagedExtractionPage:
+    if type(value) is not PagedExtractionPage:
+        raise SourceAdapterError("paged extraction requires an exact page")
+    return PagedExtractionPage(
+        object.__getattribute__(value, "source_version"),
+        object.__getattribute__(value, "sequence_start"),
+        object.__getattribute__(value, "records"),
+        object.__getattribute__(value, "next_cursor"),
+        object.__getattribute__(value, "final_record_count"),
+        object.__getattribute__(value, "final_records_digest"),
+        object.__getattribute__(value, "warnings"),
+    )
+
+
+def _paged_record_key(
+    record: ChunkRecord | EntityRecord | RelationRecord,
+) -> tuple[str, str]:
+    kind, record_id, _ = _record_descriptor(record)
+    return kind.value, record_id
+
+
+def _paged_records_digest(
+    records: tuple[ChunkRecord | EntityRecord | RelationRecord, ...],
+) -> str:
+    payload = b"\n".join(
+        canonical_json(_capture_exact_contract_value(record)).encode("utf-8")
+        for record in records
+    )
+    return "sha256:" + hashlib.sha256(payload).hexdigest()
+
+
+def _require_fresh_paged_commit_time(
+    lease: JobLease,
+    *,
+    normalized_now: str,
+    started: float,
+    deadline: float,
+) -> None:
+    commit_time = time.monotonic()
+    if int((deadline - commit_time) * 1_000) < 1:
+        raise SourceAdapterError(
+            "paged extraction exceeded its monotonic time budget"
+        )
+    commit_now = _format_timestamp(
+        _parse_timestamp(normalized_now)
+        + timedelta(seconds=max(0.0, commit_time - started))
+    )
+    if not lease.checkpoint.lease_is_active(commit_now):
+        raise IndexJobLeaseConflict(
+            "job lease expired before paged truth commit"
+        )
+
+
+def _remaining_time_budget_ms(deadline: float) -> int:
+    remaining = int((deadline - time.monotonic()) * 1_000)
+    if remaining < 1:
+        raise SourceAdapterError("paged extraction exceeded its monotonic time budget")
+    return min(remaining, 86_400_000)
+
+
+def _mapped_now(normalized_now: str, started: float) -> str:
+    elapsed = max(0.0, time.monotonic() - started)
+    return _format_timestamp(
+        _parse_timestamp(normalized_now) + timedelta(seconds=elapsed)
+    )
+
+
 def _validate_job_capability(
     job: IndexJobRecord,
     capability: AdapterCapability,
@@ -788,6 +1726,11 @@ def _validate_job_capability(
         raise IndexJobRuntimeError("job and adapter owner scopes do not match")
     if job.profile_ref == "":
         raise IndexJobRuntimeError("job extraction profile is missing")
+    if (
+        capability.required_job_profile_ref
+        and job.profile_ref != capability.required_job_profile_ref
+    ):
+        raise IndexJobRuntimeError("job profile does not match paged adapter generation")
 
 
 def _validate_projection_manifest(
@@ -813,9 +1756,42 @@ def _validate_projection_manifest(
 def _capability(adapter: SourceAdapter) -> AdapterCapability:
     if not isinstance(adapter, SourceAdapter):
         raise IndexJobRuntimeError("adapter must implement SourceAdapter")
-    capability = adapter.describe_capability()
-    if not isinstance(capability, AdapterCapability):
+    raw = adapter.describe_capability()
+    if type(raw) is not AdapterCapability:
         raise IndexJobRuntimeError("adapter capability is invalid")
+    values = tuple(
+        object.__getattribute__(raw, name)
+        for name in (
+            "adapter_id",
+            "adapter_version",
+            "owner_scope",
+            "domain_kind",
+            "source_kind",
+            "content_policy",
+            "classification_ceiling",
+            "supports_exact_reads",
+            "max_discovery_page",
+            "max_extract_items",
+            "required_job_profile_ref",
+            "max_total_extract_chars",
+            "supports_budgeted_paging",
+        )
+    )
+    expected_types = (
+        str, str, str, str, SourceKind, ContentPolicy,
+        Classification, bool, int, int, str, int, bool,
+    )
+    if any(type(value) is not expected for value, expected in zip(values, expected_types, strict=True)):
+        raise IndexJobRuntimeError("adapter capability contains non-exact values")
+    capability = AdapterCapability(*values)
+    if capability.required_job_profile_ref and not isinstance(adapter, PagedSourceAdapter):
+        raise IndexJobRuntimeError("paged adapter must implement PagedSourceAdapter")
+    if capability.max_total_extract_chars > MAX_TOTAL_EXTRACTION_CHARS:
+        raise IndexJobRuntimeError("adapter aggregate extraction budget is unbounded")
+    if capability.supports_budgeted_paging and not isinstance(
+        adapter, BudgetedPagedSourceAdapter
+    ):
+        raise IndexJobRuntimeError("budgeted paged adapter protocol is missing")
     return capability
 
 

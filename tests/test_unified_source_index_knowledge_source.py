@@ -1,682 +1,805 @@
 from __future__ import annotations
 
 import ast
-from dataclasses import fields
+import base64
+from dataclasses import fields, replace, FrozenInstanceError
+import hashlib
 import inspect
-
+import json
+from datetime import datetime, timezone
 import pytest
 
 import src.unified_source_index_sources.knowledge as knowledge_module
-from src.native_knowledge_store import (
-    KnowledgeAccessDenied,
-    KnowledgeGenerationMismatch,
-    KnowledgeNotFound,
-    KnowledgeStoreSnapshot,
-    KnowledgeTombstoned,
-    NativeKnowledgeStore,
-)
-from src.unified_source_index_contract import ContentPolicy, SourceKind, content_hash
-from src.unified_source_index_owner_scope import OwnerScope
+from src.harbour_authority import AuthenticatedPrincipalIssuer
+from src.harbour_knowledge_store import HarbourKnowledgeStore, KnowledgeHeadMetadata, KnowledgeMigrationSnapshot, KNOWLEDGE_MIGRATION_SNAPSHOT_SCHEMA
+from src.unified_source_index_adapters import AdapterScope, ExactReadRequest, ExtractionProfile, PolicyReadContext, SourceAdapterError, UnavailableReason
+from src.unified_source_index_contract import Classification, ContentPolicy, EvidenceRef, IndexJobKind, IndexJobRecord, JobStatus, RecordKind, SourceKind, SourceScope, content_hash, MAX_TEXT_CHARS
+from src.unified_source_index_adapters import MAX_ADAPTER_CURSOR_CHARS
+from src.unified_source_index_stores import InMemoryUnifiedSourceIndexStore, StoredRecord
+from src.unified_source_index_jobs import UnifiedSourceIndexJobRuntime
 from src.unified_source_index_sources.knowledge import (
-    KNOWLEDGE_SOURCE_ADAPTER_VERSION,
-    KNOWLEDGE_SOURCE_BINDING_SCHEMA,
-    KNOWLEDGE_SOURCE_EXACT_READER_BOUNDARY,
-    KNOWLEDGE_SOURCE_LOCATOR_SCHEMA,
-    KNOWLEDGE_SOURCE_RECORD_EVIDENCE_SCHEMA,
-    KNOWLEDGE_SOURCE_UNAVAILABLE_OBSERVATION_SCHEMA,
-    KnowledgeRecordLocator,
-    KnowledgeSourceAdapter,
-    KnowledgeSourceAdapterError,
-    KnowledgeSourceAuthorityBinding,
-    KnowledgeUnavailableReason,
-    create_knowledge_source_authority_binding,
-    knowledge_source_capability_manifest,
-    knowledge_source_registration,
+    KNOWLEDGE_SOURCE_ADAPTER_VERSION, KNOWLEDGE_SOURCE_EXACT_READER_BOUNDARY,
+    KNOWLEDGE_SOURCE_EXTRACTOR_PROFILE, KnowledgeSourceAdapter, KnowledgeSourceAdapterError, HarbourKnowledgeMetadataReference,
+    HarbourKnowledgeIndexProjection, knowledge_source_capability_manifest, knowledge_source_registration,
+    project_harbour_knowledge_index_records, project_harbour_knowledge_metadata,
 )
 
-
-OWNER_SCOPE = OwnerScope.for_subject_id("owner_0123456789abcdef0123456789abcdef")
-POLICY_EVIDENCE_REF = "sha256:" + "a" * 64
-REVIEW_EVIDENCE_REF = "sha256:" + "b" * 64
-OBSERVED_AT = "2026-08-13T12:00:00Z"
-
-
-def _store() -> NativeKnowledgeStore:
-    store = NativeKnowledgeStore()
-    store.create(owner_id="alice", knowledge_id="one", policy="read", content="first body")
-    store.create(owner_id="alice", knowledge_id="two", policy="read", content="second body")
-    return store
-
-
-def _binding(store: NativeKnowledgeStore) -> KnowledgeSourceAuthorityBinding:
-    return create_knowledge_source_authority_binding(
-        owner_scope=OWNER_SCOPE,
-        store=store,
-        native_owner_id="alice",
-        native_policy="read",
-        review_status="accepted",
-        policy_evidence_ref=POLICY_EVIDENCE_REF,
-        review_evidence_ref=REVIEW_EVIDENCE_REF,
-        observed_at=OBSERVED_AT,
-    )
-
-
-def _adapter(store: NativeKnowledgeStore | None = None):
-    store = _store() if store is None else store
-    binding = _binding(store)
-    adapter = KnowledgeSourceAdapter(
-        binding=binding,
-        store=store,
-        native_owner_id="alice",
-        native_policy="read",
-    )
-    expected = {
-        "expected_binding_digest": binding.binding_digest,
-        "expected_export_digest": binding.export_digest,
-        "expected_store_generation": binding.store_generation,
-    }
-    return adapter, binding, store, expected
-
-
-def _locator_for_content(
-    adapter: KnowledgeSourceAdapter,
-    expected: dict[str, object],
-    content: str = "first body",
-) -> KnowledgeRecordLocator:
-    wanted_hash = content_hash(content)
-    for item in adapter.discover(limit=99, **expected).items:
-        if item.source_version.content_hash == wanted_hash:
-            return item.locator
-    raise AssertionError("fixture locator was not discovered")
-
-
-def _assert_error(error: KnowledgeSourceAdapterError, code: str) -> None:
-    assert type(error) is KnowledgeSourceAdapterError
-    assert error.code == code
-    assert error.args == (code,)
-    assert error.__cause__ is None
-    assert error.__context__ is None
-    assert BaseException.__cause__.__get__(error, type(error)) is None
-    assert BaseException.__context__.__get__(error, type(error)) is None
-    assert error.__suppress_context__ is False
-    assert repr(error) == f"KnowledgeSourceAdapterError(code={code!r})"
-
-
-def _assert_ambient_error(operation, code: str, marker: str) -> KnowledgeSourceAdapterError:
-    ambient = RuntimeError(marker)
-    try:
-        raise ambient
-    except RuntimeError:
-        with pytest.raises(KnowledgeSourceAdapterError) as caught:
-            operation()
-    _assert_error(caught.value, code)
-    assert caught.value is not ambient
-    return caught.value
-
-
-def test_v3_public_api_schemas_and_exact_types_bind_store_generation():
-    adapter, binding, _, expected = _adapter()
-
-    assert KNOWLEDGE_SOURCE_ADAPTER_VERSION == "v3"
-    assert KNOWLEDGE_SOURCE_BINDING_SCHEMA.endswith(".v3")
-    assert KNOWLEDGE_SOURCE_RECORD_EVIDENCE_SCHEMA.endswith(".v3")
-    assert KNOWLEDGE_SOURCE_LOCATOR_SCHEMA.endswith(".v3")
-    assert KNOWLEDGE_SOURCE_UNAVAILABLE_OBSERVATION_SCHEMA.endswith(".v3")
-    assert KNOWLEDGE_SOURCE_EXACT_READER_BOUNDARY == "native_knowledge_store.read_exact_at_generation"
-    assert type(binding.store_generation) is int
-    assert binding.store_generation >= 0
-
-    assert "store_generation" in {item.name for item in fields(type(binding))}
-    page = adapter.discover(**expected)
-    descriptor = page.items[0]
-    assert page.store_generation == binding.store_generation
-    assert descriptor.locator.store_generation == binding.store_generation
-    assert descriptor.evidence.store_generation == binding.store_generation
-
-    for method_name in ("discover", "observe_version", "extract", "read_exact", "observe_unavailable"):
-        parameters = inspect.signature(getattr(KnowledgeSourceAdapter, method_name)).parameters
-        assert "expected_store_generation" in parameters
-        assert parameters["expected_store_generation"].kind is inspect.Parameter.KEYWORD_ONLY
-    assert "reason" not in inspect.signature(KnowledgeSourceAdapter.observe_unavailable).parameters
-
-    with pytest.raises(KnowledgeSourceAdapterError) as caught:
-        KnowledgeSourceAuthorityBinding(
-            owner_scope=binding.owner_scope,
-            owner_ref=binding.owner_ref,
-            policy_ref=binding.policy_ref,
-            export_digest=binding.export_digest,
-            store_generation=True,
-            observed_at=binding.observed_at,
-            policy_evidence_ref=binding.policy_evidence_ref,
-            review_evidence_ref=binding.review_evidence_ref,
-            adapter_id=binding.adapter_id,
-            adapter_version=binding.adapter_version,
-            adapter_generation=binding.adapter_generation,
-        )
-    _assert_error(caught.value, "invalid_authority")
-
-
-def test_v3_binding_and_construction_capture_one_exact_generation(monkeypatch):
-    store = _store()
-    original_capture = NativeKnowledgeStore.capture
-    captures: list[KnowledgeStoreSnapshot] = []
-
-    def counted_capture(self, **kwargs):
-        captured = original_capture(self, **kwargs)
-        captures.append(captured)
-        return captured
-
-    monkeypatch.setattr(NativeKnowledgeStore, "capture", counted_capture)
-    binding = _binding(store)
-    assert len(captures) == 1
-    assert binding.store_generation == captures[0].generation == store.generation
-
-    object.__setattr__(captures[0].records[0], "content", "hostile detached mutation")
-    adapter = KnowledgeSourceAdapter(
-        binding=binding,
-        store=store,
-        native_owner_id="alice",
-        native_policy="read",
-    )
-    assert len(captures) == 2
-
-    expected = {
-        "expected_binding_digest": binding.binding_digest,
-        "expected_export_digest": binding.export_digest,
-        "expected_store_generation": binding.store_generation,
-    }
-    original_binding_digest = binding.binding_digest
-    object.__setattr__(binding, "binding_digest", "sha256:" + "f" * 64)
-    page = adapter.discover(**expected)
-    assert page.binding_digest == original_binding_digest
-
-    stale_binding = _binding(store)
-    store.create(owner_id="alice", knowledge_id="three", policy="read", content="third body")
-    with pytest.raises(KnowledgeSourceAdapterError) as caught:
-        KnowledgeSourceAdapter(
-            binding=stale_binding,
-            store=store,
-            native_owner_id="alice",
-            native_policy="read",
-        )
-    _assert_error(caught.value, "invalid_authority")
-
-
-def test_v3_discovery_extract_and_version_observation_reject_generation_drift(monkeypatch):
-    adapter, binding, store, expected = _adapter()
-    original_capture = NativeKnowledgeStore.capture
-    capture_count = 0
-
-    def counted_capture(self, **kwargs):
-        nonlocal capture_count
-        capture_count += 1
-        return original_capture(self, **kwargs)
-
-    monkeypatch.setattr(NativeKnowledgeStore, "capture", counted_capture)
-    page = adapter.discover(**expected)
-    descriptor = adapter.observe_version(page.items[0].locator.record_ref, **expected)
-    occurrence = adapter.extract(page.items[0].locator.record_ref, **expected)
-    assert capture_count == 3
-    assert page.store_generation == binding.store_generation
-    assert descriptor.locator.store_generation == binding.store_generation
-    assert descriptor.evidence.store_generation == binding.store_generation
-    assert occurrence.locator.store_generation == binding.store_generation
-    assert occurrence.evidence.store_generation == binding.store_generation
-
-    for invalid_generation in (True, -1, binding.store_generation - 1, binding.store_generation + 1, "2"):
-        invalid = dict(expected, expected_store_generation=invalid_generation)
-        with pytest.raises(KnowledgeSourceAdapterError) as caught:
-            adapter.discover(**invalid)
-        _assert_error(caught.value, "stale_authority")
-
-    store.create(owner_id="alice", knowledge_id="three", policy="read", content="third body")
-    operations = (
-        lambda: adapter.discover(**expected),
-        lambda: adapter.observe_version(page.items[0].locator.record_ref, **expected),
-        lambda: adapter.extract(page.items[0].locator.record_ref, **expected),
-    )
-    for operation in operations:
-        with pytest.raises(KnowledgeSourceAdapterError) as caught:
-            operation()
-        _assert_error(caught.value, "stale_authority")
-
-
-def test_v3_exact_read_uses_one_generation_fence_before_content_return(monkeypatch):
-    adapter, _, store, expected = _adapter()
-    locator = _locator_for_content(adapter, expected)
-    original_capture = NativeKnowledgeStore.capture
-    original_read = NativeKnowledgeStore.read_exact_at_generation
-    capture_count = 0
-    read_count = 0
-
-    def counted_capture(self, **kwargs):
-        nonlocal capture_count
-        capture_count += 1
-        return original_capture(self, **kwargs)
-
-    def counted_read(self, **kwargs):
-        nonlocal read_count
-        read_count += 1
-        return original_read(self, **kwargs)
-
-    monkeypatch.setattr(NativeKnowledgeStore, "capture", counted_capture)
-    monkeypatch.setattr(NativeKnowledgeStore, "read_exact_at_generation", counted_read)
-    exact = adapter.read_exact(locator, **expected)
-    assert exact.content == "first body"
-    assert exact.content_hash == content_hash(exact.content)
-    assert exact.locator.store_generation == expected["expected_store_generation"]
-    assert exact.evidence.store_generation == expected["expected_store_generation"]
-    assert capture_count == read_count == 1
-
-    monkeypatch.setattr(NativeKnowledgeStore, "capture", original_capture)
-    monkeypatch.setattr(NativeKnowledgeStore, "read_exact_at_generation", original_read)
-    adapter, _, store, expected = _adapter()
-    locator = _locator_for_content(adapter, expected)
-    mutated = False
-
-    def capture_then_mutate(self, **kwargs):
-        nonlocal mutated
-        captured = original_capture(self, **kwargs)
-        if not mutated:
-            mutated = True
-            store.create(owner_id="alice", knowledge_id="three", policy="read", content="third body")
-        return captured
-
-    monkeypatch.setattr(NativeKnowledgeStore, "capture", capture_then_mutate)
-    with pytest.raises(KnowledgeSourceAdapterError) as caught:
-        adapter.read_exact(locator, **expected)
-    _assert_error(caught.value, "stale_authority")
-
-    monkeypatch.setattr(NativeKnowledgeStore, "capture", original_capture)
-    adapter, _, store, expected = _adapter()
-    locator = _locator_for_content(adapter, expected)
-
-    def capture_then_idempotent_create(self, **kwargs):
-        captured = original_capture(self, **kwargs)
-        store.create(owner_id="alice", knowledge_id="one", policy="read", content="first body")
-        return captured
-
-    monkeypatch.setattr(NativeKnowledgeStore, "capture", capture_then_idempotent_create)
-    assert adapter.read_exact(locator, **expected).content == "first body"
-
-
-def test_v3_unavailability_requires_exact_successor_and_derives_reason(monkeypatch):
-    adapter, binding, store, expected = _adapter()
-    locator = _locator_for_content(adapter, expected)
-    store.tombstone(
-        owner_id="alice",
-        knowledge_id="one",
-        policy="read",
-        version=locator.version,
-        version_id=locator.version_id,
-    )
-    deleted = adapter.observe_unavailable(locator, **expected)
-    assert deleted.reason is KnowledgeUnavailableReason.DELETED
-    assert deleted.prior_store_generation == binding.store_generation
-    assert deleted.observed_store_generation == binding.store_generation + 1
-    assert deleted.prior_locator_digest == locator.locator_digest
-
-    adapter, binding, store, expected = _adapter()
-    locator = _locator_for_content(adapter, expected)
-    store.create(owner_id="alice", knowledge_id="one", policy="other", content="policy transition")
-    changed = adapter.observe_unavailable(locator, **expected)
-    assert changed.reason is KnowledgeUnavailableReason.ACCESS_CHANGED
-    assert changed.prior_store_generation == binding.store_generation
-    assert changed.observed_store_generation == binding.store_generation + 1
-
-    adapter, binding, store, expected = _adapter()
-    locator = _locator_for_content(adapter, expected)
-    store.create(owner_id="alice", knowledge_id="one", policy="other", content="policy transition")
-
-    def missing_exact(self, **kwargs):
-        raise KnowledgeNotFound("owner/content/path must not escape")
-
-    monkeypatch.setattr(NativeKnowledgeStore, "read_exact_at_generation", missing_exact)
-    missing = adapter.observe_unavailable(locator, **expected)
-    assert missing.reason is KnowledgeUnavailableReason.NOT_FOUND
-    assert missing.prior_store_generation == binding.store_generation
-    assert missing.observed_store_generation == binding.store_generation + 1
-
-
-def test_v3_unavailability_rejects_interleaved_second_generation(monkeypatch):
-    adapter, _, store, expected = _adapter()
-    locator = _locator_for_content(adapter, expected)
-    store.create(owner_id="alice", knowledge_id="one", policy="read", content="first body")
-    with pytest.raises(KnowledgeSourceAdapterError) as caught:
-        adapter.observe_unavailable(locator, **expected)
-    _assert_error(caught.value, "stale_authority")
-
-    adapter, _, store, expected = _adapter()
-    locator = _locator_for_content(adapter, expected)
-    store.create(owner_id="alice", knowledge_id="one", policy="other", content="policy transition")
-    store.create(owner_id="alice", knowledge_id="three", policy="read", content="unrelated")
-    with pytest.raises(KnowledgeSourceAdapterError) as caught:
-        adapter.observe_unavailable(locator, **expected)
-    _assert_error(caught.value, "stale_authority")
-
-    adapter, _, store, expected = _adapter()
-    locator = _locator_for_content(adapter, expected)
-    store.create(owner_id="alice", knowledge_id="one", policy="other", content="policy transition")
-    original_successor = NativeKnowledgeStore.capture_exact_successor
-    mutated = False
-
-    def successor_then_mutate(self, **kwargs):
-        nonlocal mutated
-        captured = original_successor(self, **kwargs)
-        if not mutated:
-            mutated = True
-            store.create(owner_id="alice", knowledge_id="three", policy="read", content="unrelated")
-        return captured
-
-    monkeypatch.setattr(NativeKnowledgeStore, "capture_exact_successor", successor_then_mutate)
-    with pytest.raises(KnowledgeSourceAdapterError) as caught:
-        adapter.observe_unavailable(locator, **expected)
-    _assert_error(caught.value, "stale_authority")
-
-
-def test_v3_native_errors_are_fresh_content_free_cause_and_context_free(monkeypatch):
-    adapter, _, _, expected = _adapter()
-    locator = _locator_for_content(adapter, expected)
-
-    def denied(self, **kwargs):
-        raise KnowledgeAccessDenied("alice first body C:/private/token.txt")
-
-    monkeypatch.setattr(NativeKnowledgeStore, "read_exact_at_generation", denied)
-    errors = []
-    for _ in range(2):
-        with pytest.raises(KnowledgeSourceAdapterError) as caught:
-            adapter.read_exact(locator, **expected)
-        errors.append(caught.value)
-        _assert_error(caught.value, "access_denied")
-        assert "alice" not in repr(caught.value)
-        assert "first body" not in repr(caught.value)
-        assert "private" not in repr(caught.value)
-    assert errors[0] is not errors[1]
-
-    def unexpected(self, **kwargs):
-        raise RuntimeError("secret-shaped private provider response")
-
-    monkeypatch.setattr(NativeKnowledgeStore, "read_exact_at_generation", unexpected)
-    with pytest.raises(KnowledgeSourceAdapterError) as caught:
-        adapter.read_exact(locator, **expected)
-    _assert_error(caught.value, "knowledge_source_adapter_failed")
-
-    with pytest.raises(KnowledgeSourceAdapterError) as caught:
-        adapter.observe_version("knowledge:record:" + "f" * 64, **expected)
-    _assert_error(caught.value, "record_not_found")
-
-    for fatal in (KeyboardInterrupt(), SystemExit()):
-        def stop(self, _fatal=fatal, **kwargs):
-            raise _fatal
-
-        monkeypatch.setattr(NativeKnowledgeStore, "read_exact_at_generation", stop)
-        with pytest.raises(type(fatal)):
-            adapter.read_exact(locator, **expected)
-
-
-def test_v3_detached_alias_subclass_and_forged_snapshot_attacks_fail_closed(monkeypatch):
-    class StoreSubclass(NativeKnowledgeStore):
-        pass
-
-    with pytest.raises(KnowledgeSourceAdapterError) as caught:
-        _binding(StoreSubclass())
-    _assert_error(caught.value, "invalid_authority")
-
-    adapter, _, _, expected = _adapter()
-    locator = _locator_for_content(adapter, expected)
-
-    class LocatorSubclass(KnowledgeRecordLocator):
-        pass
-
-    with pytest.raises(KnowledgeSourceAdapterError) as caught:
-        LocatorSubclass(
-            record_ref=locator.record_ref,
-            version=locator.version,
-            version_id=locator.version_id,
-            export_digest=locator.export_digest,
-            store_generation=locator.store_generation,
-            binding_digest=locator.binding_digest,
-            text_range=locator.text_range,
-            locator_digest=locator.locator_digest,
-            field_ref=locator.field_ref,
-            schema=locator.schema,
-        )
-    _assert_error(caught.value, "invalid_request")
-
-    original_generation = locator.store_generation
-    object.__setattr__(locator, "store_generation", original_generation + 1)
-    with pytest.raises(KnowledgeSourceAdapterError) as caught:
-        adapter.read_exact(locator, **expected)
-    _assert_error(caught.value, "invalid_request")
-
-    adapter, _, _, expected = _adapter()
-    original_capture = NativeKnowledgeStore.capture
-
-    def forged_capture(self, **kwargs):
-        captured = original_capture(self, **kwargs)
-        object.__setattr__(captured, "generation", True)
-        return captured
-
-    monkeypatch.setattr(NativeKnowledgeStore, "capture", forged_capture)
-    with pytest.raises(KnowledgeSourceAdapterError) as caught:
-        adapter.discover(**expected)
-    _assert_error(caught.value, "invalid_snapshot")
-
-    store = _store()
-
-    def forged_record_capture(self, **kwargs):
-        captured = original_capture(self, **kwargs)
-        object.__setattr__(captured.records[0], "content", "forged content")
-        return captured
-
-    monkeypatch.setattr(NativeKnowledgeStore, "capture", forged_record_capture)
-    with pytest.raises(KnowledgeSourceAdapterError) as caught:
-        _binding(store)
-    _assert_error(caught.value, "invalid_snapshot")
-
-
-def test_v3_preserves_locator_membership_empty_relations_and_no_caller_reason():
-    adapter, binding, _, expected = _adapter()
-    page = adapter.discover(**expected)
-    descriptor = page.items[0]
-    observed = adapter.observe_version(descriptor.locator.record_ref, **expected)
-    occurrence = adapter.extract(descriptor.locator.record_ref, **expected)
-
-    assert observed == descriptor
-    assert descriptor.source.source_kind is SourceKind.OTHER
-    assert descriptor.source.content_policy is ContentPolicy.REFERENCE_ONLY
-    assert descriptor.source_version.revision_ref == descriptor.locator.version_id
-    assert descriptor.source_version.version_observed_at == binding.observed_at
-    assert descriptor.locator.record_ref == descriptor.evidence.record_ref == descriptor.source.canonical_ref
-    assert descriptor.locator.store_generation == descriptor.evidence.store_generation == binding.store_generation
-    assert occurrence.relations == ()
-    assert occurrence.evidence.relation_count == 0
-    assert occurrence.chunk.content is None
-    assert occurrence.chunk.content_policy is ContentPolicy.REFERENCE_ONLY
-    for value in (page, descriptor, occurrence, descriptor.locator, descriptor.evidence):
-        assert "first body" not in repr(value)
-        assert "second body" not in repr(value)
-        assert "alice" not in repr(value)
-
-    with pytest.raises(TypeError):
-        adapter.observe_unavailable(
-            descriptor.locator,
-            reason=KnowledgeUnavailableReason.DELETED,
-            **expected,
-        )
-
-    other_store = NativeKnowledgeStore()
-    other_store.create(owner_id="alice", knowledge_id="one", policy="read", content="foreign body")
-    other, _, _, other_expected = _adapter(other_store)
-    foreign_locator = _locator_for_content(other, other_expected, "foreign body")
-    with pytest.raises(KnowledgeSourceAdapterError) as caught:
-        adapter.read_exact(foreign_locator, **expected)
-    _assert_error(caught.value, "invalid_request")
-
-
-def test_v3_uses_only_generation_fenced_store_calls_and_has_zero_external_effects(monkeypatch):
-    source = inspect.getsource(knowledge_module)
-    tree = ast.parse(source)
-    called_store_attributes = {
+_HARBOUR_SCHEMA=KNOWLEDGE_MIGRATION_SNAPSHOT_SCHEMA
+_HARBOUR_OWNER="sha256:"+"a"*64
+NOW=datetime(2026,10,1,12,0,tzinfo=timezone.utc)
+OWNER="owner_"+"a"*32
+AUTH="sha256:"+"a"*64
+
+def _assert_error(error,code):
+    assert isinstance(error,KnowledgeSourceAdapterError) and error.code==code
+
+def _assert_ambient_error(callback,code,ambient):
+    try: callback()
+    except KnowledgeSourceAdapterError as error: _assert_error(error,code); return error
+    else: pytest.fail("expected bounded adapter error")
+
+def _fixture(tmp_path,payload=b"hello\nworld",media="text/plain",classification="private",*,subject=OWNER,retention=None,ceiling=Classification.SENSITIVE):
+    issuer=AuthenticatedPrincipalIssuer(issuer_id="usi-test",key_id="test-key",secret=b"k"*32,clock=lambda:NOW)
+    principal=issuer.issue(subject_id=subject,owner_id=OWNER,auth_context_digest=AUTH,ttl_seconds=3600)
+    store=HarbourKnowledgeStore(tmp_path/"knowledge.sqlite3",trusted_issuers=(issuer,),clock=lambda:NOW)
+    store.create_object(principal,owner_id=OWNER,knowledge_id="secret-source-id",knowledge_kind="note",payload_bytes=payload,payload_schema_id="harbour.note.v1",payload_media_type=media,classification=classification,idempotency_key="create-note-001",retention=retention)
+    return issuer,principal,store,KnowledgeSourceAdapter(store=store,principal=principal,owner_id=OWNER,cursor_signing_key=b"k"*32,classification_ceiling=ceiling)
+
+def _discover(adapter):
+    cap=adapter.describe_capability()
+    scope=AdapterScope(cap.owner_scope,cap.classification_ceiling)
+    page=adapter.discover(scope,cursor="",limit=10,time_budget_ms=5000)
+    return page.items[0].source,page
+
+def test_harbour_adapter_uses_public_store_and_common_capability(tmp_path,monkeypatch):
+    _,principal,store,adapter=_fixture(tmp_path)
+    assert KNOWLEDGE_SOURCE_ADAPTER_VERSION=="v4"
+    assert KNOWLEDGE_SOURCE_EXACT_READER_BOUNDARY=="harbour_knowledge_store.read_payload_at_generation"
+    assert adapter.manifest.source_kind is SourceKind.OTHER
+    assert adapter.manifest.content_policy is ContentPolicy.INLINE_LOCAL
+    assert adapter.manifest.classification_ceiling is Classification.UNKNOWN
+    assert knowledge_source_registration().manifest == adapter.manifest
+    assert adapter.describe_capability().required_job_profile_ref==adapter.manifest.job_profile_ref
+    assert adapter.describe_capability().classification_ceiling is Classification.SENSITIVE
+    assert "secret-source-id" not in adapter.discover(AdapterScope(adapter.describe_capability().owner_scope,Classification.SENSITIVE),cursor="",limit=10,time_budget_ms=5000).items[0].source.canonical_ref
+    assert not hasattr(adapter,"_conn") and not hasattr(adapter,"_connection")
+    adapter_tree = ast.parse(inspect.getsource(KnowledgeSourceAdapter))
+    store_calls = {
         node.func.attr
-        for node in ast.walk(tree)
-        if (
-            isinstance(node, ast.Call)
-            and isinstance(node.func, ast.Attribute)
-            and ast.unparse(node.func.value) in {"store", "self._store"}
+        for node in ast.walk(adapter_tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and isinstance(node.func.value, ast.Attribute)
+        and isinstance(node.func.value.value, ast.Name)
+        and node.func.value.value.id == "self"
+        and node.func.value.attr == "_store"
+    }
+    assert store_calls == {"capture_index_snapshot", "read_payload_at_generation"}
+    store.close()
+
+
+@pytest.mark.parametrize(
+    ("raw_classification", "expected"),
+    [
+        ("public", Classification.PUBLIC),
+        ("private", Classification.PRIVATE),
+        ("sensitive", Classification.SENSITIVE),
+        ("secret", Classification.SECRET),
+    ],
+)
+def test_harbour_classification_mapping_is_exact(tmp_path, raw_classification, expected):
+    _, _, store, adapter = _fixture(
+        tmp_path,
+        classification=raw_classification,
+        ceiling=Classification.SECRET,
+    )
+    source, _ = _discover(adapter)
+    assert source.classification is expected
+    from src.unified_source_index_contract import RecordRef
+
+    version = adapter.observe_version(RecordRef(RecordKind.SOURCE, source.source_id))
+    assert version.classification is expected
+    store.close()
+
+
+def test_harbour_unknown_classification_is_never_downgraded(tmp_path):
+    _, _, store, adapter = _fixture(
+        tmp_path,
+        classification="unrecognized-classification",
+        ceiling=Classification.SECRET,
+    )
+    capability = adapter.describe_capability()
+    page = adapter.discover(
+        AdapterScope(capability.owner_scope, Classification.SECRET),
+        cursor="",
+        limit=10,
+        time_budget_ms=5000,
+    )
+    assert page.items == ()
+    store.close()
+
+def test_harbour_text_extract_pages_and_exact_read_are_generation_fenced(tmp_path):
+    _,principal,store,adapter=_fixture(tmp_path,("a"*270000).encode())
+    source,_=_discover(adapter)
+    version=adapter.observe_version(__import__("src.unified_source_index_contract",fromlist=["RecordRef"]).RecordRef(RecordKind.SOURCE,source.source_id))
+    profile=ExtractionProfile(KNOWLEDGE_SOURCE_EXTRACTOR_PROFILE,max_items=100,max_chars=1000000,time_budget_ms=5000)
+    result=adapter.extract(version,profile)
+    assert len(result.chunks)==2 and sum(len(c.content) for c in result.chunks)==270000
+    cursor=""; seq=0; all_records=[]
+    while True:
+        page=adapter.extract_page(version,ExtractionProfile(KNOWLEDGE_SOURCE_EXTRACTOR_PROFILE,1,262144,5000),cursor=cursor,sequence_start=seq)
+        all_records.extend(page.records); seq+=len(page.records)
+        if not page.next_cursor:
+            assert page.final_record_count==2
+            assert page.final_records_digest=="sha256:"+hashlib.sha256(b"\n".join(__import__("src.unified_source_index_contract",fromlist=["canonical_json"]).canonical_json(c.to_dict()).encode() for c in all_records)).hexdigest()
+            break
+        cursor=page.next_cursor
+    chunk=all_records[0]
+    evidence=chunk.evidence_ref()
+    read=adapter.read_exact(ExactReadRequest(evidence,10),PolicyReadContext(version.owner_scope,Classification.SENSITIVE,True))
+    assert read.content=="a"*10 and read.clipped
+    store.close()
+
+def test_harbour_adapter_rejects_cursor_tampering_and_caller_fabricated_unavailable(tmp_path,monkeypatch):
+    _,principal,store,adapter=_fixture(tmp_path)
+    store.create_object(principal,owner_id=OWNER,knowledge_id="second-secret-source-id",knowledge_kind="note",payload_bytes=b"second",payload_schema_id="harbour.note.v1",payload_media_type="text/plain",classification="private",idempotency_key="create-note-002")
+    cap=adapter.describe_capability(); scope=AdapterScope(cap.owner_scope,cap.classification_ceiling)
+    page=adapter.discover(scope,cursor="",limit=1,time_budget_ms=5000)
+    assert page.next_cursor
+    with pytest.raises(KnowledgeSourceAdapterError): adapter.discover(scope,cursor=page.next_cursor+"!!!!",limit=1,time_budget_ms=5000)
+    from src.unified_source_index_contract import RecordRef
+
+    version=adapter.observe_version(RecordRef(RecordKind.SOURCE,page.items[0].source.source_id))
+    calls=[]
+    monkeypatch.setattr(store,"_conn",lambda: calls.append(1))
+    with pytest.raises(KnowledgeSourceAdapterError):
+        adapter.extract_page(version,ExtractionProfile(KNOWLEDGE_SOURCE_EXTRACTOR_PROFILE,1,100,5000),cursor="x"*(MAX_ADAPTER_CURSOR_CHARS+1),sequence_start=0)
+    assert calls==[]
+    invalid_profile = ExtractionProfile(KNOWLEDGE_SOURCE_EXTRACTOR_PROFILE, 1, 100, 5000)
+    object.__setattr__(invalid_profile, "max_chars", 1_000_001)
+    with pytest.raises(KnowledgeSourceAdapterError):
+        adapter.extract_page(version, invalid_profile, cursor="", sequence_start=0)
+    with pytest.raises(KnowledgeSourceAdapterError):
+        adapter.extract_page(version, ExtractionProfile(KNOWLEDGE_SOURCE_EXTRACTOR_PROFILE,1,100,5000), cursor="", sequence_start=True)
+    assert calls==[]
+    monkeypatch.undo()
+    with pytest.raises(KnowledgeSourceAdapterError):
+        adapter.extract_page(version,ExtractionProfile(KNOWLEDGE_SOURCE_EXTRACTOR_PROFILE,1,100,5000),cursor=[],sequence_start=0)
+    ref=RecordRef(RecordKind.SOURCE,page.items[0].source.source_id)
+    with pytest.raises(Exception): adapter.observe_unavailable(ref,UnavailableReason.DELETED)
+    store.close()
+
+
+def test_harbour_discovery_cursor_is_keyed_and_resumes_across_adapter_instances(tmp_path,monkeypatch):
+    _, principal, store, adapter = _fixture(tmp_path)
+    for index in range(2):
+        store.create_object(
+            principal,
+            owner_id=OWNER,
+            knowledge_id=f"additional-source-{index}",
+            knowledge_kind="note",
+            payload_bytes=b"page",
+            payload_schema_id="harbour.note.v1",
+            payload_media_type="text/plain",
+            classification="private",
+            idempotency_key=f"create-additional-{index}",
         )
-    }
-    assert called_store_attributes == {
-        "capture",
-        "capture_exact_successor",
-        "read_exact_at_generation",
-    }
-    assert "._lock" not in source
-    assert "._generation" not in source
-    assert "._versions" not in source
-    assert "._tombstones" not in source
-    for forbidden in ("personal_docs", "memory", "plugins", "provider", "filesystem", "network"):
-        assert f"import {forbidden}" not in source
+    capability = adapter.describe_capability()
+    scope = AdapterScope(capability.owner_scope, capability.classification_ceiling)
+    first = adapter.discover(scope, cursor="", limit=1, time_budget_ms=5_000)
+    assert first.next_cursor
 
-    adapter, _, _, expected = _adapter()
-    locator = _locator_for_content(adapter, expected)
+    # Recreate an adapter with the deployment key to model a job pump restart.
+    resumed_adapter = KnowledgeSourceAdapter(
+        store=store,
+        principal=principal,
+        owner_id=OWNER,
+        cursor_signing_key=b"k" * 32,
+    )
+    second = resumed_adapter.discover(
+        scope, cursor=first.next_cursor, limit=10, time_budget_ms=5_000
+    )
+    assert len(second.items) == 2
 
-    def forbidden_call(self, **kwargs):
-        raise AssertionError("forbidden legacy or mutation call")
-
-    monkeypatch.setattr(NativeKnowledgeStore, "export", forbidden_call)
-    monkeypatch.setattr(NativeKnowledgeStore, "read_exact", forbidden_call)
-    monkeypatch.setattr(NativeKnowledgeStore, "create", forbidden_call)
-    monkeypatch.setattr(NativeKnowledgeStore, "tombstone", forbidden_call)
-    assert adapter.discover(**expected).store_generation == expected["expected_store_generation"]
-    assert adapter.read_exact(locator, **expected).content == "first body"
-
-    manifest = knowledge_source_capability_manifest()
-    registration = knowledge_source_registration()
-    assert manifest.adapter_version == "v3"
-    assert manifest.productive_default_enabled is False
-    assert manifest.content_policy is ContentPolicy.REFERENCE_ONLY
-    assert registration.factory is None
-    assert registration.manifest == manifest
-
-
-def test_v3_public_errors_clear_raw_ambient_except_context():
-    adapter, binding, store, expected = _adapter()
-    invalid_binding = {
-        "owner_scope": binding.owner_scope,
-        "owner_ref": binding.owner_ref,
-        "policy_ref": binding.policy_ref,
-        "export_digest": binding.export_digest,
-        "store_generation": True,
-        "observed_at": binding.observed_at,
-        "policy_evidence_ref": binding.policy_evidence_ref,
-        "review_evidence_ref": binding.review_evidence_ref,
-        "adapter_id": binding.adapter_id,
-        "adapter_version": binding.adapter_version,
-        "adapter_generation": binding.adapter_generation,
-    }
-    operations = (
-        ("invalid_request", lambda: adapter.discover(cursor=-1, **expected)),
-        ("invalid_request", lambda: adapter.observe_version("invalid", **expected)),
-        ("invalid_request", lambda: adapter.extract("invalid", **expected)),
-        ("invalid_request", lambda: adapter.read_exact(object(), **expected)),
-        ("invalid_request", lambda: adapter.observe_unavailable(object(), **expected)),
-        (
-            "invalid_authority",
-            lambda: create_knowledge_source_authority_binding(
-                owner_scope=OWNER_SCOPE,
-                store=store,
-                native_owner_id="alice",
-                native_policy="read",
-                review_status="rejected",
-                policy_evidence_ref=POLICY_EVIDENCE_REF,
-                review_evidence_ref=REVIEW_EVIDENCE_REF,
-                observed_at=OBSERVED_AT,
-            ),
-        ),
-        ("invalid_authority", lambda: KnowledgeSourceAuthorityBinding(**invalid_binding)),
-        (
-            "invalid_authority",
-            lambda: KnowledgeSourceAdapter(
-                binding=binding,
-                store=object(),
-                native_owner_id="alice",
-                native_policy="read",
-            ),
-        ),
+    wrong_key_adapter = KnowledgeSourceAdapter(
+        store=store,
+        principal=principal,
+        owner_id=OWNER,
+        cursor_signing_key=b"w" * 32,
+    )
+    calls = []
+    monkeypatch.setattr(
+        store,
+        "capture_index_snapshot",
+        lambda *args, **kwargs: calls.append("capture"),
     )
 
-    errors = [
-        _assert_ambient_error(operation, code, f"ambient-private-{index}")
-        for index, (code, operation) in enumerate(operations)
-    ]
-    assert len({id(error) for error in errors}) == len(errors)
+    # Recreate the old public checksum over a canonical cursor with a forged,
+    # valid-looking source ID. The adapter must reject it before Store access.
+    encoded_body, _ = first.next_cursor.split(".", 1)
+    raw = base64.urlsafe_b64decode(encoded_body + "=" * (-len(encoded_body) % 4))
+    payload = json.loads(raw)
+    payload["last"] = "usi_source_" + "f" * 64
+    forged_raw = knowledge_module.canonical_json(payload).encode("utf-8")
+    forged_body = base64.urlsafe_b64encode(forged_raw).decode("ascii").rstrip("=")
+    public_checksum = hashlib.sha256(b"knowledge-v4\x00" + forged_raw).hexdigest()
+    forged_cursor = f"{forged_body}.{public_checksum}"
+    with pytest.raises(KnowledgeSourceAdapterError):
+        adapter.discover(scope, cursor=forged_cursor, limit=10, time_budget_ms=5_000)
+    with pytest.raises(KnowledgeSourceAdapterError):
+        wrong_key_adapter.discover(
+            scope, cursor=first.next_cursor, limit=10, time_budget_ms=5_000
+        )
+    assert calls == []
+    store.close()
 
 
-def test_v3_public_errors_clear_raw_finally_and_with_context():
-    adapter, _, _, expected = _adapter()
-    errors: list[KnowledgeSourceAdapterError] = []
-
-    finally_ambient = RuntimeError("finally-private-context")
+def test_harbour_cursor_key_and_mutated_enum_rejected_before_store(tmp_path, monkeypatch):
+    _, principal, store, adapter = _fixture(tmp_path)
+    calls = []
+    monkeypatch.setattr(
+        store,
+        "capture_index_snapshot",
+        lambda *args, **kwargs: calls.append("capture"),
+    )
+    with pytest.raises(KnowledgeSourceAdapterError):
+        KnowledgeSourceAdapter(
+            store=store,
+            principal=principal,
+            owner_id=OWNER,
+            cursor_signing_key=bytearray(b"k" * 32),
+        )
+    scope = AdapterScope(adapter._owner_scope, Classification.SENSITIVE)
+    original = object.__getattribute__(Classification.SENSITIVE, "_value_")
+    object.__setattr__(Classification.SENSITIVE, "_value_", "forged-sensitive")
     try:
-        try:
-            raise finally_ambient
-        finally:
-            with pytest.raises(KnowledgeSourceAdapterError) as caught:
-                adapter.discover(cursor=-1, **expected)
-            errors.append(caught.value)
-    except RuntimeError as propagated:
-        assert propagated is finally_ambient
-    _assert_error(errors[-1], "invalid_request")
+        with pytest.raises(KnowledgeSourceAdapterError):
+            adapter.discover(scope, cursor="", limit=1, time_budget_ms=5_000)
+        with pytest.raises(SourceAdapterError):
+            PolicyReadContext(adapter._owner_scope, Classification.SENSITIVE, True)
+        assert calls == []
+    finally:
+        object.__setattr__(Classification.SENSITIVE, "_value_", original)
+    store.close()
 
-    with_ambient = RuntimeError("with-private-context")
+def test_harbour_binary_and_malformed_json_have_no_text_chunks(tmp_path):
+    _,_,store,binary=_fixture(tmp_path,b"\\x00\\xff","application/octet-stream")
+    source,_=_discover(binary)
+    from src.unified_source_index_contract import RecordRef
+    version=binary.observe_version(RecordRef(RecordKind.SOURCE,source.source_id))
+    out=binary.extract(version,ExtractionProfile(KNOWLEDGE_SOURCE_EXTRACTOR_PROFILE,10,1000,5000))
+    assert out.chunks==()
+    store.close()
+    badpath=tmp_path/"badcase"; badpath.mkdir()
+    _,_,store,bad=_fixture(badpath,b"{bad","application/json")
+    source,_=_discover(bad); version=bad.observe_version(RecordRef(RecordKind.SOURCE,source.source_id))
+    with pytest.raises(Exception): bad.extract(version,ExtractionProfile(KNOWLEDGE_SOURCE_EXTRACTOR_PROFILE,10,1000,5000))
+    store.close()
 
-    class CleanupProbe:
-        def __enter__(self):
-            return self
 
-        def __exit__(self, exc_type, exc_value, traceback):
-            assert exc_type is RuntimeError
-            assert exc_value is with_ambient
-            assert traceback is with_ambient.__traceback__
-            try:
-                raise RuntimeError("nested-private-context")
-            except RuntimeError:
-                with pytest.raises(KnowledgeSourceAdapterError) as caught:
-                    adapter.observe_version("invalid", **expected)
-            errors.append(caught.value)
-            return True
+@pytest.mark.parametrize(
+    ("payload", "media", "provider_failure"),
+    [
+        (b"\xff", "text/plain", False),
+        (b"{bad", "application/json", False),
+        (b"secret provider detail", "text/plain", True),
+    ],
+)
+def test_harbour_payload_errors_have_no_raw_exception_context(
+    tmp_path, monkeypatch, payload, media, provider_failure
+):
+    _, _, store, adapter = _fixture(tmp_path, payload, media)
+    source, _ = _discover(adapter)
+    from src.unified_source_index_contract import RecordRef
 
-    with CleanupProbe():
-        raise with_ambient
-    _assert_error(errors[-1], "invalid_request")
+    version = adapter.observe_version(RecordRef(RecordKind.SOURCE, source.source_id))
+    if provider_failure:
+        def fail_provider(*args, **kwargs):
+            raise RuntimeError("secret provider response")
+
+        monkeypatch.setattr(store, "read_payload_at_generation", fail_provider)
+    with pytest.raises(KnowledgeSourceAdapterError) as caught:
+        adapter.extract(
+            version,
+            ExtractionProfile(KNOWLEDGE_SOURCE_EXTRACTOR_PROFILE, 10, 1000, 5000),
+        )
+    assert caught.value.__context__ is None
+    assert caught.value.__cause__ is None
+    assert "secret" not in str(caught.value)
+    store.close()
+
+def test_harbour_wrong_owner_fails_before_store_capture(tmp_path,monkeypatch):
+    _,principal,store,_=_fixture(tmp_path)
+    calls=[]
+    monkeypatch.setattr(store,"_conn",lambda: calls.append(1))
+    with pytest.raises(Exception): KnowledgeSourceAdapter(store=store,principal=principal,owner_id="owner_"+"b"*32,cursor_signing_key=b"k"*32)
+    outsider=AuthenticatedPrincipalIssuer(issuer_id="other-issuer",key_id="other-key",secret=b"o"*32,clock=lambda:NOW)
+    forged=outsider.issue(subject_id=OWNER,owner_id=OWNER,auth_context_digest=AUTH,ttl_seconds=3600)
+    with pytest.raises(Exception): KnowledgeSourceAdapter(store=store,principal=forged,owner_id=OWNER,cursor_signing_key=b"k"*32)
+    assert calls==[]
+    store.close()
+
+
+def test_harbour_owner_scope_is_stable_across_delegated_subjects(tmp_path):
+    _, _, store, first = _fixture(tmp_path, subject="first-authorized-subject")
+    second = KnowledgeSourceAdapter(
+        store=store,
+        principal=AuthenticatedPrincipalIssuer(
+            issuer_id="usi-test", key_id="test-key", secret=b"k" * 32, clock=lambda: NOW
+        ).issue(subject_id="second-authorized-subject", owner_id=OWNER, auth_context_digest=AUTH, ttl_seconds=3600),
+        owner_id=OWNER,
+        cursor_signing_key=b"k" * 32,
+    )
+    first_source, _ = _discover(first)
+    second_source, _ = _discover(second)
+    assert first_source.source_id == second_source.source_id
+    assert first_source.owner_scope == second_source.owner_scope
+    store.close()
+
+def test_harbour_exact_read_rejects_forged_chunk_evidence(tmp_path):
+    _,_,store,adapter=_fixture(tmp_path,b"bound evidence")
+    source,_=_discover(adapter)
+    from src.unified_source_index_contract import RecordRef, TextRangeLocator
+    version=adapter.observe_version(RecordRef(RecordKind.SOURCE,source.source_id))
+    profile=ExtractionProfile(KNOWLEDGE_SOURCE_EXTRACTOR_PROFILE,10,1000,5000)
+    chunk=adapter.extract(version,profile).chunks[0]
+    evidence=chunk.evidence_ref()
+    context=PolicyReadContext(version.owner_scope,Classification.SENSITIVE,True)
+    assert adapter.read_exact(ExactReadRequest(evidence,100),context).content=="bound evidence"
+    forged=replace(evidence,locator=TextRangeLocator(1,5))
+    with pytest.raises(KnowledgeSourceAdapterError): adapter.read_exact(ExactReadRequest(forged,100),context)
+    forged=replace(evidence,content_hash="sha256:"+"f"*64)
+    with pytest.raises(KnowledgeSourceAdapterError): adapter.read_exact(ExactReadRequest(forged,100),context)
+    forged_version_id="usi_version_"+"f"*64
+    forged=replace(
+        evidence,
+        source_version_id=forged_version_id,
+        policy_evidence=replace(evidence.policy_evidence,source_version_id=forged_version_id,evidence_id=""),
+    )
+    with pytest.raises(KnowledgeSourceAdapterError): adapter.read_exact(ExactReadRequest(forged,100),context)
+    forged_chunk_id="usi_chunk_"+"f"*64
+    forged=replace(
+        evidence,
+        record_id=forged_chunk_id,
+        policy_evidence=replace(evidence.policy_evidence,parent_id=forged_chunk_id,evidence_id=""),
+    )
+    with pytest.raises(KnowledgeSourceAdapterError): adapter.read_exact(ExactReadRequest(forged,100),context)
+    forged=replace(evidence,policy_evidence=replace(evidence.policy_evidence,classification=Classification.PUBLIC,evidence_id=""))
+    with pytest.raises(KnowledgeSourceAdapterError): adapter.read_exact(ExactReadRequest(forged,100),context)
+    with pytest.raises(KnowledgeSourceAdapterError): adapter.extract(version,ExtractionProfile("knowledge.other",10,1000,5000))
+    store.close()
+
+
+def test_harbour_old_evidence_fails_after_append(tmp_path):
+    _,principal,store,adapter=_fixture(tmp_path,b"before")
+    source,_=_discover(adapter)
+    from src.unified_source_index_contract import RecordRef
+    old=adapter.observe_version(RecordRef(RecordKind.SOURCE,source.source_id))
+    old_chunk=adapter.extract(old,ExtractionProfile(KNOWLEDGE_SOURCE_EXTRACTOR_PROFILE,10,1000,5000)).chunks[0]
+    head=store.get_head(principal,owner_id=OWNER,knowledge_id="secret-source-id")
+    store.append_revision(principal,owner_id=OWNER,knowledge_id="secret-source-id",payload_bytes=b"after",payload_schema_id="harbour.note.v1",payload_media_type="text/plain",classification="private",expected_head=head,idempotency_key="append-note-001")
+    with pytest.raises(KnowledgeSourceAdapterError): adapter.read_exact(ExactReadRequest(old_chunk.evidence_ref(),100),PolicyReadContext(old.owner_scope,Classification.SENSITIVE,True))
+    with pytest.raises(KnowledgeSourceAdapterError): adapter.extract(old,ExtractionProfile(KNOWLEDGE_SOURCE_EXTRACTOR_PROFILE,10,1000,5000))
+    store.close()
+
+
+def test_harbour_old_evidence_fails_after_tombstone_restore_and_purge(tmp_path):
+    retention = {
+        "retention_class": "time_bound",
+        "deletion_mode": "purge_eligible",
+        "retain_until": "2026-08-28T00:00:00.000000Z",
+        "grace_until": "2026-08-28T12:00:00.000000Z",
+        "legal_hold": False,
+    }
+    _, principal, store, adapter = _fixture(tmp_path, b"lifecycle", retention=retention)
+    from src.unified_source_index_contract import RecordRef
+
+    source, _ = _discover(adapter)
+    version = adapter.observe_version(RecordRef(RecordKind.SOURCE, source.source_id))
+    chunk = adapter.extract(
+        version, ExtractionProfile(KNOWLEDGE_SOURCE_EXTRACTOR_PROFILE, 10, 1000, 5000)
+    ).chunks[0]
+    evidence = chunk.evidence_ref()
+    context = PolicyReadContext(version.owner_scope, Classification.SENSITIVE, True)
+    head = store.get_head(principal, owner_id=OWNER, knowledge_id="secret-source-id")
+
+    def assert_stale():
+        with pytest.raises(KnowledgeSourceAdapterError):
+            adapter.read_exact(ExactReadRequest(evidence, 100), context)
+
+    tombstone = store.tombstone(
+        principal, owner_id=OWNER, knowledge_id="secret-source-id",
+        expected_head=head, idempotency_key="tombstone-lifecycle-001",
+    )
+    assert_stale()
+    restored = store.restore(
+        principal, owner_id=OWNER, knowledge_id="secret-source-id",
+        expected_head=tombstone.after_head, idempotency_key="restore-lifecycle-001",
+    )
+    assert_stale()
+    tombstone_again = store.tombstone(
+        principal, owner_id=OWNER, knowledge_id="secret-source-id",
+        expected_head=restored.after_head, idempotency_key="tombstone-lifecycle-002",
+    )
+    assert_stale()
+    pending = store.request_purge(
+        principal, owner_id=OWNER, knowledge_id="secret-source-id",
+        expected_head=tombstone_again.after_head, idempotency_key="purge-request-lifecycle-001",
+    )
+    assert_stale()
+    store.complete_purge(
+        principal, owner_id=OWNER, knowledge_id="secret-source-id",
+        expected_head=pending.after_head, policy_receipt="sha256:" + "a" * 64,
+        projection_deletion_receipts=("sha256:" + "b" * 64,),
+        backup_deletion_receipts=("sha256:" + "c" * 64,),
+        idempotency_key="purge-complete-lifecycle-001",
+    )
+    assert_stale()
+    store.close()
+
+
+def test_harbour_adapter_commits_through_real_paged_job_runtime(tmp_path):
+    _, _, harbour, adapter = _fixture(tmp_path, b"job runtime payload")
+    source, page = _discover(adapter)
+    assert not page.next_cursor
+    capability = adapter.describe_capability()
+    assert capability.required_job_profile_ref == adapter.manifest.job_profile_ref
+    assert capability.required_job_profile_ref == KNOWLEDGE_SOURCE_EXTRACTOR_PROFILE
+
+    index_store = InMemoryUnifiedSourceIndexStore()
+    runtime = UnifiedSourceIndexJobRuntime(index_store)
+    job = IndexJobRecord.create(
+        job_kind=IndexJobKind.EXTRACTION,
+        source_scope=SourceScope.create((source.policy_evidence(),)),
+        request_ref="knowledge.integration.request",
+        profile_ref=capability.required_job_profile_ref,
+        max_items=10,
+        time_budget_ms=30_000,
+    )
+    runtime.register(job)
+    result = runtime.run_to_completion(
+        job.job_id,
+        owner_scope=job.owner_scope,
+        worker_id="knowledge.integration.worker",
+        adapter=adapter,
+        now="2026-10-01T12:00:00Z",
+        max_steps=10,
+    )
+    assert result.terminal
+    assert result.lease.job.status is JobStatus.COMPLETED
+    from src.unified_source_index_contract import RecordRef
+
+    observed_version = adapter.observe_version(RecordRef(RecordKind.SOURCE, source.source_id))
+    with index_store.begin_read() as read:
+        stored_source = read.get(RecordKind.SOURCE, source.source_id, owner_scope=source.owner_scope)
+        stored_version = read.get(
+            RecordKind.SOURCE_VERSION,
+            observed_version.source_version_id,
+            owner_scope=source.owner_scope,
+        )
+        stored_chunks = read.list_records(
+            RecordKind.CHUNK, owner_scope=source.owner_scope, limit=10
+        ).items
+        assert isinstance(stored_source, StoredRecord)
+        assert isinstance(stored_version, StoredRecord)
+    chunk = next(item.record for item in stored_chunks if isinstance(item, StoredRecord))
+    assert chunk.content == "job runtime payload"
+    exact = adapter.read_exact(
+        ExactReadRequest(chunk.evidence_ref(), 100),
+        PolicyReadContext(source.owner_scope, Classification.SENSITIVE, True),
+    )
+    assert exact.content == "job runtime payload"
+    harbour.close()
+
+
+def test_harbour_pages_cover_store_max_payload_without_clipping(tmp_path):
+    payload=b"z"*(8*1024*1024)
+    _,_,store,adapter=_fixture(tmp_path,payload)
+    source,_=_discover(adapter)
+    from src.unified_source_index_contract import RecordRef
+    version=adapter.observe_version(RecordRef(RecordKind.SOURCE,source.source_id))
+    profile=ExtractionProfile(KNOWLEDGE_SOURCE_EXTRACTOR_PROFILE,100,1_000_000,10_000)
+    cursor=""; sequence=0; count=0; chars=0
+    while True:
+        page=adapter.extract_page(version,profile,cursor=cursor,sequence_start=sequence)
+        assert page.records
+        assert all(len(record.content or "")<=MAX_TEXT_CHARS for record in page.records)
+        count+=len(page.records); sequence+=len(page.records)
+        chars+=sum(len(record.content or "") for record in page.records)
+        if not page.next_cursor:
+            assert page.final_record_count==count
+            assert chars==8*1024*1024
+            break
+        cursor=page.next_cursor
+    store.close()
+
+
+def _harbour_vector_digest(kind, value):
+    encoded = json.dumps(
+        {"schema_id": _HARBOUR_SCHEMA, "kind": kind, "value": value},
+        sort_keys=True, separators=(",", ":"), ensure_ascii=True, allow_nan=False,
+    ).encode("ascii")
+    return "sha256:" + hashlib.sha256(len(encoded).to_bytes(8, "big") + encoded).hexdigest()
+
+
+def _harbour_vector_record(index=1, **overrides):
+    # Deliberately synthetic opaque digests: conversion proves consistency,
+    # not authenticated origin or any knowledge of unexported R/T values.
+    metadata = {
+        "knowledge_id_digest": f"sha256:{index:064x}",
+        "revision_id_digest": "sha256:" + "1" * 64,
+        "revision": 2, "generation": 3, "state": "active", "knowledge_kind": "note",
+        "payload_sha256": "sha256:" + "2" * 64,
+        "classification_digest": "sha256:" + "3" * 64,
+        "retention_digest": "sha256:" + "4" * 64,
+        "provenance_digest": "sha256:" + "5" * 64,
+        "source_revisions_digest": "sha256:" + "6" * 64,
+        "references_digest": "sha256:" + "7" * 64,
+        "revision_metadata_digest": "sha256:" + "8" * 64,
+        "head_metadata_digest": "sha256:" + "9" * 64,
+    }
+    metadata.update(overrides)
+    return KnowledgeHeadMetadata(**metadata, record_digest=_harbour_vector_digest(
+        "head_record", {"owner_ref_digest": _HARBOUR_OWNER, "metadata": metadata},
+    ))
+
+
+def _harbour_vector_snapshot(heads=None, **overrides):
+    heads = (_harbour_vector_record(),) if heads is None else heads
+    records = [{f.name: getattr(head, f.name) for f in fields(KnowledgeHeadMetadata)} for head in heads]
+    boundary = _harbour_vector_digest("head_boundary", {
+        "owner_ref_digest": _HARBOUR_OWNER,
+        "record_digests": [record["record_digest"] for record in records],
+    })
+    body = {"schema_id": _HARBOUR_SCHEMA, "owner_ref_digest": _HARBOUR_OWNER,
+            "captured_head_boundary": boundary, "heads": records}
+    return replace(KnowledgeMigrationSnapshot(
+        _HARBOUR_SCHEMA, _HARBOUR_OWNER, boundary, heads, _harbour_vector_digest("snapshot", body),
+    ), **overrides)
+
+
+def test_harbour_metadata_literal_golden_mapping_and_empty_snapshot():
+    snapshot = _harbour_vector_snapshot()
+    references = project_harbour_knowledge_metadata(snapshot)
+    assert type(references) is tuple and len(references) == 1
+    reference = references[0]
+    assert type(reference) is HarbourKnowledgeMetadataReference
+    assert {field.name: getattr(reference, field.name) for field in fields(reference)} == {
+        "schema_id": "odysseus.harbour.knowledge_metadata_reference.v1",
+        "snapshot_digest": snapshot.snapshot_digest,
+        "owner_ref_digest": _HARBOUR_OWNER,
+        "record_digest": snapshot.heads[0].record_digest,
+        "knowledge_id_digest": "sha256:" + "0" * 63 + "1",
+        "revision": 2, "generation": 3, "state": "active", "knowledge_kind": "note",
+        "payload_sha256": "sha256:" + "2" * 64,
+        "classification_digest": "sha256:" + "3" * 64,
+        "retention_digest": "sha256:" + "4" * 64,
+        "provenance_digest": "sha256:" + "5" * 64,
+        "source_revisions_digest": "sha256:" + "6" * 64,
+        "references_digest": "sha256:" + "7" * 64,
+        "revision_metadata_digest": "sha256:" + "8" * 64,
+        "head_metadata_digest": "sha256:" + "9" * 64,
+    }
+    assert references == project_harbour_knowledge_metadata(snapshot)
+    assert project_harbour_knowledge_metadata(_harbour_vector_snapshot(())) == ()
+    assert not hasattr(reference, "__dict__")
+    with pytest.raises(FrozenInstanceError):
+        reference.state = "purged"
+    assert repr(reference) == "HarbourKnowledgeMetadataReference(<metadata-only>)"
+
+
+def test_harbour_index_projection_matches_adapter_canonical_parents(tmp_path):
+    issuer, principal, store, adapter = _fixture(tmp_path)
+    snapshot = store.capture_index_snapshot(principal, owner_id=OWNER)
+    record, = snapshot.records
+    projection = project_harbour_knowledge_index_records(
+        adapter.describe_capability().owner_scope, record,
+    )
+    expected_source, expected_version, _ = adapter._version(record)
+    assert type(projection) is HarbourKnowledgeIndexProjection
+    assert projection.source == expected_source
+    assert projection.source_version == expected_version
+    generation_changed = project_harbour_knowledge_index_records(
+        adapter.describe_capability().owner_scope,
+        replace(record, generation=record.generation + 1),
+    )
+    revision_changed = project_harbour_knowledge_index_records(
+        adapter.describe_capability().owner_scope,
+        replace(record, revision_id="query-note-revision-next"),
+    )
+    payload_changed = project_harbour_knowledge_index_records(
+        adapter.describe_capability().owner_scope,
+        replace(record, payload_sha256="sha256:" + "f" * 64),
+    )
+    assert generation_changed.source_version.source_version_id != projection.source_version.source_version_id
+    assert revision_changed.source_version.source_version_id != projection.source_version.source_version_id
+    assert payload_changed.source_version.source_version_id != projection.source_version.source_version_id
+    assert not hasattr(projection, "__dict__")
+    with pytest.raises(FrozenInstanceError):
+        projection.source = expected_source
+
+
+@pytest.mark.parametrize("field,value", [
+    ("schema_id", "foreign"), ("schema_id", "x" * 129),
+    ("owner_ref_digest", "sha256:" + "b" * 64),
+    ("captured_head_boundary", "sha256:" + "b" * 64),
+    ("snapshot_digest", "sha256:" + "b" * 64),
+    ("snapshot_digest", "sha256:" + "A" * 64),
+    ("snapshot_digest", "sha256:" + "a" * 64 + "\n"),
+    ("snapshot_digest", "a" * 1_000_000), ("owner_ref_digest", None),
+], ids=["foreign-schema", "schema-budget", "owner-mismatch", "boundary-mismatch",
+        "snapshot-mismatch", "uppercase-digest", "trailing-newline", "digest-budget", "missing-owner"])
+def test_harbour_metadata_snapshot_tampering_is_bounded(field, value):
+    snapshot = replace(_harbour_vector_snapshot(), **{field: value})
+    _assert_ambient_error(lambda: project_harbour_knowledge_metadata(snapshot),
+                          "invalid_snapshot", "private ambient context")
+
+
+@pytest.mark.parametrize("field", [field.name for field in fields(KnowledgeHeadMetadata)])
+def test_harbour_metadata_every_record_field_is_bound(field):
+    head = _harbour_vector_record()
+    value = {"revision": 1, "generation": 4, "state": "purged", "knowledge_kind": "document"}.get(
+        field, "sha256:" + "f" * 64,
+    )
+    # Reseal the outer envelopes only. Any metadata change must still fail
+    # against the unchanged record digest; changing that digest also fails.
+    snapshot = _harbour_vector_snapshot((replace(head, **{field: value}),))
+    with pytest.raises(KnowledgeSourceAdapterError) as caught:
+        project_harbour_knowledge_metadata(snapshot)
+    _assert_error(caught.value, "invalid_snapshot")
+
+
+@pytest.mark.parametrize("field,value", [
+    ("revision", True), ("revision", 0), ("revision", -1), ("revision", 2**63),
+    ("revision", 1.0), ("generation", True), ("generation", 0),
+    ("generation", 2**63), ("generation", 1),
+    ("state", "unknown"), ("state", "é"), ("knowledge_kind", "unknown"),
+    ("state", "x" * 129), ("payload_sha256", "sha256:" + "A" * 64),
+])
+def test_harbour_metadata_rejects_self_consistent_invalid_scalars(field, value):
+    snapshot = _harbour_vector_snapshot((_harbour_vector_record(**{field: value}),))
+    with pytest.raises(KnowledgeSourceAdapterError) as caught:
+        project_harbour_knowledge_metadata(snapshot)
+    _assert_error(caught.value, "invalid_snapshot")
+
+
+def test_harbour_metadata_order_duplicates_and_limits(monkeypatch):
+    first, second = _harbour_vector_record(1), _harbour_vector_record(2)
+    for heads in ((second, first), (first, first), (first, replace(first, revision=3))):
+        with pytest.raises(KnowledgeSourceAdapterError) as caught:
+            project_harbour_knowledge_metadata(_harbour_vector_snapshot(heads))
+        _assert_error(caught.value, "invalid_snapshot")
+    references = project_harbour_knowledge_metadata(_harbour_vector_snapshot((first, second)))
+    assert tuple(r.knowledge_id_digest for r in references) == (first.knowledge_id_digest, second.knowledge_id_digest)
+    upper = _harbour_vector_record(revision=2**63 - 1, generation=2**63 - 1)
+    assert project_harbour_knowledge_metadata(_harbour_vector_snapshot((upper,)))[0].revision == 2**63 - 1
+    for state in ("active", "tombstoned", "purge_pending", "purged"):
+        assert project_harbour_knowledge_metadata(_harbour_vector_snapshot((
+            _harbour_vector_record(state=state),
+        )))[0].state == state
+    for kind in ("personal_memory", "document", "note", "imported_record", "derived_abstraction", "causal_claim"):
+        assert project_harbour_knowledge_metadata(_harbour_vector_snapshot((
+            _harbour_vector_record(knowledge_kind=kind),
+        )))[0].knowledge_kind == kind
+    snapshot = _harbour_vector_snapshot()
+    object.__setattr__(snapshot, "heads", (first,) * 10_001)
+    with pytest.raises(KnowledgeSourceAdapterError) as caught:
+        project_harbour_knowledge_metadata(snapshot)
+    _assert_error(caught.value, "invalid_snapshot")
+    monkeypatch.setattr(knowledge_module, "_HARBOUR_MAX_METADATA_BYTES", 1)
+    with pytest.raises(KnowledgeSourceAdapterError) as caught:
+        project_harbour_knowledge_metadata(_harbour_vector_snapshot())
+    _assert_error(caught.value, "invalid_snapshot")
+
+
+def test_harbour_metadata_accepts_ten_thousand_ordered_heads():
+    heads = tuple(_harbour_vector_record(index) for index in range(10_000))
+    references = project_harbour_knowledge_metadata(_harbour_vector_snapshot(heads))
+    assert len(references) == 10_000
+    assert references[-1].knowledge_id_digest == heads[-1].knowledge_id_digest
+
+
+def test_harbour_metadata_exact_types_reject_hostile_protocols_without_calls():
+    class Hostile:
+        @property
+        def __class__(self):
+            raise AssertionError("private __class__ getter")
+
+        def __getattr__(self, name):
+            raise AssertionError("private getter")
+
+        def __iter__(self):
+            raise AssertionError("private iterator")
+
+        def __str__(self):
+            raise AssertionError("private string")
+
+    class SnapshotSubclass(KnowledgeMigrationSnapshot):
+        def __getattribute__(self, name):
+            raise AssertionError("private snapshot getter")
+
+    class HeadSubclass(KnowledgeHeadMetadata):
+        def __getattribute__(self, name):
+            raise AssertionError("private head getter")
+
+    class TupleSubclass(tuple):
+        def __iter__(self):
+            raise AssertionError("private tuple iterator")
+
+    class StrSubclass(str):
+        def encode(self, *args, **kwargs):
+            raise AssertionError("private encoding")
+
+    class IntSubclass(int):
+        def __lt__(self, other):
+            raise AssertionError("private comparison")
+
+    valid = _harbour_vector_snapshot()
+    inputs = [Hostile(), {}, iter(()), object.__new__(SnapshotSubclass), object.__new__(KnowledgeMigrationSnapshot, KNOWLEDGE_MIGRATION_SNAPSHOT_SCHEMA)]
+    for heads in ([], Hostile(), iter(valid.heads), TupleSubclass(valid.heads),
+                  (Hostile(),), (object.__new__(HeadSubclass),), (object.__new__(KnowledgeHeadMetadata),)):
+        inputs.append(replace(valid, heads=heads))
+    for field, value in (("payload_sha256", Hostile()), ("payload_sha256", StrSubclass("sha256:" + "2" * 64)),
+                         ("revision", IntSubclass(2)), ("state", Hostile())):
+        inputs.append(replace(valid, heads=(replace(valid.heads[0], **{field: value}),)))
+    for snapshot in inputs:
+        _assert_ambient_error(lambda: project_harbour_knowledge_metadata(snapshot),
+                              "invalid_snapshot", "private ambient failure")
+
+
+def test_harbour_metadata_detaches_before_hashing_and_retains_no_input_alias(monkeypatch):
+    snapshot = _harbour_vector_snapshot()
+    expected = project_harbour_knowledge_metadata(snapshot)
+    original_digest = knowledge_module._harbour_metadata_digest
+
+    def mutate_input_then_hash(kind, value):
+        object.__setattr__(snapshot.heads[0], "state", "private forged state")
+        object.__setattr__(snapshot, "owner_ref_digest", "private forged owner")
+        return original_digest(kind, value)
+
+    monkeypatch.setattr(knowledge_module, "_harbour_metadata_digest", mutate_input_then_hash)
+    assert project_harbour_knowledge_metadata(snapshot) == expected
+    assert expected[0].state == "active" and expected[0].owner_ref_digest == _HARBOUR_OWNER
+    with pytest.raises(KnowledgeSourceAdapterError) as caught:
+        project_harbour_knowledge_metadata(snapshot)
+    _assert_error(caught.value, "invalid_snapshot")
+    object.__setattr__(expected[0], "state", "private malformed reference")
+    assert repr(expected[0]) == "HarbourKnowledgeMetadataReference(<metadata-only>)"
+
+
+def test_harbour_metadata_hash_failures_are_fresh_and_context_free(monkeypatch):
+    def fail_hash(*args):
+        raise RuntimeError("private hash failure")
+
+    monkeypatch.setattr(knowledge_module, "_harbour_metadata_digest", fail_hash)
+    snapshot = _harbour_vector_snapshot()
+    errors = [_assert_ambient_error(lambda: project_harbour_knowledge_metadata(snapshot),
+                                   "invalid_snapshot", "private caller context") for _ in range(2)]
     assert errors[0] is not errors[1]
 
 
-def test_v3_native_error_mapping_never_retains_ambient_or_native_exception(monkeypatch):
-    adapter, _, _, expected = _adapter()
-    locator = _locator_for_content(adapter, expected)
-    cases = (
-        (KnowledgeAccessDenied("native-private-access"), "access_denied"),
-        (KnowledgeNotFound("native-private-not-found"), "record_not_found"),
-        (KnowledgeTombstoned("native-private-tombstone"), "tombstoned"),
-        (KnowledgeGenerationMismatch(), "stale_authority"),
-        (RuntimeError("native-private-unknown"), "knowledge_source_adapter_failed"),
-    )
-    errors = []
+def test_harbour_metadata_conversion_has_no_native_or_io_authority(monkeypatch):
+    def forbidden(*args, **kwargs):
+        raise AssertionError("conversion crossed authority boundary")
 
-    for index, (native_error, code) in enumerate(cases):
-        def fail_native(self, _native_error=native_error, **kwargs):
-            raise _native_error
-
-        monkeypatch.setattr(NativeKnowledgeStore, "read_exact_at_generation", fail_native)
-        error = _assert_ambient_error(
-            lambda: adapter.read_exact(locator, **expected),
-            code,
-            f"ambient-private-native-{index}",
-        )
-        assert error is not native_error
-        assert "private" not in repr(error)
-        errors.append(error)
-
-    assert len({id(error) for error in errors}) == len(errors)
+    for name in ("KnowledgeSourceAdapter", "SourceRecord", "SourceVersionRecord",
+                 "ChunkRecord", "knowledge_source_registration", "knowledge_source_capability_manifest", "content_hash"):
+        monkeypatch.setattr(knowledge_module, name, forbidden)
+    snapshot = _harbour_vector_snapshot()
+    reference, = project_harbour_knowledge_metadata(snapshot)
+    assert reference.payload_sha256 == snapshot.heads[0].payload_sha256
+    names = {field.name for field in fields(reference)}
+    assert not names.intersection({"content", "payload", "content_hash", "source_id", "source_version_id",
+                                   "owner_id", "locator", "binding", "timestamp", "revision_id_digest"})
+    tree = ast.parse(inspect.getsource(knowledge_module))
+    functions = [node for node in tree.body if isinstance(node, ast.FunctionDef) and
+                 (node.name.startswith("_harbour_metadata_") or node.name == "project_harbour_knowledge_metadata")]
+    forbidden_calls = {"open", "HarbourKnowledgeStore", "KnowledgeSourceAdapter",
+                       "SourceRecord", "SourceVersionRecord", "ChunkRecord", "content_hash",
+                       "knowledge_source_registration", "knowledge_source_capability_manifest"}
+    forbidden_attributes = {"capture", "capture_migration_snapshot", "connect", "execute", "read", "write", "now", "random"}
+    for function in functions:
+        for node in ast.walk(function):
+            if isinstance(node, ast.Call):
+                assert not (isinstance(node.func, ast.Name) and node.func.id in forbidden_calls)
+                assert not (isinstance(node.func, ast.Attribute) and node.func.attr in forbidden_attributes)

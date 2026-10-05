@@ -1,9 +1,10 @@
 from dataclasses import replace
-from threading import Event, Thread
+from threading import Barrier, Event, Thread
 from types import MappingProxyType
 
 import pytest
 
+import src.unified_source_index_stores as stores_module
 from src.unified_source_index_contract import (
     ChunkRecord,
     Classification,
@@ -543,6 +544,99 @@ def test_duplicate_staging_empty_commit_and_contentful_reasons_are_rejected():
     deletion.rollback()
 
 
+def test_paged_bulk_staging_rejects_duplicate_stale_and_hostile_batches_atomically():
+    store = InMemoryUnifiedSourceIndexStore()
+    first = _source("repo:alpha/src/bulk-first.py")
+    second = _source("repo:alpha/src/bulk-second.py")
+
+    duplicate = store.begin_write(store.current_snapshot())
+    with pytest.raises(UnifiedSourceIndexStoreError, match="only once"):
+        duplicate.put_many_paged_truth(((first, 0), (first, 0)))
+    assert duplicate._mutations == {}
+    duplicate.rollback()
+
+    stale = store.begin_write(store.current_snapshot())
+    with pytest.raises(StoreConflictError, match="stale"):
+        stale.put_many_paged_truth(((first, 0), (second, 1)))
+    assert stale._mutations == {}
+    stale.rollback()
+
+    hostile = store.begin_write(store.current_snapshot())
+    with pytest.raises(UnifiedSourceIndexStoreError, match="exact supported"):
+        hostile.put_many_paged_truth(((first, 0), (object(), 0)))
+    assert hostile._mutations == {}
+    hostile.rollback()
+    assert store.current_snapshot().record_count == 0
+
+
+def test_paged_bulk_staging_fences_reentrancy_and_rolls_back_without_partial_state(
+    monkeypatch,
+):
+    import src.unified_source_index_stores as stores
+
+    store = InMemoryUnifiedSourceIndexStore()
+    write = store.begin_write(store.current_snapshot())
+    first = _source("repo:alpha/src/reentrant-first.py")
+    nested = _source("repo:alpha/src/reentrant-nested.py")
+    original_capture = stores._capture_store_record
+
+    def reenter(record):
+        if record is first:
+            with pytest.raises(UnifiedSourceIndexStoreError, match="reentrant"):
+                write.put(nested)
+        return original_capture(record)
+
+    monkeypatch.setattr(stores, "_capture_store_record", reenter)
+    with pytest.raises(UnifiedSourceIndexStoreError, match="changed during"):
+        write.put_many_paged_truth(((first, 0),))
+    assert write._mutations == {}
+    write.rollback()
+    assert store.current_snapshot().record_count == 0
+
+
+def test_paged_bulk_staging_keeps_ordinary_put_forge_guard_and_rollback_atomic():
+    store = InMemoryUnifiedSourceIndexStore()
+    forged_source = replace(
+        _source("forge-code-source:sha256:" + "a" * 64),
+        provider_ref="forge.code",
+    )
+    rejected = store.begin_write(store.current_snapshot())
+    with pytest.raises(UnifiedSourceIndexStoreError, match="put_code_occurrence"):
+        rejected.put_many_paged_truth(((forged_source, 0),))
+    assert rejected._mutations == {}
+    rejected.rollback()
+
+    accepted = store.begin_write(store.current_snapshot())
+    accepted.put_many_paged_truth(
+        (
+            (_source("repo:alpha/src/bulk-rollback-one.py"), 0),
+            (_source("repo:alpha/src/bulk-rollback-two.py"), 0),
+        )
+    )
+    assert len(accepted._mutations) == 2
+    accepted.rollback()
+    assert store.current_snapshot().record_count == 0
+
+
+def test_paged_bulk_staging_detaches_mutable_records_before_publication():
+    store = InMemoryUnifiedSourceIndexStore()
+    source = _source("repo:alpha/src/bulk-detached.py")
+    original_json = source.to_json()
+    write = store.begin_write(store.current_snapshot())
+    write.put_many_paged_truth(((source, 0),))
+    object.__setattr__(source, "canonical_ref", "repo:alpha/src/changed-after-stage.py")
+
+    committed = write.commit()
+
+    with store.begin_read(committed) as read:
+        stored = read.require(
+            RecordKind.SOURCE,
+            SourceRecord.from_json(original_json).source_id,
+            owner_scope=source.owner_scope,
+        )
+    assert stored.record.to_json() == original_json
+
+
 def test_write_boundary_detaches_put_cas_restore_and_nested_record_values():
     store = InMemoryUnifiedSourceIndexStore()
     source = _source()
@@ -724,6 +818,331 @@ def test_private_staged_record_mutation_fails_closed_without_publication():
         write.commit()
     assert write.closed is True
     assert store.current_snapshot().revision == 0
+
+
+def test_current_integrity_decodes_populated_records_at_most_twice(monkeypatch):
+    store = InMemoryUnifiedSourceIndexStore()
+    sources = tuple(
+        _source(f"repo:alpha/src/current-capture-{index}.py")
+        for index in range(12)
+    )
+    write = store.begin_write(store.current_snapshot())
+    for source in sources:
+        write.put(source)
+    write.commit()
+
+    original_decode = stores_module._record_from_canonical_bytes
+    decoded = []
+
+    def count_decode(canonical_bytes):
+        decoded.append(canonical_bytes)
+        return original_decode(canonical_bytes)
+
+    monkeypatch.setattr(stores_module, "_record_from_canonical_bytes", count_decode)
+    snapshot = store.current_snapshot()
+
+    assert snapshot.record_count == len(sources)
+    assert len(decoded) <= 2 * len(sources)
+
+
+def test_implicit_begin_read_reuses_current_validation_with_exact_decode_count(
+    monkeypatch,
+):
+    store = InMemoryUnifiedSourceIndexStore()
+    source = _source()
+    _insert(store, source)
+    expected = store.current_snapshot()
+    make_state_calls = []
+    decoded = []
+    original_make_state = InMemoryUnifiedSourceIndexStore._make_state
+    original_decode = stores_module._record_from_canonical_bytes
+
+    def count_make_state(*args, **kwargs):
+        make_state_calls.append(True)
+        return original_make_state(*args, **kwargs)
+
+    def count_decode(canonical_bytes):
+        decoded.append(canonical_bytes)
+        return original_decode(canonical_bytes)
+
+    monkeypatch.setattr(
+        InMemoryUnifiedSourceIndexStore,
+        "_make_state",
+        staticmethod(count_make_state),
+    )
+    monkeypatch.setattr(stores_module, "_record_from_canonical_bytes", count_decode)
+    read = store.begin_read()
+    read.close()
+    assert len(make_state_calls) == 2
+    assert len(decoded) == 2
+
+    with store.begin_read() as read:
+        assert read.snapshot == expected
+        assert read.require(
+            RecordKind.SOURCE,
+            source.source_id,
+            owner_scope=source.owner_scope,
+        ).record.to_json() == source.to_json()
+
+    make_state_calls.clear()
+    decoded.clear()
+    with store.begin_read(expected) as read:
+        assert read.snapshot == expected
+    assert len(make_state_calls) == 2
+    assert len(decoded) == 2
+
+
+def test_implicit_begin_read_rejects_reentrant_copy_mutation_after_full_proof():
+    store = InMemoryUnifiedSourceIndexStore()
+    source = _source()
+    _insert(store, source)
+    key = (RecordKind.SOURCE, source.source_id)
+    original_assert_current = store._assert_current_state_integrity
+
+    def proof_then_mutate():
+        original_assert_current()
+        entry = store._records[key]
+        forged = replace(source, source_modified_at="2026-07-17T10:00:00Z")
+        store._records[key] = replace(
+            entry,
+            canonical_bytes=forged.to_json().encode("utf-8"),
+        )
+
+    store._assert_current_state_integrity = proof_then_mutate
+    with pytest.raises(UnifiedSourceIndexStoreError, match="changed during read capture"):
+        store.begin_read()
+
+
+def test_implicit_begin_read_rejects_mutation_during_final_snapshot_comparison(monkeypatch):
+    store = InMemoryUnifiedSourceIndexStore()
+    source = _source()
+    _insert(store, source)
+    key = (RecordKind.SOURCE, source.source_id)
+    original_live_binding = stores_module._live_store_content_binding
+    original_snapshot_values = stores_module._snapshot_values
+    live_binding_calls = 0
+    armed = False
+    mutated = False
+
+    def count_live_binding(*args, **kwargs):
+        nonlocal live_binding_calls, armed
+        live_binding_calls += 1
+        result = original_live_binding(*args, **kwargs)
+        if live_binding_calls == 3:
+            armed = True
+        return result
+
+    def compare_then_mutate(snapshot):
+        nonlocal mutated
+        result = original_snapshot_values(snapshot)
+        if armed and not mutated:
+            mutated = True
+            entry = store._records[key]
+            forged = replace(source, source_modified_at="2026-07-17T10:00:00Z")
+            store._records[key] = replace(
+                entry,
+                canonical_bytes=forged.to_json().encode("utf-8"),
+            )
+        return result
+
+    monkeypatch.setattr(
+        stores_module,
+        "_live_store_content_binding",
+        count_live_binding,
+    )
+    monkeypatch.setattr(stores_module, "_snapshot_values", compare_then_mutate)
+    with pytest.raises(UnifiedSourceIndexStoreError, match="changed during read capture"):
+        store.begin_read()
+    assert live_binding_calls == 4
+    assert mutated is True
+
+
+@pytest.mark.parametrize("tamper", ("snapshot", "owner", "kind", "id"))
+def test_current_integrity_rejects_make_state_metadata_tampering(tamper, monkeypatch):
+    store = InMemoryUnifiedSourceIndexStore()
+    source = _source()
+    _insert(store, source)
+    original_make_state = InMemoryUnifiedSourceIndexStore._make_state
+
+    def tampering_make_state(
+        records,
+        tombstones,
+        forge_occurrences,
+        revision,
+        *,
+        decoded_records=None,
+    ):
+        state = original_make_state(
+            records,
+            tombstones,
+            forge_occurrences,
+            revision,
+            decoded_records=decoded_records,
+        )
+        if records is not store._records:
+            return state
+        if tamper == "snapshot":
+            return replace(
+                state,
+                snapshot=replace(
+                    state.snapshot,
+                    record_count=state.snapshot.record_count + 1,
+                    snapshot_ref="",
+                ),
+            )
+        key = (RecordKind.SOURCE, source.source_id)
+        entry = state.records[key]
+        if tamper == "owner":
+            changed_entry = replace(entry, owner_scope="user:bob")
+        elif tamper == "kind":
+            changed_entry = replace(entry, record_kind=RecordKind.CHUNK)
+        else:
+            changed_entry = replace(entry, record_id="repo:alpha/src/forged.py")
+        changed_records = dict(state.records)
+        changed_records[key] = changed_entry
+        return replace(state, records=MappingProxyType(changed_records))
+
+    monkeypatch.setattr(
+        InMemoryUnifiedSourceIndexStore,
+        "_make_state",
+        staticmethod(tampering_make_state),
+    )
+    with pytest.raises(UnifiedSourceIndexStoreError, match="integrity"):
+        store.current_snapshot()
+
+
+def test_current_integrity_projects_make_state_errors_to_stable_capture_error(
+    monkeypatch,
+):
+    store = InMemoryUnifiedSourceIndexStore()
+    source = _source()
+    _insert(store, source)
+    original_make_state = InMemoryUnifiedSourceIndexStore._make_state
+
+    def failing_live_make_state(
+        records,
+        tombstones,
+        forge_occurrences,
+        revision,
+        *,
+        decoded_records=None,
+    ):
+        if records is store._records:
+            raise UnifiedSourceIndexStoreError("lower-level make-state detail")
+        return original_make_state(
+            records,
+            tombstones,
+            forge_occurrences,
+            revision,
+            decoded_records=decoded_records,
+        )
+
+    monkeypatch.setattr(
+        InMemoryUnifiedSourceIndexStore,
+        "_make_state",
+        staticmethod(failing_live_make_state),
+    )
+    with pytest.raises(UnifiedSourceIndexStoreError) as exc_info:
+        store.current_snapshot()
+
+    assert str(exc_info.value) == "current store state failed integrity validation"
+
+
+def test_current_integrity_preserves_live_forge_semantic_error(monkeypatch):
+    store = InMemoryUnifiedSourceIndexStore()
+    _insert(store, _source())
+    original_validate = stores_module._validate_forge_occurrence_state
+    validation_calls = 0
+    semantic_error = "fixed Forge semantic diagnostic"
+
+    def fail_current_forge_validation(
+        records,
+        forge_occurrences,
+        *,
+        decoded_records=None,
+    ):
+        nonlocal validation_calls
+        validation_calls += 1
+        if validation_calls == 1:
+            return original_validate(
+                records,
+                forge_occurrences,
+                decoded_records=decoded_records,
+            )
+        raise UnifiedSourceIndexStoreError(semantic_error)
+
+    monkeypatch.setattr(
+        stores_module,
+        "_validate_forge_occurrence_state",
+        fail_current_forge_validation,
+    )
+    with pytest.raises(UnifiedSourceIndexStoreError) as exc_info:
+        store.current_snapshot()
+
+    assert str(exc_info.value) == semantic_error
+    assert validation_calls == 2
+
+
+@pytest.mark.parametrize(
+    "tamper",
+    ("live_entry", "authority_snapshot", "authority_entry", "revision"),
+)
+def test_current_integrity_rejects_authority_or_live_mutation_during_forge_validation(
+    tamper, monkeypatch
+):
+    store = InMemoryUnifiedSourceIndexStore()
+    source = _source()
+    _insert(store, source)
+    key = (RecordKind.SOURCE, source.source_id)
+    original_validate = stores_module._validate_forge_occurrence_state
+    validation_calls = 0
+
+    def mutate_live_mapping_during_validation(
+        records,
+        forge_occurrences,
+        *,
+        decoded_records=None,
+    ):
+        nonlocal validation_calls
+        validation_calls += 1
+        original_validate(
+            records,
+            forge_occurrences,
+            decoded_records=decoded_records,
+        )
+        if validation_calls == 2:
+            if tamper == "live_entry":
+                entry = store._records[key]
+                store._records[key] = replace(entry, owner_scope="user:bob")
+            elif tamper == "authority_snapshot":
+                authority = store._history[store._revision]
+                snapshot = authority.snapshot
+                object.__setattr__(
+                    authority,
+                    "snapshot",
+                    stores_module.StoreSnapshot(
+                        snapshot.revision,
+                        snapshot.state_hash,
+                        snapshot.record_count + 1,
+                        snapshot.tombstone_count,
+                    ),
+                )
+            elif tamper == "authority_entry":
+                authority = store._history[store._revision]
+                object.__setattr__(
+                    authority.records[key], "owner_scope", "user:bob"
+                )
+            else:
+                store._revision = True
+
+    monkeypatch.setattr(
+        stores_module,
+        "_validate_forge_occurrence_state",
+        mutate_live_mapping_during_validation,
+    )
+    with pytest.raises(UnifiedSourceIndexStoreError, match="integrity"):
+        store.current_snapshot()
+    assert validation_calls == 2
 
 
 def test_retained_authority_and_staged_mutations_hold_bytes_not_domain_records():
@@ -928,6 +1347,143 @@ def test_each_read_operation_uses_one_detached_state_after_capture_swap(operatio
         assert len(result.items) == 1
         assert result.items[0].record.to_json() == source.to_json()
     assert captures == [accepted.snapshot_ref]
+    with pytest.raises(UnifiedSourceIndexStoreError, match="integrity"):
+        read.get(
+            RecordKind.SOURCE,
+            source.source_id,
+            owner_scope=source.owner_scope,
+        )
+    read.close()
+    read.close()
+
+
+@pytest.mark.parametrize("tamper", ("cached_state", "cached_index"))
+def test_retained_read_cache_alias_tampering_fails_closed(tamper):
+    store = InMemoryUnifiedSourceIndexStore()
+    source = _source()
+    _insert(store, source)
+    read = store.begin_read()
+    assert read.snapshot.record_count == 1
+    cache = stores_module._RETAINED_READ_CACHES[id(read)][1]
+    if tamper == "cached_state":
+        entry = cache.detached_state.records[(RecordKind.SOURCE, source.source_id)]
+        forged_records = dict(cache.detached_state.records)
+        forged_records[(RecordKind.SOURCE, source.source_id)] = replace(
+            entry,
+            canonical_bytes=replace(
+                source,
+                source_modified_at="2026-07-17T10:00:00Z",
+            ).to_json().encode("utf-8"),
+        )
+        object.__setattr__(
+            cache,
+            "detached_state",
+            replace(cache.detached_state, records=MappingProxyType(forged_records)),
+        )
+    else:
+        object.__setattr__(cache, "index", object())
+    with pytest.raises(UnifiedSourceIndexStoreError, match="integrity"):
+        read.list_records(
+            RecordKind.SOURCE,
+            owner_scope=source.owner_scope,
+            limit=1,
+        )
+    read.close()
+    read.close()
+
+
+def test_retained_read_cache_first_capture_is_shared_across_threads(monkeypatch):
+    store = InMemoryUnifiedSourceIndexStore()
+    source = _source()
+    _insert(store, source)
+    read = store.begin_read()
+    expected_snapshot = store.current_snapshot()
+    barrier = Barrier(2)
+    original_make_state = InMemoryUnifiedSourceIndexStore._make_state
+
+    def overlap_first_capture(
+        records,
+        tombstones,
+        forge_occurrences,
+        revision,
+        *,
+        decoded_records=None,
+    ):
+        if records is read._state.records:
+            barrier.wait(timeout=5)
+        return original_make_state(
+            records,
+            tombstones,
+            forge_occurrences,
+            revision,
+            decoded_records=decoded_records,
+        )
+
+    monkeypatch.setattr(
+        InMemoryUnifiedSourceIndexStore,
+        "_make_state",
+        staticmethod(overlap_first_capture),
+    )
+    results = []
+    failures = []
+
+    def capture_snapshot():
+        try:
+            results.append(read.snapshot)
+        except BaseException:
+            failures.append("failed")
+
+    first = Thread(target=capture_snapshot)
+    second = Thread(target=capture_snapshot)
+    first.start()
+    second.start()
+    first.join(timeout=10)
+    second.join(timeout=10)
+
+    assert not first.is_alive()
+    assert not second.is_alive()
+    assert failures == []
+    assert results == [expected_snapshot, expected_snapshot]
+    read.close()
+    read.close()
+
+
+def test_retained_read_cache_decodes_once_for_bounded_multi_page_read(monkeypatch):
+    store = InMemoryUnifiedSourceIndexStore()
+    sources = tuple(
+        _source(f"repo:alpha/src/retained-page-{index:03d}.py")
+        for index in range(128)
+    )
+    write = store.begin_write(store.current_snapshot())
+    for source in sources:
+        write.put(source)
+    write.commit()
+
+    read = store.begin_read()
+    original_decode = stores_module._record_from_canonical_bytes
+    decoded = []
+
+    def count_decode(canonical_bytes):
+        decoded.append(canonical_bytes)
+        return original_decode(canonical_bytes)
+
+    monkeypatch.setattr(stores_module, "_record_from_canonical_bytes", count_decode)
+    records = []
+    cursor = ""
+    while True:
+        page = read.list_records(
+            RecordKind.SOURCE,
+            owner_scope="user:alice",
+            limit=17,
+            cursor=cursor,
+        )
+        records.extend(item.record for item in page.items)
+        if not page.next_cursor:
+            break
+        cursor = page.next_cursor
+    assert tuple(records) == tuple(sorted(sources, key=lambda item: item.source_id))
+    assert len(decoded) <= 3 * len(sources)
+    read.close()
     read.close()
 
 
@@ -978,3 +1534,310 @@ def test_commit_phase_fences_concurrent_public_mutation():
             other.source_id,
             owner_scope=other.owner_scope,
         ) is None
+
+
+def _ulo02_commands(records):
+    from src.unified_source_index_tombstone_policy import _new_instruction
+
+    return tuple(
+        _new_instruction(record.ref(), 1, "source_deleted", record.owner_scope)
+        for record in records
+    )
+
+
+def test_ulo02_protocol_fake_subclass_proxy_and_shadow_methods_are_rejected_before_access():
+    from src.unified_source_index_stores import StoreSnapshot, commit_tombstone_batch
+
+    class Fake:
+        def __getattribute__(self, name):
+            raise AssertionError("protocol fake was accessed")
+
+    class Child(InMemoryUnifiedSourceIndexStore):
+        def current_snapshot(self):
+            raise AssertionError("subclass method was accessed")
+
+    class Proxy:
+        def __getattribute__(self, name):
+            raise AssertionError("proxy was accessed")
+
+    def reject(candidate):
+        with pytest.raises(UnifiedSourceIndexStoreError):
+            commit_tombstone_batch(
+                candidate,
+                authority_ref="usi_authority_" + "a" * 64,
+                plan_digest="sha256:" + "b" * 64,
+                base_snapshot=StoreSnapshot(0, "sha256:" + "0" * 64, 0, 0),
+                commands=(),
+            )
+
+    for candidate in (Fake(), Child(), Proxy()):
+        reject(candidate)
+
+    shadowed = InMemoryUnifiedSourceIndexStore()
+    shadowed.current_snapshot = lambda: (_ for _ in ()).throw(AssertionError("shadow was accessed"))
+    reject(shadowed)
+
+
+def test_ulo02_exact_store_gate_rejects_malformed_and_mutated_instances():
+    from src.unified_source_index_stores import StoreSnapshot, commit_tombstone_batch
+
+    malformed = object.__new__(InMemoryUnifiedSourceIndexStore)
+    with pytest.raises(UnifiedSourceIndexStoreError):
+        commit_tombstone_batch(
+            malformed,
+            authority_ref="usi_authority_" + "a" * 64,
+            plan_digest="sha256:" + "b" * 64,
+            base_snapshot=StoreSnapshot(0, "sha256:" + "0" * 64, 0, 0),
+            commands=(),
+        )
+    store = InMemoryUnifiedSourceIndexStore()
+    store._revision = True
+    with pytest.raises(UnifiedSourceIndexStoreError):
+        store.current_snapshot()
+    store = InMemoryUnifiedSourceIndexStore()
+    store._history = []
+    with pytest.raises(UnifiedSourceIndexStoreError):
+        commit_tombstone_batch(
+            store,
+            authority_ref="usi_authority_" + "a" * 64,
+            plan_digest="sha256:" + "b" * 64,
+            base_snapshot=StoreSnapshot(0, "sha256:" + "0" * 64, 0, 0),
+            commands=(),
+        )
+    store = InMemoryUnifiedSourceIndexStore()
+
+    class LockTrap:
+        def __enter__(self):
+            raise AssertionError("untrusted lock was entered")
+
+        def __exit__(self, *args):
+            raise AssertionError("untrusted lock was exited")
+
+    store._lock = LockTrap()
+    with pytest.raises(UnifiedSourceIndexStoreError):
+        commit_tombstone_batch(
+            store,
+            authority_ref="usi_authority_" + "a" * 64,
+            plan_digest="sha256:" + "b" * 64,
+            base_snapshot=StoreSnapshot(0, "sha256:" + "0" * 64, 0, 0),
+            commands=(),
+        )
+
+
+def test_ulo02_store_batch_receipt_is_issued_only_after_exact_historical_readback():
+    from src.unified_source_index_stores import (
+        TombstoneCommitReceipt,
+        VerifiedTombstoneCommit,
+        commit_tombstone_batch,
+        verify_tombstone_commit,
+    )
+
+    source = _source()
+    store = InMemoryUnifiedSourceIndexStore()
+    _insert(store, source)
+    base = store.current_snapshot()
+    commands = _ulo02_commands((source,))
+    receipt = commit_tombstone_batch(
+        store,
+        authority_ref="usi_authority_" + "a" * 64,
+        plan_digest="sha256:" + "b" * 64,
+        base_snapshot=base,
+        commands=commands,
+    )
+    assert type(receipt) is TombstoneCommitReceipt
+    verified = verify_tombstone_commit(
+        store,
+        receipt,
+        expected_authority_ref=receipt.authority_ref,
+        expected_plan_digest=receipt.plan_digest,
+        expected_commands=commands,
+    )
+    assert type(verified) is VerifiedTombstoneCommit
+    assert receipt.committed_snapshot.revision == base.revision + 1
+    with store.begin_read(receipt.committed_snapshot) as read:
+        marker = read.require(
+            RecordKind.SOURCE,
+            source.source_id,
+            owner_scope=source.owner_scope,
+            include_tombstone=True,
+        )
+    assert marker.reason.startswith("ulo2:source_deleted:")
+
+
+def test_ulo02_store_receipt_rejects_fabricated_spliced_partial_foreign_and_wrong_instance_history():
+    from dataclasses import replace
+    from src.unified_source_index_stores import commit_tombstone_batch, verify_tombstone_commit
+
+    source = _source()
+    store = InMemoryUnifiedSourceIndexStore()
+    _insert(store, source)
+    base = store.current_snapshot()
+    commands = _ulo02_commands((source,))
+    receipt = commit_tombstone_batch(
+        store,
+        authority_ref="usi_authority_" + "a" * 64,
+        plan_digest="sha256:" + "b" * 64,
+        base_snapshot=base,
+        commands=commands,
+    )
+    with pytest.raises(UnifiedSourceIndexStoreError):
+        verify_tombstone_commit(
+            InMemoryUnifiedSourceIndexStore(),
+            receipt,
+            expected_authority_ref=receipt.authority_ref,
+            expected_plan_digest=receipt.plan_digest,
+            expected_commands=commands,
+        )
+    with pytest.raises(UnifiedSourceIndexStoreError):
+        verify_tombstone_commit(
+            store,
+            replace(receipt, plan_digest="sha256:" + "c" * 64),
+            expected_authority_ref=receipt.authority_ref,
+            expected_plan_digest=receipt.plan_digest,
+            expected_commands=commands,
+        )
+    object.__setattr__(receipt, "receipt_digest", "sha256:" + "0" * 64)
+    with pytest.raises(UnifiedSourceIndexStoreError):
+        verify_tombstone_commit(
+            store,
+            receipt,
+            expected_authority_ref=receipt.authority_ref,
+            expected_plan_digest=receipt.plan_digest,
+            expected_commands=commands,
+        )
+
+
+def test_ulo02_store_batch_is_atomic_child_first_and_request_bound():
+    from src.unified_source_index_stores import commit_tombstone_batch
+
+    source, version, _, chunk, *_ = _all_record_families()
+    store = InMemoryUnifiedSourceIndexStore()
+    _insert(store, source, version, chunk)
+    base = store.current_snapshot()
+    receipt = commit_tombstone_batch(
+        store,
+        authority_ref="usi_authority_" + "a" * 64,
+        plan_digest="sha256:" + "b" * 64,
+        base_snapshot=base,
+        commands=_ulo02_commands((chunk, version, source)),
+    )
+    assert receipt.command_count == 3
+    assert receipt.committed_snapshot.record_count == 0
+    assert receipt.committed_snapshot.tombstone_count == 3
+
+
+def test_ulo02_captured_write_failure_rolls_back_staged_tombstone(monkeypatch):
+    from src.unified_source_index_stores import InMemoryStoreWriteTransaction, commit_tombstone_batch
+
+    source = _source()
+    store = InMemoryUnifiedSourceIndexStore()
+    _insert(store, source)
+    base = store.current_snapshot()
+    original = InMemoryStoreWriteTransaction.tombstone
+
+    def fail_after_stage(transaction, *args, **kwargs):
+        original(transaction, *args, **kwargs)
+        raise UnifiedSourceIndexStoreError("fixed failure")
+
+    monkeypatch.setattr(InMemoryStoreWriteTransaction, "tombstone", fail_after_stage)
+    with pytest.raises(UnifiedSourceIndexStoreError):
+        commit_tombstone_batch(
+            store, authority_ref="usi_authority_" + "a" * 64,
+            plan_digest="sha256:" + "b" * 64, base_snapshot=base,
+            commands=_ulo02_commands((source,)),
+        )
+    assert store.current_snapshot() == base
+
+
+def test_ulo02_store_receipt_reopens_on_exact_sqlite_without_schema_migration(tmp_path):
+    from src.unified_source_index_sqlite import SQLiteUnifiedSourceIndexStore
+    from src.unified_source_index_stores import commit_tombstone_batch, verify_tombstone_commit
+    from src.unified_source_index_tombstone_policy import _new_instruction
+
+    source = _source()
+    path = tmp_path / "ulo02.db"
+    store = SQLiteUnifiedSourceIndexStore(path)
+    _insert(store, source)
+    base = store.current_snapshot()
+    commands = (
+        _new_instruction(source.ref(), 1, "source_deleted", source.owner_scope),
+    )
+    receipt = commit_tombstone_batch(
+        store,
+        authority_ref="usi_authority_" + "a" * 64,
+        plan_digest="sha256:" + "b" * 64,
+        base_snapshot=base,
+        commands=commands,
+    )
+    reopened = SQLiteUnifiedSourceIndexStore(path)
+    verified = verify_tombstone_commit(
+        reopened,
+        receipt.to_json(),
+        expected_authority_ref=receipt.authority_ref,
+        expected_plan_digest=receipt.plan_digest,
+        expected_commands=commands,
+    )
+    assert verified.receipt.committed_snapshot == receipt.committed_snapshot
+
+
+def test_ulo02_receipt_verification_rejects_current_snapshot_drift_before_foreign_call(monkeypatch):
+    from src.unified_source_index_stores import InMemoryUnifiedSourceIndexStore, commit_tombstone_batch, verify_tombstone_commit
+
+    source = _source()
+    store = InMemoryUnifiedSourceIndexStore()
+    _insert(store, source)
+    base = store.current_snapshot()
+    commands = _ulo02_commands((source,))
+    receipt = commit_tombstone_batch(store, authority_ref="usi_authority_" + "a" * 64,
+                                     plan_digest="sha256:" + "b" * 64,
+                                     base_snapshot=base, commands=commands)
+    calls = 0
+
+    def trap(self):
+        nonlocal calls
+        calls += 1
+        raise AssertionError("drifted snapshot method called")
+
+    monkeypatch.setattr(InMemoryUnifiedSourceIndexStore, "current_snapshot", trap)
+    with pytest.raises(UnifiedSourceIndexStoreError):
+        verify_tombstone_commit(store, receipt, expected_authority_ref=receipt.authority_ref,
+                                expected_plan_digest=receipt.plan_digest, expected_commands=commands)
+    assert calls == 0
+
+
+def test_ulo02_command_projection_rejects_hostile_ref_before_store_capture():
+    from src.unified_source_index_tombstone_policy import _new_instruction
+    from src.unified_source_index_stores import StoreSnapshot, commit_tombstone_batch
+
+    source = _source()
+    command = _new_instruction(source.ref(), 1, "source_deleted", source.owner_scope)
+
+    class Trap:
+        def __hash__(self):
+            raise AssertionError("hash invoked")
+
+        def __eq__(self, other):
+            raise AssertionError("equality invoked")
+
+        def __getattribute__(self, name):
+            if name.startswith("__"):
+                return object.__getattribute__(self, name)
+            raise AssertionError("getter invoked")
+
+    object.__setattr__(command.record_ref, "record_kind", Trap())
+
+    candidate = InMemoryUnifiedSourceIndexStore()
+    calls = 0
+
+    def store_trap():
+        nonlocal calls
+        calls += 1
+        raise AssertionError("store inspected before command projection")
+
+    candidate.current_snapshot = store_trap
+    with pytest.raises(UnifiedSourceIndexStoreError):
+        commit_tombstone_batch(candidate, authority_ref="usi_authority_" + "a" * 64,
+                               plan_digest="sha256:" + "b" * 64,
+                               base_snapshot=StoreSnapshot(0, "sha256:" + "0" * 64, 0, 0),
+                               commands=(command,))
+    assert calls == 0
