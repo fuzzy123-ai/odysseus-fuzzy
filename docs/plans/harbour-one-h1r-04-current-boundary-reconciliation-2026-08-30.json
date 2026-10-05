@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "kind": "harbour_one.h1r04_current_boundary_reconciliation",
+  "status": "pending_independent_review_after_currentness_refresh",
+  "scope": "Docs-only reconciliation of the current Knowledge boundary. It grants no source writer claim and performs no migration, USI activation, provider, network, deletion, or deployment action.",
+  "authority": {
+    "product_roadmap_blob": "e4faf54dcc3a0c971e3f4c8152bbf61b99a35bbf",
+    "user_decision_path": "docs/plans/harbour-one-user-decision-agent-data-isolation-2026-08-31.json",
+    "user_decision_blob": "10fa85434ee6f980af96b43cf0c519cc11e6a271",
+    "historical_h1r04_r3_blob": "86fb2399f964083769da84bf4e16b9ea0dc61699",
+    "run_state": "docs/plans/handoffs/ABC-GO-HARBOUR-ONE-3H-RUN-20260830.json"
+  },
+  "current_boundary": {
+    "retained": [
+      "One owner-scoped authenticated Harbour Knowledge authority remains the target model.",
+      "Planning, Forge, Inbox, Policy, Evidence, Worker Gateway and worker state remain separate domains.",
+      "Projections are detached read models and receive no canonical write authority."
+    ],
+    "current_local_artifacts": {
+      "knowledge_store_current_narrow_subslice": {
+        "source": "src/harbour_knowledge_store.py",
+        "source_blob": "9e2119790d0a44e98edf58df99c51486efc4c179",
+        "test": "tests/test_harbour_knowledge_store.py",
+        "test_blob": "441e0f4cbaca01cafbcaf1ff44bc4e9bdb2c5878",
+        "status": "accepted H1R-05P-T narrow repo-only Store correction; it is implementation evidence only, does not accept H1R-05, and grants no new writer, migration, activation or live authority"
+      },
+      "staging_complete_purge_forwarding": {
+        "source": "src/harbour_knowledge_staging_destination.py",
+        "source_blob": "7f7e73096d089fc0c5e69b441619a6ad7c4f81b2",
+        "test": "tests/test_harbour_knowledge_staging_destination.py",
+        "test_blob": "4e158feccf544b1797f50a70febcd5bfdc17b493",
+        "status": "accepted H1R-05S local repo-only subslice; do not duplicate as new work"
+      }
+    },
+    "complete_purge_rule": "Final payload deletion requires prior request_purge, satisfied retention, one policy digest, at least one projection-deletion digest, and at least one backup-deletion digest; these inputs bind idempotent identity. The existing local Store and accepted Staging forwarding remain the canonical local implementation evidence.",
+    "closed_routes": [
+      "H1R-05R knowledge retention/causal/staging compatibility remains circuit-broken.",
+      "The broad root durable-protocol route remains circuit-broken.",
+      "No Knowledge schema migration, USI activation, legacy import, or automatic repair is authorized."
+    ]
+  },
+  "disposition": {
+    "historical_h1r04_r3": "Retained as target-model evidence only. Its H1R-05 ABSENT baselines and omitted Staging destination mean it is not a current writer packet. The rejected earlier Store candidate remains historical evidence; the accepted H1R-05P-T narrow correction is not broader H1R-05 acceptance. All listed current H1R-04 pins (roadmap, decision, Store, Store test, and Staging source/test) have been materialized and read back as local Git objects.",
+    "writer_authority": "None. A later source claim requires a separately scoped user-authorized protocol decision and a fresh reviewed architecture outside every closed route.",
+    "next_safe_action": "Independent review of this reconciliation, then continue only non-overlapping repo-only reconciliation or safely pause if no new frontier exists."
+  },
+  "verification": {
+    "required": ["JSON parse", "exact blob readback for all listed files", "fresh independent read-only review"],
+    "not_verified": ["full Knowledge integration", "migration", "USI activation", "live/deployment"]
+  }
+,
+  "prior_currentness": {
+    "source": "pre-refresh currentness references preserved from the baseline document",
+    "blob_refs": {
+      "authority.product_roadmap_blob": "f60717babc099990d670605366b1c0bff74b0a2e",
+      "current_boundary.current_local_artifacts.knowledge_store_current_narrow_subslice.source_blob": "a08286d0f402c29c726e32f1d3122749cd8b87d1",
+      "current_boundary.current_local_artifacts.knowledge_store_current_narrow_subslice.test_blob": "c7bd801c6ff63ea0dfbeacbe48ef9e1a1dbb8bd4",
+      "current_boundary.current_local_artifacts.staging_complete_purge_forwarding.source_blob": "7d1cd0fe57bbbe2645b9fb5d7286b28d7c1674d7",
+      "current_boundary.current_local_artifacts.staging_complete_purge_forwarding.test_blob": "cc882e5a231701b5732e510d3aa439ac51e7e586"
+    }
+  },
+  "currentness_refresh": {
+    "file_sha256": {
+      "docs/plans/harbour-one-product-roadmap.json": "3875f70c07103a9928cfc7653e91a3311d01e7b088b2e0ae02d2d022dc64fb12",
+      "src/harbour_knowledge_store.py": "f75725026aa8cc583b5b50dc7c6f521dcd5cf04085c0ddb7bdac72e48471c032",
+      "tests/test_harbour_knowledge_store.py": "f8dd356b1299e501d24dcf54915c07ee5553a1b288ba5821d2baa239d80ccd89",
+      "src/harbour_knowledge_staging_destination.py": "d4cb82ce3169e2a4eb60d259b01de5656e7ac03a68ba241e4773ba20ec5678a7",
+      "tests/test_harbour_knowledge_staging_destination.py": "8305fe03da003246f5ad577b9c4be80b2323dbe5b9c65fc09f6c7c0562d51fa1"
+    },
+    "identity_note": "These SHA-256 values identify the current raw file contents. The associated Git blob references are recorded separately and do not guarantee that the corresponding objects are materialized in this checkout.",
+    "linked_current_run": {
+      "path": "docs/plans/handoffs/abc-open-work-5h-run-20260905.json",
+      "evidence": "completion_campaign_20261001.knowledge_active_app_deadline_candidate and knowledge_active_app_component_acceptance",
+      "active_app_component": "accepted_repository_read_only_active_app_component",
+      "active_app_primary_sha256_pins": 15,
+      "active_app_primary_sha256_current": true,
+      "rag_dependency_sha256_pins": 14,
+      "rag_dependency_sha256_current": 13,
+      "rag_dependency_pending": {
+        "path": "src/rag_text_chunking.py",
+        "reason": "Forge R1 review/acceptance pending"
+      },
+      "prior_component_test_result": "643 passed in the recorded accepted component run; not rerun after Forge changes",
+      "scope": "Currentness metadata only; grants no product acceptance, runtime authority, private-data authority, or live authority."
+    }
+  }
+}

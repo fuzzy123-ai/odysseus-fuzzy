@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kind": "harbour_one.product_master_roadmap",
   "title": "Harbour One Product Roadmap",
-  "updated_at": "2026-08-31T00:00:00+02:00",
+  "updated_at": "2026-10-03",
   "status": "active_product_authority",
   "authority": {
     "product_name": "Harbour One",
@@ -38,22 +38,102 @@
     "long_running_workers": "A 10–15 hour run uses a fresh temporary Git worktree. It is integrated only after tests and independent review through an explicit path-scoped commit/cherry-pick; no automatic merge into another worktree occurs.",
     "short_scoped_work": "A narrow single-writer claim may use the current checkout only when its files and baseline are exclusive and its commit can be isolated from unrelated work.",
     "internet": "Default deny. An internet request must be visible in chat and state why it is needed, the intended destination/operation, the data classification, expected effect and whether it is reversible; it requires user confirmation before the worker receives access.",
-    "private_context": "There is no general context-size limit for code and Planning documents. Any content tagged private requires a user chat confirmation before it is included in a context pack or sent to an external executor."
+    "private_context": "There is no general context-size limit for code and Planning documents. Any content tagged private requires a user chat confirmation before it is included in a context pack or sent to an external executor.",
+    "first_completion_milestone": {
+      "id": "mcp-first-2026-10-02",
+      "status": "in_progress",
+      "owner_decision": "gut genug wäre auch erstmal wenn das ganze ohne ui und nur mcp",
+      "decision_source": "Explicit human decision relayed from authorized sidechat 01a0fb59-9a82-7371-855d-4538dcb301a8 on2026-10-02",
+      "delivery_interface": "mcp",
+      "ui_required": false,
+      "ui_disposition": "later expansion; original H1R-14 inventory/status preserved, never marked complete by this profile",
+      "full_product_inventory_preserved": true,
+      "required_backend_scope": "All intended Odysseus backend functions; existing persistence,owner/auth/disclosure,execution,timeout,restart,rollback and operational acceptance remain required; no thin wrapper acceptance",
+      "completion_requires": [
+        "Current named MCP tools for intended backend functions through the existing MCP server integration",
+        "Real authenticated MCP protocol end-to-end flow with persistent read/write state and independent whole-integration review",
+        "Owner/auth denial,secret-safe understandable results and typed error/timeout/restart/rollback behavior",
+        "Concrete reproducible start,connection,tool-sequence and verification instructions without credentials",
+        "Existing temporal,backend/provider and applicable operational evidence; exact live gates remain in force"
+      ],
+      "effective_verification_overrides": {
+        "H1R-14": "UI is deferred for this first milestone; no completion claim and no denominator change",
+        "H1R-15": "For MCP-first only replace H1R-14 interface prerequisite with current MCP E2E evidence; retain temporal/containment and all backend dependencies",
+        "H1R-16": "For MCP-first only replace H1R-14 UI dependency/flow with actual authenticated MCP golden backend flow and usage/start instructions; retain every backend and temporal prerequisite"
+      },
+      "no_inherited_acceptance": "This scope decision proves neither MCP readiness nor backend/UI/live/temporal completion; original17-slice inventory/progress is unchanged by interface selection"
+    }
   },
   "progress": {
-    "completed": 5,
+    "completed": 9,
     "total": 17,
-    "percent": 29,
-    "counting_rule": "Only the 17 mandatory slices below count. Accepted means an existing repo-local foundation was evidenced; it does not mean the converged Harbour One product is released.",
-    "accepted_slice_ids": ["H1R-00", "H1R-01", "H1R-06", "H1R-08", "H1R-10"]
+    "percent": 53,
+    "counting_rule": "Count only the 17 mandatory slices and only parent statuses beginning accepted. Architecture acceptance, implemented sub-slices and documentation reconciliation do not complete a parent. Accepted units are repository-only foundations and behavior, not a released product; completed, total, percent and accepted_slice_ids must agree with slices.",
+    "accepted_slice_ids": [
+      "H1R-00",
+      "H1R-01",
+      "H1R-02",
+      "H1R-03",
+      "H1R-06",
+      "H1R-08",
+      "H1R-10",
+      "H1R-04",
+      "H1R-05"
+    ]
   },
   "foundation_evidence_binding": {
     "rule": "These Git blob IDs bind the exact roadmap/contract bytes audited for the five accepted foundations. They prove the reviewed foundation snapshot, not full product completion.",
-    "H1R-01": {"path": "docs/plans/planning-definition-v2-contract.md", "git_blob_sha1": "1ec60d0849a56812b439c9811e8707243e46f348"},
-    "H1R-06": {"path": "docs/plans/project-versioning-forge-provider-roadmap.md", "git_blob_sha1": "d6a50526c5b6906e163f65f8003645c04eea7a34"},
-    "H1R-08": {"path": "docs/plans/universal-inbox-abc-roadmap.md", "git_blob_sha1": "e599d0308a1c0428bce2880ee189f7b648f2ceac"},
-    "H1R-10": {"path": "docs/plans/nextcloud-import-preparation-roadmap.md", "git_blob_sha1": "46e722bd2293749f8cc8fbec22abf8128811865e"},
-    "memory_boundary_input": {"path": "docs/plans/codebase-memory-integration-roadmap.md", "git_blob_sha1": "75b713c6fe3a28efe5d6e7a500b60a86d8f51bd1", "note": "Input evidence only; H1R-04/H1R-05 are not accepted."}
+    "H1R-01": {
+      "path": "docs/plans/planning-definition-v2-contract.md",
+      "git_blob_sha1": "1ec60d0849a56812b439c9811e8707243e46f348"
+    },
+    "H1R-06": {
+      "path": "docs/plans/project-versioning-forge-provider-roadmap.md",
+      "git_blob_sha1": "d6a50526c5b6906e163f65f8003645c04eea7a34"
+    },
+    "H1R-08": {
+      "path": "docs/plans/universal-inbox-abc-roadmap.md",
+      "git_blob_sha1": "e599d0308a1c0428bce2880ee189f7b648f2ceac"
+    },
+    "H1R-10": {
+      "path": "docs/plans/nextcloud-import-preparation-roadmap.md",
+      "git_blob_sha1": "46e722bd2293749f8cc8fbec22abf8128811865e"
+    },
+    "memory_boundary_input": {
+      "path": "docs/plans/codebase-memory-integration-roadmap.md",
+      "git_blob_sha1": "75b713c6fe3a28efe5d6e7a500b60a86d8f51bd1",
+      "note": "Input evidence only; H1R-04 docs-only classification is accepted; its full Knowledge boundary remains open. H1R-05 remains in progress and is not accepted."
+    }
+  },
+  "authoring_claim": {
+    "claim_id": "H1R-PLAN-RECONCILE-20260905",
+    "owner": "/root",
+    "phase": "roadmap_authoring",
+    "acquired_at": "2026-09-05T11:28:15.485584+00:00",
+    "authorization": "Current user request: start step 1, reconcile existing planning status, superseded dependencies and unsupported completion claims.",
+    "allowed_paths": [
+      "ROADMAP.md",
+      "docs/plans/MASTER-HANDOFF.md",
+      "docs/plans/harbour-one-roadmap-realignment-2026-08-29.md",
+      "docs/plans/harbour-one-product-roadmap.json",
+      "docs/plans/open-work-completion-master-roadmap.json",
+      "docs/plans/multi-agent-execution-guidance.json",
+      "docs/plans/parallel-roadmap-execution-round6.json",
+      "docs/plans/universal-inbox-abc-roadmap.md",
+      "docs/plans/universal-inbox-document-workbench-handoff.md",
+      "docs/plans/open-roadmaps-priority-and-masterprompt-2026-07-15.md",
+      "docs/plans/unified-source-index-implementation-roadmap.md",
+      "docs/plans/unified-source-index-runtime-integration-roadmap.md",
+      "docs/plans/unified-source-index-data-lifecycle-operations-roadmap.md",
+      "docs/plans/code-lineage-timeline-roadmap.md",
+      "docs/plans/unified-source-index-domain-adapter-rollout-roadmap.md",
+      "docs/plans/evidence/harbour-one-plan-reconciliation-20260905.json"
+    ],
+    "state": "released",
+    "released_at": "2026-09-05T11:55:58.738550+00:00",
+    "result": "Planning reconciliation completed after independent read-only worker review and corrections; implementation remains outside this claim.",
+    "evidence_ref": "docs/plans/evidence/harbour-one-plan-reconciliation-20260905.json",
+    "verification_limit": "One pre-existing hard-coded roadmap-inventory test fails (139 expected, 142 present). Baseline reproduction and successful structural validators are recorded in the evidence."
   },
   "slices": [
     {
@@ -64,77 +144,132 @@
       "depends_on": [],
       "objective": "Make Harbour One the product/control plane, Odysseus the legacy base, and capability-governed isolated workers the temporary coding execution plane.",
       "done_when": "Canonical roadmaps and execution guidance state one consistent boundary and preserve versioned compatibility aliases.",
-      "evidence": ["docs/plans/harbour-one-roadmap-realignment-2026-08-29.md"]
+      "evidence": [
+        "docs/plans/harbour-one-roadmap-realignment-2026-08-29.md"
+      ]
     },
     {
       "id": "H1R-01",
       "name": "Planning Definition v2 foundation",
       "status": "accepted_existing_foundation",
       "class": "repo_evidence",
-      "depends_on": ["H1R-00"],
+      "depends_on": [
+        "H1R-00"
+      ],
       "objective": "Retain the existing validated Planning Definition v2 schema, revision contracts, API, UI and MCP foundations.",
       "done_when": "The foundation remains regression-tested and all new planning work targets it instead of creating another authority.",
-      "evidence": ["docs/plans/planning-definition-v2-contract.md", "docs/plans/planning-definition-editor-roadmap.json", "docs/plans/planning-mcp-roadmap.json"]
+      "evidence": [
+        "docs/plans/planning-definition-v2-contract.md",
+        "docs/plans/planning-definition-editor-roadmap.json",
+        "docs/plans/planning-mcp-roadmap.json"
+      ]
     },
     {
       "id": "H1R-02",
       "name": "Durable canonical Planning writer",
-      "status": "accepted_2026-08-29",
+      "status": "accepted_repo_only_2026-09-05",
       "class": "repo_only",
-      "claimable": true,
-      "depends_on": ["H1R-01"],
+      "claimable": false,
+      "depends_on": [
+        "H1R-01"
+      ],
       "objective": "Unify Planning Definition v2, project storage and revision history behind one authenticated durable writer with save, undo and conflict semantics.",
       "done_when": "A fresh architecture names one store, one writer, migration rules and exact acceptance tests; the default app can persist and read back owner-scoped revisions.",
       "evidence": [
-        "docs/plans/harbour-one-canonical-core-worker-gateway-r4.json",
-        "docs/plans/harbour-one-canonical-core-worker-gateway-r4-freeze-2026-08-29.json"
-      ]
+        "docs/plans/abc-h1r02-default-durable-route-r2-architecture-20260831.json",
+        "docs/plans/handoffs/abc-odysseus-15h-run-20260831.json",
+        "routes/planning_definition_routes.py",
+        "src/planning_revision_store.py",
+        "tests/test_planning_v2_routes.py",
+        "tests/test_planning_revision_store.py",
+        "docs/plans/evidence/abc-h1r02-parent-acceptance-20260905.json"
+      ],
+      "status_note": "Fresh 2026-09-05 parent acceptance binds current raw app/route/store/authority/test bytes to 560 passing tests and independent deep review. The default app composes one browser-admin owner-scoped durable writer with save/readback/undo/conflict behavior; legacy draft writes remain unavailable. Historical r2 baseline pins and the earlier planning reconciliation are preserved. H1R-03 migration, UI, provisioning and live deployment remain separate unverified outcomes."
     },
     {
       "id": "H1R-03",
       "name": "Roadmap migration and Markdown demotion",
-      "status": "accepted_2026-08-29",
+      "status": "accepted_repo_only_2026-10-02",
       "class": "repo_only",
       "claimable": false,
-      "depends_on": ["H1R-02"],
+      "depends_on": [
+        "H1R-02"
+      ],
       "objective": "Inventory current JSON/Markdown planning sources, migrate active project state into canonical Planning, and retain Markdown only as import, export, render and historical evidence.",
       "done_when": "Every active project has a deterministic migration receipt, source classification and round-trip export; runtime inventory no longer treats editable Markdown as competing truth.",
-      "evidence": []
+      "evidence": [
+        "docs/plans/harbour-one-h1r-03-source-role-census-2026-08-29.json",
+        "docs/plans/harbour-one-h1r-03-source-census-freeze-2026-08-29.json",
+        "docs/plans/handoffs/abc-odysseus-15h-run-20260831.json",
+        "docs/plans/handoffs/abc-open-work-5h-run-20260905.json",
+        "src/planning_roadmap_migration.py",
+        "src/planning_revision_store.py",
+        "routes/planning_definition_routes.py",
+        "tests/test_planning_roadmap_migration.py",
+        "tests/test_planning_revision_store.py",
+        "tests/test_planning_v2_routes.py",
+        "src/planning_source_inventory.py",
+        "tests/test_planning_source_inventory.py",
+        "docs/plans/harbour-one-product-roadmap.json",
+        "tests/test_app_planning_migration.py"
+      ],
+      "status_note": "The repository-only H1R-03 parent milestone promotes the predecessor acceptance recorded at docs/plans/handoffs/abc-open-work-5h-run-20260905.json#completion_campaign_20261001.h1r03_repo_parent_acceptance. Its scope is one declared active project (fuzzy/harbour-one) and six frozen primary roadmaps, including migration receipts, source classification, JSON/Markdown round-trip exports, durable heads/revisions, and normal app startup/shutdown/restart. Acceptance of any authority-successor tuple is recorded separately in runstate against its exact nine-path hashes, current tests, and independent review; the predecessor tests do not establish successor acceptance. UI, live deployment, and private-source migration are outside this recorded parent scope; H1R-04 has a separate docs-only classification; the complete Knowledge boundary remains open."
     },
     {
       "id": "H1R-04",
       "name": "Knowledge object and storage boundary",
-      "status": "pending_independent_review_after_currentness_refresh",
-      "class": "needs_design",
+      "status": "accepted_docs_only_2026-10-02",
+      "class": "roadmap_authoring",
       "claimable": false,
-      "depends_on": ["H1R-00"],
+      "depends_on": [
+        "H1R-00"
+      ],
       "objective": "Define one owner-scoped durable knowledge-object model covering provenance, source revisions, links, retention and Planning/Forge references.",
       "done_when": "A reviewed contract reconciles personal memory, RAPTOR/GraphRAG projections, USI documents and imported sources without granting projections write authority.",
       "evidence": [
-        "docs/plans/harbour-one-h1r-04-current-boundary-reconciliation-2026-08-30.json (current docs-only reconciliation; pending independent review after currentness refresh; grants no source-writer authority)",
-        "docs/plans/handoffs/ABC-GO-HARBOUR-ONE-3H-RUN-20260830.json (historical docs-only review evidence only; it does not accept the refreshed reconciliation)"
-      ]
+        "docs/plans/harbour-one-h1r-04-current-boundary-reconciliation-2026-08-30.json",
+        "docs/plans/handoffs/abc-go-h1r04-reconciliation-10h-run-20260905.json",
+        "docs/plans/handoffs/abc-go-open-work-10h-run-20260904.json",
+        "docs/plans/harbour-one-h1r-04-state-census-manifest.json",
+        "docs/plans/handoffs/abc-open-work-5h-run-20260905.json#completion_campaign_20261001.h1r03_h1r04_roadmap_promotion_successor_design.adopted_exact7_contract"
+      ],
+      "status_note": "Accepted on 2026-10-02 for the docs-only product classification and roadmap-authoring boundary. This records no complete Knowledge boundary, private-source migration, UI integration or live activation; H1R-05 remains in progress."
     },
     {
       "id": "H1R-05",
       "name": "Durable knowledge store and active USI",
-      "status": "planned",
+      "status": "accepted_repo_only_2026-10-03",
       "class": "repo_only",
       "claimable": false,
-      "depends_on": ["H1R-04"],
+      "depends_on": [
+        "H1R-04"
+      ],
       "objective": "Replace synthetic or process-local knowledge state with the durable store and activate the Unified Source Index through explicit migration and rollback gates.",
       "done_when": "A fresh reviewed architecture and path claim implement the user-authorized migration with deterministic receipts and rollback. Restart, owner-isolation, provenance, retention and stale-index tests pass against durable storage; projections cannot silently mutate canonical knowledge; existing canonical source bytes and actual private user artifacts are not automatically deleted.",
-      "evidence": []
+      "evidence": [
+        "docs/plans/handoffs/abc-odysseus-15h-run-20260831.json",
+        "docs/plans/handoffs/abc-go-harbour-one-10h-run-20260904.json",
+        "docs/plans/handoffs/abc-go-open-work-10h-run-20260904.json",
+        "src/harbour_knowledge_store.py",
+        "src/harbour_knowledge_staging_destination.py",
+        "src/unified_source_index_sources/knowledge.py",
+        "src/harbour_snapshot_comparison.py"
+      ],
+      "status_note": "Accepted repository-only on 2026-10-03 from the immutable closed-map receipt: the current reviewed parent and the combined Knowledge/MCP machine receipts bind deterministic migration, rollback, restart, owner-isolation, provenance, retention, stale-index and read-only projection evidence. Private-source cutover, UI, live deployment, provider behavior, temporal verification and whole-product acceptance remain outside this result."
     },
     {
       "id": "H1R-06",
       "name": "Forge project/version/provider foundation",
       "status": "accepted_existing_foundation",
       "class": "repo_evidence",
-      "depends_on": ["H1R-00"],
+      "depends_on": [
+        "H1R-00"
+      ],
       "objective": "Retain Forge local project/version/outbox and offline provider foundations.",
       "done_when": "Existing offline and provider tests remain green and all live writes remain separately gated.",
-      "evidence": ["docs/plans/project-versioning-forge-provider-roadmap.md"]
+      "evidence": [
+        "docs/plans/project-versioning-forge-provider-roadmap.md"
+      ]
     },
     {
       "id": "H1R-07",
@@ -142,7 +277,11 @@
       "status": "planned",
       "class": "repo_only",
       "claimable": false,
-      "depends_on": ["H1R-02", "H1R-05", "H1R-06"],
+      "depends_on": [
+        "H1R-02",
+        "H1R-05",
+        "H1R-06"
+      ],
       "objective": "Assemble revision-bound project, plan, knowledge and exact-code context for humans and external coding executors.",
       "done_when": "Context packs are owner-scoped, provenance-bound, reproducible and reject stale plan/code revisions; code and Planning documents have no general size limit; a private-tagged item requires a user chat confirmation before disclosure; no context pack becomes authority.",
       "evidence": []
@@ -152,10 +291,15 @@
       "name": "Inbox document workbench foundation",
       "status": "accepted_existing_foundation",
       "class": "repo_evidence",
-      "depends_on": ["H1R-00"],
+      "depends_on": [
+        "H1R-00"
+      ],
       "objective": "Retain owner-scoped document browsing, preview, snapshots, working copies and dry-run routing foundations.",
       "done_when": "The current foundation remains covered while product status text is reconciled with the implementation.",
-      "evidence": ["docs/plans/universal-inbox-abc-roadmap.md"]
+      "evidence": [
+        "docs/plans/universal-inbox-abc-roadmap.md"
+      ],
+      "status_note": "The document workbench foundation is present and the canonical Open Work queue excludes accepted UIX-ABC13 through UIX-ABC24. This is not acceptance of the cross-domain typed Inbox in H1R-09 or evidence of a current live/private-source deployment."
     },
     {
       "id": "H1R-09",
@@ -163,7 +307,11 @@
       "status": "planned_needs_architecture",
       "class": "needs_design",
       "claimable": false,
-      "depends_on": ["H1R-02", "H1R-05", "H1R-08"],
+      "depends_on": [
+        "H1R-02",
+        "H1R-05",
+        "H1R-08"
+      ],
       "objective": "Unify documents, planning decisions, reviews, blockers and external source signals in one typed Inbox without merging their authorities.",
       "done_when": "One read model presents source, owner, required action, due state, authority and receipt links; mutations route to the owning subsystem and are idempotent.",
       "evidence": []
@@ -173,10 +321,14 @@
       "name": "Nextcloud offline source foundation",
       "status": "accepted_existing_foundation",
       "class": "repo_evidence",
-      "depends_on": ["H1R-00"],
+      "depends_on": [
+        "H1R-00"
+      ],
       "objective": "Retain redacted offline planning, dry-run and guarded WebDAV/transfer contracts.",
       "done_when": "Offline fixtures and no-live-write defaults remain green.",
-      "evidence": ["docs/plans/nextcloud-import-preparation-roadmap.md"]
+      "evidence": [
+        "docs/plans/nextcloud-import-preparation-roadmap.md"
+      ]
     },
     {
       "id": "H1R-11",
@@ -184,7 +336,11 @@
       "status": "planned_needs_live_go",
       "class": "repo_only_then_live_gate",
       "claimable": false,
-      "depends_on": ["H1R-05", "H1R-09", "H1R-10"],
+      "depends_on": [
+        "H1R-05",
+        "H1R-09",
+        "H1R-10"
+      ],
       "objective": "Implement deterministic extraction, dedupe and durable knowledge writes offline, then run one bounded read-only or reversible pilot after explicit approval.",
       "done_when": "Fixtures prove idempotency, provenance, owner isolation and rollback; a separately authorized pilot has redacted readback evidence.",
       "evidence": []
@@ -195,18 +351,24 @@
       "status": "planned_needs_architecture",
       "class": "needs_design",
       "claimable": false,
-      "depends_on": ["H1R-02", "H1R-07", "H1R-09"],
+      "depends_on": [
+        "H1R-02",
+        "H1R-07",
+        "H1R-09"
+      ],
       "objective": "Define a capability-based Worker Gateway: job manifest, worker registry, capability registry/policy resolver, short-lived lease, typed lifecycle and result receipts while Planning remains authority.",
       "done_when": "The contract fixes project/plan/worktree/capability/budget bindings, brokered tool policy, identity, revision binding, idempotency, pause/cancel races, structured receipts and fail-closed no-send defaults. Internet is default-deny and each requested access is chat-visible with reason, destination/operation, data classification, expected effect and reversibility before user confirmation. Worker loops and sandboxes remain temporary isolated executor components, never Harbour truth.",
       "evidence": []
     },
     {
       "id": "H1R-13",
-      "name": "Codex executor adapter",
+      "name": "Goose executor adapter and DeepSeek Harness comparison",
       "status": "planned",
       "class": "repo_only_then_live_gate",
       "claimable": false,
-      "depends_on": ["H1R-12"],
+      "depends_on": [
+        "H1R-12"
+      ],
       "objective": "Implement the first Goose adapter and run the same fake-worker acceptance suite against a DeepSeek Harness developer-preview spike; keep Codex, OpenHands and OpenCode as registry candidates.",
       "done_when": "Fake-worker tests prove context in, policy-limited tools, reconnect-safe status, timeout/cancel, Diff/Test/Log/Review receipts and no access beyond the worktree. No external dispatch occurs without its own activation gate.",
       "evidence": []
@@ -217,7 +379,13 @@
       "status": "planned_needs_design",
       "class": "needs_design_then_repo_only",
       "claimable": false,
-      "depends_on": ["H1R-03", "H1R-07", "H1R-09", "H1R-11", "H1R-13"],
+      "depends_on": [
+        "H1R-03",
+        "H1R-07",
+        "H1R-09",
+        "H1R-11",
+        "H1R-13"
+      ],
       "objective": "Converge Planning, Knowledge, Forge, Inbox, Nextcloud and executor evidence into the Harbour One product surface.",
       "done_when": "User-approved navigation and workflows use live owner-scoped read models, show freshness and authority, and contain no demo-data shadow truth.",
       "evidence": []
@@ -228,7 +396,10 @@
       "status": "planned",
       "class": "repo_only",
       "claimable": false,
-      "depends_on": ["H1R-13", "H1R-14"],
+      "depends_on": [
+        "H1R-13",
+        "H1R-14"
+      ],
       "objective": "Reframe legacy runtime and sandbox paths into an isolated Worker Gateway lane while retaining reusable policy, receipt and compatibility contracts.",
       "done_when": "Every 10–15 hour worker run uses a fresh temporary Git worktree and integrates only a reviewed, path-scoped commit/cherry-pick. Every worker runs outside Harbour/DB/host pods in a rootless disposable environment with read-only system, no privileged/container-socket/host namespace access, default-deny network, bounded resources and no long-lived secrets. Lease/token authority is explicitly documented as complementary to—not a substitute for—isolation and prompt-injection defenses.",
       "evidence": []
@@ -239,7 +410,16 @@
       "status": "planned",
       "class": "repo_only_then_user_release_gate",
       "claimable": false,
-      "depends_on": ["H1R-03", "H1R-05", "H1R-07", "H1R-09", "H1R-11", "H1R-13", "H1R-14", "H1R-15"],
+      "depends_on": [
+        "H1R-03",
+        "H1R-05",
+        "H1R-07",
+        "H1R-09",
+        "H1R-11",
+        "H1R-13",
+        "H1R-14",
+        "H1R-15"
+      ],
       "objective": "Verify a local golden flow from captured intent through Planning, knowledge/Forge context, Inbox decision and external executor evidence; keep deployment separate.",
       "done_when": "Automated local evidence is green, independent review passes, user-visible acceptance is recorded and deployment remains an explicit separate decision.",
       "evidence": []
@@ -249,29 +429,54 @@
     "master_priority_policy": "docs/plans/open-work-completion-master-roadmap.json $.execution_priority_policy",
     "master_priority_rank": 9,
     "selection_rule": "Harbour One is selected only after higher-ranked Open Work items are accepted, deferred or recorded blocked. Within Harbour, preserve accepted slices and select the first still-open dependency-ready H1R item; this ordering never grants a live or external-action Go.",
-    "architecture_packet": ["H1R-02", "H1R-04", "H1R-09", "H1R-12"],
-    "implementation_order": ["H1R-02", "H1R-04", "H1R-03", "H1R-05", "H1R-09", "H1R-07", "H1R-12", "H1R-13", "H1R-11", "H1R-14", "H1R-15", "H1R-16"],
+    "architecture_packet": [
+      "H1R-02",
+      "H1R-04",
+      "H1R-09",
+      "H1R-12"
+    ],
+    "implementation_order": [
+      "H1R-02",
+      "H1R-04",
+      "H1R-03",
+      "H1R-05",
+      "H1R-09",
+      "H1R-07",
+      "H1R-12",
+      "H1R-13",
+      "H1R-11",
+      "H1R-14",
+      "H1R-15",
+      "H1R-16"
+    ],
     "rule": "Freeze and independently review exact architecture and path claims before implementation. Do not infer live authority from dependency readiness."
   },
   "gate_queue": [
     {
       "id": "harbour-one-product-ux-go",
       "class": "needs_design",
-      "blocks": ["H1R-14", "H1R-16"],
+      "blocks": [
+        "H1R-14",
+        "H1R-16"
+      ],
       "owner": "user",
       "safe_default": "keep_current_ui_and_fixture_only"
     },
     {
       "id": "external-coding-executor-activation-go",
       "class": "needs_live_go",
-      "blocks": ["H1R-13"],
+      "blocks": [
+        "H1R-13"
+      ],
       "owner": "user",
       "safe_default": "fake_adapter_only"
     },
     {
       "id": "nextcloud-pilot-go",
       "class": "needs_live_go",
-      "blocks": ["H1R-11"],
+      "blocks": [
+        "H1R-11"
+      ],
       "owner": "user",
       "safe_default": "offline_fixtures_only"
     },
@@ -279,7 +484,9 @@
       "id": "deploy-live-go",
       "class": "external_release_gate",
       "blocks": [],
-      "after": ["H1R-16"],
+      "after": [
+        "H1R-16"
+      ],
       "owner": "user",
       "safe_default": "repo_local_only",
       "note": "Deployment is outside the 17-slice product-realization denominator and never blocks local golden-flow acceptance."
@@ -297,5 +504,54 @@
     "docs/plans/autonomous-coding-agent-sandbox-execution-roadmap.json",
     "docs/plans/autonomous-coding-production-readiness-roadmap.json",
     "docs/plans/coding-agent-orchestration-consolidation-roadmap.md"
+  ],
+  "planning_reconciliation": {
+    "date": "2026-10-03",
+    "scope": "Record the accepted H1R-05 repository-only parent result against the immutable v4 closed authority map. Private migration, UI, live activation, provider behavior, temporal verification and whole-product acceptance remain outside this acceptance.",
+    "evidence_ref": "docs/plans/evidence/harbour-one-h1r05-repo-acceptance-20261003.receipt",
+    "parent_status_corrections": {
+      "H1R-04": {
+        "previous": "pending_independent_review_after_currentness_refresh",
+        "current": "accepted_docs_only_2026-10-02",
+        "reason": "Accept only the roadmap classification and authoring boundary; the full Knowledge parent remains unproven."
+      },
+      "H1R-05": {
+        "previous": "in_progress",
+        "current": "accepted_repo_only_2026-10-03",
+        "reason": "Accept only the reviewed repository-local H1R-05 parent result bound by the immutable v4 map and terminal machine receipts."
+      }
+    },
+    "status_rules": [
+      "Treat H1R-04 docs-only classification as a bounded product-authoring result, not full parent completion.",
+      "Preserve H1R-03 predecessor evidence and immutable v1/v2/v3 migration identities when promoting the current map.",
+      "Keep private-source migration, UI, live deployment, provider behavior, temporal verification and whole-product acceptance outside this acceptance."
+    ],
+    "remaining_verification": [
+      "Full H1R-04 Knowledge boundary and independent parent review.",
+      "Private-source migration and live activation.",
+      "UI, provider behavior, temporal verification and whole-product acceptance."
+    ]
+  },
+  "planning_reconciliation_history": [
+    {
+      "date": "2026-09-05",
+      "evidence_ref": "docs/plans/evidence/harbour-one-plan-reconciliation-20260905.json",
+      "note": "Preserved the original planning reconciliation and its then-current H1R-03 status correction."
+    },
+    {
+      "date": "2026-10-02",
+      "evidence_ref": "docs/plans/handoffs/abc-open-work-5h-run-20260905.json#completion_campaign_20261001.h1r03_authority_successor_ninepath_contract",
+      "note": "Preserved the accepted H1R-03 predecessor milestone while recording the exact nine-path authority-successor candidate. Successor acceptance remains separate and requires current tests and fresh independent review in runstate. H1R-04 remains pending."
+    },
+    {
+      "date": "2026-10-02",
+      "evidence_ref": "docs/plans/handoffs/abc-open-work-5h-run-20260905.json#completion_campaign_20261001.h1r03_h1r04_roadmap_promotion_successor_design.adopted_exact7_contract",
+      "note": "Accepted the docs-only H1R-04 product classification and roadmap-authoring boundary. Full Knowledge boundary and H1R-05 integration remain open; earlier dated reconciliation entries are preserved."
+    },
+    {
+      "date": "2026-10-03",
+      "evidence_ref": "docs/plans/evidence/harbour-one-h1r05-repo-acceptance-20261003.receipt",
+      "note": "Accepted the repository-only H1R-05 parent result through the immutable v4 authority map. Private cutover, UI, provider, live, temporal and whole-product verification remain open."
+    }
   ]
 }

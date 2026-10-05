@@ -4,8 +4,105 @@
   "parent_plan_id": "orca-memory-live-activation",
   "title": "Private Data And Planning Memory Ingestion Roadmap",
   "created_at": "2026-06-21",
-  "updated_at": "2026-06-22",
-  "status": "draft_canonical",
+  "updated_at": "2026-08-11T12:19:00+02:00",
+  "status": "current_foundations_accepted_execution_and_live_gates_unaccepted",
+  "current_normalization": {
+    "normalization_id": "PDM-NORM-01",
+    "source_blob": "0e1ffc776e7243189e0c9e342b105a8d0bd5725b",
+    "authority_snapshot": {
+      "round7_blob": "967c7df4a2c26312c88f06d131515a2ff3915836",
+      "open_work_blob": "82b6c75831b522c06d57131fffb508157a8690b5",
+      "guidance_blob": "b2248b804801a9b8e9e45bb11cb854c2090b5ecb"
+    },
+    "alias_policy": "explicit_current_authority_only",
+    "source_disposition": "mixed_current_status_normalized",
+    "included_current_unit_ids": [
+      "planning-sources-memory-inventory",
+      "planning-sources-memory-ingest-live",
+      "bigdata-ledger-contract",
+      "nextcloud-transfer-readiness",
+      "resumable-transfer-tooling",
+      "resumable-scanner-dry-run",
+      "live-small-batch-transfer",
+      "chunked-extraction-lanes",
+      "memory-abstraction-ingest-live",
+      "full-transfer-live",
+      "full-corpus-analysis-live",
+      "ingestion-dashboard-live"
+    ],
+    "accepted_current_unit_ids": [
+      "planning-sources-memory-inventory",
+      "bigdata-ledger-contract"
+    ],
+    "historical_completion_pending_current_acceptance": [
+      "planning-sources-memory-ingest-live"
+    ],
+    "repo_or_design_units": [
+      "nextcloud-transfer-readiness",
+      "resumable-transfer-tooling",
+      "resumable-scanner-dry-run",
+      "chunked-extraction-lanes"
+    ],
+    "live_or_ui_gate_units": [
+      "live-small-batch-transfer",
+      "memory-abstraction-ingest-live",
+      "full-transfer-live",
+      "full-corpus-analysis-live",
+      "ingestion-dashboard-live"
+    ],
+    "current_gate_projection": {
+      "source_level_only_not_node_aliases": true,
+      "needs_design": ["UIX-SAFE-AREA-RULES"],
+      "needs_live_go": [
+        "UIX-NEXTCLOUD-LIVE-WRITE",
+        "UIX-MEMORY-WRITE-GO",
+        "nextcloud-local-only-extraction-go",
+        "nextcloud-memory-raptor-write-go"
+      ]
+    },
+    "not_verified": [
+      "current private-source target and disk scope",
+      "approved local-only subset or safe-area policy",
+      "checkpoint-store applicability to the 100GB scope",
+      "any private-content extraction, transfer, Memory or RaptorGraph write, full-corpus run or dashboard live evidence"
+    ],
+    "invariants": [
+      "June completion prose is historical evidence and does not populate the current accepted set.",
+      "All twelve exact graph-node IDs remain distinct until explicit alias or supersession evidence exists.",
+      "No private data, host, network, provider, transfer, extraction or write authority is granted."
+    ],
+    "current_acceptance": {
+      "acceptance_id": "PDM-ACCEPT-01-current-repo-contract-reconciliation",
+      "accepted_at": "2026-08-11T12:19:00+02:00",
+      "authority_revision": 187,
+      "accepted_unit_ids": [
+        "planning-sources-memory-inventory",
+        "bigdata-ledger-contract"
+      ],
+      "candidate_blobs": {
+        "src/mvp_private_data_ingestion_closure.py": "505694c39ab55f0c858030c1449a0e71a307392a",
+        "tests/test_mvp_private_data_ingestion_closure.py": "3437d4205ea074a4da061b080ae267adab75efac"
+      },
+      "verification": {
+        "exact_nodes": "6_passed",
+        "focused": "7_passed",
+        "dependency": "37_passed",
+        "pycompile": "passed",
+        "integration_spine": "passed",
+        "round6": "passed",
+        "guidance": "passed",
+        "independent_qa": "passed",
+        "deep_sol": "passed"
+      },
+      "correction": "1_of_1_used_no_recurrence",
+      "not_verified": [
+        "planning-sources-memory-ingest-live current live acceptance",
+        "private data, provider, network, host or live actions",
+        "UI or temporal evidence",
+        "stage, commit, push or deploy"
+      ]
+    }
+  },
   "format_decision": {
     "source_of_truth": "json",
     "markdown_role": "rendered_view_only",
@@ -753,7 +850,261 @@
       "Exactly one live-impacting action runs at a time.",
       "After each live-installed feature, update this roadmap evidence before selecting the next claimable node."
     ],
-    "handoff_card_required": true
+    "handoff_card_required": true,
+    "active_claim": {
+      "claim_id": "ABC-PDM-ACCEPT-01-REV184",
+      "authority_revision": 187,
+      "slice_id": "PDM-ACCEPT-01-current-repo-contract-reconciliation",
+      "owner": "Bob/Terra PDM closure reconciliation writer",
+      "thread_id": "/root/pdm_accept_writer",
+      "status": "released_accepted",
+      "claimed_at": "2026-08-11T11:53:00+02:00",
+      "lease_expires_at": "2026-08-11T23:53:00+02:00",
+      "mutation_authority": "repo_only",
+      "allowed_paths": [
+        "src/mvp_private_data_ingestion_closure.py",
+        "tests/test_mvp_private_data_ingestion_closure.py"
+      ],
+      "root_integration_paths": [
+        "specs/roadmaps/private-data-memory-ingestion-roadmap.v1.json"
+      ],
+      "baseline_blobs": {
+        "src/mvp_private_data_ingestion_closure.py": "fe4c99da339ed92674f9373aeb7166799cc72628",
+        "tests/test_mvp_private_data_ingestion_closure.py": "05f09da3284314eb6c58c14539d5e9dc6df0f4c7"
+      },
+      "baseline_readback": "materialized_exact_binary_readback_pass",
+      "read_only_pins": {
+        "src/planning_source_inventory.py": "aa129aa9a27b65bdc04c6c607ccedae2e246a77d",
+        "tests/test_planning_source_inventory.py": "f1e9ba33208c5cfd4ea750f906d5ce51b4ef72dd",
+        "src/planning_source_memory.py": "9a6bdb345c089927e8a811145aea12aab8cef8b7",
+        "tests/test_planning_source_memory.py": "31139c63b3dd24ba76f8ce0517deb850f5347f92",
+        "src/bigdata_ledger_contract.py": "d10ef3fc7b1ded0d0a8b577188a280f5e730d47b",
+        "tests/test_bigdata_ledger_contract.py": "917169648d1d372c5c418218aa63b445a52a950f"
+      },
+      "architecture": {
+        "architect": "root/Sol",
+        "architecture_revision": "PDM-ACCEPT-01-CURRENT-CLOSURE-PROJECTION-SOL-ARCH-v2",
+        "failure_class": "pdm_current_closure_projection_and_foundation_acceptance",
+        "correction_limit": 1,
+        "correction_used": 1,
+        "stop_rule": "On a same-class recurrence after one bounded correction, release the claim blocked and reflect to a disjoint dependency-ready route without expanding this writer scope.",
+        "contract": [
+          "Preserve the existing public classes and the build_private_data_ingestion_report parameter names, order and keyword-only shape; change its default values where required to make the no-argument projection truthful.",
+          "The default report marks only planning-sources-memory-inventory and bigdata-ledger-contract as go; every other current canonical PDM unit remains incomplete.",
+          "Use the exact twelve hyphenated current graph-node IDs from this roadmap; do not retain historical underscore aliases as report authority.",
+          "A gate is complete only when status is exactly go; deferred required work is incomplete.",
+          "The default report is 17 percent complete and recommends the first backend-safe repo_open unit before any live gate.",
+          "An explicit all-go invocation remains able to reach 100 percent without weakening validation.",
+          "Every public go and deferred control accepts only an exact built-in bool before any truthiness or user-defined callback can execute; every rejection is a fixed content-free ValueError raised from None.",
+          "The projection performs no file, environment, provider, private-data, network, subprocess, host, memory-write or live action."
+        ],
+        "forbidden": [
+          "third writer path or edit to this roadmap by the worker",
+          "private-data reads, Nextcloud access, transfer, extraction, provider or memory writes",
+          "network, host, live, stage, commit, push or deploy actions",
+          "accepting either foundation unit before candidate review and verification"
+        ]
+      },
+      "tests_first": {
+        "workspace": {
+          "claim_root": ".abc-test-tmp/ABC-PDM-ACCEPT-01-REV184",
+          "focused_basetemp": ".abc-test-tmp/ABC-PDM-ACCEPT-01-REV184/focused",
+          "dependency_basetemp": ".abc-test-tmp/ABC-PDM-ACCEPT-01-REV184/dependency",
+          "rule": "Create only these contained descendants after exact path-containment and collision checks; run test sessions serially; remove only after all owned test processes exit."
+        },
+        "collision_assertion": "The active or completed TWP-01 write_paths remain disjoint from both PDM writer paths and the claim-scoped test workspace.",
+        "required_nodes": [
+          "tests/test_mvp_private_data_ingestion_closure.py::test_default_private_data_ingestion_progress_matches_current_canonical_foundations",
+          "tests/test_mvp_private_data_ingestion_closure.py::test_deferred_required_units_remain_incomplete",
+          "tests/test_mvp_private_data_ingestion_closure.py::test_backend_safe_repo_work_is_recommended_before_live_gates",
+          "tests/test_mvp_private_data_ingestion_closure.py::test_private_data_ingestion_reaches_100_when_all_gates_are_go",
+          "tests/test_mvp_private_data_ingestion_closure.py::test_private_data_ingestion_gate_validation_rejects_unknown_values",
+          "tests/test_mvp_private_data_ingestion_closure.py::test_private_data_ingestion_bool_inputs_are_exact_and_content_free"
+        ],
+        "focused": "full tests/test_mvp_private_data_ingestion_closure.py",
+        "dependency": [
+          "tests/test_planning_source_inventory.py",
+          "tests/test_planning_source_memory.py",
+          "tests/test_bigdata_ledger_contract.py",
+          "tests/test_plan_runtime.py",
+          "tests/test_roadmap_lens.py"
+        ],
+        "central": [
+          "integration spine validator",
+          "Round6 validator",
+          "Guidance validator"
+        ]
+      },
+      "rejected_candidate": {
+        "authority_blob": "bf2704f6b2fa7bd7cd5a7601969a047702d62025",
+        "candidate_blobs": {
+          "src/mvp_private_data_ingestion_closure.py": "9ee71eb0eefd38537e249fe744eff9bfdec424a1",
+          "tests/test_mvp_private_data_ingestion_closure.py": "4ad901c36c648136309916ed4bd417d736c4db56"
+        },
+        "finding": "Non-bool truthy controls could manufacture go status and raw hostile __bool__ BaseException behavior crossed the public boundary.",
+        "candidate_set_digest_sha256": "sha256:05341046cfabce4ee90c8f61a5bc45d7271dc33b0726780caad3d8d93b528636",
+        "candidate_dirty_diff_digest_sha256": "sha256:83a347d67532b36c29fadfea5f33fbed4ab0a5db0b88213870d98e78cd12bf09",
+        "candidate_pytest_node_digest_sha256": "sha256:90c5d3a26fb32cf196bbe5ec76503219890b6ccc559688f6f83463eaed354065"
+      },
+      "corrected_pre_freeze_authority_blob": "b5fdb2554caeecf18682b095ae0dd877fd70b641",
+      "candidate_state": "frozen_for_independent_qa",
+      "candidate_frozen_at": "2026-08-11T12:13:00+02:00",
+      "candidate_blobs": {
+        "src/mvp_private_data_ingestion_closure.py": "505694c39ab55f0c858030c1449a0e71a307392a",
+        "tests/test_mvp_private_data_ingestion_closure.py": "3437d4205ea074a4da061b080ae267adab75efac"
+      },
+      "candidate_set_digest_sha256": "sha256:c55b6a9b1c10b3f2133df429bfd6b1e9301752b7b34fa2d5d791be5a9399c7c4",
+      "candidate_dirty_diff_digest_sha256": "sha256:6a5f376c9892405c14e0b1edfddbb25d599aa2795bffca553cc48923f366828a",
+      "candidate_command_manifest_digest_sha256": "sha256:f40b4f92bdaa38b1b6e9e8777bc41aaffc82ceed5999600bb5633593e8501177",
+      "candidate_command_manifest": [
+        "venv\\Scripts\\python.exe -B -m pytest -q -p no:cacheprovider tests/test_mvp_private_data_ingestion_closure.py --basetemp .abc-test-tmp/ABC-PDM-ACCEPT-01-REV184/focused",
+        "venv\\Scripts\\python.exe -B -m pytest -q -p no:cacheprovider tests/test_planning_source_inventory.py tests/test_planning_source_memory.py tests/test_bigdata_ledger_contract.py tests/test_plan_runtime.py tests/test_roadmap_lens.py --basetemp .abc-test-tmp/ABC-PDM-ACCEPT-01-REV184/dependency",
+        "venv\\Scripts\\python.exe -B -m py_compile src/mvp_private_data_ingestion_closure.py tests/test_mvp_private_data_ingestion_closure.py",
+        "venv\\Scripts\\python.exe -B scripts/validate_integration_spine_convergence.py --format json",
+        "venv\\Scripts\\python.exe -B scripts/validate_parallel_roadmap_execution.py --format json",
+        "venv\\Scripts\\python.exe -B scripts/roadmap_multi_agent_guidance.py --format json"
+      ],
+      "candidate_dirty_diff_serialization": {
+        "argv": [
+          "git",
+          "diff",
+          "--binary",
+          "--no-ext-diff",
+          "--",
+          "src/mvp_private_data_ingestion_closure.py",
+          "tests/test_mvp_private_data_ingestion_closure.py"
+        ],
+        "digest_input": "exact_stdout_bytes",
+        "byte_length": 14854
+      },
+      "candidate_pytest_node_digest_sha256": "sha256:a8285d065bf2f83c4d5292b2d5fba7b9ffb432562ed4af84b0bfccb1aa0dd371",
+      "candidate_pytest_node_ids": [
+        "tests/test_mvp_private_data_ingestion_closure.py::test_backend_safe_repo_work_is_recommended_before_live_gates",
+        "tests/test_mvp_private_data_ingestion_closure.py::test_default_private_data_ingestion_progress_matches_current_canonical_foundations",
+        "tests/test_mvp_private_data_ingestion_closure.py::test_deferred_required_units_remain_incomplete",
+        "tests/test_mvp_private_data_ingestion_closure.py::test_private_data_ingestion_bool_inputs_are_exact_and_content_free",
+        "tests/test_mvp_private_data_ingestion_closure.py::test_private_data_ingestion_gate_validation_rejects_unknown_values",
+        "tests/test_mvp_private_data_ingestion_closure.py::test_private_data_ingestion_reaches_100_when_all_gates_are_go"
+      ],
+      "released_at": "2026-08-11T12:19:00+02:00",
+      "release_outcome": "accepted_current_foundation_contracts",
+      "next_action": "Reflect to one disjoint repo-only predecessor; planning-sources-memory-ingest-live remains a live gate and resumable scanner remains architecture-blocked by bounded ledger/cursor semantics.",
+      "handoff_id": "PDM_ACCEPT_01_CURRENT_REPO_CONTRACT_RECONCILIATION_V1"
+    },
+    "released_claims": [
+      {
+        "claim_id": "ABC-PDM-MEM-01-REV188",
+        "slice_id": "PDM-MEM-01-current-planning-source-authority-precedence",
+        "owner": "Bob/Terra current planning source authority writer",
+        "thread_id": "/root/pdm_memory_writer",
+        "status": "released_blocked",
+        "claimed_at": "2026-08-11T12:32:00+02:00",
+        "lease_expires_at": "2026-08-12T00:32:00+02:00",
+        "authority_revision": 190,
+        "authority_rebind_reason": "Post-registration TRS-01A packet completion changed only the disjoint Root-owned Open Work authority; PDM writer baselines and architecture are unchanged.",
+        "mutation_authority": "repo_only",
+        "allowed_paths": [
+          "src/planning_source_inventory.py",
+          "src/planning_source_memory.py",
+          "tests/test_planning_source_inventory.py",
+          "tests/test_planning_source_memory.py"
+        ],
+        "baseline_blobs": {
+          "src/planning_source_inventory.py": "aa129aa9a27b65bdc04c6c607ccedae2e246a77d",
+          "src/planning_source_memory.py": "9a6bdb345c089927e8a811145aea12aab8cef8b7",
+          "tests/test_planning_source_inventory.py": "f1e9ba33208c5cfd4ea750f906d5ce51b4ef72dd",
+          "tests/test_planning_source_memory.py": "31139c63b3dd24ba76f8ce0517deb850f5347f92"
+        },
+        "baseline_readback": "materialized_exact_binary_readback_pass",
+        "preclaim_authority": {
+          "accepted_pdm_spec_blob": "f5de41c312e2baefbd1c0bfc8742f7bf71f4bf8a",
+          "open_work_blob": "bcdf2684b49958bd58e62d533cb13fb9e556e6ea",
+          "round7_blob": "d196d4c121b895fd574f599627bb1e650aeca9e9",
+          "hash_identity": "git_hash_object_no_filters"
+        },
+        "read_only_pins": {
+          "src/mvp_private_data_ingestion_closure.py": "505694c39ab55f0c858030c1449a0e71a307392a",
+          "tests/test_mvp_private_data_ingestion_closure.py": "3437d4205ea074a4da061b080ae267adab75efac",
+          "src/bigdata_ledger_contract.py": "d10ef3fc7b1ded0d0a8b577188a280f5e730d47b",
+          "tests/test_bigdata_ledger_contract.py": "917169648d1d372c5c418218aa63b445a52a950f",
+          "routes/roadmap_routes.py": "cf6a84a6d9616a96669905035e198991ba2e9b16",
+          "tests/test_roadmap_routes.py": "ec372368b210f1b1f44f5305f6e86356e6346b81",
+          "src/memory.py": "c27ed54ad3b1d2048c5215ba5df549052a091b4d",
+          "src/runtime_event_envelope.py": "8e2ebdef17b62670f60d83b1051d2e6c70a150c2",
+          "docs/plans/open-work-completion-master-roadmap.json": "9d8ecad60b9359238441b5b7190595659d3ac686",
+          "docs/plans/parallel-roadmap-execution-round7.json": "38cba8340bc0cb5bbf3f6b5f7c64019e3043f460",
+          "docs/plans/multi-agent-execution-guidance.json": "4bddbb2bb36a3391469f6f61cc1ac53dfe1a90bf"
+        },
+        "architecture": {
+          "architect": "root/Sol",
+          "architecture_revision": "PDM-MEM-01-SOL-ARCH-v1",
+          "route": "judgment_required_gpt-5.6-terra_high",
+          "failure_class": "pdm_planning_source_superseded_authority_promotion_and_precedence_override",
+          "correction_limit": 1,
+          "correction_used": 1,
+          "contract": [
+            "Preserve public signatures, existing keys and route behavior; add only authority_disposition to inventory and capsule projections.",
+            "Only exact top-level roadmap authority fields determine current_source_of_truth, supporting_plan_source, superseded_plan_source or invalid_plan_source; never infer from path, nested nodes, filename ordering, mtime or preview text.",
+            "Explicit superseded, historical, archived, deprecated, retired or obsolete status, or a valid nonempty superseded_by, produces superseded_plan_source; malformed authority JSON or malformed present authority fields produces invalid_plan_source.",
+            "Statusless legacy roadmap JSON remains current-compatible; non-roadmap sources remain supporting.",
+            "Superseded and invalid sources have rank zero and cannot enter accepted context even when accepted=true, rank is hostile, ordering favors them or limit is one.",
+            "Existing promoted memory entries reclassify in place on the next repo-only ingest without duplicate or delete-recreate behavior; dry-run remains non-writing.",
+            "The planning-sources-memory-ingest-live unit remains unaccepted and no provider, vector, private-data, network, host or live authority is granted."
+          ],
+          "forbidden": [
+            "fifth writer path or worker edit to route, PDM spec, closure, routers or dependencies",
+            "live acceptance, MemoryManager/provider/vector/private-data/network/host actions",
+            "raw bodies, private paths, secret values or raw exception content",
+            "stage, commit, push or deploy"
+          ],
+          "stop_rule": "One bounded correction only. Any same-class recurrence, fifth path, live-authority widening or representation change releases blocked and requires fresh Root/Sol architecture."
+        },
+        "tests_first": {
+          "workspace": {
+            "writer_focused": ".abc-test-tmp/ABC-PDM-MEM-01-REV188/writer-focused",
+            "writer_dependency": ".abc-test-tmp/ABC-PDM-MEM-01-REV188/writer-dependency",
+            "qa_focused": ".abc-test-tmp/ABC-PDM-MEM-01-REV188/qa-focused",
+            "qa_dependency": ".abc-test-tmp/ABC-PDM-MEM-01-REV188/qa-dependency"
+          },
+          "required_nodes": [
+            "tests/test_planning_source_inventory.py::test_superseded_roadmap_json_is_not_current_authority",
+            "tests/test_planning_source_inventory.py::test_invalid_duplicate_key_and_non_object_roadmaps_fail_closed_for_authority",
+            "tests/test_planning_source_inventory.py::test_only_top_level_supersession_markers_control_authority",
+            "tests/test_planning_source_memory.py::test_superseded_json_cannot_win_current_authority_precedence",
+            "tests/test_planning_source_memory.py::test_explicit_superseded_status_dominates_accepted_flag_and_rank",
+            "tests/test_planning_source_memory.py::test_ingest_reclassifies_previously_promoted_superseded_memory_in_place",
+            "tests/test_planning_source_memory.py::test_current_and_statusless_legacy_json_keep_compatible_current_precedence"
+          ],
+          "focused": "full inventory and memory test files",
+          "dependency": [
+            "tests/test_roadmap_routes.py",
+            "tests/test_mvp_private_data_ingestion_closure.py",
+            "tests/test_bigdata_ledger_contract.py",
+            "tests/test_plan_runtime.py",
+            "tests/test_roadmap_lens.py"
+          ],
+          "central": [
+            "integration spine validator",
+            "Round6 validator",
+            "Guidance validator"
+          ]
+        },
+        "candidate_state": "rejected_unfrozen",
+        "candidate_blobs": {
+          "src/planning_source_inventory.py": "03ffa065c970d32b94e70ed26752c1639229ab82",
+          "src/planning_source_memory.py": "e192f1db37ea2439f6e73722b0367f84db2e8e72",
+          "tests/test_planning_source_inventory.py": "6edc29800598e314f6fc63649bca552a4958efec",
+          "tests/test_planning_source_memory.py": "0190d12502aa54003787d8b6edc311545e0872e6"
+        },
+        "candidate_dirty_diff_digest_sha256": "sha256:c76700ad2660d0e47193601478a2cb65d98de8c4",
+        "release_finding": "After the single bounded correction, exact top-level and nested non-finite JSON still survive parsing and classify as current_source_of_truth; independent confirmation reproduced the same authority-boundary failure on the intact unfrozen candidate.",
+        "released_at": "2026-08-11T13:03:00+02:00",
+        "release_outcome": "released_blocked_same_class_recurrence",
+        "next_action": "Fresh Root/Sol architecture is required before any new PDM-MEM writer claim; continue a disjoint dependency-ready repository route.",
+        "live_actions": false,
+        "handoff_id": "PDM_MEM_01_CURRENT_AUTHORITY_PRECEDENCE_V1"
+      }
+    ]
   },
   "live_install_contract": {
     "per_feature_sequence": [

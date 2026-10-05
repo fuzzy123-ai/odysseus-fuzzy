@@ -4,6 +4,21 @@
 # "exec /usr/local/bin/entrypoint.sh: no such file or directory" (issues #150, #77).
 * text=auto
 
+# Planning migration authority binds these artifacts to exact raw bytes.
+# Checkout and archive conversion must preserve their pinned Git identities.
+docs/plans/harbour-one-product-roadmap.json -text
+docs/plans/harbour-one-h1r-04-current-boundary-reconciliation-2026-08-30.json -text
+docs/plans/evidence/harbour-one-h1r05-repo-acceptance-20261003.receipt -text
+
+# Frozen roadmap SHA-256 variants and supporting evidence also bind raw bytes.
+specs/roadmaps/abc-roadmap-continuation-runtime.v1.json -text
+specs/roadmaps/abc-roadmap-reconciliation-import.v1.json -text
+specs/roadmaps/odysseus-multiagent-roadmap.v1.json -text
+specs/roadmaps/orca-memory-graph-migration-roadmap.v1.json -text
+specs/roadmaps/orca-memory-live-activation-roadmap.v1.json -text
+specs/roadmaps/private-data-memory-ingestion-roadmap.v1.json -text
+specs/roadmaps/roadmap-reconciliation-report-reduction.v1.json -text
+
 # Shell scripts must stay LF on every platform (run by sh/bash, incl. in Docker).
 *.sh   text eol=lf
 *.bash text eol=lf
