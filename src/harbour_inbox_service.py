@@ -9,10 +9,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from contextlib import nullcontext
 import hashlib
 import json
 import re
-from typing import Any, Mapping
+from typing import TYPE_CHECKING, Any, Mapping
 
 from core.auth import AuthSubjectIdentityError
 from core.database import ApiToken, get_db_session
@@ -24,6 +25,9 @@ from src.clarification_store import (
     ClarificationStoreError,
 )
 from src.harbour_knowledge_store import KNOWLEDGE_KINDS
+
+if TYPE_CHECKING:
+    from src.planning_revision_store import PlanningSubjectBoundReceipt
 
 
 MCP_HARBOUR_INBOX_SCOPE = "mcp:harbour:inbox"
@@ -78,6 +82,7 @@ class PlanningInboxItem:
     current_revision: int
     approved_revision: int
     record: str
+    receipt: PlanningSubjectBoundReceipt | None = None
 
     def __repr__(self) -> str:
         return "PlanningInboxItem(<redacted>)"
@@ -113,7 +118,7 @@ def build_harbour_inbox_tool_contracts() -> tuple[dict[str, Any], ...]:
                     {"type": "object", "properties": {"limit": {"type": "integer", "minimum": 1, "maximum": 100}}, "additionalProperties": False},
                     {"type": "object", "properties": {"view": {"const": "unified"}, "limit": {"type": "integer", "minimum": 1, "maximum": 100}}, "required": ["view"], "additionalProperties": False},
                     {"type": "object", "properties": {"view": {"const": "unified_receipts"}, "limit": {"type": "integer", "minimum": 1, "maximum": 100}}, "required": ["view", "limit"], "additionalProperties": False},
-                    {"type": "object", "properties": {"view": {"const": "receipt"}, "receipt_ref": {"oneOf": [_clarification_receipt_ref_schema(), _knowledge_receipt_ref_schema()]}}, "required": ["view", "receipt_ref"], "additionalProperties": False},
+                    {"type": "object", "properties": {"view": {"const": "receipt"}, "receipt_ref": {"oneOf": [_clarification_receipt_ref_schema(), _knowledge_receipt_ref_schema(), _planning_receipt_ref_schema()]}}, "required": ["view", "receipt_ref"], "additionalProperties": False},
                 ],
             },
         },
@@ -288,7 +293,9 @@ class HarbourInboxService:
             unavailable.add("planning")
         else:
             try:
-                captures["planning"] = self._planning_runtime.capture_inbox_snapshot(identity=identity, limit=limit)
+                captures["planning"] = self._planning_runtime.capture_inbox_snapshot(
+                    identity=identity, limit=limit, include_receipts=(view == "unified_receipts"),
+                )
             except Exception as exc:
                 # Only the app-owned Planning runtime can report the fixed
                 # expected-absence code. Corruption, foreign bindings, stale
@@ -327,6 +334,7 @@ class HarbourInboxService:
                 rebound = self._planning_runtime.capture_inbox_snapshot(
                     identity=identity, limit=limit,
                     expected_binding_digest=captures["planning"].binding_digest,
+                    include_receipts=(view == "unified_receipts"),
                 )
                 if rebound != captures["planning"]:
                     raise HarbourInboxError("inbox_failed")
@@ -365,6 +373,34 @@ class HarbourInboxService:
             if receipt is None:
                 raise HarbourInboxError("inbox_failed")
             return _closed_clarification_receipt(receipt)
+        if source == "planning":
+            if self._planning_runtime is None:
+                raise HarbourInboxError("inbox_failed")
+            try:
+                with (
+                    self._knowledge_composition.guard_inbox_read()
+                    if self._knowledge_composition is not None
+                    else nullcontext()
+                ):
+                    capture = self._planning_runtime.capture_inbox_snapshot(
+                        identity=identity, limit=100, include_receipts=True,
+                    )
+                    _validate_planning_capture(capture, 100, require_receipts=True)
+                    item = _find_planning_receipt_item(capture, receipt_ref)
+                    if item.receipt is None:
+                        raise HarbourInboxError("inbox_failed")
+                    result = _closed_planning_receipt(item)
+                    rebound = self._planning_runtime.capture_inbox_snapshot(
+                        identity=identity, limit=100,
+                        expected_binding_digest=capture.binding_digest, include_receipts=True,
+                    )
+                    if rebound != capture:
+                        raise HarbourInboxError("inbox_failed")
+                    return result
+            except HarbourInboxError:
+                raise
+            except Exception:
+                raise HarbourInboxError("inbox_failed") from None
         if source != "knowledge" or self._knowledge_composition is None:
             raise HarbourInboxError("inbox_failed")
         try:
@@ -503,6 +539,23 @@ def _validate_receipt_ref(value: Any) -> dict[str, Any]:
         except HarbourInboxError:
             raise HarbourInboxError("invalid_params") from None
         return dict(value)
+    if source == "planning":
+        required = {"source", "item_handle", "binding_digest", "receipt_handle"}
+        if set(value) != required:
+            raise HarbourInboxError("invalid_params")
+        if (
+            type(value.get("item_handle")) is not str
+            or re.fullmatch(r"hi1:planning:[0-9a-f]{64}", value["item_handle"]) is None
+            or type(value.get("binding_digest")) is not str
+            or re.fullmatch(r"[0-9a-f]{64}", value["binding_digest"]) is None
+            or type(value.get("receipt_handle")) is not str
+        ):
+            raise HarbourInboxError("invalid_params")
+        try:
+            _capture_digest(value["receipt_handle"], prefixed=True)
+        except HarbourInboxError:
+            raise HarbourInboxError("invalid_params") from None
+        return dict(value)
     raise HarbourInboxError("invalid_params")
 
 
@@ -525,12 +578,23 @@ def _knowledge_receipt_ref_schema() -> dict[str, Any]:
     }, "required": ["source", "item_handle", "binding_digest", "receipt_handle"], "additionalProperties": False}
 
 
+def _planning_receipt_ref_schema() -> dict[str, Any]:
+    return {"type": "object", "properties": {
+        "source": {"const": "planning"},
+        "item_handle": {"type": "string", "pattern": "^hi1:planning:[0-9a-f]{64}$"},
+        "binding_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "receipt_handle": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    }, "required": ["source", "item_handle", "binding_digest", "receipt_handle"], "additionalProperties": False}
+
+
 def _unified_receipts_payload(
     payload: Mapping[str, Any], captures: Mapping[str, Any], principal: SessionPrincipal, session_factory: Any,
 ) -> dict[str, Any]:
     """Add exact receipt references only after every producer revalidation."""
     if payload.get("schema") != "odysseus.harbour_inbox_unified_list.v1":
         raise HarbourInboxError("inbox_failed")
+    if "planning" in captures:
+        _validate_planning_capture(captures["planning"], 100, require_receipts=True)
     result = dict(payload)
     result["items"] = [dict(item) for item in payload.get("items", ())]
     clarification = _validate_clarification_capture(captures["clarification"], 100)
@@ -540,7 +604,19 @@ def _unified_receipts_payload(
     for item in result["items"]:
         source = item.get("source")
         if source == "planning":
-            item["receipt_ref"] = None
+            captured = next(
+                (candidate for candidate in captures["planning"].items
+                 if "hi1:planning:" + _unified_digest("planning", candidate.record, candidate.record)
+                 == item.get("item_handle")),
+                None,
+            )
+            if captured is None or item.get("binding_digest") != captured.record:
+                raise HarbourInboxError("inbox_failed")
+            item["receipt_ref"] = None if captured.receipt is None else {
+                "source": "planning", "item_handle": item["item_handle"],
+                "binding_digest": item["binding_digest"],
+                "receipt_handle": captured.receipt.receipt_handle,
+            }
         elif source == "knowledge":
             item["receipt_ref"] = {
                 "source": "knowledge", "item_handle": item["item_handle"],
@@ -589,6 +665,19 @@ def _find_knowledge_receipt_item(capture: Any, receipt_ref: Mapping[str, Any]) -
     raise HarbourInboxError("inbox_failed")
 
 
+def _find_planning_receipt_item(capture: Any, receipt_ref: Mapping[str, Any]) -> PlanningInboxItem:
+    _validate_planning_capture(capture, 100, require_receipts=True)
+    for item in capture.items:
+        handle = "hi1:planning:" + _unified_digest("planning", item.record, item.record)
+        if handle == receipt_ref["item_handle"]:
+            if item.record != receipt_ref["binding_digest"]:
+                raise HarbourInboxError("inbox_failed")
+            if item.receipt is None or item.receipt.receipt_handle != receipt_ref["receipt_handle"]:
+                raise HarbourInboxError("inbox_failed")
+            return item
+    raise HarbourInboxError("inbox_failed")
+
+
 def _receipt_base(*, source: str, receipt_handle: str, binding: str, producer: str,
                   operation: str, occurred_at: str) -> dict[str, Any]:
     return {
@@ -619,6 +708,17 @@ def _closed_knowledge_receipt(capture: Any, item: Any) -> dict[str, Any]:
     value.update({"generation": item.generation, "revision": item.revision,
                   "verified_d0_event_digest": item.event_digest})
     return value
+
+
+def _closed_planning_receipt(item: PlanningInboxItem) -> dict[str, Any]:
+    receipt = item.receipt
+    if receipt is None:
+        raise HarbourInboxError("inbox_failed")
+    return _receipt_base(
+        source="planning", receipt_handle=receipt.receipt_handle,
+        binding=receipt.current_binding_digest, producer=receipt.producer,
+        operation=receipt.operation, occurred_at=receipt.occurred_at,
+    )
 
 
 def _closed_action_result(operation: str, write: Any) -> dict[str, Any]:
@@ -722,9 +822,12 @@ def _validate_clarification_capture(value: Any, limit: int) -> ClarificationInbo
     return value
 
 
-def _validate_planning_capture(value: Any, limit: int) -> PlanningInboxSnapshot:
+def _validate_planning_capture(
+    value: Any, limit: int, *, require_receipts: bool = False,
+) -> PlanningInboxSnapshot:
     if (type(value) is not PlanningInboxSnapshot or type(value.items) is not tuple
-            or len(value.items) > limit or type(value.clipped) is not bool):
+            or len(value.items) > limit or type(value.clipped) is not bool
+            or (require_receipts and value.clipped)):
         raise HarbourInboxError("inbox_failed")
     for digest in (
         value.owner_binding_digest, value.accepted_batch_binding_digest,
@@ -740,6 +843,25 @@ def _validate_planning_capture(value: Any, limit: int) -> PlanningInboxSnapshot:
         ):
             raise HarbourInboxError("inbox_failed")
         _capture_digest(item.record)
+        receipt = item.receipt
+        if receipt is None:
+            continue
+        from src.planning_revision_store import PlanningSubjectBoundReceipt
+        if (
+            type(receipt) is not PlanningSubjectBoundReceipt
+            or type(receipt.receipt_handle) is not str
+            or type(receipt.current_binding_digest) is not str
+            or type(receipt.operation) is not str
+            or type(receipt.producer) is not str
+            or receipt.producer != "harbour_planning_store"
+            or receipt.operation not in {"append_revision", "approve_revision", "revert_head"}
+            or type(receipt.verified) is not bool or receipt.verified is not True
+            or type(receipt.authorizes_mutation) is not bool or receipt.authorizes_mutation is not False
+        ):
+            raise HarbourInboxError("inbox_failed")
+        _capture_digest(receipt.receipt_handle, prefixed=True)
+        _capture_digest(receipt.current_binding_digest, prefixed=True)
+        _validate_knowledge_timestamp(receipt.occurred_at)
     return value
 
 

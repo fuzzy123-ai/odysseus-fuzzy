@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
+from datetime import datetime, timezone
 import hashlib
 import json
 import math
@@ -21,6 +22,7 @@ from src.harbour_authority import AuthenticatedPrincipalIssuer
 from src.planning_revision_store import (
     DurablePlanningRevisionStore,
     DurablePlanningStoreError,
+    PlanningHead,
     PlanningRevisionStore,
     PlanningRevisionStoreError,
 )
@@ -159,6 +161,42 @@ def _closed_inbox_json(value: object, depth: int = 0) -> object:
     raise McpDispatchFailure("planning_failed")
 
 
+def _closed_planning_receipt(value: object) -> dict[str, object] | None:
+    if value is None:
+        return None
+    from src.planning_revision_store import PlanningSubjectBoundReceipt
+    if type(value) is not PlanningSubjectBoundReceipt:
+        raise McpDispatchFailure("planning_failed")
+    if (
+        type(value.receipt_handle) is not str
+        or re.fullmatch(r"sha256:[0-9a-f]{64}", value.receipt_handle) is None
+        or type(value.current_binding_digest) is not str
+        or re.fullmatch(r"sha256:[0-9a-f]{64}", value.current_binding_digest) is None
+        or value.operation not in {"append_revision", "approve_revision", "revert_head"}
+        or value.producer != "harbour_planning_store"
+        or type(value.occurred_at) is not str
+        or re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z", value.occurred_at) is None
+        or type(value.verified) is not bool or value.verified is not True
+        or type(value.authorizes_mutation) is not bool or value.authorizes_mutation is not False
+    ):
+        raise McpDispatchFailure("planning_failed")
+    try:
+        parsed = datetime.fromisoformat(value.occurred_at[:-1] + "+00:00")
+    except (TypeError, ValueError, OverflowError):
+        raise McpDispatchFailure("planning_failed") from None
+    if parsed.tzinfo != timezone.utc or parsed.isoformat(timespec="microseconds").replace("+00:00", "Z") != value.occurred_at:
+        raise McpDispatchFailure("planning_failed")
+    return {
+        "receipt_handle": value.receipt_handle,
+        "current_binding_digest": value.current_binding_digest,
+        "operation": value.operation,
+        "producer": value.producer,
+        "occurred_at": value.occurred_at,
+        "verified": value.verified,
+        "authorizes_mutation": value.authorizes_mutation,
+    }
+
+
 class AppOwnedPlanningRuntime:
     """Shared app-owned Planning composition consumed by browser routes and MCP."""
 
@@ -219,7 +257,8 @@ class AppOwnedPlanningRuntime:
         }
 
     def capture_inbox_snapshot(self, *, identity: McpAuthenticatedIdentity, limit: int,
-                               expected_binding_digest: str | None = None) -> "PlanningInboxSnapshot":
+                               expected_binding_digest: str | None = None,
+                               include_receipts: bool = False) -> "PlanningInboxSnapshot":
         """Read the accepted subject-bound Planning migration as Inbox metadata.
 
         This deliberately uses the runtime's existing durable issuer and
@@ -246,7 +285,9 @@ class AppOwnedPlanningRuntime:
             # The durable reader has already authenticated its full accepted
             # chain.  Re-encode only a closed, scalar boundary here; never use
             # repr(), attribute fallback, or a partial prefix as a binding.
-            head_by_roadmap: dict[str, tuple[int, int, str, str]] = {}
+            if type(include_receipts) is not bool:
+                raise McpDispatchFailure("invalid_params")
+            head_by_roadmap: dict[str, tuple[int, int, str, str, PlanningHead]] = {}
             canonical_heads: list[dict[str, Any]] = []
             required_head_fields = {
                 "owner_id", "project_id", "roadmap_id", "accepted_revision_id",
@@ -275,8 +316,15 @@ class AppOwnedPlanningRuntime:
                                                "approved_revision_id", "approved_content_sha256"))
                         or roadmap_id in head_by_roadmap):
                     raise McpDispatchFailure("planning_failed")
-                head_by_roadmap[roadmap_id] = (current, approved, head["current_revision_id"],
-                                               head["approved_revision_id"])
+                current_head = PlanningHead(
+                    owner_id=head["owner_id"], project_id=head["project_id"], roadmap_id=roadmap_id,
+                    current_revision_id=head["current_revision_id"],
+                    current_content_sha256=head["current_content_sha256"],
+                    approved_revision_id=head["approved_revision_id"], generation=generation,
+                )
+                head_by_roadmap[roadmap_id] = (
+                    current, approved, head["current_revision_id"], head["approved_revision_id"], current_head,
+                )
                 canonical_heads.append({key: head[key] for key in sorted(required_head_fields)})
             record_refs: dict[str, list[str]] = {key: [] for key in head_by_roadmap}
             for record in records:
@@ -303,23 +351,44 @@ class AppOwnedPlanningRuntime:
                 "heads": sorted(canonical_heads, key=lambda value: value["roadmap_id"]),
                 "owner": identity.owner_subject_id,
             })
-            normalized: list[PlanningInboxItem] = []
-            for roadmap_id, (current, approved, current_id, approved_id) in head_by_roadmap.items():
+            normalized: list[tuple[int, int, str, PlanningHead]] = []
+            for roadmap_id, (current, approved, current_id, approved_id, current_head) in head_by_roadmap.items():
                 if current > approved:
                     record = _inbox_canonical_digest("item", {
                         "approved_revision_id": approved_id, "current_revision_id": current_id,
                         "owner": identity.owner_subject_id, "roadmap_id": roadmap_id,
                         "records": sorted(record_refs[roadmap_id]), "source_binding": source_binding,
                     })
-                    normalized.append(PlanningInboxItem(current, approved, record))
-            normalized.sort(key=lambda item: (item.current_revision, item.approved_revision, item.record))
+                    normalized.append((current, approved, record, current_head))
+            normalized.sort(key=lambda item: (item[0], item[1], item[2]))
             clipped = len(normalized) > limit
-            items = tuple(normalized[:limit])
+            if include_receipts and clipped:
+                raise McpDispatchFailure("planning_failed")
+            selected = normalized[:limit]
+            items: list[PlanningInboxItem] = []
+            for current, approved, record, current_head in selected:
+                receipt = None
+                if include_receipts:
+                    try:
+                        receipt = self.durable_store.read_subject_bound_current_receipt(
+                            principal, project_id="harbour-one", roadmap_id=current_head.roadmap_id,
+                            expected_head=current_head,
+                        )
+                    except Exception:
+                        # Once the accepted head exists, an opted-in
+                        # receipt read is part of the bounded capture.
+                        # Reader corruption, staleness, foreign scope,
+                        # and disappearance are request failures, never
+                        # source unavailability or a nullable receipt.
+                        raise McpDispatchFailure("planning_failed") from None
+                items.append(PlanningInboxItem(current, approved, record, receipt))
+            items = tuple(items)
             binding = _inbox_canonical_digest("binding", {
                 "batch": batch, "heads": sorted(canonical_heads, key=lambda value: value["roadmap_id"]),
                 "items": [
                     {"approved_revision": item.approved_revision, "current_revision": item.current_revision,
-                     "record": item.record}
+                     "record": item.record,
+                     **({"receipt": _closed_planning_receipt(item.receipt)} if include_receipts else {})}
                     for item in items
                 ], "owner": identity.owner_subject_id, "source_binding": source_binding,
             })

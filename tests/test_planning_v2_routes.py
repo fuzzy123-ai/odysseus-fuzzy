@@ -1240,7 +1240,11 @@ def test_legacy_route_exports_and_full_state_replays_survive_repo_only_v4(
     assert currentness["batch_authority_map_id"] == expected_map
     assert currentness["current_authority_map_id"] == REPO_ONLY_AUTHORITY_MAP_ID
     assert currentness["authority_map_relation"] == "successor"
-    assert currentness["current"] is True
+    expected_structural_current = legacy["structural_census"] == current_v4["structural_census"]
+    assert currentness["structural_current"] is expected_structural_current
+    assert currentness["primary_sources_current"] is True
+    assert currentness["authority_current"] is True
+    assert currentness["current"] is expected_structural_current
 
     def route_exports(client):
         output = {}
