@@ -124,7 +124,7 @@ def test_accepted_planning_memory_projection_filters_matches_dedupes_and_never_r
             "acceptance_status": "accepted",
             "source_id": "repo-plan:core",
             "source_ref": "docs/plans/core.json",
-            "source_hash": "sha256:aaa",
+            "source_hash": "sha256:" + "a" * 64,
             "project_id": "demo-project",
             "roadmap_id": "core-map",
             "precedence_rank": 100,
@@ -137,6 +137,7 @@ def test_accepted_planning_memory_projection_filters_matches_dedupes_and_never_r
             "acceptance_status": "accepted",
             "source_id": "repo-plan:core",
             "source_ref": "docs/plans/core.json",
+            "source_hash": "sha256:" + "a" * 64,
             "precedence_rank": 50,
             "preview": "lower precedence duplicate",
         },
@@ -147,6 +148,7 @@ def test_accepted_planning_memory_projection_filters_matches_dedupes_and_never_r
                 "acceptance_status": "accepted",
                 "source_id": "repo-plan:related",
                 "source_ref": "docs/plans/related.json",
+                "source_hash": "sha256:" + "b" * 64,
                 "project_id": "demo-project",
                 "safe_summary": "Related accepted summary",
                 "precedence_rank": 80,
@@ -208,6 +210,7 @@ def test_accepted_planning_memory_projection_is_deterministic_bounded_and_explic
             "acceptance_status": "accepted",
             "source_id": f"repo-plan:{index:02d}",
             "source_ref": f"docs/plans/{index:02d}.json",
+            "source_hash": "sha256:" + (f"{index + 1:064x}"),
             "project_id": "demo-project",
             "precedence_rank": index,
             "preview": "x" * 500,
@@ -312,3 +315,282 @@ def test_derived_planning_memory_rejects_unvalidated_metadata_and_dedupes_by_sta
     assert result["entries"][0]["revision"] == 2
     assert result["entries"][0]["provenance"]["validation_mode"] == "transition"
     assert result["source_revision_refs"] == ["repo-plan:def456@2"]
+
+
+def test_superseded_json_cannot_win_current_authority_precedence():
+    candidates = [
+        {
+            "source": "planning_source",
+            "source_status": "active",
+            "acceptance_status": "accepted",
+            "authority_disposition": "superseded_plan_source",
+            "source_id": "repo-plan:old",
+            "source_ref": "specs/roadmaps/old.v1.json",
+            "source_hash": "sha256:" + "e" * 64,
+            "project_id": "demo-project",
+            "precedence_rank": 1000,
+        },
+        {
+            "source": "planning_source",
+            "source_status": "active",
+            "acceptance_status": "accepted",
+            "authority_disposition": "current_source_of_truth",
+            "source_id": "repo-plan:current",
+            "source_ref": "specs/roadmaps/current.v1.json",
+            "source_hash": "sha256:" + "f" * 64,
+            "project_id": "demo-project",
+            "precedence_rank": 1,
+        },
+    ]
+
+    result = project_accepted_planning_memory(
+        candidates,
+        source_id="",
+        source_ref="",
+        project_id="demo-project",
+        limit=1,
+    )
+
+    assert [entry["source_id"] for entry in result["entries"]] == ["repo-plan:current"]
+    assert result["entries"][0]["authority_disposition"] == "current_source_of_truth"
+
+
+def test_explicit_superseded_status_dominates_accepted_flag_and_rank():
+    candidate = {
+        "source": "planning_source",
+        "source_status": "superseded",
+        "acceptance_status": "accepted",
+        "accepted": True,
+        "source_id": "repo-plan:old",
+        "source_ref": "specs/roadmaps/old.v1.json",
+        "source_hash": "sha256:" + "e" * 64,
+        "project_id": "demo-project",
+        "precedence_rank": 1000,
+    }
+
+    result = project_accepted_planning_memory(
+        [candidate], source_id="", source_ref="", project_id="demo-project", limit=1
+    )
+
+    assert result["entries"] == []
+    assert result["summary"]["rejected"] == 1
+
+
+def test_ingest_reclassifies_previously_promoted_superseded_memory_in_place():
+    class LocalMemory:
+        def __init__(self):
+            self.entries = []
+            self.save_calls = 0
+
+        def load_all(self):
+            return list(self.entries)
+
+        def add_entry(self, text, **_kwargs):
+            return {"id": "generated", "text": text, **_kwargs}
+
+        def save(self, entries):
+            self.entries = list(entries)
+            self.save_calls += 1
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        roadmap = os.path.join(tmpdir, "specs", "roadmaps", "current.v1.json")
+        _write(roadmap, json.dumps({"plan_id": "current", "title": "Current"}))
+        memory = LocalMemory()
+        ingest_planning_sources_to_memory(memory, tmpdir)
+        original_id = memory.entries[0]["id"]
+        original_snapshot = json.dumps(memory.entries, sort_keys=True)
+        _write(
+            roadmap,
+            json.dumps({"plan_id": "current", "title": "Former Current", "status": "superseded"}),
+        )
+
+        dry_run = ingest_planning_sources_to_memory(memory, tmpdir, dry_run=True)
+        assert dry_run["summary"]["updated"] == 1
+        assert json.dumps(memory.entries, sort_keys=True) == original_snapshot
+        assert memory.save_calls == 1
+
+        live = ingest_planning_sources_to_memory(memory, tmpdir)
+        assert live["summary"]["updated"] == 1
+        assert len(memory.entries) == 1
+        assert memory.entries[0]["id"] == original_id
+        assert memory.entries[0]["metadata"]["authority_disposition"] == "superseded_plan_source"
+        assert memory.entries[0]["metadata"]["acceptance_status"] != "accepted"
+        assert memory.entries[0]["metadata"]["precedence_rank"] == 0
+
+
+def test_current_and_statusless_legacy_json_keep_compatible_current_precedence():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        _write(
+            os.path.join(tmpdir, "specs", "roadmaps", "legacy.v1.json"),
+            json.dumps({"plan_id": "legacy", "title": "Legacy Current"}),
+        )
+        _write(os.path.join(tmpdir, "docs", "plans", "support.md"), "# Supporting plan")
+
+        capsules = build_planning_memory_capsules(tmpdir)["capsules"]
+        legacy = next(item for item in capsules if item["plan_id"] == "legacy")
+        support = next(item for item in capsules if item["kind"] == "planning_doc")
+
+        assert legacy["authority_disposition"] == "current_source_of_truth"
+        assert legacy["memory_status"] == "current_source_of_truth"
+        assert legacy["precedence_rank"] > support["precedence_rank"]
+
+
+def test_global_ingest_does_not_touch_private_rows():
+    class LocalMemory:
+        def __init__(self, entries):
+            self.entries = entries
+
+        def load_all(self):
+            return list(self.entries)
+
+        def add_entry(self, text, **kwargs):
+            return {"id": "generated", "text": text, **kwargs}
+
+        def save(self, entries):
+            self.entries = list(entries)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        roadmap = os.path.join(tmpdir, "specs", "roadmaps", "current.v1.json")
+        _write(roadmap, json.dumps({"plan_id": "current", "title": "Current"}))
+        private = {
+            "id": "private-row",
+            "source": PLANNING_MEMORY_SOURCE,
+            "owner": "private-a",
+            "text": "private text",
+            "metadata": {
+                "source_id": "repo-plan:private",
+                "source_status": "active",
+            },
+        }
+        memory = LocalMemory([private])
+        result = ingest_planning_sources_to_memory(memory, tmpdir)
+        assert result["summary"]["created"] == 1
+        assert memory.entries[0] == private
+        assert any(item.get("owner") is None for item in memory.entries)
+
+
+def test_explicit_owner_ingest_updates_only_that_owner():
+    class LocalMemory:
+        def __init__(self, entries):
+            self.entries = entries
+
+        def load_all(self):
+            return list(self.entries)
+
+        def add_entry(self, text, **kwargs):
+            return {"id": "generated", "text": text, **kwargs}
+
+        def save(self, entries):
+            self.entries = list(entries)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        roadmap = os.path.join(tmpdir, "specs", "roadmaps", "current.v1.json")
+        _write(roadmap, json.dumps({"plan_id": "current", "title": "Current"}))
+        capsule = build_planning_memory_capsules(tmpdir)["capsules"][0]
+        private = {
+            "id": "private-row",
+            "source": PLANNING_MEMORY_SOURCE,
+            "owner": "private-a",
+            "text": "old text",
+            "metadata": {
+                "source_id": capsule["source_id"],
+                "source_hash": "sha256:" + "0" * 64,
+                "source_status": "active",
+            },
+        }
+        memory = LocalMemory([private])
+        result = ingest_planning_sources_to_memory(memory, tmpdir, owner="private-a")
+        assert result["summary"]["updated"] == 1
+        assert memory.entries[0]["owner"] == "private-a"
+        assert memory.entries[0]["metadata"]["source_hash"] == capsule["source_hash"]
+
+
+def test_projection_rejects_private_candidates_and_invalid_hashes():
+    base = {
+        "source": PLANNING_MEMORY_SOURCE,
+        "source_status": "active",
+        "acceptance_status": "accepted",
+        "source_id": "repo-plan:target",
+        "source_ref": "docs/plans/target.json",
+        "project_id": "demo-project",
+        "source_hash": "sha256:" + "c" * 64,
+    }
+    candidates = [
+        dict(base, owner="private-a"),
+        dict(base, source_id="repo-plan:metadata-private", metadata={"owner": "private-a"}),
+        dict(base, source_id="repo-plan:short", source_hash="sha256:abc"),
+        dict(base, source_id="repo-plan:missing", source_hash=None),
+        dict(base, source_id="repo-plan:public"),
+        dict(base, source_id="repo-plan:bare", source_hash="d" * 64),
+    ]
+    result = project_accepted_planning_memory(
+        candidates,
+        source_id="",
+        source_ref="",
+        project_id="demo-project",
+        limit=10,
+    )
+    assert [item["source_id"] for item in result["entries"]] == ["repo-plan:bare", "repo-plan:public"]
+    assert result["summary"]["rejected"] == 4
+    assert result["entries"][0]["source_hash"] == "sha256:" + "d" * 64
+    assert result["entries"][1]["source_hash"] == "sha256:" + "c" * 64
+
+
+def test_projection_rejects_falsy_malformed_owner_values_at_both_boundaries():
+    base = {
+        "source": PLANNING_MEMORY_SOURCE,
+        "source_status": "active",
+        "acceptance_status": "accepted",
+        "source_ref": "docs/plans/owner.json",
+        "project_id": "demo-project",
+        "source_hash": "sha256:" + "e" * 64,
+    }
+    candidates = [
+        dict(base, source_id="repo-plan:top-zero", owner=0),
+        dict(base, source_id="repo-plan:top-false", owner=False),
+        dict(base, source_id="repo-plan:top-list", owner=[]),
+        dict(base, source_id="repo-plan:top-map", owner={}),
+        dict(base, source_id="repo-plan:meta-zero", metadata={"owner": 0}),
+        dict(base, source_id="repo-plan:meta-false", metadata={"owner": False}),
+        dict(base, source_id="repo-plan:meta-list", metadata={"owner": []}),
+        dict(base, source_id="repo-plan:meta-map", metadata={"owner": {}}),
+        dict(base, source_id="repo-plan:shared", owner=""),
+    ]
+    result = project_accepted_planning_memory(
+        candidates,
+        source_id="",
+        source_ref="",
+        project_id="demo-project",
+        limit=20,
+    )
+    assert [item["source_id"] for item in result["entries"]] == ["repo-plan:shared"]
+    assert result["summary"]["rejected"] == 8
+
+
+def test_global_ingest_preserves_falsy_malformed_owner_rows():
+    class LocalMemory:
+        def __init__(self, entries):
+            self.entries = entries
+
+        def load_all(self):
+            return list(self.entries)
+
+        def add_entry(self, text, **kwargs):
+            return {"id": "generated", "text": text, **kwargs}
+
+        def save(self, entries):
+            self.entries = list(entries)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        _write(
+            os.path.join(tmpdir, "specs", "roadmaps", "current.v1.json"),
+            json.dumps({"plan_id": "current", "title": "Current"}),
+        )
+        malformed_rows = [
+            {"id": f"row-{index}", "source": PLANNING_MEMORY_SOURCE, "owner": owner,
+             "metadata": {"source_id": f"repo-plan:malformed-{index}"}}
+            for index, owner in enumerate((0, False, [], {}))
+        ]
+        memory = LocalMemory(malformed_rows)
+        ingest_planning_sources_to_memory(memory, tmpdir)
+        assert memory.entries[:4] == malformed_rows

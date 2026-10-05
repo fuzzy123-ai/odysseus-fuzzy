@@ -17,6 +17,13 @@ DERIVED_PLANNING_MEMORY_SCHEMA = "odysseus.planning.derived_memory.v1"
 
 _ACCEPTED_STATUSES = frozenset({"accepted", "approved", "current", "current_source_of_truth"})
 _ACTIVE_SOURCE_STATUSES = frozenset({"active", "current", "available"})
+_SUPERSEDED_SOURCE_STATUSES = frozenset({"superseded", "historical", "archived", "deprecated", "retired", "obsolete"})
+_CURRENT_AUTHORITY = "current_source_of_truth"
+_SUPPORTING_AUTHORITY = "supporting_plan_source"
+_SUPERSEDED_AUTHORITY = "superseded_plan_source"
+_INVALID_AUTHORITY = "invalid_plan_source"
+_ACCEPTED_AUTHORITIES = frozenset({_CURRENT_AUTHORITY, _SUPPORTING_AUTHORITY})
+_INVALID_OWNER = object()
 _SECRET_PATTERNS = (
     re.compile(r"sk-[A-Za-z0-9_-]{12,}"),
     re.compile(r"Bearer\s+[A-Za-z0-9._-]{12,}", re.IGNORECASE),
@@ -92,7 +99,10 @@ def ingest_planning_sources_to_memory(
             previous["source"] = PLANNING_MEMORY_SOURCE
             previous["category"] = PLANNING_MEMORY_CATEGORY
             previous["owner"] = owner
-            previous["metadata"] = _memory_metadata(capsule, source_status="active")
+            previous["metadata"] = _memory_metadata(
+                capsule,
+                source_status=str(capsule.get("source_status") or "active"),
+            )
             _vector_replace(memory_vector, previous["id"], text)
 
     for source_id, entry in sorted(existing_by_source.items()):
@@ -129,7 +139,7 @@ def ingest_planning_sources_to_memory(
             "current_json_roadmaps_have_priority": all(
                 capsule["precedence_rank"] >= 100
                 for capsule in capsules
-                if capsule.get("kind") == "roadmap_json"
+                if capsule.get("authority_disposition") == _CURRENT_AUTHORITY
             ),
         },
         "operations": operations[:200],
@@ -417,19 +427,22 @@ def _safe_source_refs(value: Any, *, limit: int) -> List[str]:
 def _capsule_from_source(source: Mapping[str, Any], *, preview_chars: int) -> Dict[str, Any]:
     kind = str(source.get("kind") or "planning_source")
     source_ref = str(source.get("path") or "")
+    authority_disposition = _source_authority_disposition(source, kind)
+    accepted = authority_disposition in _ACCEPTED_AUTHORITIES
     return {
         "schema": PLANNING_MEMORY_SCHEMA,
         "source": PLANNING_MEMORY_SOURCE,
-        "source_status": "active",
-        "acceptance_status": "accepted",
+        "source_status": "active" if accepted else authority_disposition.replace("_plan_source", "").replace("_source_of_truth", ""),
+        "acceptance_status": "accepted" if accepted else "rejected",
         "source_id": str(source.get("source_id") or ""),
         "source_ref": source_ref,
         "source_hash": str(source.get("source_hash") or ""),
         "title": str(source.get("title") or ""),
         "plan_id": str(source.get("plan_id") or ""),
         "kind": kind,
-        "memory_status": "current_source_of_truth" if kind == "roadmap_json" else "supporting_plan_source",
-        "precedence_rank": _precedence_rank(kind),
+        "memory_status": authority_disposition,
+        "authority_disposition": authority_disposition,
+        "precedence_rank": _precedence_rank(kind, authority_disposition),
         "dependency_hints": _safe_string_list(source.get("dependency_hints")),
         "source_refs": _safe_string_list(source.get("source_refs")),
         "preview": str(source.get("preview") or "")[: max(0, int(preview_chars or 0))],
@@ -465,7 +478,7 @@ def _new_memory_entry(memory_manager: Any, capsule: Mapping[str, Any], text: str
     )
     entry["id"] = _memory_id(capsule["source_id"])
     entry["timestamp"] = now
-    entry["metadata"] = _memory_metadata(capsule, source_status="active")
+    entry["metadata"] = _memory_metadata(capsule, source_status=str(capsule.get("source_status") or "active"))
     if owner is not None:
         entry["owner"] = owner
     return entry
@@ -480,8 +493,9 @@ def _memory_metadata(capsule: Mapping[str, Any], *, source_status: str) -> Dict[
         "plan_id": str(capsule.get("plan_id") or ""),
         "kind": str(capsule.get("kind") or ""),
         "memory_status": str(capsule.get("memory_status") or ""),
+        "authority_disposition": str(capsule.get("authority_disposition") or ""),
         "source_status": source_status,
-        "acceptance_status": "accepted",
+        "acceptance_status": str(capsule.get("acceptance_status") or "rejected"),
         "precedence_rank": int(capsule.get("precedence_rank") or 0),
     }
 
@@ -505,7 +519,10 @@ def _existing_planning_memories(entries: Iterable[Mapping[str, Any]], *, owner: 
             continue
         if entry.get("source") != PLANNING_MEMORY_SOURCE:
             continue
-        if owner is not None and entry.get("owner") != owner:
+        entry_owner = _stored_owner(entry)
+        if owner is None and entry_owner:
+            continue
+        if owner is not None and entry_owner != owner:
             continue
         metadata = entry.get("metadata") if isinstance(entry.get("metadata"), dict) else {}
         source_id = str(metadata.get("source_id") or "")
@@ -523,12 +540,14 @@ def _capsule_summary(capsules: Iterable[Mapping[str, Any]]) -> Dict[str, Any]:
         "current_json_roadmaps_have_priority": all(
             capsule["precedence_rank"] >= 100
             for capsule in capsule_list
-            if capsule.get("kind") == "roadmap_json"
+            if capsule.get("authority_disposition") == _CURRENT_AUTHORITY
         ),
     }
 
 
-def _precedence_rank(kind: str) -> int:
+def _precedence_rank(kind: str, authority_disposition: str = _SUPPORTING_AUTHORITY) -> int:
+    if authority_disposition not in _ACCEPTED_AUTHORITIES:
+        return 0
     if kind == "roadmap_json":
         return 100
     if kind in {"planning_doc_json", "roadmap_doc"}:
@@ -556,6 +575,9 @@ def _normalize_memory_candidate(value: Any, *, preview_chars: int) -> Optional[D
     source = str(value.get("source") or metadata.get("source") or "")
     if source != PLANNING_MEMORY_SOURCE:
         return None
+    authority_disposition = _candidate_authority_disposition(value, metadata)
+    if authority_disposition not in _ACCEPTED_AUTHORITIES:
+        return None
     source_status = str(value.get("source_status") or metadata.get("source_status") or "active").lower()
     acceptance = str(
         value.get("acceptance_status")
@@ -570,7 +592,8 @@ def _normalize_memory_candidate(value: Any, *, preview_chars: int) -> Optional[D
 
     source_id = _safe_identity(value.get("source_id") or metadata.get("source_id"))
     source_ref = _safe_repo_ref(value.get("source_ref") or metadata.get("source_ref"))
-    if not source_id or not source_ref:
+    source_hash = _normalized_sha256(value.get("source_hash") or metadata.get("source_hash"))
+    if not _projection_owner_is_shared(value, metadata) or not source_id or not source_ref or not source_hash:
         return None
     raw_source_refs = value.get("source_refs") or metadata.get("source_refs") or ()
     if not isinstance(raw_source_refs, (list, tuple, set)):
@@ -581,29 +604,80 @@ def _normalize_memory_candidate(value: Any, *, preview_chars: int) -> Optional[D
         if ref
     )[:24]
     preview = value.get("preview") or metadata.get("preview") or metadata.get("safe_summary") or ""
+    try:
+        precedence_rank = int(value.get("precedence_rank") or metadata.get("precedence_rank") or 0)
+    except (TypeError, ValueError):
+        precedence_rank = 0
     return {
         "memory_ref": _safe_identity(value.get("memory_ref") or value.get("id") or _memory_id(source_id)),
         "source_id": source_id,
         "source_ref": source_ref,
-        "source_hash": _safe_identity(value.get("source_hash") or metadata.get("source_hash")),
+        "source_hash": source_hash,
         "project_id": _safe_identity(value.get("project_id") or metadata.get("project_id")),
         "roadmap_id": _safe_identity(value.get("roadmap_id") or metadata.get("roadmap_id") or value.get("plan_id") or metadata.get("plan_id")),
         "title": _safe_preview(value.get("title") or metadata.get("title") or "Planning memory", 160),
         "kind": _safe_identity(value.get("kind") or metadata.get("kind") or "planning_source"),
         "memory_status": _safe_identity(value.get("memory_status") or metadata.get("memory_status") or acceptance),
+        "authority_disposition": authority_disposition,
         "acceptance_status": _safe_identity(acceptance or "accepted"),
         "source_status": _safe_identity(source_status),
-        "precedence_rank": max(0, min(int(value.get("precedence_rank") or metadata.get("precedence_rank") or 0), 1000)),
+        "precedence_rank": max(0, min(precedence_rank, 1000)),
         "dependency_hints": tuple(_safe_preview(item, 160) for item in (value.get("dependency_hints") or ()) if str(item or "").strip())[:24],
         "source_refs": source_refs,
         "preview": _safe_preview(preview, preview_chars),
         "provenance": {
             "source_id": source_id,
             "source_ref": source_ref,
-            "source_hash": _safe_identity(value.get("source_hash") or metadata.get("source_hash")),
+            "source_hash": source_hash,
         },
         "raw_body_included": False,
     }
+
+
+def _source_authority_disposition(source: Mapping[str, Any], kind: str) -> str:
+    authority = str(source.get("authority_disposition") or "")
+    if authority in {_CURRENT_AUTHORITY, _SUPPORTING_AUTHORITY, _SUPERSEDED_AUTHORITY, _INVALID_AUTHORITY}:
+        return authority
+    return _CURRENT_AUTHORITY if kind == "roadmap_json" else _SUPPORTING_AUTHORITY
+
+
+def _candidate_authority_disposition(value: Mapping[str, Any], metadata: Mapping[str, Any]) -> str:
+    for container in (value, metadata):
+        authority = container.get("authority_disposition")
+        if authority is not None:
+            return str(authority) if str(authority) in {
+                _CURRENT_AUTHORITY,
+                _SUPPORTING_AUTHORITY,
+                _SUPERSEDED_AUTHORITY,
+                _INVALID_AUTHORITY,
+            } else _INVALID_AUTHORITY
+    for container in (value, metadata):
+        status = str(container.get("source_status") or container.get("status") or "").strip().lower()
+        memory_status = str(container.get("memory_status") or "").strip().lower()
+        superseded_by = container.get("superseded_by")
+        if status in _SUPERSEDED_SOURCE_STATUSES or memory_status == _SUPERSEDED_AUTHORITY:
+            return _SUPERSEDED_AUTHORITY
+        if status == "invalid" or memory_status == _INVALID_AUTHORITY:
+            return _INVALID_AUTHORITY
+        if superseded_by is not None:
+            return _SUPERSEDED_AUTHORITY if type(superseded_by) is str and superseded_by.strip() else _INVALID_AUTHORITY
+    return _CURRENT_AUTHORITY
+
+
+def _stored_owner(value: Mapping[str, Any]) -> str | None | object:
+    """Return a strict owner scope; malformed values are never shared."""
+    if "owner" not in value or value.get("owner") is None:
+        return None
+    raw = value.get("owner")
+    if type(raw) is not str:
+        return _INVALID_OWNER
+    owner = raw.strip()
+    return owner or None
+
+
+def _projection_owner_is_shared(value: Mapping[str, Any], metadata: Mapping[str, Any]) -> bool:
+    """Accept only absent/None/empty-string owners in the global projection."""
+    return _stored_owner(value) is None and _stored_owner(metadata) is None
 
 
 def _safe_identity(value: Any) -> str:

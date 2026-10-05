@@ -144,7 +144,7 @@ def test_roadmap_status_text_does_not_create_authority_roles():
         sources = {item["path"]: item for item in build_planning_source_inventory(tmpdir)["sources"]}
 
         assert sources["specs/roadmaps/current.v1.json"]["authority_disposition"] == "current_source_of_truth"
-        assert sources["specs/roadmaps/superseded.v1.json"]["authority_disposition"] == "current_source_of_truth"
+        assert sources["specs/roadmaps/superseded.v1.json"]["authority_disposition"] == "superseded_plan_source"
 
 
 def test_invalid_duplicate_key_and_non_object_roadmaps_fail_closed_for_authority():
@@ -157,12 +157,18 @@ def test_invalid_duplicate_key_and_non_object_roadmaps_fail_closed_for_authority
             handle.write("[]")
         with open(os.path.join(roadmap_dir, "malformed-field.v1.json"), "w", encoding="utf-8") as handle:
             json.dump({"plan_id": "bad", "superseded_by": ""}, handle)
+        with open(os.path.join(roadmap_dir, "unknown-status.v1.json"), "w", encoding="utf-8") as handle:
+            json.dump({"plan_id": "unknown", "status": "mystery"}, handle)
+        with open(os.path.join(roadmap_dir, "non-string-successor.v1.json"), "w", encoding="utf-8") as handle:
+            json.dump({"plan_id": "bad-successor", "superseded_by": []}, handle)
 
         sources = {item["path"]: item for item in build_planning_source_inventory(tmpdir)["sources"]}
 
         assert sources["specs/roadmaps/duplicate.v1.json"]["authority_disposition"] == "invalid_plan_source"
         assert sources["specs/roadmaps/array.v1.json"]["authority_disposition"] == "invalid_plan_source"
-        assert sources["specs/roadmaps/malformed-field.v1.json"]["authority_disposition"] == "current_source_of_truth"
+        assert sources["specs/roadmaps/malformed-field.v1.json"]["authority_disposition"] == "invalid_plan_source"
+        assert sources["specs/roadmaps/unknown-status.v1.json"]["authority_disposition"] == "current_source_of_truth"
+        assert sources["specs/roadmaps/non-string-successor.v1.json"]["authority_disposition"] == "invalid_plan_source"
 
 
 def test_nested_and_top_level_status_markers_do_not_control_authority():
@@ -184,7 +190,28 @@ def test_nested_and_top_level_status_markers_do_not_control_authority():
         sources = {item["path"]: item for item in build_planning_source_inventory(tmpdir)["sources"]}
 
         assert sources["specs/roadmaps/nested.v1.json"]["authority_disposition"] == "current_source_of_truth"
-        assert sources["specs/roadmaps/top-level.v1.json"]["authority_disposition"] == "current_source_of_truth"
+        assert sources["specs/roadmaps/top-level.v1.json"]["authority_disposition"] == "superseded_plan_source"
+
+
+def test_progress_statuses_and_unknown_strings_remain_current_authority():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        roadmap_dir = os.path.join(tmpdir, "specs", "roadmaps")
+        os.makedirs(roadmap_dir, exist_ok=True)
+        statuses = {
+            "live-installed": "live_installed",
+            "draft-canonical": "draft_canonical",
+            "completed": "completed",
+            "current-foundations": "current_foundations_accepted_execution_and_live_gates_unaccepted",
+            "unknown": "mystery_progress_marker",
+        }
+        for name, status in statuses.items():
+            with open(os.path.join(roadmap_dir, name + ".v1.json"), "w", encoding="utf-8") as handle:
+                json.dump({"plan_id": name, "status": status}, handle)
+        sources = {item["path"]: item for item in build_planning_source_inventory(tmpdir)["sources"]}
+        assert all(
+            sources["specs/roadmaps/" + name + ".v1.json"]["authority_disposition"] == "current_source_of_truth"
+            for name in statuses
+        )
 
 
 def test_migration_inventory_accept_and_rollback_are_read_only_projections():

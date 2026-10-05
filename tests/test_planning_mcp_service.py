@@ -902,6 +902,7 @@ def test_context_pack_memory_and_lens_obey_hard_byte_budget(tmp_path: Path):
             "acceptance_status": "accepted",
             "source_id": f"repo-plan:related-{index}",
             "source_ref": f"docs/plans/related-{index}.json",
+            "source_hash": "sha256:" + (f"{index + 1:064x}"),
             "project_id": "demo-project",
             "roadmap_id": "related-map",
             "precedence_rank": 100 - index,

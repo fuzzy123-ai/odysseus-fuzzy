@@ -279,6 +279,18 @@ def _authority_disposition(path: str, parsed: Optional[Dict[str, Any]]) -> str:
 
     if type(parsed.get("plan_id")) is not str or not parsed["plan_id"].strip():
         return "invalid_plan_source"
+    if "status" in parsed:
+        status = parsed["status"]
+        if type(status) is not str or not status.strip():
+            return "invalid_plan_source"
+        status = status.strip().lower()
+        if status in _SUPERSEDED_STATUSES:
+            return "superseded_plan_source"
+    if "superseded_by" in parsed:
+        successor = parsed["superseded_by"]
+        if type(successor) is not str or not successor.strip():
+            return "invalid_plan_source"
+        return "superseded_plan_source"
     return "current_source_of_truth"
 
 
