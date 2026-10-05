@@ -406,7 +406,9 @@ class Document(TimestampMixin, Base):
     source_email_message_id  = Column(String, nullable=True, index=True)
     # Universal Inbox working-copy provenance. The source reference is never
     # stored in plaintext; source_ref_hash is a stable SHA-256 identifier used
-    # with owner + source_kind to make source-to-document creation idempotent.
+    # with an immutable creator subject (or the legacy owner partition) to make
+    # source-to-document creation idempotent.
+    creator_subject_id       = Column(String, nullable=True)
     source_kind              = Column(String, nullable=True)
     source_ref_hash          = Column(String, nullable=True)
 
@@ -415,13 +417,58 @@ class Document(TimestampMixin, Base):
                            cascade="all, delete-orphan", order_by="DocumentVersion.version_number")
     __table_args__ = (
         Index(
-            "ux_documents_universal_inbox_source",
+            "ux_documents_universal_inbox_subject_source",
+            "creator_subject_id",
+            "source_kind",
+            "source_ref_hash",
+            unique=True,
+            sqlite_where=text("creator_subject_id IS NOT NULL"),
+        ),
+        Index(
+            "ux_documents_universal_inbox_legacy_source",
             "owner",
             "source_kind",
             "source_ref_hash",
             unique=True,
+            sqlite_where=text("creator_subject_id IS NULL"),
         ),
+        Index("ix_documents_creator_subject_id", "creator_subject_id"),
     )
+
+
+_DOCUMENT_CREATOR_SUBJECT_INSERT_TRIGGER = """
+CREATE TRIGGER IF NOT EXISTS trg_documents_creator_subject_id_insert
+BEFORE INSERT ON documents
+WHEN NEW.creator_subject_id IS NOT NULL AND (
+    typeof(NEW.creator_subject_id) != 'text'
+    OR instr(NEW.creator_subject_id, char(0)) != 0
+    OR length(NEW.creator_subject_id) != 38
+    OR substr(NEW.creator_subject_id, 1, 6) != 'owner_'
+    OR substr(NEW.creator_subject_id, 7) GLOB '*[^a-z0-9]*'
+)
+BEGIN
+    SELECT RAISE(ABORT, 'invalid_document_creator_subject_id');
+END
+"""
+
+_DOCUMENT_CREATOR_SUBJECT_UPDATE_TRIGGER = """
+CREATE TRIGGER IF NOT EXISTS trg_documents_creator_subject_id_immutable
+BEFORE UPDATE OF creator_subject_id ON documents
+WHEN NEW.creator_subject_id IS NOT OLD.creator_subject_id
+BEGIN
+    SELECT RAISE(ABORT, 'immutable_document_creator_subject_id');
+END
+"""
+
+
+def _install_document_creator_subject_triggers(target, connection, **_kwargs):
+    """Install SQLite-only SID guards for direct metadata table creation."""
+    if connection.dialect.name == "sqlite":
+        connection.exec_driver_sql(_DOCUMENT_CREATOR_SUBJECT_INSERT_TRIGGER)
+        connection.exec_driver_sql(_DOCUMENT_CREATOR_SUBJECT_UPDATE_TRIGGER)
+
+
+event.listen(Document.__table__, "after_create", _install_document_creator_subject_triggers)
 
 
 class DocumentVersion(Base):
@@ -664,6 +711,10 @@ class ApiToken(TimestampMixin, Base):
     token_hash = Column(String, nullable=False)
     token_prefix = Column(String, nullable=False)  # first 8 chars for display
     scopes = Column(String, nullable=False, default="chat")
+    # Immutable AuthManager subject captured only when an exact-scope MCP token
+    # is issued. Legacy rows deliberately remain NULL until individually
+    # replaced; startup never infers identity from the mutable owner alias.
+    owner_subject_id = Column(String, nullable=True)
     is_active = Column(Boolean, default=True)
     last_used_at = Column(DateTime, nullable=True)
 
@@ -756,6 +807,9 @@ class ClarificationRun(TimestampMixin, Base):
 
     id = Column(String, primary_key=True, index=True)
     owner = Column(String, nullable=False, index=True)
+    # New runs may carry the immutable auth subject.  Legacy rows deliberately
+    # remain NULL until an explicit future migration owns their disposition.
+    creator_subject_id = Column(String, nullable=True, index=True)
     session_id = Column(String, nullable=False, index=True)
     scope = Column(String, nullable=False, default="conversation", index=True)
     status = Column(String, nullable=False, default="clarifying", index=True)

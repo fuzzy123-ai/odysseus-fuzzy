@@ -546,6 +546,30 @@ def _migrate_add_api_token_scopes_column():
         except Exception:
             pass
 
+
+def _migrate_add_api_token_owner_subject_id_column():
+    """Add the nullable issuance-time MCP subject snapshot, without backfill."""
+    import sqlite3
+    db_path = DATABASE_URL.replace("sqlite:///", "")
+    if not os.path.exists(db_path):
+        return
+    conn = None
+    try:
+        conn = sqlite3.connect(db_path)
+        columns = [row[1] for row in conn.execute("PRAGMA table_info(api_tokens)").fetchall()]
+        if columns and "owner_subject_id" not in columns:
+            conn.execute("ALTER TABLE api_tokens ADD COLUMN owner_subject_id TEXT NULL")
+            conn.commit()
+            logging.getLogger(__name__).info("Migrated: added api_tokens.owner_subject_id column")
+    except Exception as e:
+        logging.getLogger(__name__).warning(
+            "api_tokens.owner_subject_id migration failed: %s", type(e).__name__
+        )
+        raise
+    finally:
+        if conn is not None:
+            conn.close()
+
 def _migrate_assign_legacy_owner():
     """Assign all null-owner data to the first (admin) user.
 
@@ -715,32 +739,125 @@ def _migrate_add_doc_source_email_cols():
         logging.getLogger(__name__).warning(f"doc source-email migration: {e}")
 
 def _migrate_add_universal_inbox_working_copy_cols():
-    """Add hashed Universal Inbox provenance and its idempotency index."""
-    cols_to_add = {
-        "source_kind": "VARCHAR",
-        "source_ref_hash": "VARCHAR",
-    }
+    """Converge document provenance, immutable creator SID, and split indexes."""
+    raw = None
+    cursor = None
+    failed = False
     try:
-        with engine.connect() as conn:
-            existing = {r[1] for r in conn.execute(text("PRAGMA table_info(documents)"))}
-            if not existing:
-                return
-            for col, spec in cols_to_add.items():
-                if col not in existing:
-                    conn.execute(text(f"ALTER TABLE documents ADD COLUMN {col} {spec}"))
-            conn.execute(text(
-                "CREATE UNIQUE INDEX IF NOT EXISTS "
-                "ux_documents_universal_inbox_source "
-                "ON documents (owner, source_kind, source_ref_hash)"
-            ))
-            conn.commit()
-            logging.getLogger(__name__).info(
-                "Migrated: added Universal Inbox working-copy provenance"
-            )
-    except Exception as e:
-        logging.getLogger(__name__).warning(
-            f"Universal Inbox working-copy migration failed: {e}"
+        if engine.dialect.name != "sqlite":
+            raise RuntimeError
+        raw = engine.raw_connection()
+        cursor = raw.cursor()
+        cursor.execute("BEGIN IMMEDIATE")
+        existing = {row[1] for row in cursor.execute("PRAGMA table_info(documents)")}
+        if not existing:
+            raw.commit()
+            return
+        for column in ("source_kind", "source_ref_hash", "creator_subject_id"):
+            if column not in existing:
+                cursor.execute(f"ALTER TABLE documents ADD COLUMN {column} VARCHAR NULL")
+
+        malformed = cursor.execute(
+            "SELECT 1 FROM documents WHERE creator_subject_id IS NOT NULL AND ("
+            "typeof(creator_subject_id) != 'text' "
+            "OR instr(creator_subject_id, char(0)) != 0 "
+            "OR length(creator_subject_id) != 38 "
+            "OR substr(creator_subject_id, 1, 6) != 'owner_' "
+            "OR substr(creator_subject_id, 7) GLOB '*[^a-z0-9]*'"
+            ") LIMIT 1"
+        ).fetchone()
+        duplicate_bound = cursor.execute(
+            "SELECT 1 FROM documents WHERE creator_subject_id IS NOT NULL "
+            "AND source_kind IS NOT NULL AND source_ref_hash IS NOT NULL "
+            "GROUP BY creator_subject_id, source_kind, source_ref_hash "
+            "HAVING COUNT(*) > 1 LIMIT 1"
+        ).fetchone()
+        duplicate_legacy = cursor.execute(
+            "SELECT 1 FROM documents WHERE creator_subject_id IS NULL "
+            "AND owner IS NOT NULL AND source_kind IS NOT NULL "
+            "AND source_ref_hash IS NOT NULL "
+            "GROUP BY owner, source_kind, source_ref_hash "
+            "HAVING COUNT(*) > 1 LIMIT 1"
+        ).fetchone()
+        if malformed is not None or duplicate_bound is not None or duplicate_legacy is not None:
+            raise RuntimeError
+
+        for name in (
+            "ux_documents_universal_inbox_source",
+            "ux_documents_universal_inbox_subject_source",
+            "ux_documents_universal_inbox_legacy_source",
+            "ix_documents_creator_subject_id",
+        ):
+            cursor.execute(f"DROP INDEX IF EXISTS {name}")
+        for name in (
+            "trg_documents_creator_subject_id_insert",
+            "trg_documents_creator_subject_id_immutable",
+        ):
+            cursor.execute(f"DROP TRIGGER IF EXISTS {name}")
+
+        cursor.execute(
+            "CREATE UNIQUE INDEX ux_documents_universal_inbox_subject_source "
+            "ON documents (creator_subject_id, source_kind, source_ref_hash) "
+            "WHERE creator_subject_id IS NOT NULL"
         )
+        cursor.execute(
+            "CREATE UNIQUE INDEX ux_documents_universal_inbox_legacy_source "
+            "ON documents (owner, source_kind, source_ref_hash) "
+            "WHERE creator_subject_id IS NULL"
+        )
+        cursor.execute(
+            "CREATE INDEX ix_documents_creator_subject_id "
+            "ON documents (creator_subject_id)"
+        )
+        cursor.execute(
+            """
+            CREATE TRIGGER trg_documents_creator_subject_id_insert
+            BEFORE INSERT ON documents
+            WHEN NEW.creator_subject_id IS NOT NULL AND (
+                typeof(NEW.creator_subject_id) != 'text'
+                OR instr(NEW.creator_subject_id, char(0)) != 0
+                OR length(NEW.creator_subject_id) != 38
+                OR substr(NEW.creator_subject_id, 1, 6) != 'owner_'
+                OR substr(NEW.creator_subject_id, 7) GLOB '*[^a-z0-9]*'
+            )
+            BEGIN
+                SELECT RAISE(ABORT, 'invalid_document_creator_subject_id');
+            END
+            """
+        )
+        cursor.execute(
+            """
+            CREATE TRIGGER trg_documents_creator_subject_id_immutable
+            BEFORE UPDATE OF creator_subject_id ON documents
+            WHEN NEW.creator_subject_id IS NOT OLD.creator_subject_id
+            BEGIN
+                SELECT RAISE(ABORT, 'immutable_document_creator_subject_id');
+            END
+            """
+        )
+        raw.commit()
+    except Exception:
+        failed = True
+        if raw is not None:
+            try:
+                raw.rollback()
+            except Exception:
+                pass
+    finally:
+        if cursor is not None:
+            try:
+                cursor.close()
+            except Exception:
+                pass
+        if raw is not None:
+            try:
+                raw.close()
+            except Exception:
+                pass
+    if failed:
+        raise RuntimeError(
+            "document_creator_subject_schema_migration_failed"
+        ) from None
 
 def _migrate_add_task_automation_columns():
     """Add automation columns to scheduled_tasks table if missing."""
@@ -1374,6 +1491,45 @@ def _migrate_clarification_tables():
         logging.getLogger(__name__).warning(f"clarification table migration failed: {e}")
 
 
+def _migrate_add_clarification_creator_subject_id():
+    """Add the nullable subject binding without interpreting legacy rows."""
+    try:
+        if engine.dialect.name == "sqlite":
+            # SQLite DDL is transactional only after an explicit BEGIN.  The
+            # SQLAlchemy begin context can defer that BEGIN until after DDL,
+            # leaving a failed index creation with a durable added column.
+            raw = engine.raw_connection()
+            cursor = raw.cursor()
+            try:
+                cursor.execute("BEGIN IMMEDIATE")
+                columns = {row[1] for row in cursor.execute("PRAGMA table_info(clarification_runs)")}
+                if not columns:
+                    raise RuntimeError("clarification_runs_missing")
+                if "creator_subject_id" not in columns:
+                    cursor.execute("ALTER TABLE clarification_runs ADD COLUMN creator_subject_id TEXT NULL")
+                cursor.execute(
+                    "CREATE INDEX IF NOT EXISTS ix_clarification_runs_creator_subject_id "
+                    "ON clarification_runs(creator_subject_id)"
+                )
+                raw.commit()
+            except Exception:
+                raw.rollback()
+                raise
+            finally:
+                cursor.close()
+                raw.close()
+        else:
+            with engine.begin() as conn:
+                columns = {row[1] for row in conn.execute(text("PRAGMA table_info(clarification_runs)"))}
+                if not columns:
+                    raise RuntimeError("clarification_runs_missing")
+                if "creator_subject_id" not in columns:
+                    conn.execute(text("ALTER TABLE clarification_runs ADD COLUMN creator_subject_id TEXT NULL"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_clarification_runs_creator_subject_id ON clarification_runs(creator_subject_id)"))
+    except Exception as e:
+        raise RuntimeError("clarification_creator_subject_migration_failed") from e
+
+
 def _migrate_telegram_session_rollover_tables():
     """Create the durable Telegram rollover ledger without touching Sessions.
 
@@ -1427,6 +1583,7 @@ def run_database_migrations() -> None:
     _migrate_add_mode_column()
     _migrate_add_multiuser_owner_columns()
     _migrate_add_api_token_scopes_column()
+    _migrate_add_api_token_owner_subject_id_column()
     _migrate_backfill_document_owner_from_session()
     _migrate_assign_legacy_owner()
     _migrate_add_tidy_verdict()
@@ -1450,6 +1607,7 @@ def run_database_migrations() -> None:
     _migrate_add_calendar_account_id()
     _migrate_add_caldav_sync_columns()
     _migrate_clarification_tables()
+    _migrate_add_clarification_creator_subject_id()
     _migrate_telegram_session_rollover_tables()
     _migrate_chat_messages_fts()
     _migrate_encrypt_email_passwords()
