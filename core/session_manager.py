@@ -376,6 +376,42 @@ class SessionManager:
         finally:
             db.close()
 
+    def reload_session_after_external_commit(self, session_id: str) -> Session:
+        """Replace one cached session with a fresh DB snapshot after an external commit.
+
+        Private confirmation persistence owns its paired-message transaction and
+        therefore cannot use ``_persist_message`` as a success signal.  This
+        method performs the independent readback into the normal session cache;
+        any failure crosses a fixed error boundary so callers cannot expose DB
+        diagnostics or retain a stale grant-bearing snapshot.
+        """
+        db = None
+        session = None
+        failed = False
+        try:
+            db = SessionLocal()
+            db_session = db.query(DbSession).filter(DbSession.id == session_id).one_or_none()
+            if db_session is None:
+                failed = True
+            else:
+                session = self._db_to_session(db_session, db)
+                if session is None:
+                    failed = True
+                else:
+                    self._cache_session(session_id, session)
+        except Exception:
+            failed = True
+        finally:
+            if db is not None:
+                try:
+                    db.close()
+                except Exception:
+                    failed = True
+        if failed or session is None:
+            self.sessions.pop(session_id, None)
+            raise RuntimeError("session_reload_failed") from None
+        return session
+
     def _load_session_from_db(self, session_id: str):
         """Hydrate a single session (with messages) from the database."""
         db = SessionLocal()

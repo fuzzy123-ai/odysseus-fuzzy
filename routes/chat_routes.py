@@ -3,17 +3,22 @@
 import asyncio
 import json
 import os
+import re
 import time
 import logging
-from datetime import datetime
+from contextlib import contextmanager
+from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Dict, Any, AsyncGenerator, List, Optional
 
 from fastapi import APIRouter, Request, HTTPException, Form, Query
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 from pydantic import ValidationError
 
 from core.models import ChatMessage
 from src.request_models import ChatRequest
+from src.private_context_confirmation import Challenge, ConfirmationError, VerifiedDisclosure
+from src.private_context_confirmation_app import PrivateContextConfirmationApp
 from src.llm_core import llm_call_async, stream_llm, stream_llm_with_fallback
 from src.agent_loop import stream_agent_loop
 from src import agent_run_ledger, agent_runs
@@ -23,8 +28,14 @@ from src.chat_helpers import coerce_message_and_session
 from src.session_search import search_session_messages
 from src.prompt_security import untrusted_context_message
 from core.exceptions import SessionNotFoundError
-from src.auth_helpers import get_current_user, scoped_effective_user
+from src.auth_helpers import get_current_user, scoped_effective_user, require_trusted_session_principal, SessionPrincipal
+from src.document_subject_scope import (
+    capture_document_request_authority,
+    guard_document_request_authority,
+    scope_document_web_query,
+)
 from routes.session_routes import _verify_session_owner
+from routes.auth_routes import SESSION_COOKIE
 from routes.document_helpers import _owner_session_filter
 from core.database import SessionLocal, get_session_mode, set_session_mode
 from core.database import Session as DBSession, ChatMessage as DBChatMessage
@@ -56,19 +67,250 @@ logger = logging.getLogger(__name__)
 _active_streams: Dict[str, dict] = {}
 
 
+@dataclass(frozen=True, slots=True)
+class _ActiveDocumentSnapshot:
+    id: str
+    session_id: Optional[str]
+    title: str
+    language: Optional[str]
+    current_content: str
+    version_count: int
+    is_active: bool
+    archived: bool
+
+
+def _capture_chat_document_authority(request: Request):
+    """Capture browser/local authority while preserving bearer compatibility."""
+    authorization = request.headers.get("authorization", "")
+    if getattr(request.state, "api_token", False) or (
+        isinstance(authorization, str) and authorization.lower().startswith("bearer ")
+    ):
+        return None
+    return capture_document_request_authority(request)
+
+
+@contextmanager
+def _guard_chat_document_authority(authority):
+    if authority is None:
+        yield None
+        return
+    with guard_document_request_authority(authority) as lease:
+        yield lease
+
+
+def _scope_chat_document_query(query, lease, owner: Optional[str]):
+    if lease is None:
+        legacy = query.filter(DBDocument.creator_subject_id.is_(None))
+        return _owner_session_filter(legacy, owner)
+    return scope_document_web_query(query, lease, model=DBDocument)
+
+_PRIVATE_DISCLOSE_COMMAND = "/context-disclose"
+_PRIVATE_CHALLENGE_RE = re.compile(r"pc1\.[A-Za-z0-9_-]{43}\.[0-9a-f]{64}\Z")
+_PRIVATE_ACK = "Private context disclosure confirmed."
+_PRIVATE_AUDIENCE = "authenticated_context_download"
+_PRIVATE_PROXY_HEADERS = (
+    "cf-connecting-ip", "cf-ray", "cf-visitor",
+    "x-forwarded-for", "x-forwarded-host", "x-real-ip", "forwarded",
+)
+_PRIVATE_INTERNAL_HEADERS = (
+    "x-odysseus-internal-token", "x-odysseus-owner", "x-internal-token", "x-tool-token",
+)
+
+
+def _private_reserved_challenge(message: object) -> str | None:
+    """Return a reserved command's token, or ``None`` for ordinary chat."""
+    if not isinstance(message, str):
+        return None
+    parts = message.strip().split()
+    if not parts or parts[0] != _PRIVATE_DISCLOSE_COMMAND:
+        return None
+    if len(parts) != 2 or _PRIVATE_CHALLENGE_RE.fullmatch(parts[1]) is None:
+        raise HTTPException(400, "invalid_context_challenge")
+    return parts[1]
+
+
+def _private_option_enabled(value: object) -> bool:
+    return value is True or (isinstance(value, str) and value.strip().lower() == "true")
+
+
+def _private_principal(request: Request, *, expected: SessionPrincipal | None = None) -> SessionPrincipal:
+    """Require the configured browser cookie and same-origin request proof."""
+    manager = getattr(request.app.state, "auth_manager", None)
+    headers = request.headers
+    if manager is None or getattr(manager, "is_configured", False) is not True:
+        raise HTTPException(401, "Not authenticated")
+    if getattr(request.state, "api_token", False) or headers.get("authorization"):
+        raise HTTPException(401, "Not authenticated")
+    if any(headers.get(name) for name in _PRIVATE_PROXY_HEADERS + _PRIVATE_INTERNAL_HEADERS):
+        raise HTTPException(401, "Not authenticated")
+    origin = headers.get("origin")
+    expected_origin = f"{request.url.scheme}://{request.url.netloc}"
+    if not origin or origin.rstrip("/") != expected_origin.rstrip("/"):
+        raise HTTPException(403, "Origin validation failed")
+    token = request.cookies.get(SESSION_COOKIE)
+    try:
+        identity = manager.strict_session_identity(token)
+    except Exception:
+        identity = None
+    if (
+        type(identity) is not tuple
+        or len(identity) != 2
+        or not isinstance(identity[0], str)
+        or not isinstance(identity[1], str)
+    ):
+        raise HTTPException(401, "Not authenticated")
+    owner, subject_id = identity
+    try:
+        admin = manager.is_admin(owner) is True
+        subject_current = manager.subject_id_for_username(owner)
+    except Exception:
+        admin = False
+        subject_current = None
+    if not admin or subject_current != subject_id:
+        raise HTTPException(403, "Not authorized")
+    principal = SessionPrincipal(owner=owner, creator_subject_id=subject_id, authority="browser_session")
+    if expected is not None and principal != expected:
+        raise HTTPException(401, "Not authenticated")
+    return principal
+
+
+def _private_security_revision(request: Request) -> int:
+    manager = getattr(request.app.state, "auth_manager", None)
+    try:
+        revision = manager.security_action_revision()
+    except Exception:
+        raise HTTPException(401, "Not authenticated") from None
+    if type(revision) is not int or revision < 0:
+        raise HTTPException(401, "Not authenticated")
+    return revision
+
+
+def _private_service(request: Request) -> PrivateContextConfirmationApp:
+    service = getattr(request.app.state, "private_context_confirmation", None)
+    configured_auth = getattr(request.app.state, "private_context_confirmation_auth_manager", None)
+    current_auth = getattr(request.app.state, "auth_manager", None)
+    if type(service) is not PrivateContextConfirmationApp or configured_auth is None or configured_auth is not current_auth:
+        raise HTTPException(503, "private_context_unavailable")
+    authority = getattr(service, "_authority", None)
+    if getattr(authority, "_auth_manager", None) is not configured_auth:
+        raise HTTPException(503, "private_context_unavailable")
+    return service
+
+
+def _private_response_payload(verified: VerifiedDisclosure) -> dict[str, object]:
+    if (
+        type(verified) is not VerifiedDisclosure
+        or type(verified.disclosure_message_id) is not int
+        or type(verified.acknowledgement_message_id) is not int
+        or not 1 <= verified.disclosure_message_id <= (1 << 63) - 1
+        or not 1 <= verified.acknowledgement_message_id <= (1 << 63) - 1
+        or verified.disclosure_message_id == verified.acknowledgement_message_id
+    ):
+        raise ConfirmationError("readback_failed")
+    return {
+        "response": _PRIVATE_ACK,
+        "disclosure_message_id": verified.disclosure_message_id,
+        "acknowledgement_message_id": verified.acknowledgement_message_id,
+        "audience": _PRIVATE_AUDIENCE,
+        "mode": "read_only",
+    }
+
+
+def _private_consume_sync(
+    request: Request,
+    service: PrivateContextConfirmationApp,
+    session_manager: object,
+    principal: SessionPrincipal,
+    session_id: str,
+    security_revision: int,
+    challenge: Challenge,
+    stream: bool,
+) -> tuple[bytes, str]:
+    """Consume and serialize while the service lock and auth guard are held."""
+    try:
+        from src.auth_helpers import guard_trusted_session_principal
+
+        service_lock = getattr(service, "_lock", None)
+        if service_lock is None:
+            raise ConfirmationError("persistence_failed")
+        # Keep the service lock outermost.  consume_challenge re-enters this
+        # lock and then acquires the foundation manager lock; the auth guard is
+        # deliberately nested so no path takes auth before service state.
+        with service_lock:
+            with guard_trusted_session_principal(request, principal):
+                _private_principal(request, expected=principal)
+                token = request.cookies.get(SESSION_COOKIE)
+                verified = service.consume_challenge(token, session_id, challenge)
+                if type(verified) is not VerifiedDisclosure:
+                    raise ConfirmationError("readback_failed")
+                session_manager.reload_session_after_external_commit(session_id)
+                _private_principal(request, expected=principal)
+                if _private_security_revision(request) != security_revision:
+                    raise ConfirmationError("invalid_binding")
+                payload = _private_response_payload(verified)
+                encoded = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+                if stream:
+                    return b"data: " + encoded + b"\n\n" + b"data: [DONE]\n\n", "text/event-stream"
+                return encoded, "application/json"
+    except (ConfirmationError, HTTPException):
+        raise
+    except Exception:
+        raise ConfirmationError("persistence_failed") from None
+
+
+async def _private_disclosure_response(
+    request: Request,
+    session_manager: object,
+    session_id: str,
+    token: str,
+    *,
+    stream: bool,
+) -> Response:
+    service = _private_service(request)
+    principal = _private_principal(request)
+    if getattr(service, "_producer", None) is None:
+        raise HTTPException(409, "private_context_unavailable")
+    security_revision = _private_security_revision(request)
+    challenge = Challenge(token, datetime.now(timezone.utc), datetime.now(timezone.utc))
+    try:
+        encoded, media_type = await asyncio.to_thread(
+            _private_consume_sync,
+            request,
+            service,
+            session_manager,
+            principal,
+            session_id,
+            security_revision,
+            challenge,
+            stream,
+        )
+    except HTTPException:
+        raise
+    except ConfirmationError as error:
+        status = 409 if error.code in {"challenge_spent", "challenge_expired", "disclosure_unverified"} else 400
+        raise HTTPException(status, error.code) from None
+    return Response(content=encoded, media_type=media_type, status_code=200)
+
+
 def _chat_effective_user(request: Request) -> str | None:
     return scoped_effective_user(request, "chat")
 
 
 def _clarification_gate_for_session(
     *,
-    owner: str | None,
+    principal: SessionPrincipal | None,
     session_id: str | None,
     store: Any = None,
 ) -> dict[str, Any]:
     from src.clarification_attention import build_session_clarification_attention
 
-    attention = build_session_clarification_attention(owner=owner, session_id=session_id, store=store)
+    # Shared or forged callers never cause an attention query.  Their turn is
+    # conservatively tool-gated while ordinary text chat remains available.
+    if principal is None:
+        return {"open": True, "reason": "Clarification authority is unavailable; mutation-capable work is blocked.", "clarification_id": "", "status": "unknown", "unresolved_required_count": 0}
+    attention = build_session_clarification_attention(principal=principal, session_id=session_id, store=store)
+    if attention.get("provider_failed"):
+        return {"open": True, "reason": "Clarification status is unavailable; mutation-capable work is blocked.", "clarification_id": "", "status": "unknown", "unresolved_required_count": 0}
     if not attention.get("active"):
         return {"open": False, "reason": "", "clarification_id": str(attention.get("clarification_id") or "")}
     return {
@@ -352,16 +594,39 @@ def setup_chat_routes(
         use_research = chat_request.use_research
         time_filter = chat_request.time_filter
         preset_id = chat_request.preset_id
+        try:
+            raw_body = await request.json()
+        except Exception:
+            raw_body = {}
 
         # Verify the caller owns this session before loading it.
         # Without this, any authenticated user can post into another user's chat.
         _verify_session_owner(request, session)
+
+        private_token = _private_reserved_challenge(message)
+        if private_token is not None:
+            if _private_option_enabled(raw_body.get("incognito") if isinstance(raw_body, dict) else None):
+                raise HTTPException(403, "private_context_requires_authenticated_chat")
+            return await _private_disclosure_response(
+                request,
+                session_manager,
+                session,
+                private_token,
+                stream=False,
+            )
+
+        document_authority = _capture_chat_document_authority(request)
 
         try:
             sess = session_manager.get_session(session)
         except KeyError:
             raise HTTPException(404, f"Session '{session}' not found")
         owner = _chat_effective_user(request)
+        try:
+            clarification_principal = require_trusted_session_principal(request)
+        except HTTPException:
+            clarification_principal = None
+        clarification_gate = _clarification_gate_for_session(principal=clarification_principal, session_id=session)
         if _clear_orphaned_session_endpoint(sess, owner=owner):
             raise HTTPException(400, "Selected model endpoint was removed. Pick another model in Settings.")
 
@@ -379,8 +644,15 @@ def setup_chat_routes(
         # non-streaming path can't be used to bypass).
         _enforce_chat_privileges(request, sess)
 
-        tool_policy = build_effective_tool_policy(last_user_message=message)
-        allow_tool_preprocessing = not tool_policy.block_all_tool_calls
+        tool_policy = build_effective_tool_policy(
+            last_user_message=message,
+            clarification_open=bool(clarification_gate.get("open")),
+            clarification_reason=str(clarification_gate.get("reason") or ""),
+        )
+        allow_tool_preprocessing = (
+            not tool_policy.block_all_tool_calls
+            and tool_policy.mode != "clarification_open"
+        )
 
         # Inline memory command
         memory_response = None
@@ -400,6 +672,7 @@ def setup_chat_routes(
             time_filter=time_filter,
             webhook_manager=webhook_manager,
             allow_tool_preprocessing=allow_tool_preprocessing,
+            document_authority=document_authority,
         )
 
         deterministic_reply = build_deterministic_capability_self_report(message)
@@ -455,7 +728,10 @@ def setup_chat_routes(
             ctx.uprefs, memory_manager, memory_vector, webhook_manager,
             character_name=ctx.preset.character_name,
             owner=ctx.user,
-            allow_background_extraction=not tool_policy.block_all_tool_calls,
+            allow_background_extraction=(
+                not tool_policy.block_all_tool_calls
+                and tool_policy.mode != "clarification_open"
+            ),
         )
 
         return {"response": reply}
@@ -501,6 +777,32 @@ def setup_chat_routes(
         plan_mode = False
         orchestrator_mode = str(form_data.get("orchestrator_mode", "")).lower() == "true"
         chat_mode = str(form_data.get("mode", "")).lower()  # 'chat' or 'agent'
+        # Resolve the session and its SID-owned clarification gate before any
+        # request intent, workspace, memory, email-cache, or tool setup.
+        _has_atts = bool(body and isinstance(body.get("attachments"), list) and body["attachments"]) or bool(form_data.get("attachments"))
+        message, session = coerce_message_and_session(body, message, session, session_manager, allow_empty=_has_atts)
+        _verify_session_owner(request, session)
+        private_token = _private_reserved_challenge(message)
+        if private_token is not None:
+            raw_incognito = form_data.get("incognito")
+            if raw_incognito is None and isinstance(body, dict):
+                raw_incognito = body.get("incognito")
+            if _private_option_enabled(raw_incognito):
+                raise HTTPException(403, "private_context_requires_authenticated_chat")
+            return await _private_disclosure_response(
+                request,
+                session_manager,
+                session,
+                private_token,
+                stream=True,
+            )
+        document_authority = _capture_chat_document_authority(request)
+        sess = session_manager.get_session(session)
+        try:
+            clarification_principal = require_trusted_session_principal(request)
+        except HTTPException:
+            clarification_principal = None
+        clarification_gate = _clarification_gate_for_session(principal=clarification_principal, session_id=session)
         # Workspace: confine the agent's file/shell tools to this folder.
         workspace, workspace_rejected = _resolve_request_workspace(
             request, form_data.get("workspace")
@@ -618,6 +920,11 @@ def setup_chat_routes(
             _verify_session_owner(request, session)
             sess = session_manager.get_session(session)
             owner = _chat_effective_user(request)
+            try:
+                clarification_principal = require_trusted_session_principal(request)
+            except HTTPException:
+                clarification_principal = None
+            clarification_gate = _clarification_gate_for_session(principal=clarification_principal, session_id=session)
             if _clear_orphaned_session_endpoint(sess, owner=owner):
                 raise HTTPException(400, "Selected model endpoint was removed. Pick another model in Settings.")
             # Issue #587: picker shows a model from the endpoint cache but
@@ -669,8 +976,13 @@ def setup_chat_routes(
         no_memory = str(form_data.get("no_memory", "")).lower() == "true"
         pre_context_tool_policy = build_effective_tool_policy(
             last_user_message=message,
+            clarification_open=bool(clarification_gate.get("open")),
+            clarification_reason=str(clarification_gate.get("reason") or ""),
         )
-        allow_tool_preprocessing = not pre_context_tool_policy.block_all_tool_calls
+        allow_tool_preprocessing = (
+            not pre_context_tool_policy.block_all_tool_calls
+            and pre_context_tool_policy.mode != "clarification_open"
+        )
 
         # Build shared context (stream path uses enhanced_message for context preface)
         ctx = await build_chat_context(
@@ -693,6 +1005,7 @@ def setup_chat_routes(
             # index would be useless / unwanted noise.
             agent_mode=(chat_mode == "agent"),
             allow_tool_preprocessing=allow_tool_preprocessing,
+            document_authority=document_authority,
         )
 
         deterministic_reply = build_deterministic_capability_self_report(message)
@@ -725,83 +1038,162 @@ def setup_chat_routes(
 
         # Query active document — prefer explicit ID from frontend, fall back to session lookup
         active_doc = None
+        _active_document_readback_failed = False
         _doc_db = SessionLocal()
         try:
-            if active_doc_id:
-                logger.info(f"[doc-inject] active_doc_id from frontend: {active_doc_id}")
-                # Scope to the caller's documents. The session and in-memory
-                # fallbacks below are already owner/session-bound; this
-                # explicit-id path looked up by id alone, so a user could
-                # inject another user's document by passing its id.
-                _doc_q = _doc_db.query(DBDocument).filter(DBDocument.id == active_doc_id)
-                active_doc = _owner_session_filter(_doc_q, ctx.user).first()
-                if active_doc:
-                    doc_session = active_doc.session_id
-                    doc_owner = getattr(active_doc, "owner", None)
-                    if doc_owner and ctx.user and doc_owner != ctx.user:
-                        logger.warning(
-                            "[doc-inject] ignoring active_doc_id %s owned by another user",
-                            active_doc_id,
-                        )
-                        active_doc = None
-                    else:
-                        # NOTE: previously dropped the doc when doc.session_id
-                        # != current chat session — but that broke the common
-                        # case of "open an email draft from one chat, ask a
-                        # different chat to write into it". The frontend only
-                        # sends active_doc_id for docs currently visible in
-                        # the UI, and we already owner-checked above, so trust
-                        # the explicit signal. We just log the mismatch and
-                        # re-bind the doc to the current session so future
-                        # turns find it via the session-fallback path too.
+            with _guard_chat_document_authority(document_authority) as _doc_lease:
+                if active_doc_id:
+                    logger.info(f"[doc-inject] active_doc_id from frontend: {active_doc_id}")
+                    _doc_q = _doc_db.query(DBDocument).filter(DBDocument.id == active_doc_id)
+                    active_doc = _scope_chat_document_query(_doc_q, _doc_lease, ctx.user).first()
+                    if active_doc:
+                        doc_session = active_doc.session_id
                         if doc_session and doc_session != session:
                             logger.info(
                                 "[doc-inject] cross-session active_doc_id %s (was session %s, now %s) — accepting and rebinding",
                                 active_doc_id, doc_session, session,
                             )
                             try:
-                                active_doc.session_id = session
-                                _doc_db.commit()
-                            except Exception as _e:
+                                _rebind_revision = (
+                                    active_doc.id,
+                                    active_doc.version_count,
+                                    active_doc.current_content,
+                                    active_doc.is_active,
+                                    active_doc.archived,
+                                    active_doc.session_id,
+                                    active_doc.title,
+                                    active_doc.language,
+                                )
+                                _rebind_q = _scope_chat_document_query(
+                                    _doc_db.query(DBDocument), _doc_lease, ctx.user
+                                ).filter(
+                                    DBDocument.id == _rebind_revision[0],
+                                    DBDocument.version_count == _rebind_revision[1],
+                                    DBDocument.current_content == _rebind_revision[2],
+                                    DBDocument.is_active == _rebind_revision[3],
+                                    DBDocument.archived == _rebind_revision[4],
+                                    DBDocument.session_id == _rebind_revision[5],
+                                    DBDocument.title == _rebind_revision[6],
+                                    DBDocument.language.is_(None) if _rebind_revision[7] is None else DBDocument.language == _rebind_revision[7],
+                                )
+                                if _rebind_q.update(
+                                    {DBDocument.session_id: session},
+                                    synchronize_session=False,
+                                ) != 1:
+                                    _doc_db.rollback()
+                                    raise HTTPException(
+                                        status_code=409,
+                                        detail="Document changed; retry the request",
+                                    )
+                                else:
+                                    _doc_db.commit()
+                                    _doc_db.expire_all()
+                                    _rebound_q = _doc_db.query(DBDocument).filter(
+                                        DBDocument.id == _rebind_revision[0]
+                                    )
+                                    active_doc = _scope_chat_document_query(
+                                        _rebound_q, _doc_lease, ctx.user
+                                    ).populate_existing().first()
+                                    if active_doc is None:
+                                        active_doc = None
+                                        _active_document_readback_failed = True
+                                        logger.warning("[doc-inject] rebound document readback failed")
+                            except HTTPException:
+                                raise
+                            except Exception:
                                 _doc_db.rollback()
-                                logger.warning(f"[doc-inject] session rebind failed: {_e}")
-                        logger.info(f"[doc-inject] found by ID: title={active_doc.title!r}, lang={active_doc.language!r}, is_active={active_doc.is_active}, content_len={len(active_doc.current_content or '')}")
+                                active_doc = None
+                                _active_document_readback_failed = True
+                                logger.warning("[doc-inject] session rebind failed")
+                        if active_doc is not None:
+                            logger.info(f"[doc-inject] found by ID: title={active_doc.title!r}, lang={active_doc.language!r}, is_active={active_doc.is_active}, content_len={len(active_doc.current_content or '')}")
+                    else:
+                        logger.warning(f"[doc-inject] NOT FOUND by ID {active_doc_id}")
+                if not active_doc and not _active_document_readback_failed:
+                    _session_doc_q = _doc_db.query(DBDocument).filter(
+                        DBDocument.session_id == session,
+                        DBDocument.is_active == True
+                    )
+                    active_doc = _scope_chat_document_query(
+                        _session_doc_q, _doc_lease, ctx.user
+                    ).order_by(DBDocument.updated_at.desc()).first()
+                    if active_doc:
+                        logger.info(f"[doc-inject] found by session fallback: title={active_doc.title!r}")
+                if not active_doc and not _active_document_readback_failed:
+                    try:
+                        from src.agent_tools.document_tools import get_active_document
+                        _mem_id = get_active_document()
+                        if _mem_id:
+                            _mem_q = _doc_db.query(DBDocument).filter(DBDocument.id == _mem_id)
+                            cand = _scope_chat_document_query(_mem_q, _doc_lease, ctx.user).first()
+                            if cand and (not cand.session_id or cand.session_id == session):
+                                active_doc = cand
+                                logger.info(f"[doc-inject] found by in-memory active id: title={active_doc.title!r} (session_id={cand.session_id!r})")
+                    except HTTPException:
+                        raise
+                    except Exception:
+                        logger.debug("[doc-inject] in-memory fallback failed")
+                if not active_doc:
+                    logger.info(f"[doc-inject] no active doc for session {session}")
                 else:
-                    logger.warning(f"[doc-inject] NOT FOUND by ID {active_doc_id}")
-            if not active_doc:
-                _session_doc_q = _doc_db.query(DBDocument).filter(
-                    DBDocument.session_id == session,
-                    DBDocument.is_active == True
-                )
-                active_doc = _owner_session_filter(_session_doc_q, ctx.user).order_by(DBDocument.updated_at.desc()).first()
-                if active_doc:
-                    logger.info(f"[doc-inject] found by session fallback: title={active_doc.title!r}")
-            # Last resort: the document the agent itself just created/edited
-            # (tracked in-memory by the tool layer). This rescues docs that
-            # got orphaned from their session (session_id NULL) — otherwise
-            # neither lookup above can associate them with this conversation,
-            # so the agent never sees what it just wrote. Guarded so we never
-            # leak a doc that belongs to a DIFFERENT session.
-            if not active_doc:
-                try:
-                    from src.agent_tools.document_tools import get_active_document
-                    _mem_id = get_active_document()
-                    if _mem_id:
-                        _mem_q = _doc_db.query(DBDocument).filter(DBDocument.id == _mem_id)
-                        cand = _owner_session_filter(_mem_q, ctx.user).first()
-                        if cand and (not cand.session_id or cand.session_id == session):
-                            active_doc = cand
-                            logger.info(f"[doc-inject] found by in-memory active id: title={active_doc.title!r} (session_id={cand.session_id!r})")
-                except Exception as _e:
-                    logger.debug(f"[doc-inject] in-memory fallback failed: {_e}")
-            if not active_doc:
-                logger.info(f"[doc-inject] no active doc for session {session}")
-            if active_doc:
-                _doc_db.expunge(active_doc)
-        except Exception as e:
-            logger.warning(f"Failed to query active document: {e}")
+                    _revision_token = (
+                        active_doc.version_count,
+                        active_doc.current_content,
+                        active_doc.is_active,
+                        active_doc.archived,
+                        active_doc.session_id,
+                        active_doc.title,
+                        active_doc.language,
+                    )
+                    _active_id = active_doc.id
+                    try:
+                        _doc_db.expire_all()
+                        _fresh_q = _doc_db.query(DBDocument).filter(DBDocument.id == _active_id)
+                        _fresh_doc = _scope_chat_document_query(
+                            _fresh_q, _doc_lease, ctx.user
+                        ).populate_existing().first()
+                        if _fresh_doc is None or (
+                            _fresh_doc.version_count,
+                            _fresh_doc.current_content,
+                            _fresh_doc.is_active,
+                            _fresh_doc.archived,
+                            _fresh_doc.session_id,
+                            _fresh_doc.title,
+                            _fresh_doc.language,
+                        ) != _revision_token:
+                            active_doc = None
+                            _active_document_readback_failed = True
+                        else:
+                            active_doc = _ActiveDocumentSnapshot(
+                                id=_fresh_doc.id,
+                                session_id=_fresh_doc.session_id,
+                                title=_fresh_doc.title,
+                                language=_fresh_doc.language,
+                                current_content=_fresh_doc.current_content,
+                                version_count=_fresh_doc.version_count,
+                                is_active=_fresh_doc.is_active,
+                                archived=_fresh_doc.archived,
+                            )
+                    except Exception:
+                        active_doc = None
+                        _active_document_readback_failed = True
+                        logger.warning("[doc-inject] active document readback failed")
+        except HTTPException:
+            raise
+        except Exception:
+            active_doc = None
+            _active_document_readback_failed = True
+            logger.warning("Failed to query active document")
         finally:
-            _doc_db.close()
+            try:
+                _doc_db.close()
+            except Exception:
+                active_doc = None
+                _active_document_readback_failed = True
+                logger.warning("Failed to close active document readback session")
+
+        if _active_document_readback_failed:
+            raise HTTPException(status_code=409, detail="Document access is no longer available")
 
         # Build disabled-tools set from frontend toggles + user privileges
         disabled_tools = set()
@@ -906,7 +1298,6 @@ def setup_chat_routes(
             from src.tool_security import plan_mode_disabled_tools
             disabled_tools.update(plan_mode_disabled_tools())
 
-        clarification_gate = _clarification_gate_for_session(owner=ctx.user, session_id=session)
         tool_policy = build_effective_tool_policy(
             disabled_tools=disabled_tools,
             last_user_message=message,
@@ -1291,7 +1682,10 @@ def setup_chat_routes(
                                     incognito=incognito, compare_mode=compare_mode,
                                     character_name=ctx.preset.character_name,
                                     owner=_user,
-                                    allow_background_extraction=not tool_policy.block_all_tool_calls,
+                                    allow_background_extraction=(
+                                        not tool_policy.block_all_tool_calls
+                                        and tool_policy.mode != "clarification_open"
+                                    ),
                                 )
                             _stream_set(session, status="done")
                             yield chunk
@@ -1331,6 +1725,27 @@ def setup_chat_routes(
                         _max_rounds = _DEFAULT_ROUNDS
                     _max_rounds = max(1, min(_max_rounds, 200))
 
+                    if active_doc is not None:
+                        from src.agent_tools.document_tools import validate_document_revision
+                        _route_revision = (
+                            active_doc.id,
+                            active_doc.version_count,
+                            active_doc.current_content,
+                            active_doc.is_active,
+                            active_doc.archived,
+                            active_doc.session_id,
+                            active_doc.title,
+                            active_doc.language,
+                        )
+                        try:
+                            if not validate_document_revision(
+                                document_authority, _user, _route_revision
+                            ):
+                                yield 'data: {"type":"document_conflict","error":"Document changed; retry the request"}\n\n'
+                                return
+                        except Exception:
+                            yield 'data: {"type":"document_conflict","error":"Document access is no longer available"}\n\n'
+                            return
                     async for chunk in stream_agent_loop(
                         sess.endpoint_url,
                         sess.model,
@@ -1358,6 +1773,7 @@ def setup_chat_routes(
                         audit_correlation_id=session,
                         tool_usage_context=_tool_usage_context,
                         tool_usage_instrumentation=_tool_usage_instrumentation,
+                        document_authority=document_authority,
                     ):
                         if chunk.startswith("data: ") and not chunk.startswith("data: [DONE]"):
                             try:
@@ -1380,6 +1796,7 @@ def setup_chat_routes(
                                     "rounds_exhausted",
                                     "ask_user",
                                     "plan_update",
+                                    "document_conflict",
                                 ):
                                     if data.get("type") == "agent_step":
                                         _agent_rounds = max(_agent_rounds, data.get("round", 1))
@@ -1431,7 +1848,10 @@ def setup_chat_routes(
                                     skills_manager=skills_manager,
                                     owner=_user,
                                     extract_skills=user_requested_agent,
-                                    allow_background_extraction=not tool_policy.block_all_tool_calls,
+                                    allow_background_extraction=(
+                                        not tool_policy.block_all_tool_calls
+                                        and tool_policy.mode != "clarification_open"
+                                    ),
                                 )
                             _stream_set(session, status="done")
                             yield chunk
