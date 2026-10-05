@@ -13,6 +13,7 @@ from pydantic import BaseModel
 from core.database import Document, DocumentVersion
 from core.database import Session as DbSession
 from src.auth_helpers import _auth_disabled
+from src.document_subject_scope import scope_document_web_query
 from src.upload_handler import UploadHandler
 
 logger = logging.getLogger(__name__)
@@ -93,6 +94,10 @@ def _verify_doc_owner(db, doc: Document, user: str):
     openable / cloneable. We trust that column first and only fall back to
     the session join for any not-yet-backfilled legacy row.
     """
+    # Compatibility-only check for callers that do not yet carry a sealed
+    # browser lease.  Such callers may never reach SID-bound rows.
+    if getattr(doc, "creator_subject_id", None) is not None:
+        raise HTTPException(404, "Document not found")
     if user is None:
         if _auth_disabled():
             return
@@ -109,7 +114,7 @@ def _verify_doc_owner(db, doc: Document, user: str):
         raise HTTPException(404, "Document not found")
 
 
-def _owner_session_filter(q, user):
+def _owner_session_filter(q, user=None, *, lease=None, model=Document):
     """Restrict a documents query to those owned by `user`.
 
     Documents now carry their own `owner` column (backfilled at boot from
@@ -121,11 +126,24 @@ def _owner_session_filter(q, user):
     The owner backfill runs in init_db before the app serves requests, so
     by the time this filter is live there are no NULL-owner rows to leak;
     we therefore match the owner strictly for authenticated callers."""
+    if lease is not None:
+        return scope_document_web_query(q, lease, model=model)
+
+    # Transitional bearer/API/tool callers are deliberately limited to the
+    # legacy namespace.  A raw owner alias is never authority for a bound row.
+    q = q.filter(model.creator_subject_id.is_(None))
     if not user:
         if user == "" or _auth_disabled():
             return q
         return q.filter(False)
-    return q.filter(Document.owner == user)
+    return q.filter(model.owner == user)
+
+
+def _document_by_id_query(db, doc_id: str, *, lease=None, user=None):
+    """Return an access-scoped Document query without materializing a row."""
+    return _owner_session_filter(
+        db.query(Document), user, lease=lease, model=Document
+    ).filter(Document.id == doc_id)
 
 
 
