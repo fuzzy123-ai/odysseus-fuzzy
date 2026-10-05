@@ -7,7 +7,47 @@ applicable scoped handoff. See `docs/plans/evidence/harbour-one-plan-reconciliat
 for the planning reconciliation. Historical next-action text below does not
 reopen accepted or released work.
 
-## Latest checkpoint: 2026-10-05 (canonical revision 2846)
+## Latest checkpoint: 2026-10-05 (canonical revision 2869)
+
+HEAD is `9b58d429c6f7be934f190e2948538dd8f248c9da`; thirty-four local
+commits precede this documentation commit. The bounded USI adapter and exact
+character feed are committed, with isolated HEAD-overlay proofs of thirteen
+and thirty-six passing cases respectively.
+
+The Forge Git adapter and code-policy size rules are now committed together.
+Source sizes are exact signed-64 identity metadata; content reads remain
+independently bounded to one million bytes per page. Their committed-HEAD-plus-
+four-file acceptance passed ninety-seven cases with actual exit code 0 and
+unchanged candidate hashes. Receipt:
+`.abc-test-tmp/forge-repo-policy-size-head-closure-20261005/root-head4/receipt.json`.
+
+The remaining Coverage and Forge-source pairs are frozen under
+`FORGE-SIZE-COVERAGE-ADMISSION-HEAD-CLOSURE-R1-20261005`. The complete five-pair
+lane plus repository and source registries passed 241 cases in an isolated
+HEAD-plus-four-file tree. A fresh independent deep review of the frozen ten
+paths also passed; exact publication of the remaining four paths is next.
+Receipts:
+`.abc-test-tmp/forge-size-corridor-remaining4-20261005/root-head4/receipt.json`
+and `.abc-test-tmp/forge-source-size-frozen10-acceptance-20261005/receipt.json`.
+This verifies the source-size prerequisite, not productive context reading,
+SQLite publication or the whole application.
+
+The Forge context foundation remains on HOLD. Independent diagnosis confirmed
+the earlier AR1/AR2 input-fence contract is still violated by arbitrary Mapping
+callbacks and shallow nested request copies across reader callbacks. This is
+a repeated failure; its history and correction budget are preserved. A fresh
+architecture assessment is in progress before a bounded repair. Security
+revision zero remains legal. Diagnosis:
+`.abc-test-tmp/forge-context-foundation-closure-20261005/review-r4/receipt.json`.
+
+The Store candidate retains its 371-case working-tree runtime proof and remains
+frozen/uncommitted until lifecycle, policy and SQLite dependencies are closed.
+Current application acceptance still stops at fixture dependency closure;
+strong33 has not run. Not verified: current whole authenticated persistent MCP
+application, fourteen remaining parent modules, UI, live, temporal, production
+migration, deployment, backup, restore and push. The overall goal remains active.
+
+## Historical checkpoint: 2026-10-05 (canonical revision 2846)
 
 This snapshot follows canonical revision 2846. HEAD is
 `4fd56c4e7441a2ee156fdf55abc9e77377190f46`; thirty local commits are recorded
