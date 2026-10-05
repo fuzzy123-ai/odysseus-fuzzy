@@ -7,7 +7,21 @@ applicable scoped handoff. See `docs/plans/evidence/harbour-one-plan-reconciliat
 for the planning reconciliation. Historical next-action text below does not
 reopen accepted or released work.
 
-## Latest checkpoint: 2026-10-05 (canonical revision 3173)
+## Latest checkpoint: 2026-10-05 (canonical revision 3194)
+
+HEAD is `3cfe94211759952052fc40b87e3d4e1c10839ddc`; 61 accepted local commits precede this documentation update. The canonical local execution queue is running. Product-roadmap progress remains 9/17; these component results do not grant whole-product or live acceptance.
+
+The authenticated current Planning receipt reader is committed as `862978ed5f48a40c7438d33bc0608037481f3c91`. It checks immutable SID/issuer binding, the exact captured head, unique ordinary append/approve/revert provenance and the retained repository image; its frozen opaque DTO grants no mutation authority. Independent source/test review and final revision-bound evidence binding passed. The corrected new-module lane passed seven cases and the six existing subject-bound regression targets passed eight cases, both exit 0 with unchanged pins. Receipts: `.abc-test-tmp/planning-inbox-receipt-reader-20261005/focused-r6/receipt.json` and `full-r6/receipt.json` in the same packet. Earlier failed fixture runs remain preserved.
+
+The portable historical Planning fixture is committed as `3cfe94211759952052fc40b87e3d4e1c10839ddc`. Its serialized identity and original SHA-bound census observation are kept separate; both helpers reconstruct the full manifest while preserving every historical V1/V2/V3 digest literal and immutable acceptance receipt. Independent review rejected the ancestor fallback and a secondary observation incorrectly attributed to the original artifact; both histories remain visible. The corrected four reproduced vector cases and complete two-module lane passed: four and 442 cases respectively, exit 0, unchanged pins, with independent final component binding. Receipts: `.abc-test-tmp/current57-historical-vector-fixture2-20261005/focused-r4/receipt.json` and `full-r4/receipt.json` in that packet. No production source changed in this exact three-file fixture commit.
+
+The historical 57-module combined run remains a failed result at `4e41891c6b0a899b825cb72f549d72827ec0fa88`: 2019 passed, 11 failed, three skipped. The exact five-file fixture commit `651a76773840fb7f583c49aa3195826381c52f44` separately passed its seven reproduced failures and 123 full-module cases with one skip; the historical-vector commit closes the other four reproduced failures. A current combined acceptance has not yet run and is not inferred from these repairs. The historical H1R05 accepted input set remains exactly 99 paths.
+
+Next: the active exact three-file Luna claim `PLANNING-INBOX-RECEIPT-INTEGRATION3-20261005` implements opt-in Planning receipt discovery/readback in authenticated dispatch and Harbour Inbox, plus a dedicated real-store/App test module. Default Inbox behavior and live gates remain unchanged. Independently review the resulting candidate, run meaningful focused checks, then bind the required composition to an explicitly declared immutable current revision including the new modules. Foreign changes are preserved; the staging index is empty after the exact component commits.
+
+Not verified: Inbox integration acceptance, current whole authenticated persistent MCP App/strong33/Inbox composition acceptance, UI, live providers, production migration/activation, temporal behavior, deployment, backup, restore and push. Historical skips and failures remain visible.
+
+## Historical checkpoint: 2026-10-05 (canonical revision 3173)
 
 HEAD is `651a76773840fb7f583c49aa3195826381c52f44`; 58 accepted local commits precede this documentation update. The canonical local execution queue is running. Product-roadmap progress remains 9/17; the results below do not grant whole-product or live acceptance.
 
