@@ -7,7 +7,59 @@ applicable scoped handoff. See `docs/plans/evidence/harbour-one-plan-reconciliat
 for the planning reconciliation. Historical next-action text below does not
 reopen accepted or released work.
 
-## Latest checkpoint: 2026-10-05 (canonical revision 2831)
+## Latest checkpoint: 2026-10-05 (canonical revision 2846)
+
+This snapshot follows canonical revision 2846. HEAD is
+`4fd56c4e7441a2ee156fdf55abc9e77377190f46`; thirty local commits are recorded
+before this documentation change. The private confirmation component remains
+committed with its sixty-case HEAD-overlay proof.
+
+The causal-claim persistence component is now committed as an exact source/test
+pair. Independent complete review caught two flaws before publication: schema
+validation accepted a replacement trigger with the original name, and state
+transition literals accepted string subclasses before validating their types.
+The schema guard now binds the complete initializer DDL for each table, index
+and trigger. Exact keys and literals are checked before callbacks or field
+lookups; input projections are detached. Existing DDL, public APIs, legal
+transitions and error codes remain unchanged; no database repair occurs.
+
+The corrected source and tests passed a fresh complete independent review and
+all twenty-one cases in an isolated committed-HEAD-plus-two-file tree. Actual
+pytest exit code was 0 and candidate hashes remained unchanged. Regressions
+cover same-name no-op triggers, lost uniqueness, changed column declarations,
+and hostile keys/literals without callbacks or writes. Receipt:
+`.abc-test-tmp/causal-claim-head-closure-r1-20261005/root-corrected-head2/receipt.json`.
+The earlier thirteen-case PASS predates the correction and is not its proof.
+
+The current Store/ULO working-tree lane is now fully accounted for: 369 cases
+passed across nine required modules with both large cases deselected; the
+12,296-record memory and SQLite cases each passed separately. This totals 371
+passing cases, with all forty candidate/dependency pins unchanged. Receipt for
+the remaining lane and SQLite case:
+`.abc-test-tmp/usi-operation-local-reuse-r1-20261005/remaining-required9/receipt.json`.
+However, committed HEAD plus the Store source/test pair alone passed 43 cases
+and failed 11. Adapter, lifecycle/policy and transitive SQLite dependencies
+still require deliberate repository closure. The Store pair stays frozen and
+uncommitted; working-tree runtime PASS does not establish commit closure.
+
+The current H1R05 actual-application test failed in its fixture before app
+startup because `src.causal_claim_store` was absent from the declared
+HEAD-plus-99-input tree. The required strong33 lane was therefore not started.
+The causal component commit closes that specific import; the recursive
+dependency inventory identifies fourteen further modules outside the old
+manifest. They must be reviewed and bound before a justified application rerun.
+The current parent review was a targeted static inspection, not an exhaustive
+whole-parent deep review. Its empty finding list is not acceptance evidence.
+
+Next: close the current USI publication dependencies and the immutable Forge
+context foundation; then reseal the full application input set and perform
+focused actualApp, required strong33 and whole-parent review. Not verified:
+current H1R05/MCP application acceptance, complete authenticated persistent
+backend flow, whole H1R07/native chat, remaining commits, UI, live, temporal,
+production migration, deployment, backup, restore and push. The goal remains
+active. No live or external action occurred.
+
+## Historical checkpoint: 2026-10-05 (canonical revision 2831)
 
 This snapshot follows canonical revision 2831 in the existing execution record.
 HEAD is `8eaee4411880d611b09f3287f0e58820316fe0ed`; the campaign ledger
