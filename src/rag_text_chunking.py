@@ -1,6 +1,7 @@
 """Sentence-aware text chunking helpers for VectorRAG."""
 
 import hashlib
+import json
 import re
 from dataclasses import dataclass
 from typing import List
@@ -8,6 +9,238 @@ from typing import List
 from src.token_budget import count_text_tokens, split_budget
 
 STRUCTURED_SPLITTER_VERSION = "rag_structured_v1"
+EXACT_CHARACTER_SPLITTER_VERSION = "rag_exact_character_ranges_v1"
+MAX_EXACT_CHARACTER_RANGES = 10_000
+EXACT_CHARACTER_FEED_VERSION = "rag_exact_character_feed_v1"
+MAX_EXACT_CHARACTER_FEED_CHARS = 250_000
+MAX_EXACT_CHARACTER_FEED_FRAGMENT_CHARS = 250_000
+MAX_EXACT_CHARACTER_FEED_CHUNKS = 4_096
+MAX_EXACT_CHARACTER_FEED_BYTES = 1_000_000
+MAX_EXACT_CHARACTER_FEED_STATE_INTEGER = 2**63 - 1
+# This deterministic seal detects malformed or mutated state.  It is not an
+# authentication token; callers own state progression.
+_EXACT_CHARACTER_FEED_SEAL_KEY = b"odysseus.rag.exact-character-feed.v1"
+
+
+@dataclass(frozen=True, slots=True)
+class ExactCharacterRange:
+    """A nonempty half-open range of Python character offsets."""
+
+    char_start: int
+    char_end: int
+
+    def __post_init__(self) -> None:
+        if type(self.char_start) is not int or type(self.char_end) is not int:
+            raise TypeError("character range bounds must be built-in ints")
+        if self.char_start < 0 or self.char_end <= self.char_start:
+            raise ValueError("character range bounds must form a nonempty nonnegative range")
+
+
+def split_text_into_exact_character_ranges(
+    text: str,
+    *,
+    max_chars: int,
+    max_ranges: int = MAX_EXACT_CHARACTER_RANGES,
+) -> tuple[ExactCharacterRange, ...]:
+    """Return contiguous ranges that exactly cover ``text`` without copying it."""
+
+    if type(text) is not str:
+        raise TypeError("text must be a built-in str")
+    if type(max_chars) is not int or type(max_ranges) is not int:
+        raise TypeError("range limits must be built-in ints")
+    if not 1 <= max_chars <= 2**63 - 1:
+        raise ValueError("max_chars must be between 1 and 2**63 - 1")
+    if not 1 <= max_ranges <= MAX_EXACT_CHARACTER_RANGES:
+        raise ValueError("max_ranges must be between 1 and MAX_EXACT_CHARACTER_RANGES")
+
+    required_ranges = (len(text) + max_chars - 1) // max_chars
+    if required_ranges > max_ranges:
+        raise ValueError("exact character range limit exceeded")
+    return tuple(
+        ExactCharacterRange(start, min(start + max_chars, len(text)))
+        for start in range(0, len(text), max_chars)
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class ExactCharacterFeedState:
+    """Bounded immutable continuation state for exact character feeds."""
+
+    version: str
+    max_chars: int
+    next_char_offset: int
+    next_chunk_index: int
+    carry: str
+    terminal: bool
+    _seal: str
+
+    def __post_init__(self) -> None:
+        _validate_exact_character_feed_state(self)
+
+
+def _feed_state_seal(
+    version: str,
+    max_chars: int,
+    next_char_offset: int,
+    next_chunk_index: int,
+    carry: str,
+    terminal: bool,
+) -> str:
+    try:
+        payload = json.dumps(
+            [version, max_chars, next_char_offset, next_chunk_index, carry, terminal],
+            ensure_ascii=False,
+            separators=(",", ":"),
+        ).encode("utf-8", errors="strict")
+    except BaseException:
+        raise ValueError("invalid exact character feed state") from None
+    return hashlib.sha256(_EXACT_CHARACTER_FEED_SEAL_KEY + payload).hexdigest()
+
+
+def _exact_character_feed_utf8_length(value: str) -> int:
+    try:
+        return len(value.encode("utf-8", errors="strict"))
+    except BaseException:
+        raise ValueError("invalid exact character feed text") from None
+
+
+def _validate_exact_character_feed_state(state: object) -> None:
+    if type(state) is not ExactCharacterFeedState:
+        raise TypeError("feed state must be an exact ExactCharacterFeedState")
+    try:
+        fields = (
+            state.version,
+            state.max_chars,
+            state.next_char_offset,
+            state.next_chunk_index,
+            state.carry,
+            state.terminal,
+            state._seal,
+        )
+    except BaseException:
+        raise ValueError("invalid exact character feed state") from None
+    if (
+        type(fields[0]) is not str
+        or fields[0] != EXACT_CHARACTER_FEED_VERSION
+        or type(fields[1]) is not int
+        or not 1 <= fields[1] <= MAX_EXACT_CHARACTER_FEED_CHARS
+        or type(fields[2]) is not int
+        or not 0 <= fields[2] <= MAX_EXACT_CHARACTER_FEED_STATE_INTEGER
+        or type(fields[3]) is not int
+        or not 0 <= fields[3] <= MAX_EXACT_CHARACTER_FEED_STATE_INTEGER
+        or type(fields[4]) is not str
+        or len(fields[4]) >= fields[1]
+        or type(fields[5]) is not bool
+        or type(fields[6]) is not str
+        or len(fields[6]) != 64
+    ):
+        raise ValueError("invalid exact character feed state")
+    try:
+        carry_bytes = _exact_character_feed_utf8_length(fields[4])
+    except BaseException:
+        raise ValueError("invalid exact character feed state") from None
+    if carry_bytes > MAX_EXACT_CHARACTER_FEED_BYTES:
+        raise ValueError("invalid exact character feed state")
+    if fields[6] != _feed_state_seal(*fields[:6]):
+        raise ValueError("invalid exact character feed state")
+
+
+def new_exact_character_feed_state(*, max_chars: int) -> ExactCharacterFeedState:
+    if type(max_chars) is not int or not 1 <= max_chars <= MAX_EXACT_CHARACTER_FEED_CHARS:
+        raise ValueError("max_chars is outside the exact character feed bound")
+    version = EXACT_CHARACTER_FEED_VERSION
+    carry = ""
+    terminal = False
+    return ExactCharacterFeedState(
+        version,
+        max_chars,
+        0,
+        0,
+        carry,
+        terminal,
+        _feed_state_seal(version, max_chars, 0, 0, carry, terminal),
+    )
+
+
+def feed_exact_character_text(
+    state: ExactCharacterFeedState,
+    fragment: str,
+    *,
+    offset: int,
+    final: bool = False,
+) -> tuple[tuple[str, ...], ExactCharacterFeedState]:
+    """Consume one bounded contiguous fragment and emit complete exact chunks.
+
+    Callers own linear progression of the returned state.  Offsets detect
+    stale fragments relative to that supplied state; this pure utility does
+    not maintain replay history or session authority.
+    """
+
+    _validate_exact_character_feed_state(state)
+    if type(fragment) is not str:
+        raise TypeError("fragment must be a built-in str")
+    if type(offset) is not int or offset != state.next_char_offset:
+        raise ValueError("fragment offset is not contiguous")
+    if type(final) is not bool:
+        raise TypeError("final must be a built-in bool")
+    if state.terminal:
+        raise ValueError("exact character feed is already terminal")
+    if len(fragment) > MAX_EXACT_CHARACTER_FEED_FRAGMENT_CHARS:
+        raise ValueError("fragment exceeds the exact character feed bound")
+    try:
+        fragment_bytes = _exact_character_feed_utf8_length(fragment)
+    except BaseException:
+        raise ValueError("fragment is not valid UTF-8 text") from None
+    if fragment_bytes > MAX_EXACT_CHARACTER_FEED_BYTES:
+        raise ValueError("fragment exceeds the exact character feed byte bound")
+    if _exact_character_feed_utf8_length(state.carry) + fragment_bytes > 2 * MAX_EXACT_CHARACTER_FEED_BYTES:
+        raise ValueError("processing exceeds the exact character feed byte bound")
+    if offset + len(fragment) > MAX_EXACT_CHARACTER_FEED_STATE_INTEGER:
+        raise ValueError("fragment offset exceeds the exact character feed bound")
+
+    combined = state.carry + fragment
+    full_chunks = len(combined) // state.max_chars
+    remainder = len(combined) % state.max_chars
+    chunk_count = full_chunks + (1 if final and remainder else 0)
+    if chunk_count > MAX_EXACT_CHARACTER_FEED_CHUNKS:
+        raise ValueError("output exceeds the exact character feed bound")
+    chunks = tuple(
+        combined[index * state.max_chars : (index + 1) * state.max_chars]
+        for index in range(full_chunks)
+    )
+    consumed = full_chunks * state.max_chars
+    carry = combined[consumed:]
+    if final and carry:
+        chunks += (carry,)
+        carry = ""
+    try:
+        output_bytes = sum(_exact_character_feed_utf8_length(chunk) for chunk in chunks)
+    except BaseException:
+        raise ValueError("output is not valid UTF-8 text") from None
+    if output_bytes > MAX_EXACT_CHARACTER_FEED_BYTES:
+        raise ValueError("output exceeds the exact character feed byte bound")
+    next_offset = offset + len(fragment)
+    next_chunk_index = state.next_chunk_index + len(chunks)
+    if next_chunk_index > MAX_EXACT_CHARACTER_FEED_STATE_INTEGER:
+        raise ValueError("chunk index exceeds the exact character feed bound")
+    terminal = final
+    next_state = ExactCharacterFeedState(
+        EXACT_CHARACTER_FEED_VERSION,
+        state.max_chars,
+        next_offset,
+        next_chunk_index,
+        carry,
+        terminal,
+        _feed_state_seal(
+            EXACT_CHARACTER_FEED_VERSION,
+            state.max_chars,
+            next_offset,
+            next_chunk_index,
+            carry,
+            terminal,
+        ),
+    )
+    return chunks, next_state
 
 
 @dataclass(frozen=True, slots=True)
