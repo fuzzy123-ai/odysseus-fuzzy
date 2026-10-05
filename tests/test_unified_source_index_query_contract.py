@@ -65,6 +65,9 @@ def test_lexical_query_is_bounded_canonical_and_cursor_independent():
     assert query.query_text == "Alpha Beta"
     assert query.fingerprint.startswith("sha256:")
     assert replace(query, cursor="opaque").fingerprint == query.fingerprint
+    document = replace(query, domain="document")
+    assert document.fingerprint != query.fingerprint
+    assert replace(document, domain="memory").fingerprint != document.fingerprint
 
 
 def test_query_rejects_unbounded_or_inconsistent_budgets_and_invalid_scope():
@@ -86,6 +89,8 @@ def test_query_rejects_unbounded_or_inconsistent_budgets_and_invalid_scope():
         LexicalQuery(**base, source_ids=("usi_source_" + "z" * 64,))
     with pytest.raises(UnifiedSourceIndexQueryError, match="timezone"):
         LexicalQuery(**base, stale_after="2026-07-17T07:00:00")
+    with pytest.raises(UnifiedSourceIndexQueryError, match="domain"):
+        LexicalQuery(**base, domain="all")
 
 
 def test_score_components_are_finite_bounded_and_exactly_additive():

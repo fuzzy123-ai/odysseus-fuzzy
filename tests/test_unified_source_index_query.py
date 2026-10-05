@@ -117,6 +117,20 @@ class _Provider:
         )
 
 
+class _MarkedProvider(_Provider):
+    def __init__(self, marker, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._marker = marker
+        self.marker_reads = 0
+
+    @property
+    def product_registerable(self):
+        self.marker_reads += 1
+        if isinstance(self._marker, BaseException):
+            raise self._marker
+        return self._marker
+
+
 def _query(**changes):
     values = dict(
         owner_scope="user:alice",
@@ -132,6 +146,91 @@ def _planner(*providers, clock=None):
         tuple(ProviderRegistration(provider) for provider in providers),
         clock=clock or __import__("time").monotonic,
     )
+
+
+def test_provider_registration_reads_declared_product_marker_once_and_requires_exact_true():
+    accepted = _MarkedProvider(True, "fake.lexical.marked", QueryMode.LEXICAL)
+    registration = ProviderRegistration(accepted)
+    assert registration.provider is accepted
+    assert accepted.marker_reads == 1
+
+    for marker in (False, 1, "true", RuntimeError("private marker detail")):
+        provider = _MarkedProvider(marker, "fake.lexical.rejected", QueryMode.LEXICAL)
+        with pytest.raises(FederatedQueryError, match="product registration") as error:
+            ProviderRegistration(provider)
+        assert provider.marker_reads == 1
+        assert provider.requests == []
+        assert "private marker detail" not in str(error.value)
+
+
+def test_unmarked_generic_provider_preserves_registration_behavior():
+    provider = _Provider("fake.lexical.unmarked", QueryMode.LEXICAL)
+    registration = ProviderRegistration(provider)
+
+    assert registration.provider is provider
+
+
+def test_domain_capability_is_exact_and_unsupported_providers_are_never_called():
+    _, _, chunk = _chunk("doc:domain", "domain sample")
+    unsupported = _Provider("fake.lexical", QueryMode.LEXICAL, (_item(chunk, 0.8),))
+    unsupported.requests = []
+    planner = _planner(unsupported)
+
+    page = planner.execute(_query(domain="document"))
+
+    assert unsupported.requests == []
+    assert page.items == ()
+    assert page.partial is True
+    assert page.outcomes[0].status is ProviderStatus.MISSING
+    assert page.outcomes[0].error_code == "domain_unavailable"
+
+    class StringCapability(_Provider):
+        supported_domains = "document"
+
+    with pytest.raises(FederatedQueryError, match="domain capability"):
+        ProviderRegistration(StringCapability("fake.string", QueryMode.LEXICAL))
+
+    class RaisingCapability(_Provider):
+        @property
+        def supported_domains(self):
+            raise RuntimeError("private capability detail")
+
+    with pytest.raises(FederatedQueryError, match="domain capability") as error:
+        ProviderRegistration(RaisingCapability("fake.raising", QueryMode.LEXICAL))
+    assert "private capability detail" not in str(error.value)
+
+
+def test_domain_unsupported_provider_does_not_consume_hybrid_provider_budget():
+    _, _, chunk = _chunk("doc:domain-budget", "domain sample")
+    lexical = _Provider("fake.lexical", QueryMode.LEXICAL, (_item(chunk, 0.8),))
+
+    class DocumentSemanticProvider(_Provider):
+        supported_domains = frozenset({"document"})
+
+    semantic = DocumentSemanticProvider(
+        "fake.semantic", QueryMode.SEMANTIC, (_item(chunk, 0.7),)
+    )
+    planner = _planner(lexical, semantic)
+    query = _query(
+        domain="document",
+        modes=(QueryMode.LEXICAL, QueryMode.SEMANTIC),
+        budget=FederatedQueryBudget(
+            max_providers=1,
+            max_candidates_per_provider=10,
+            max_total_candidates=10,
+            time_budget_ms=500,
+            per_provider_timeout_ms=500,
+        ),
+    )
+
+    page = planner.execute(query)
+
+    assert lexical.requests == []
+    assert len(semantic.requests) == 1
+    assert semantic.requests[0].domain == "document"
+    assert page.plan.selected_kinds == (QueryMode.SEMANTIC,)
+    assert page.outcomes[0].error_code == "domain_unavailable"
+    assert page.outcomes[1].status is ProviderStatus.COMPLETED
 
 
 def _insert(store, *records):

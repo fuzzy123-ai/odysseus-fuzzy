@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
+import inspect
 import math
 import re
 import time
@@ -27,6 +28,7 @@ from src.unified_source_index_query_contract import (
     LexicalMatchMode,
     LexicalQuery,
     MAX_RESULT_SNIPPET_CHARS,
+    QUERY_DOMAINS,
 )
 from src.unified_source_index_stores import _owner_scope
 
@@ -139,6 +141,7 @@ class FederatedQuery:
     source_ids: tuple[str, ...] = ()
     stale_after: str = ""
     budget: FederatedQueryBudget = field(default_factory=FederatedQueryBudget)
+    domain: str | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "owner_scope", _owner_scope(self.owner_scope))
@@ -190,6 +193,10 @@ class FederatedQuery:
                 raise FederatedQueryError("stale_after must include a timezone")
         if not isinstance(self.budget, FederatedQueryBudget):
             raise FederatedQueryError("budget must be typed")
+        if self.domain is not None and (
+            type(self.domain) is not str or self.domain not in QUERY_DOMAINS
+        ):
+            raise FederatedQueryError("domain is invalid")
 
     @property
     def requested_provider_kinds(self) -> tuple[QueryMode, ...]:
@@ -205,6 +212,7 @@ class ProviderQueryRequest:
     stale_after: str
     limit: int
     time_budget_ms: int
+    domain: str | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "owner_scope", _owner_scope(self.owner_scope))
@@ -223,6 +231,10 @@ class ProviderQueryRequest:
             "time_budget_ms",
             _integer(self.time_budget_ms, "time_budget_ms", 1, 86_400_000),
         )
+        if self.domain is not None and (
+            type(self.domain) is not str or self.domain not in QUERY_DOMAINS
+        ):
+            raise FederatedQueryError("domain is invalid")
 
 
 @dataclass(frozen=True, slots=True)
@@ -290,10 +302,42 @@ TimelineQueryProvider = FederatedQueryProvider
 class ProviderRegistration:
     provider: FederatedQueryProvider
     weight: float = 1.0
+    supported_domains: frozenset[str] = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
+        marker_absent = object()
+        try:
+            declared_marker = inspect.getattr_static(
+                self.provider, "product_registerable", marker_absent
+            )
+        except Exception:
+            raise FederatedQueryError("provider product registration marker is invalid") from None
+        if declared_marker is not marker_absent:
+            try:
+                marker = getattr(self.provider, "product_registerable")
+            except Exception:
+                raise FederatedQueryError("provider product registration marker is invalid") from None
+            if type(marker) is not bool or marker is not True:
+                raise FederatedQueryError("provider product registration is not allowed")
         if not isinstance(self.provider, FederatedQueryProvider):
             raise FederatedQueryError("provider must implement FederatedQueryProvider")
+        missing = object()
+        try:
+            declared_domains = inspect.getattr_static(
+                self.provider, "supported_domains", missing
+            )
+            if declared_domains is missing:
+                supported_domains = frozenset()
+            else:
+                supported_domains = getattr(self.provider, "supported_domains")
+        except Exception:
+            raise FederatedQueryError("provider domain capability is invalid") from None
+        if (
+            type(supported_domains) is not frozenset
+            or any(type(domain) is not str or domain not in QUERY_DOMAINS for domain in supported_domains)
+        ):
+            raise FederatedQueryError("provider domain capability is invalid")
+        object.__setattr__(self, "supported_domains", supported_domains)
         _token(self.provider.provider_id, "provider_id")
         kind = _enum(self.provider.provider_kind, QueryMode, "provider_kind")
         if kind is QueryMode.HYBRID:
@@ -453,6 +497,9 @@ class LexicalProviderAdapter:
         if not isinstance(retriever, UnifiedSourceIndexLexicalRetriever):
             raise FederatedQueryError("retriever must be a USI lexical retriever")
         self._retriever = retriever
+        self.supported_domains = (
+            QUERY_DOMAINS if retriever.supports_domain_queries else frozenset()
+        )
 
     def query(self, request: ProviderQueryRequest) -> ProviderResultPage:
         lexical = LexicalQuery(
@@ -464,6 +511,7 @@ class LexicalProviderAdapter:
             max_candidates=request.limit,
             source_ids=request.source_ids,
             stale_after=request.stale_after,
+            domain=request.domain,
         )
         page = self._retriever.search(lexical)
         items = []
@@ -532,7 +580,14 @@ class UnifiedSourceIndexQueryPlanner:
         if not isinstance(query, FederatedQuery):
             raise FederatedQueryError("query must be a FederatedQuery")
         requested = query.requested_provider_kinds
-        available = [kind for kind in requested if kind in self._by_kind]
+        available = [
+            kind for kind in requested
+            if kind in self._by_kind
+            and (
+                query.domain is None
+                or query.domain in self._by_kind[kind].supported_domains
+            )
+        ]
         selected_kinds = tuple(available[: query.budget.max_providers])
         omitted = tuple(kind for kind in requested if kind not in selected_kinds)
         return QueryPlan(
@@ -554,9 +609,17 @@ class UnifiedSourceIndexQueryPlanner:
 
         for kind in plan.requested_kinds:
             if kind not in plan.selected_kinds:
-                status = ProviderStatus.MISSING if kind not in self._by_kind else ProviderStatus.BUDGET_SKIPPED
-                provider_id = self._by_kind[kind].provider.provider_id if kind in self._by_kind else f"missing.{kind.value}"
-                outcomes.append(_outcome(provider_id, kind, status))
+                registration = self._by_kind.get(kind)
+                if registration is None:
+                    status, error_code = ProviderStatus.MISSING, ""
+                    provider_id = f"missing.{kind.value}"
+                elif query.domain is not None and query.domain not in registration.supported_domains:
+                    status, error_code = ProviderStatus.MISSING, "domain_unavailable"
+                    provider_id = registration.provider.provider_id
+                else:
+                    status, error_code = ProviderStatus.BUDGET_SKIPPED, ""
+                    provider_id = registration.provider.provider_id
+                outcomes.append(_outcome(provider_id, kind, status, error_code=error_code))
                 continue
             registration = self._by_kind[kind]
             elapsed_total_ms = max(0, round((self._clock() - start) * 1_000))
@@ -577,6 +640,7 @@ class UnifiedSourceIndexQueryPlanner:
                 query.stale_after,
                 limit,
                 timeout,
+                query.domain,
             )
             provider_start = self._clock()
             try:

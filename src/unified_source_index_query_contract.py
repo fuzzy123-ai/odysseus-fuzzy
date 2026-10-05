@@ -34,6 +34,7 @@ MAX_QUERY_TEXT_CHARS = 512
 MAX_QUERY_RESULTS = 100
 MAX_QUERY_CANDIDATES = 999
 MAX_RESULT_SNIPPET_CHARS = 2_000
+QUERY_DOMAINS = frozenset({"code", "document", "memory", "native_knowledge"})
 
 _CONTENT_HASH_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 _WHY_RE = re.compile(r"^[a-z][a-z0-9_.:-]{0,127}$")
@@ -68,6 +69,7 @@ class LexicalQuery:
     source_ids: tuple[str, ...] = ()
     stale_after: str = ""
     cursor: str = ""
+    domain: str | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "owner_scope", _owner_scope(self.owner_scope))
@@ -136,6 +138,10 @@ class LexicalQuery:
             _timestamp(self.stale_after, "stale_after")
         if not isinstance(self.cursor, str) or len(self.cursor) > MAX_CURSOR_CHARS:
             raise UnifiedSourceIndexQueryError("cursor is invalid or unbounded")
+        if self.domain is not None and (
+            type(self.domain) is not str or self.domain not in QUERY_DOMAINS
+        ):
+            raise UnifiedSourceIndexQueryError("domain is invalid")
 
     @property
     def fingerprint(self) -> str:
@@ -150,6 +156,8 @@ class LexicalQuery:
             "source_ids": self.source_ids,
             "stale_after": self.stale_after,
         }
+        if self.domain is not None:
+            payload["domain"] = self.domain
         return "sha256:" + hashlib.sha256(
             canonical_json(payload).encode("utf-8")
         ).hexdigest()

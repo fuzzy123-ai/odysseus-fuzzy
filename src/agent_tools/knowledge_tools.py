@@ -21,11 +21,12 @@ from src.unified_source_index_query import (
     ProviderStatus,
     QueryMode,
 )
+from src.unified_source_index_owner_scope import OwnerScope
 
 
 _OWNER_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._@+-]{0,159}$")
 _SOURCE_ID_RE = re.compile(r"^usi_source_[0-9a-f]{64}$")
-_DOMAINS = frozenset({"code", "document", "memory"})
+_DOMAINS = frozenset({"code", "document", "memory", "native_knowledge"})
 _MODES = frozenset(item.value for item in QueryMode)
 _CLASSIFICATIONS = frozenset({Classification.PUBLIC.value, Classification.PRIVATE.value})
 _MAX_SCOPE_IDS = 64
@@ -40,6 +41,7 @@ class _Planner(Protocol):
 
 
 _planner: _Planner | None = None
+_owner_resolver: Any = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -62,6 +64,7 @@ class QueryKnowledgeRequest:
             limit=self.limit,
             source_ids=self.source_ids,
             budget=self.budget,
+            domain=self.domain,
         )
 
 
@@ -74,18 +77,39 @@ def set_query_knowledge_planner(planner: _Planner | None) -> None:
     _planner = planner
 
 
+def set_query_knowledge_owner_resolver(resolver: Any) -> None:
+    """Bind trusted target-owner resolution supplied by the application auth manager."""
+
+    global _owner_resolver
+    if resolver is not None and not callable(resolver):
+        raise TypeError("query knowledge owner resolver must be callable")
+    _owner_resolver = resolver
+
+
 def _failure(code: str) -> dict[str, Any]:
     return {"error": code, "exit_code": 1, "content_included": False}
 
 
 def _trusted_owner_scope(ctx: dict[str, Any]) -> str | None:
-    owner = ctx.get("owner")
-    if not isinstance(owner, str):
+    resolver = _owner_resolver
+    try:
+        owner = ctx.get("owner") if isinstance(ctx, dict) else None
+    except Exception:
+        return None
+    if resolver is None or not isinstance(owner, str):
         return None
     value = owner.strip()
     if value.startswith("user:"):
         value = value[5:]
-    return "user:" + value if _OWNER_RE.fullmatch(value) else None
+    if not _OWNER_RE.fullmatch(value):
+        return None
+    try:
+        subject_id = resolver(value)
+        if not isinstance(subject_id, str):
+            return None
+        return OwnerScope.for_subject_id(subject_id).value
+    except Exception:
+        return None
 
 
 def _request(content: str, ctx: dict[str, Any]) -> QueryKnowledgeRequest | None:
@@ -97,11 +121,10 @@ def _request(content: str, ctx: dict[str, Any]) -> QueryKnowledgeRequest | None:
             "query", "domain", "mode", "scope", "budget", "classification"
         }:
             return None
-        owner_scope = _trusted_owner_scope(ctx)
         query, domain, mode = value.get("query"), value.get("domain"), value.get("mode")
         scope, classification, budget = value.get("scope"), value.get("classification"), value.get("budget")
         if (
-            owner_scope is None or not isinstance(query, str) or not query.strip()
+            not isinstance(query, str) or not query.strip()
             or len(query.strip()) > MAX_QUERY_TEXT_CHARS or any(ord(char) < 32 for char in query)
             or not isinstance(domain, str) or domain not in _DOMAINS
             or not isinstance(mode, str) or mode not in _MODES
@@ -111,6 +134,9 @@ def _request(content: str, ctx: dict[str, Any]) -> QueryKnowledgeRequest | None:
             or len(set(scope)) != len(scope)
             or not isinstance(budget, dict) or set(budget) != {"limit", "max_candidates", "time_budget_ms"}
         ):
+            return None
+        owner_scope = _trusted_owner_scope(ctx)
+        if owner_scope is None:
             return None
         limit, candidates, time_budget_ms = budget.get("limit"), budget.get("max_candidates"), budget.get("time_budget_ms")
         if (
@@ -180,6 +206,16 @@ async def query_knowledge(content: str, ctx: dict[str, Any]) -> dict[str, Any]:
             and outcome.error_code == "federated_query_error"
             for outcome in page.outcomes
         )
+        unavailable_only = (
+            any(outcome.error_code == "domain_unavailable" for outcome in page.outcomes)
+            and all(
+                outcome.status is ProviderStatus.MISSING
+                and outcome.error_code in {"", "domain_unavailable"}
+                for outcome in page.outcomes
+            )
+        )
+        if not completed and unavailable_only:
+            return _failure("query_knowledge_unavailable")
         if not completed or contract_failure:
             return _failure("query_knowledge_failed")
         results = [_result_item(item, request.owner_scope) for item in page.items]

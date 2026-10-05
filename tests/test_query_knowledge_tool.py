@@ -22,11 +22,15 @@ from src.unified_source_index_query import (
 
 
 NOW = "2026-07-23T12:00:00Z"
+OWNER_ID = "owner_" + "a" * 32
+OTHER_OWNER_ID = "owner_" + "b" * 32
+OWNER_SCOPE = "owner:" + OWNER_ID
 
 
 class _Provider:
     provider_id = "fixture.lexical"
     provider_kind = QueryMode.LEXICAL
+    supported_domains = frozenset({"code", "document", "memory", "native_knowledge"})
 
     def __init__(self, item):
         self.item = item
@@ -48,8 +52,9 @@ class _CapturingPlanner:
 
 
 def _planner(*, policy=ContentPolicy.INLINE_LOCAL, owner="user:alice"):
+    owner_scope = OWNER_SCOPE if owner == "user:alice" else "owner:" + OTHER_OWNER_ID
     source = SourceRecord(
-        owner_scope=owner,
+        owner_scope=owner_scope,
         source_kind=SourceKind.DOCUMENT,
         canonical_ref="fixture:document",
         classification=Classification.PRIVATE,
@@ -71,10 +76,20 @@ def _planner(*, policy=ContentPolicy.INLINE_LOCAL, owner="user:alice"):
 
 def _call(payload, *, owner="alice"):
     from src.tool_execution import execute_tool_block
+    from src.agent_tools.knowledge_tools import set_query_knowledge_owner_resolver
 
-    return asyncio.run(execute_tool_block(
-        ToolBlock("query_knowledge", json.dumps(payload)), owner=owner,
-    ))
+    set_query_knowledge_owner_resolver(
+        lambda username: {
+            "alice": OWNER_ID,
+            "mallory": OTHER_OWNER_ID,
+        }.get(username)
+    )
+    try:
+        return asyncio.run(execute_tool_block(
+            ToolBlock("query_knowledge", json.dumps(payload)), owner=owner,
+        ))
+    finally:
+        set_query_knowledge_owner_resolver(None)
 
 
 def _payload(**changes):
@@ -123,7 +138,7 @@ def test_canonical_owner_scoped_read_only_projection_uses_one_injected_planner()
     }
     assert "owner_scope" not in json.dumps(result)
     assert len(provider.requests) == 1
-    assert provider.requests[0].owner_scope == "user:alice"
+    assert provider.requests[0].owner_scope == OWNER_SCOPE
     assert provider.requests[0].query_text == "safe query"
     assert capturing_planner.request is not None
     assert capturing_planner.request.limit == 5
@@ -150,17 +165,17 @@ def test_code_document_and_memory_share_the_same_handler_and_schema_contract():
     assert descriptor.permission.value == "owner"
     assert descriptor.default_enabled is False
     assert schema["function"]["parameters"]["additionalProperties"] is False
-    assert schema["function"]["parameters"]["properties"]["domain"]["enum"] == ["code", "document", "memory"]
+    assert schema["function"]["parameters"]["properties"]["domain"]["enum"] == ["code", "document", "memory", "native_knowledge"]
     planner, provider = _planner()
     set_query_knowledge_planner(planner)
     try:
-        for domain in ("code", "document", "memory"):
+        for domain in ("code", "document", "memory", "native_knowledge"):
             _, result = _call(_payload(domain=domain))
             assert result["exit_code"] == 0
             assert result["domain"] == domain
     finally:
         set_query_knowledge_planner(None)
-    assert len(provider.requests) == 3
+    assert len(provider.requests) == 4
 
 
 def test_invalid_foreign_or_over_budget_input_and_missing_planner_fail_closed():
@@ -250,3 +265,110 @@ def test_foreign_evidence_and_reference_only_snippets_are_not_exposed():
         "exit_code": 1,
         "content_included": False,
     }
+
+
+def test_target_owner_resolves_through_injected_auth_and_never_uses_actor_or_json_owner():
+    from src.agent_tools.knowledge_tools import (
+        query_knowledge,
+        set_query_knowledge_owner_resolver,
+        set_query_knowledge_planner,
+    )
+
+    planner, provider = _planner()
+    captured = _CapturingPlanner(planner)
+    calls = []
+
+    def resolver(username):
+        calls.append(username)
+        return OWNER_ID if username == "alice" else None
+
+    set_query_knowledge_owner_resolver(resolver)
+    set_query_knowledge_planner(captured)
+    try:
+        result = asyncio.run(query_knowledge(
+            json.dumps(_payload()), {"owner": "alice", "actor": "mallory"},
+        ))
+        assert result["exit_code"] == 0
+        assert captured.request.owner_scope == OWNER_SCOPE
+        assert calls == ["alice"]
+
+        unknown = asyncio.run(query_knowledge(
+            json.dumps(_payload()), {"owner": "unknown", "actor": "alice"},
+        ))
+        forged = dict(_payload(), owner="alice", owner_scope=OWNER_SCOPE)
+        forged_result = asyncio.run(query_knowledge(
+            json.dumps(forged), {"owner": "unknown", "actor": "alice"},
+        ))
+        assert unknown["error"] == "query_knowledge_invalid_request"
+        assert forged_result["error"] == "query_knowledge_invalid_request"
+        assert len(provider.requests) == 1
+    finally:
+        set_query_knowledge_planner(None)
+        set_query_knowledge_owner_resolver(None)
+
+
+def test_missing_or_failed_owner_resolver_never_calls_planner():
+    from src.agent_tools.knowledge_tools import (
+        query_knowledge,
+        set_query_knowledge_owner_resolver,
+        set_query_knowledge_planner,
+    )
+
+    class CountingPlanner:
+        calls = 0
+
+        def execute(self, _query):
+            self.calls += 1
+            raise AssertionError("unresolved owner must stop before planner")
+
+    planner = CountingPlanner()
+    set_query_knowledge_planner(planner)
+    set_query_knowledge_owner_resolver(None)
+    try:
+        no_resolver = asyncio.run(query_knowledge(
+            json.dumps(_payload()), {"owner": "alice"},
+        ))
+        assert no_resolver["error"] == "query_knowledge_invalid_request"
+
+        def failed_resolver(_username):
+            raise RuntimeError("private resolver detail")
+
+        set_query_knowledge_owner_resolver(failed_resolver)
+        failed = asyncio.run(query_knowledge(
+            json.dumps(_payload()), {"owner": "alice"},
+        ))
+        assert failed["error"] == "query_knowledge_invalid_request"
+        assert "private resolver detail" not in json.dumps(failed)
+        assert planner.calls == 0
+    finally:
+        set_query_knowledge_planner(None)
+        set_query_knowledge_owner_resolver(None)
+
+
+def test_unsupported_domain_returns_bounded_unavailable_without_provider_call():
+    from src.agent_tools.knowledge_tools import set_query_knowledge_planner
+
+    class NoDomainProvider:
+        provider_id = "fixture.unbounded-domain"
+        provider_kind = QueryMode.LEXICAL
+
+        def __init__(self):
+            self.requests = []
+
+        def query(self, request):
+            self.requests.append(request)
+            raise AssertionError("unsupported provider must not be invoked")
+
+    provider = NoDomainProvider()
+    planner = UnifiedSourceIndexQueryPlanner((ProviderRegistration(provider),))
+    set_query_knowledge_planner(planner)
+    try:
+        _, result = _call(_payload(mode="hybrid"))
+    finally:
+        set_query_knowledge_planner(None)
+    assert result == {
+        "error": "query_knowledge_unavailable",
+        "exit_code": 1,
+        "content_included": False,
+    }
+    assert provider.requests == []

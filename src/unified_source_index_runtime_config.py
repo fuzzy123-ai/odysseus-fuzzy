@@ -45,7 +45,7 @@ class UnifiedSourceIndexRuntimeMode(StrEnum):
     ROLLBACK = "rollback"
 
 
-_ALLOWED_DOMAINS = frozenset({"code", "document", "memory", "planning", "inbox"})
+_ALLOWED_DOMAINS = frozenset({"code", "document", "memory", "planning", "inbox", "native_knowledge"})
 
 
 @dataclass(frozen=True, slots=True)

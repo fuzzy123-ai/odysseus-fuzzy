@@ -17,7 +17,7 @@ FUNCTION_TOOL_SCHEMAS = [
                     "query": {"type": "string", "minLength": 1, "maxLength": 512},
                     "domain": {
                         "type": "string",
-                        "enum": ["code", "document", "memory"],
+                        "enum": ["code", "document", "memory", "native_knowledge"],
                     },
                     "mode": {
                         "type": "string",

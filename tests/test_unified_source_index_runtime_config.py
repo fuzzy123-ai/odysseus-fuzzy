@@ -93,6 +93,18 @@ def test_provider_flags_are_independent_and_default_off(tmp_path: Path):
     assert config.chroma_provider_enabled is False
 
 
+def test_native_knowledge_domain_is_allowlisted_without_activating_runtime(tmp_path: Path):
+    config = UnifiedSourceIndexRuntimeConfig.from_environment(
+        _enabled_environment(ODYSSEUS_USI_ALLOWED_DOMAINS="native_knowledge"),
+        data_root=tmp_path,
+    )
+    assert config.allowed_domains == ("native_knowledge",)
+    assert config.runtime_enabled is True
+    disabled = UnifiedSourceIndexRuntimeConfig.from_environment({}, data_root=tmp_path / "disabled")
+    assert disabled.runtime_enabled is False
+    assert disabled.allowed_domains == ()
+
+
 @pytest.mark.parametrize(
     "name",
     PRODUCTIVE_BOOLEAN_ENV_NAMES[1:],

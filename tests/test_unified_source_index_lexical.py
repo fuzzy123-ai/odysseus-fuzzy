@@ -1,4 +1,6 @@
 from dataclasses import replace
+import hashlib
+import json
 
 import pytest
 
@@ -10,6 +12,7 @@ from src.unified_source_index_contract import (
     SourceRecord,
     SourceVersionRecord,
     TextRangeLocator,
+    canonical_json,
     content_hash,
 )
 from src.unified_source_index_lexical import (
@@ -18,6 +21,7 @@ from src.unified_source_index_lexical import (
     UnifiedSourceIndexLexicalRetriever,
     build_fts_expression,
 )
+import src.unified_source_index_lexical as lexical_module
 from src.unified_source_index_query_contract import (
     LexicalMatchMode,
     LexicalQuery,
@@ -226,6 +230,114 @@ def test_stable_tie_break_cursor_is_snapshot_and_query_bound(tmp_path):
         retriever.search(replace(query, cursor=first.next_cursor))
 
 
+def test_checksum_valid_legacy_cursor_rejects_malformed_identity_and_scores(tmp_path):
+    source = _source("doc:legacy-boundary")
+    version = _version(source, "rev:1")
+    chunk = _chunk(version, "legacy cursor text")
+    store = SQLiteUnifiedSourceIndexStore(tmp_path / "usi.db")
+    _insert(store, chunk, version, source)
+    retriever = UnifiedSourceIndexLexicalRetriever(store)
+    query = _query("legacy cursor", limit=1)
+    snapshot = store.current_snapshot()
+
+    for field, value in (
+        ("i", {"record": "not-a-string"}),
+        ("t", "not-a-score"),
+        ("l", ["not-a-score"]),
+    ):
+        body = {
+            "s": "usi.lexical.v1",
+            "r": snapshot.snapshot_ref,
+            "q": query.fingerprint,
+            "t": 1.0,
+            "l": 1.0,
+            "i": chunk.chunk_id,
+        }
+        body[field] = value
+        body["h"] = hashlib.sha256(canonical_json(body).encode("utf-8")).hexdigest()
+        cursor = json.dumps(body, separators=(",", ":"), sort_keys=True, allow_nan=True)
+        with pytest.raises(LexicalRetrievalError, match="^lexical cursor is invalid$"):
+            retriever.search(replace(query, cursor=cursor))
+
+    body = {
+        "s": "usi.lexical.v1",
+        "r": snapshot.snapshot_ref,
+        "q": {"not": "a-fingerprint"},
+        "t": 1.0,
+        "l": 1.0,
+        "i": chunk.chunk_id,
+    }
+    body["h"] = hashlib.sha256(canonical_json(body).encode("utf-8")).hexdigest()
+    cursor = json.dumps(body, separators=(",", ":"), sort_keys=True)
+    with pytest.raises(LexicalRetrievalError, match="^lexical cursor is invalid$"):
+        retriever.search(replace(query, cursor=cursor))
+
+
+def test_checksum_valid_legacy_cursor_round_trips_without_changing_wire_contract(tmp_path):
+    source = _source("doc:legacy-roundtrip")
+    version = _version(source, "rev:1")
+    chunks = tuple(_chunk(version, "same legacy text", start) for start in (0, 100))
+    store = SQLiteUnifiedSourceIndexStore(tmp_path / "usi.db")
+    _insert(store, *chunks, version, source)
+    retriever = UnifiedSourceIndexLexicalRetriever(store)
+    query = _query("same legacy", limit=1)
+
+    first = retriever.search(query)
+    second = retriever.search(replace(query, cursor=first.next_cursor))
+
+    assert [item.chunk_ref.record_id for item in (*first.items, *second.items)] == sorted(
+        chunk.chunk_id for chunk in chunks
+    )
+
+
+def test_legacy_cursor_type_validation_precedes_recordref_and_hostile_string_hooks(
+    tmp_path, monkeypatch,
+):
+    source = _source("doc:legacy-types")
+    version = _version(source, "rev:1")
+    chunk = _chunk(version, "legacy type text")
+    store = SQLiteUnifiedSourceIndexStore(tmp_path / "usi.db")
+    _insert(store, chunk, version, source)
+    query = _query("legacy type", limit=1)
+    snapshot = store.current_snapshot()
+
+    body = {
+        "s": "usi.lexical.v1",
+        "r": snapshot.snapshot_ref,
+        "q": query.fingerprint,
+        "t": 1.0,
+        "l": 1.0,
+        "i": {"not": "a-record-id"},
+    }
+    body["h"] = hashlib.sha256(canonical_json(body).encode("utf-8")).hexdigest()
+    cursor = json.dumps(body, separators=(",", ":"), sort_keys=True)
+    calls = []
+
+    def forbidden_record_ref(*args, **kwargs):
+        calls.append((args, kwargs))
+        raise AssertionError("RecordRef must not receive malformed cursor identity")
+
+    monkeypatch.setattr(lexical_module, "RecordRef", forbidden_record_ref)
+    with pytest.raises(LexicalRetrievalError, match="^lexical cursor is invalid$"):
+        lexical_module._decode_cursor(cursor, snapshot, query)
+    assert calls == []
+
+    class HostileString(str):
+        def __bool__(self):
+            raise AssertionError("hostile truth hook invoked")
+
+        def __len__(self):
+            raise AssertionError("hostile length hook invoked")
+
+    with pytest.raises(LexicalRetrievalError, match="^lexical cursor is invalid or unbounded$"):
+        lexical_module._decode_cursor(HostileString("ignored"), snapshot, query)
+
+    with pytest.raises(LexicalRetrievalError) as duplicate_error:
+        lexical_module._decode_cursor('{"s":"usi.lexical.v1","s":"duplicate"}', snapshot, query)
+    assert duplicate_error.value.__cause__ is None
+    assert "duplicate" not in str(duplicate_error.value)
+
+
 def test_snippet_stale_and_candidate_clipping_states_are_explicit_and_bounded(tmp_path):
     source = _source("doc:bounds")
     version = _version(source, "rev:1")
@@ -311,4 +423,21 @@ def test_snapshot_change_during_fts_query_fails_closed(tmp_path):
     with pytest.raises(LexicalRetrievalError, match="snapshot changed"):
         UnifiedSourceIndexLexicalRetriever(ChangingStore(store)).search(
             _query("race")
+        )
+
+
+def test_explicit_domain_without_lifecycle_guard_fails_before_store_access(tmp_path, monkeypatch):
+    source = _source("doc:domain-unavailable")
+    version = _version(source, "rev:1")
+    chunk = _chunk(version, "domain constrained")
+    store = SQLiteUnifiedSourceIndexStore(tmp_path / "usi.db")
+    _insert(store, chunk, version, source)
+
+    def forbidden_snapshot():
+        raise AssertionError("fail-closed domain query must not touch the store")
+
+    monkeypatch.setattr(store, "current_snapshot", forbidden_snapshot)
+    with pytest.raises(LexicalRetrievalError, match="domain-constrained lexical query is unavailable"):
+        UnifiedSourceIndexLexicalRetriever(store).search(
+            _query("domain", domain="document")
         )
