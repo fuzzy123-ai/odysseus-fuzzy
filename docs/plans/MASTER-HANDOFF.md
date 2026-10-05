@@ -7,7 +7,21 @@ applicable scoped handoff. See `docs/plans/evidence/harbour-one-plan-reconciliat
 for the planning reconciliation. Historical next-action text below does not
 reopen accepted or released work.
 
-## Latest checkpoint: 2026-10-05 (canonical revision 3036)
+## Latest checkpoint: 2026-10-05 (canonical revision 3143)
+
+HEAD is `1d072f10a2e650e5c44fde0795e781e74c4c72e8`; 56 accepted local commits precede this documentation update. The canonical execution queue is running. These are scoped repository results; Product-roadmap progress remains 9/17.
+
+- Authenticated App, Planning migration/source inventory, MCP startup, principal-bound Inbox/Clarification routes and document-authority propagation are integrated in the reviewed 27-path commit `4dd4186784d44417a8167873d16d1887e8e955ef`. The isolated HEAD-plus-27 lane passed 541 tests, with three skips, exit 0 and unchanged candidate pins. Fresh independent source/test review and final machine-receipt binding passed. Receipt: `.abc-test-tmp/app-current2-head-closure-20261005/root-head27-r2-full22/receipt.json`.
+- Rename owner rollback fixtures now capture the trusted login identity before creating a session. Commit `763177c430852b406e24450707cf8648336c0908` passed the isolated owner/case/token-cache three-module lane: 31 tests, exit 0, unchanged pins and independent final review. Receipt: `.abc-test-tmp/rename-user-owner-fixture-current1-20261005/root-head1-full3/receipt.json`.
+- The Context provider/App eleven-path integration is accepted as `139f5e505043e7983d27fdd5a6a72c54d01a21c4`: 44 tests passed in its corrected isolated six-module lane. Earlier 29 setup errors remain historical evidence. Forge local-path integration `956db3cd4532a9a9d4631d4bb38b0c519bb7914e` passed 62 tests. Private Chat/session integration `47c157b73d8b74aa9c3addf08232e40394ea80ae` passed 33 tests across five modules. All had independent reviews and exact scoped commits.
+
+SourceMemory owner/hash protection and superseded-source classification are committed as `1d072f10a2e650e5c44fde0795e781e74c4c72e8`. Global ingest preserves private and malformed-owner rows; the public projection rejects private rows and missing or invalid hashes. Recognized superseded markers are demoted while other existing progress statuses remain compatible. The corrected authority tests use valid hashes. The isolated full three-module lane passed 138 tests, with three skips, exit 0 and stable pins; complete corrected independent review and final runtime binding passed. Receipt: `.abc-test-tmp/planning-source-memory-current2-20261005/root-head5-full3-corrected/receipt.json`. Only one reviewed HEAD-based hash-field insertion was staged in the MCP budget fixture; all unrelated dirty MCP test changes remain preserved.
+
+Next: freeze the current committed H1R05/Inbox successor and run one combined 57-module aggregate containing every required H1R05 strong33 and Inbox required53 module. Bind actual results to the immutable committed HEAD before any parent acceptance. The historical H1R05 accepted input set contains exactly 99 paths; historical 1463-pass evidence is not current acceptance. Additional reviewed dependencies must be declared explicitly.
+
+Not verified: current whole authenticated persistent MCP App/strong33 acceptance, UI, live providers, production migration/activation, temporal behavior, deployment, backup, restore and push. Three App skips remain visible. Foreign working-tree changes and historical failures remain preserved; the staging index is empty after scoped commits.
+
+## Historical checkpoint: 2026-10-05 (canonical revision 3036)
 
 HEAD is `f3c897128834ee10eaa7ca4c2eaa462e3d259647`; 49 accepted local commits
 precede this documentation commit. The overall implementation goal remains active.
