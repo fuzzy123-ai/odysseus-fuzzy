@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from contextlib import nullcontext
 from dataclasses import dataclass
+from datetime import datetime
 import hashlib
 import os
 from pathlib import Path
@@ -53,7 +55,8 @@ class UniversalInboxWorkingCopyError(RuntimeError):
 
 @dataclass(frozen=True, slots=True)
 class UniversalInboxWorkingCopyResult:
-    document: Document
+    working_copy_id: str
+    version: int
     created: bool
     revision_created: bool
 
@@ -62,37 +65,77 @@ class UniversalInboxWorkingCopyResult:
             "schema": WORKING_COPY_SCHEMA,
             "created": self.created,
             "revision_created": self.revision_created,
-            "working_copy_id": self.document.id,
-            "version": self.document.version_count,
+            "working_copy_id": self.working_copy_id,
+            "version": self.version,
         }
 
 
+@dataclass(frozen=True, slots=True)
+class _WorkingCopyRevisionToken:
+    document_id: str
+    version_count: int | None
+    updated_at: str | None
+    is_active: bool
+    content_sha256: str
+
+
 def create_or_get_universal_inbox_working_copy(
-    db: Any,
+    session_factory: Any,
     upload_handler: Any,
     source_ref: str,
     *,
     owner: str | None,
     auth_manager: Any = None,
     new_revision: bool = False,
+    document_authority=None,
 ) -> UniversalInboxWorkingCopyResult:
     """Return one stable working copy, or append an explicitly requested revision."""
+    from src.document_subject_scope import (
+        guard_document_request_authority,
+        stamp_new_document,
+    )
 
     source_kind, upload_id = _normalized_upload_ref(source_ref)
     owner_scope = _owner_scope(owner)
     source_ref_hash = _source_ref_hash(source_kind, upload_id)
-    existing = _find_working_copy(
-        db,
-        owner=owner_scope,
-        source_kind=source_kind,
-        source_ref_hash=source_ref_hash,
-    )
-    if existing is not None and not new_revision:
-        if not existing.is_active:
-            raise UniversalInboxWorkingCopyError(
-                409, "inactive", "working_copy_inactive"
+
+    def _guard():
+        if document_authority is None:
+            return nullcontext(None)
+        return guard_document_request_authority(document_authority)
+
+    first_db = session_factory()
+    existing = None
+    expected = None
+    try:
+        with _guard() as first_lease:
+            existing = _find_working_copy(
+                first_db,
+                owner=owner_scope,
+                source_kind=source_kind,
+                source_ref_hash=source_ref_hash,
+                lease=first_lease,
             )
-        return UniversalInboxWorkingCopyResult(existing, False, False)
+            if existing is not None and not new_revision:
+                if not existing.is_active:
+                    raise UniversalInboxWorkingCopyError(
+                        409, "inactive", "working_copy_inactive"
+                    )
+                return UniversalInboxWorkingCopyResult(
+                    str(existing.id), int(existing.version_count or 0), False, False
+                )
+            expected = (
+                _working_copy_revision_token(existing)
+                if existing is not None
+                else None
+            )
+    finally:
+        try:
+            first_db.close()
+        finally:
+            first_db = None
+            existing = None
+    first_lease = None
 
     title, language, content = _build_working_copy_content(
         upload_handler,
@@ -102,67 +145,134 @@ def create_or_get_universal_inbox_working_copy(
         auth_manager=auth_manager,
     )
 
-    if existing is not None:
-        if not existing.is_active:
-            raise UniversalInboxWorkingCopyError(
-                409, "inactive", "working_copy_inactive"
-            )
-        next_version = int(existing.version_count or 1) + 1
-        existing.title = title
-        existing.language = language
-        existing.current_content = content
-        existing.version_count = next_version
-        db.add(
-            DocumentVersion(
-                id=str(uuid.uuid4()),
-                document_id=existing.id,
-                version_number=next_version,
-                content=content,
-                summary="Explicit Universal Inbox source revision",
-                source="upload",
-            )
-        )
-        db.commit()
-        db.refresh(existing)
-        return UniversalInboxWorkingCopyResult(existing, False, True)
-
-    document = Document(
-        id=str(uuid.uuid4()),
-        session_id=None,
-        title=title,
-        language=language,
-        current_content=content,
-        version_count=1,
-        is_active=True,
-        owner=owner_scope,
-        source_kind=source_kind,
-        source_ref_hash=source_ref_hash,
-    )
-    version = DocumentVersion(
-        id=str(uuid.uuid4()),
-        document_id=document.id,
-        version_number=1,
-        content=content,
-        summary="Initial Universal Inbox working copy",
-        source="upload",
-    )
-    db.add(document)
-    db.add(version)
+    write_db = session_factory()
     try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raced = _find_working_copy(
-            db,
-            owner=owner_scope,
-            source_kind=source_kind,
-            source_ref_hash=source_ref_hash,
-        )
-        if raced is not None and not new_revision and raced.is_active:
-            return UniversalInboxWorkingCopyResult(raced, False, False)
-        raise
-    db.refresh(document)
-    return UniversalInboxWorkingCopyResult(document, True, False)
+        with _guard() as final_lease:
+            current = _find_working_copy(
+                write_db,
+                owner=owner_scope,
+                source_kind=source_kind,
+                source_ref_hash=source_ref_hash,
+                lease=final_lease,
+            )
+            if expected is not None:
+                if current is None or _working_copy_revision_token(current) != expected:
+                    raise UniversalInboxWorkingCopyError(
+                        409, "conflict", "working_copy_changed"
+                    )
+                if not current.is_active:
+                    raise UniversalInboxWorkingCopyError(
+                        409, "inactive", "working_copy_inactive"
+                    )
+
+                next_version = int(expected.version_count or 1) + 1
+                expected_id = expected.document_id
+                expected_updated_at = (
+                    datetime.fromisoformat(expected.updated_at)
+                    if expected.updated_at is not None
+                    else None
+                )
+                version_predicate = (
+                    Document.version_count.is_(None)
+                    if expected.version_count is None
+                    else Document.version_count == expected.version_count
+                )
+                updated_at_predicate = (
+                    Document.updated_at.is_(None)
+                    if expected_updated_at is None
+                    else Document.updated_at == expected_updated_at
+                )
+                current = None
+                updated = (
+                    _working_copy_query(
+                        write_db,
+                        owner=owner_scope,
+                        source_kind=source_kind,
+                        source_ref_hash=source_ref_hash,
+                        lease=final_lease,
+                    )
+                    .filter(
+                        Document.id == expected_id,
+                        version_predicate,
+                        updated_at_predicate,
+                        Document.is_active.is_(True),
+                    )
+                    .update(
+                        {
+                            "title": title,
+                            "language": language,
+                            "current_content": content,
+                            "version_count": next_version,
+                        },
+                        synchronize_session=False,
+                    )
+                )
+                if updated != 1:
+                    write_db.rollback()
+                    raise UniversalInboxWorkingCopyError(
+                        409, "conflict", "working_copy_changed"
+                    )
+                write_db.add(DocumentVersion(
+                    id=str(uuid.uuid4()), document_id=expected_id,
+                    version_number=next_version, content=content,
+                    summary="Explicit Universal Inbox source revision", source="upload",
+                ))
+                write_db.commit()
+                return UniversalInboxWorkingCopyResult(
+                    expected_id, next_version, False, True
+                )
+
+            if current is not None:
+                if not new_revision and current.is_active:
+                    return UniversalInboxWorkingCopyResult(
+                        str(current.id), int(current.version_count or 0), False, False
+                    )
+                raise UniversalInboxWorkingCopyError(
+                    409, "conflict", "working_copy_changed"
+                )
+
+            document_id = str(uuid.uuid4())
+            document = Document(
+                id=document_id, session_id=None, title=title, language=language,
+                current_content=content, version_count=1, is_active=True,
+                owner=owner_scope, source_kind=source_kind, source_ref_hash=source_ref_hash,
+            )
+            if final_lease is not None:
+                stamp_new_document(document, final_lease, local_owner=owner_scope)
+            write_db.add(document)
+            write_db.add(DocumentVersion(
+                id=str(uuid.uuid4()), document_id=document_id, version_number=1,
+                content=content, summary="Initial Universal Inbox working copy", source="upload",
+            ))
+            try:
+                write_db.commit()
+            except IntegrityError:
+                write_db.rollback()
+                raced = _find_working_copy(
+                    write_db, owner=owner_scope, source_kind=source_kind,
+                    source_ref_hash=source_ref_hash, lease=final_lease,
+                )
+                if raced is not None and not new_revision and raced.is_active:
+                    return UniversalInboxWorkingCopyResult(
+                        str(raced.id), int(raced.version_count or 0), False, False
+                    )
+                raise
+            return UniversalInboxWorkingCopyResult(document_id, 1, True, False)
+    finally:
+        write_db.close()
+
+
+def _working_copy_revision_token(document: Document) -> _WorkingCopyRevisionToken:
+    content = str(document.current_content or "").encode("utf-8", "strict")
+    return _WorkingCopyRevisionToken(
+        document_id=str(document.id),
+        version_count=(
+            int(document.version_count) if document.version_count is not None else None
+        ),
+        updated_at=(document.updated_at.isoformat() if document.updated_at else None),
+        is_active=bool(document.is_active),
+        content_sha256=hashlib.sha256(content).hexdigest(),
+    )
 
 
 def _normalized_upload_ref(source_ref: str) -> tuple[str, str]:
@@ -196,15 +306,40 @@ def _find_working_copy(
     owner: str,
     source_kind: str,
     source_ref_hash: str,
+    lease=None,
 ) -> Document | None:
-    return (
-        db.query(Document)
-        .filter(
-            Document.owner == owner,
-            Document.source_kind == source_kind,
-            Document.source_ref_hash == source_ref_hash,
+    return _working_copy_query(
+        db,
+        owner=owner,
+        source_kind=source_kind,
+        source_ref_hash=source_ref_hash,
+        lease=lease,
+    ).first()
+
+
+def _working_copy_query(
+    db: Any,
+    *,
+    owner: str,
+    source_kind: str,
+    source_ref_hash: str,
+    lease=None,
+):
+    from src.document_subject_scope import scope_document_ingress_key_query
+
+    query = db.query(Document)
+    if lease is not None:
+        query = scope_document_ingress_key_query(
+            query, lease, local_owner=owner, model=Document
         )
-        .first()
+    else:
+        query = query.filter(
+            Document.creator_subject_id.is_(None),
+            Document.owner == owner,
+        )
+    return query.filter(
+        Document.source_kind == source_kind,
+        Document.source_ref_hash == source_ref_hash,
     )
 
 

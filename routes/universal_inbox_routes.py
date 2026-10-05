@@ -12,9 +12,14 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, Response
 
 from core.database import SessionLocal
-from routes.document_helpers import WorkingCopyCreate, _doc_to_dict
+from routes.document_helpers import WorkingCopyCreate, _doc_to_dict, _document_by_id_query
 from src.auth_helpers import require_privilege
 from src.auth_helpers import effective_user
+from src.document_subject_scope import (
+    capture_document_request_authority,
+    current_document_owner_alias,
+    guard_document_request_authority,
+)
 from src.universal_inbox_file_types import classify_universal_inbox_file
 from src.universal_inbox_flow_state import build_universal_inbox_flow_state
 from src.universal_inbox_items import (
@@ -212,47 +217,72 @@ def setup_universal_inbox_routes(upload_handler: Any = None) -> APIRouter:
         req: WorkingCopyCreate | None = None,
     ):
         owner = require_privilege(request, "can_use_documents")
+        has_cookie = "odysseus_session" in request.cookies
+        authorization = request.headers.get("authorization", "")
+        legacy_credential = (
+            authorization.lower().startswith("bearer ")
+            or bool(request.headers.get("x-api-key"))
+            or bool(getattr(request.state, "api_token", False))
+        )
+        document_authority = None if legacy_credential and not has_cookie else capture_document_request_authority(request)
         auth_manager = getattr(request.app.state, "auth_manager", None)
-        db = SessionLocal()
         try:
             result = create_or_get_universal_inbox_working_copy(
-                db,
+                SessionLocal,
                 upload_handler,
                 source_ref,
                 owner=owner,
                 auth_manager=auth_manager,
                 new_revision=bool(req and req.new_revision),
+                document_authority=document_authority,
             )
-            payload = _doc_to_dict(result.document)
-            payload["working_copy"] = result.status_dict()
-            # The working-copy operation has already canonicalized and
-            # owner-authorized this upload.  Derive the public classification
-            # from that canonical id only: cached copies remain usable after a
-            # source is deleted, and no filename/path needs to be re-read.
             _source_kind, upload_id = _normalize_source_ref(source_ref)
             suffix = os.path.splitext(upload_id)[1].lower()
             file_type = classify_universal_inbox_file(
                 f"source{suffix}" if suffix else "source"
             )
-            payload["workbench_capability"] = (
-                build_universal_inbox_workbench_capability(
-                    file_type,
-                    owner_authorized=True,
-                    has_working_copy=True,
-                    browser_download_allowed=True,
-                    provider_write_requested=False,
-                ).to_dict()
-            )
-            return JSONResponse(
-                status_code=201 if result.created else 200,
-                content=payload,
-                headers={
-                    "Cache-Control": "private, no-store",
-                    "X-Content-Type-Options": "nosniff",
-                },
-            )
+            final_db = SessionLocal()
+            guard = None
+            guard_entered = False
+            try:
+                guard = (
+                    guard_document_request_authority(document_authority)
+                    if document_authority is not None
+                    else None
+                )
+                lease = guard.__enter__() if guard is not None else None
+                guard_entered = guard is not None
+                final_doc = _document_by_id_query(
+                    final_db, result.working_copy_id, lease=lease, user=owner
+                ).first()
+                if final_doc is None:
+                    raise UniversalInboxWorkingCopyError(409, "conflict", "working_copy_changed")
+                payload = _doc_to_dict(final_doc)
+                payload["working_copy"] = result.status_dict()
+                payload["workbench_capability"] = (
+                    build_universal_inbox_workbench_capability(
+                        file_type,
+                        owner_authorized=True,
+                        has_working_copy=True,
+                        browser_download_allowed=True,
+                        provider_write_requested=False,
+                    ).to_dict()
+                )
+                return JSONResponse(
+                    status_code=201 if result.created else 200,
+                    content=payload,
+                    headers={
+                        "Cache-Control": "private, no-store",
+                        "X-Content-Type-Options": "nosniff",
+                    },
+                )
+            finally:
+                try:
+                    final_db.close()
+                finally:
+                    if guard_entered:
+                        guard.__exit__(None, None, None)
         except UniversalInboxWorkingCopyError as exc:
-            db.rollback()
             return JSONResponse(
                 status_code=exc.status_code,
                 content=exc.to_dict(),
@@ -261,8 +291,16 @@ def setup_universal_inbox_routes(upload_handler: Any = None) -> APIRouter:
                     "X-Content-Type-Options": "nosniff",
                 },
             )
-        except Exception:
-            db.rollback()
+        except HTTPException as exc:
+            if type(exc) is HTTPException and type(exc.status_code) is int and exc.status_code == 401:
+                return JSONResponse(
+                    status_code=401,
+                    content={"detail": "Not authenticated"},
+                    headers={
+                        "Cache-Control": "private, no-store",
+                        "X-Content-Type-Options": "nosniff",
+                    },
+                )
             return JSONResponse(
                 status_code=500,
                 content=UniversalInboxWorkingCopyError(
@@ -273,8 +311,17 @@ def setup_universal_inbox_routes(upload_handler: Any = None) -> APIRouter:
                     "X-Content-Type-Options": "nosniff",
                 },
             )
-        finally:
-            db.close()
+        except Exception:
+            return JSONResponse(
+                status_code=500,
+                content=UniversalInboxWorkingCopyError(
+                    500, "failed", "working_copy_failed"
+                ).to_dict(),
+                headers={
+                    "Cache-Control": "private, no-store",
+                    "X-Content-Type-Options": "nosniff",
+                },
+            )
 
     return router
 
