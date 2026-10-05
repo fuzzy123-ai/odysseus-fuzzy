@@ -6,14 +6,18 @@ Config stored in data/auth.json. Uses bcrypt directly.
 import enum
 import copy
 import json
+import math
 import os
 import re
 import secrets
 import threading
 import time
+import weakref
 import logging
+from contextlib import contextmanager
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, Iterator, List
 
 import bcrypt
 import pyotp
@@ -70,10 +74,46 @@ TOKEN_TTL = 60 * 60 * 24 * 7  # 7 days
 # impersonated. (Keep this in sync with that synthetic-owner set.)
 RESERVED_USERNAMES = frozenset({INTERNAL_TOOL_USER, "api", "demo", "system"})
 SUBJECT_ID_PATTERN = re.compile(r"^owner_[a-z0-9]{32}$")
+# core.atomic_io uses a process-ID based temporary suffix.  Multiple manager
+# instances in this process can otherwise target the same auth/sessions path
+# concurrently and collide at rename.  The authority lock is instance-local,
+# so file serialization has to live at module scope.
+_AUTH_FILE_WRITE_LOCK = threading.RLock()
+# Auth config publication and identity migration deliberately use the same
+# process-wide lock.  ``atomic_write_json`` uses a PID-derived temporary name,
+# so a separate migration lock would still allow a normal config writer to
+# collide with a startup migration in this process.
+_AUTH_IDENTITY_MIGRATION_LOCK = _AUTH_FILE_WRITE_LOCK
 
 
 class AuthSubjectIdentityError(RuntimeError):
     """The durable account-to-owner identity mapping is unsafe to use."""
+
+
+class AuthSessionPersistenceError(RuntimeError):
+    """A session invalidation is denied in memory but was not durable."""
+
+
+@dataclass(frozen=True)
+class LoginIdentityFence:
+    subject_id: str
+    security_revision: int
+    # These values are deliberately not constructor arguments.  A fence is a
+    # manager-issued, single-use capability, not a value callers can recreate
+    # from a subject ID and revision they happen to know.
+    _issuer: object | None = field(default=None, init=False, repr=False, compare=False)
+    _nonce: str | None = field(default=None, init=False, repr=False, compare=False)
+
+
+@dataclass(frozen=True)
+class _IssuedLoginFence:
+    """Private, immutable issuance facts for one in-memory fence object."""
+
+    fence_ref: weakref.ReferenceType[LoginIdentityFence]
+    subject_id: str
+    security_revision: int
+    issuer: object
+    nonce: str
 
 
 def _new_subject_id() -> str:
@@ -116,6 +156,19 @@ class AuthManager:
         # Guards mutations of self._sessions and the on-disk sessions.json.
         # Validate/create/revoke run concurrently from the FastAPI threadpool.
         self._sessions_lock = threading.RLock()
+        # Serializes every identity/session mutation with a guarded durable
+        # operation.  Keep this outermost: a guard deliberately retains only
+        # this lock while a caller performs database work.
+        self._session_authority_lock = threading.RLock()
+        self._fence_issuer = object()
+        # Weak ownership prevents abandoned failed-login fences from becoming
+        # an unbounded process-memory registry.  Identity remains exact: a
+        # copied object has another id and is never registered.
+        # The public frozen dataclass can still be mutated with
+        # ``object.__setattr__``.  Bind its identity to a separate immutable
+        # issuance projection, keyed by a weak reference, so a modified leaf
+        # cannot be repurposed for another account before token creation.
+        self._issued_login_fences: Dict[int, _IssuedLoginFence] = {}
         # Monotonic in-process authority revision for ephemeral privileged
         # action grants.  No grant survives an admin-role or active-TOTP
         # security change, and this counter itself contains no credential data.
@@ -128,177 +181,159 @@ class AuthManager:
         # Guards the first-run setup check-and-write so concurrent requests
         # cannot both observe is_configured==False and both create admin accounts.
         self._setup_lock = threading.Lock()
-        self._load()
+        self._load_startup_config()
         self._load_sessions()
-        self._migrate_single_user()
-        self._migrate_subject_identities()
-        self._drop_reserved_loaded_users()
-        self._migrate_legacy_admin_role()
 
-    def _load(self):
+    @staticmethod
+    def _invalid_registry() -> AuthSubjectIdentityError:
+        """Return the one safe startup failure visible to callers."""
+        return AuthSubjectIdentityError("invalid account identity registry")
+
+    def _read_auth_config_locked(self) -> Dict[str, Any]:
+        """Read one authoritative auth.json snapshot while FILE is retained."""
         try:
-            if os.path.exists(self.auth_path):
-                with open(self.auth_path, "r", encoding="utf-8") as f:
-                    self._config = json.load(f)
-                if not isinstance(self._config, dict):
-                    raise AuthSubjectIdentityError("invalid account identity registry")
-                # Normalize all stored usernames to lowercase so they match
-                # the .strip().lower() applied at login/verify time. Fixes
-                # "Invalid credentials" when auth.json was written with
-                # mixed-case keys (e.g. via manual edit or a future migration).
-                if "users" in self._config:
-                    users = self._config["users"]
-                    if not isinstance(users, dict):
-                        raise AuthSubjectIdentityError("invalid account identity registry")
-                    normalized_users: Dict[str, Any] = {}
-                    for raw_username, row in users.items():
-                        if not isinstance(raw_username, str):
-                            raise AuthSubjectIdentityError("invalid account identity registry")
-                        username = raw_username.strip().lower()
-                        if username in normalized_users:
-                            raise AuthSubjectIdentityError("duplicate account identity")
-                        normalized_users[username] = row
-                    self._config["users"] = normalized_users
-                logger.info("Auth config loaded")
-            else:
-                self._config = {}
-                logger.info("No auth config found — first-run setup required")
-        except AuthSubjectIdentityError:
-            logger.error("Failed to load auth config: invalid account identity registry")
-            raise
-        except Exception as e:
-            logger.error(f"Failed to load auth config: {e}")
-            self._config = {}
+            if not os.path.exists(self.auth_path):
+                return {}
+            with open(self.auth_path, "r", encoding="utf-8") as f:
+                value = json.load(f)
+        except Exception:
+            raise self._invalid_registry() from None
+        if type(value) is not dict:
+            raise self._invalid_registry()
+        return value
 
-    def _load_sessions(self):
-        """Load persisted session tokens from disk, pruning expired ones."""
-        try:
-            if os.path.exists(self._sessions_path):
-                with open(self._sessions_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                now = time.time()
-                self._sessions = {k: v for k, v in data.items() if v.get("expiry", 0) > now}
-                pruned = len(data) - len(self._sessions)
-                if pruned > 0:
-                    self._save_sessions()
-                logger.info(f"Loaded {len(self._sessions)} session(s) from disk")
-        except Exception as e:
-            logger.error(f"Failed to load sessions: {e}")
-            self._sessions = {}
+    def _normalized_startup_candidate(self, durable: Dict[str, Any]) -> Dict[str, Any]:
+        """Normalize every legacy auth shape in memory before one publication."""
+        if "password_hash" in durable and "users" not in durable:
+            username = str(durable.get("username", "admin") or "admin").strip().lower()
+            if not username or username in RESERVED_USERNAMES:
+                username = "admin"
+            password_hash = durable.get("password_hash")
+            if not isinstance(password_hash, str) or not password_hash:
+                raise self._invalid_registry()
+            return {"users": {username: {
+                "password_hash": password_hash,
+                "created": time.time(),
+                "is_admin": True,
+                "subject_id": _new_subject_id(),
+            }}}
 
-    def _save_sessions(self):
-        """Persist session tokens to disk (atomic, lock-guarded)."""
-        try:
-            with self._sessions_lock:
-                snapshot = dict(self._sessions)
-            _atomic_write_json(self._sessions_path, snapshot)
-        except Exception as e:
-            logger.error(f"Failed to save sessions: {e}")
-
-    def _migrate_single_user(self):
-        """Migrate old single-user format to multi-user format."""
-        if "password_hash" in self._config and "users" not in self._config:
-            old_user = str(self._config.get("username", "admin") or "admin").strip().lower()
-            if old_user in RESERVED_USERNAMES:
-                logger.warning(
-                    "Migrating legacy single-user reserved username '%s' to 'admin'",
-                    old_user,
-                )
-                old_user = "admin"
-            old_hash = self._config["password_hash"]
-            self._config = {
-                "users": {
-                    old_user: {
-                        "password_hash": old_hash,
-                        "created": time.time(),
-                        "is_admin": True,
-                        "subject_id": _new_subject_id(),
-                    }
-                }
-            }
-            self._save()
-            logger.info(f"Migrated single-user auth to multi-user (admin: {old_user})")
-
-    def _migrate_subject_identities(self) -> None:
-        """Atomically add immutable opaque owner IDs and reject ambiguity.
-
-        Usernames remain mutable display/login keys.  Transcription ownership
-        is instead bound to this server-only identifier, which is moved with a
-        rename and discarded with an account deletion.
-        """
-        users = self._config.get("users")
+        candidate = copy.deepcopy(durable)
+        users = candidate.get("users")
         if users is None:
-            return
-        if not isinstance(users, dict):
-            raise AuthSubjectIdentityError("invalid account identity registry")
+            return candidate
+        if type(users) is not dict:
+            raise self._invalid_registry()
 
+        normalized: Dict[str, Any] = {}
         seen: set[str] = set()
-        missing: list[str] = []
-        for username, row in users.items():
-            if not isinstance(username, str) or not isinstance(row, dict):
-                raise AuthSubjectIdentityError("invalid account identity registry")
+        for raw_username, raw_row in users.items():
+            if not isinstance(raw_username, str) or type(raw_row) is not dict:
+                raise self._invalid_registry()
+            username = raw_username.strip().lower()
+            if not username or username in RESERVED_USERNAMES:
+                continue
+            if username in normalized:
+                raise self._invalid_registry()
+            row = copy.deepcopy(raw_row)
             subject_id = row.get("subject_id")
             if subject_id is None:
-                missing.append(username)
-                continue
-            if not isinstance(subject_id, str) or not SUBJECT_ID_PATTERN.fullmatch(subject_id):
-                raise AuthSubjectIdentityError("invalid account identity registry")
-            if subject_id in seen:
-                raise AuthSubjectIdentityError("duplicate account identity")
-            seen.add(subject_id)
-
-        if not missing:
-            return
-        candidate = copy.deepcopy(self._config)
-        for username in missing:
-            subject_id = _new_subject_id()
-            while subject_id in seen:
                 subject_id = _new_subject_id()
-            candidate["users"][username]["subject_id"] = subject_id
+                while subject_id in seen:
+                    subject_id = _new_subject_id()
+                row["subject_id"] = subject_id
+            if not isinstance(subject_id, str) or SUBJECT_ID_PATTERN.fullmatch(subject_id) is None or subject_id in seen:
+                raise self._invalid_registry()
             seen.add(subject_id)
-        # Publish the complete migration in one replace, and only then expose
-        # it to lock-free readers in this process.
-        _atomic_write_json(self.auth_path, candidate, indent=2)
-        self._config = candidate
-        logger.info("Migrated %d account identity record(s)", len(missing))
+            if row.get("role") == "admin" and "is_admin" not in row:
+                row["is_admin"] = True
+            normalized[username] = row
+        candidate["users"] = normalized
+        return candidate
+
+    def _load_startup_config(self) -> None:
+        """Publish a fully-normalized startup config at most once.
+
+        This constructor-only transaction has one lock order (CONFIG then
+        process-wide FILE).  ``self._config`` remains empty until an optional
+        replace has completed, so another constructor never observes a
+        half-migrated SID or reserved-account registry.
+        """
+        with self._config_lock:
+            with _AUTH_FILE_WRITE_LOCK:
+                durable = self._read_auth_config_locked()
+                candidate = self._normalized_startup_candidate(durable)
+                if candidate != durable:
+                    try:
+                        _atomic_write_json(self.auth_path, candidate, indent=2)
+                    except Exception:
+                        raise self._invalid_registry() from None
+                self._config = candidate
+
+    def _load(self):
+        """Compatibility reload used by narrow tests and explicit maintenance."""
+        self._load_startup_config()
+
+    def _load_sessions(self):
+        """Load persisted session tokens, releasing FILE before any save path."""
+        try:
+            with _AUTH_FILE_WRITE_LOCK:
+                if not os.path.exists(self._sessions_path):
+                    return
+                with open(self._sessions_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+            if type(data) is not dict:
+                raise ValueError("invalid session registry")
+            now = time.time()
+            def _loadable(value: Any) -> bool:
+                expiry = value.get("expiry") if type(value) is dict else None
+                return type(expiry) in (int, float) and math.isfinite(expiry) and expiry > now
+            loaded = {k: copy.deepcopy(v) for k, v in data.items() if _loadable(v)}
+            with self._sessions_lock:
+                self._sessions = loaded
+            if len(data) != len(loaded):
+                self._save_sessions()
+            logger.info("Loaded %d session(s) from disk", len(loaded))
+        except Exception:
+            logger.error("Failed to load session registry")
+            with self._sessions_lock:
+                self._sessions = {}
+
+    def _save_sessions(self):
+        """Persist one authority-serialized snapshot of the session map."""
+        try:
+            with self._session_authority_lock:
+                with self._sessions_lock:
+                    snapshot = copy.deepcopy(self._sessions)
+                with _AUTH_FILE_WRITE_LOCK:
+                    _atomic_write_json(self._sessions_path, snapshot)
+            return True
+        except Exception:
+            # Never expose writer/provider detail through logs or callers.
+            logger.error("Failed to persist session snapshot")
+            return False
+
+    # Retain narrowly-used legacy entry points without reintroducing staged
+    # startup migration.  Each one performs the same complete transaction.
+    def _migrate_single_user(self):
+        with self._session_authority_lock:
+            self._load_startup_config()
+
+    def _migrate_subject_identities(self) -> None:
+        with self._session_authority_lock:
+            self._load_startup_config()
 
     def _drop_reserved_loaded_users(self):
-        """Fail closed for legacy/manual auth rows that collide with sentinels."""
-        users = self._config.get("users")
-        if not isinstance(users, dict):
-            return
-        normalized = {}
-        removed = []
-        for username, data in users.items():
-            key = str(username or "").strip().lower()
-            if not key:
-                continue
-            if key in RESERVED_USERNAMES:
-                removed.append(key)
-                continue
-            normalized[key] = data
-        if removed or normalized != users:
-            self._config["users"] = normalized
-            self._save()
-        if removed:
-            logger.warning(
-                "Removed reserved username(s) from auth config: %s",
-                ", ".join(sorted(set(removed))),
-            )
+        with self._session_authority_lock:
+            self._load_startup_config()
 
     def _migrate_legacy_admin_role(self):
-        """Normalize setup.py's old role='admin' marker to is_admin=True."""
-        changed = False
-        for username, user in self.users.items():
-            if user.get("role") == "admin" and "is_admin" not in user:
-                user["is_admin"] = True
-                changed = True
-                logger.info(f"Migrated legacy admin role for '{username}'")
-        if changed:
-            self._save()
+        with self._session_authority_lock:
+            self._load_startup_config()
 
     def _save(self):
-        _atomic_write_json(self.auth_path, self._config, indent=2)
+        with _AUTH_FILE_WRITE_LOCK:
+            _atomic_write_json(self.auth_path, self._config, indent=2)
 
     @property
     def users(self) -> Dict[str, Any]:
@@ -320,13 +355,145 @@ class AuthManager:
 
     def subject_id_for_username(self, username: str | None) -> Optional[str]:
         """Resolve a login name to its immutable, non-public owner ID."""
-        normalized = normalize_known_username(self.users, username)
-        if normalized is None:
+        with self._config_lock:
+            users = self._config.get("users")
+            if type(users) is not dict:
+                raise AuthSubjectIdentityError("invalid account identity registry")
+            normalized = normalize_known_username(users, username)
+            if normalized is None:
+                return None
+            identities = []
+            for account in users.values():
+                if type(account) is not dict:
+                    raise AuthSubjectIdentityError("invalid account identity registry")
+                identity = account.get("subject_id")
+                if not isinstance(identity, str) or not SUBJECT_ID_PATTERN.fullmatch(identity):
+                    raise AuthSubjectIdentityError("invalid account identity registry")
+                identities.append(identity)
+            if len(identities) != len(set(identities)):
+                raise AuthSubjectIdentityError("invalid account identity registry")
+            return users[normalized]["subject_id"]
+
+    def active_admin_subject_identity(
+        self,
+        *,
+        username: str | None = None,
+        subject_id: str | None = None,
+    ) -> tuple[str, str] | None:
+        """Atomically resolve one current admin alias and immutable subject.
+
+        Exactly one selector is required. This read-only snapshot is used at
+        MCP token issuance and dispatch; it does not change account lifecycle
+        or identity migration behavior.
+        """
+        if (username is None) == (subject_id is None):
             return None
-        subject_id = self.users[normalized].get("subject_id")
+        with self._config_lock:
+            users = self._config.get("users")
+            if type(users) is not dict:
+                raise AuthSubjectIdentityError("invalid account identity registry")
+            identities: list[str] = []
+            for account in users.values():
+                if type(account) is not dict:
+                    raise AuthSubjectIdentityError("invalid account identity registry")
+                identity = account.get("subject_id")
+                if not isinstance(identity, str) or not SUBJECT_ID_PATTERN.fullmatch(identity):
+                    raise AuthSubjectIdentityError("invalid account identity registry")
+                identities.append(identity)
+            if len(identities) != len(set(identities)):
+                raise AuthSubjectIdentityError("invalid account identity registry")
+            if username is not None:
+                normalized = normalize_known_username(users, username)
+                if normalized is None:
+                    return None
+                account = users[normalized]
+                if account.get("is_admin") is not True:
+                    return None
+                return normalized, account["subject_id"]
+            if not isinstance(subject_id, str) or not SUBJECT_ID_PATTERN.fullmatch(subject_id):
+                return None
+            matches = [
+                (name, account)
+                for name, account in users.items()
+                if account.get("subject_id") == subject_id and account.get("is_admin") is True
+            ]
+            if len(matches) != 1:
+                return None
+            return matches[0][0], subject_id
+
+    @contextmanager
+    def guard_session_authority(self) -> Iterator[None]:
+        """Serialize a durable operation with account/session mutations.
+
+        This process-local guard conveys no identity or authorization.  A
+        caller that needs authority must establish it separately while the
+        guard is held.
+        """
+        with self._session_authority_lock:
+            yield
+
+    @contextmanager
+    def guard_current_admin_subject(self, expected_subject_id: str) -> Iterator[str]:
+        """Hold process-local account authority for one SID-bound DB action.
+
+        The config lock is held only while resolving the unique current admin
+        alias.  The outer authority lock remains held across the caller's SQL
+        work so token revocation, account deletion, rename, and demotion cannot
+        cross the authorization/commit boundary in this process.
+        """
+        with self._session_authority_lock:
+            identity = self.active_admin_subject_identity(subject_id=expected_subject_id)
+            if identity is None or identity[1] != expected_subject_id:
+                raise AuthSubjectIdentityError("current admin subject is not authorized")
+            yield identity[0]
+
+    def subject_id_for_owner_scope(self, owner_scope: str) -> str | None:
+        """Resolve one current account identity from its owner-scoped USI value."""
+        try:
+            from src.unified_source_index_owner_scope import OwnerScope
+            if type(owner_scope) is not str:
+                raise AuthSubjectIdentityError("invalid account identity registry")
+            with self._config_lock:
+                users = self._config.get("users")
+                if type(users) is not dict:
+                    raise AuthSubjectIdentityError("invalid account identity registry")
+                identities: list[str] = []
+                for account in users.values():
+                    if type(account) is not dict:
+                        raise AuthSubjectIdentityError("invalid account identity registry")
+                    subject = account.get("subject_id")
+                    if not isinstance(subject, str) or not SUBJECT_ID_PATTERN.fullmatch(subject):
+                        raise AuthSubjectIdentityError("invalid account identity registry")
+                    identities.append(subject)
+                if len(identities) != len(set(identities)):
+                    raise AuthSubjectIdentityError("invalid account identity registry")
+                matches = [subject for subject in identities
+                           if OwnerScope.for_subject_id(subject).value == owner_scope]
+                return matches[0] if len(matches) == 1 else None
+        except AuthSubjectIdentityError:
+            raise
+        except BaseException:
+            raise AuthSubjectIdentityError("invalid account identity registry") from None
+
+    def has_active_subject_id(self, subject_id: str) -> bool:
+        """Return true only when one current account owns this immutable ID."""
         if not isinstance(subject_id, str) or not SUBJECT_ID_PATTERN.fullmatch(subject_id):
             raise AuthSubjectIdentityError("invalid account identity registry")
-        return subject_id
+        with self._config_lock:
+            users = self._config.get("users")
+            if type(users) is not dict:
+                raise AuthSubjectIdentityError("invalid account identity registry")
+            identities = []
+            for account in users.values():
+                if type(account) is not dict:
+                    raise AuthSubjectIdentityError("invalid account identity registry")
+                identity = account.get("subject_id")
+                if not isinstance(identity, str) or not SUBJECT_ID_PATTERN.fullmatch(identity):
+                    raise AuthSubjectIdentityError("invalid account identity registry")
+                identities.append(identity)
+            if len(identities) != len(set(identities)):
+                raise AuthSubjectIdentityError("invalid account identity registry")
+            return identities.count(subject_id) == 1
 
     def policy(self) -> dict:
         """Return public auth policy constants for the frontend."""
@@ -356,19 +523,20 @@ class AuthManager:
         if username in RESERVED_USERNAMES:
             logger.warning("Refused to create reserved username '%s'", username)
             return False
-        with self._config_lock:
-            if username in self.users:
-                return False
-            if "users" not in self._config:
-                self._config["users"] = {}
-            self._config["users"][username] = {
-                "password_hash": _hash_password(password),
-                "created": time.time(),
-                "is_admin": is_admin,
-                "subject_id": _new_subject_id(),
-                "privileges": dict(ADMIN_PRIVILEGES if is_admin else DEFAULT_PRIVILEGES),
-            }
-            self._save()
+        with self._session_authority_lock:
+            with self._config_lock:
+                if username in self.users:
+                    return False
+                if "users" not in self._config:
+                    self._config["users"] = {}
+                self._config["users"][username] = {
+                    "password_hash": _hash_password(password),
+                    "created": time.time(),
+                    "is_admin": is_admin,
+                    "subject_id": _new_subject_id(),
+                    "privileges": dict(ADMIN_PRIVILEGES if is_admin else DEFAULT_PRIVILEGES),
+                }
+                self._save()
         logger.info(f"Created user '{username}' (admin={is_admin})")
         return True
 
@@ -381,13 +549,14 @@ class AuthManager:
         their cookie expired naturally (default ~30 days).
         """
         username = username.strip().lower()
-        with self._config_lock:
-            if username not in self.users:
-                return False
-            if username == requesting_user:
-                return False
-            if not self.users.get(requesting_user, {}).get("is_admin"):
-                return False
+        with self._session_authority_lock:
+            with self._config_lock:
+                if username not in self.users:
+                    return False
+                if username == requesting_user:
+                    return False
+                if not self.users.get(requesting_user, {}).get("is_admin"):
+                    return False
             # Revoke API bearer tokens before removing the auth row. The bearer
             # path authenticates from ApiToken rows and does not require the
             # owner to still exist, so a successful delete must not leave active
@@ -404,20 +573,24 @@ class AuthManager:
             except Exception:
                 logger.warning(f"Failed to revoke API tokens for deleted user '{username}'")
                 return False
-            del self._config["users"][username]
-            self._save()
-        # Purge all sessions belonging to this user. validate_token doesn't
-        # cross-check `self.users`, so without this step a deleted user's
-        # cookie keeps authenticating.
-        revoked = 0
-        with self._sessions_lock:
-            to_drop = [tok for tok, sess in self._sessions.items()
-                       if (sess or {}).get("username") == username]
-            for tok in to_drop:
-                self._sessions.pop(tok, None)
-                revoked += 1
-        if revoked:
-            self._save_sessions()
+            with self._config_lock:
+                # The outer authority excludes account mutation while the DB
+                # transaction runs, so this remains the account we authorized.
+                if username not in self._config.get("users", {}):
+                    return False
+                del self._config["users"][username]
+                self._save()
+            # Purge all sessions belonging to this user.  The outer authority
+            # still serializes this with strict resolution and guarded writes.
+            revoked = 0
+            with self._sessions_lock:
+                to_drop = [tok for tok, sess in self._sessions.items()
+                           if (sess or {}).get("username") == username]
+                for tok in to_drop:
+                    self._sessions.pop(tok, None)
+                    revoked += 1
+            if revoked:
+                self._save_sessions()
         logger.info(f"Deleted user '{username}' (by {requesting_user}); revoked {revoked} active session(s)")
         return True
 
@@ -431,25 +604,27 @@ class AuthManager:
         if new_username in RESERVED_USERNAMES:
             logger.warning("Refused to rename '%s' into reserved username '%s'", old_username, new_username)
             return False
-        with self._config_lock:
-            if old_username not in self.users:
-                return False
-            if new_username in self.users:
-                return False
-            if not self.users.get(requesting_user, {}).get("is_admin"):
-                return False
-            self._config.setdefault("users", {})[new_username] = self._config["users"].pop(old_username)
-            self._save()
+        with self._session_authority_lock:
+            with self._config_lock:
+                if old_username not in self.users:
+                    return False
+                if new_username in self.users:
+                    return False
+                if not self.users.get(requesting_user, {}).get("is_admin"):
+                    return False
+                self._bump_security_action_revision()
+                self._config.setdefault("users", {})[new_username] = self._config["users"].pop(old_username)
+                self._save()
 
-        renamed_sessions = 0
-        with self._sessions_lock:
-            for sess in self._sessions.values():
-                sess_user = str((sess or {}).get("username") or "").strip().lower()
-                if sess_user == old_username:
-                    sess["username"] = new_username
-                    renamed_sessions += 1
-        if renamed_sessions:
-            self._save_sessions()
+            renamed_sessions = 0
+            with self._sessions_lock:
+                for sess in self._sessions.values():
+                    sess_user = str((sess or {}).get("username") or "").strip().lower()
+                    if sess_user == old_username:
+                        sess["username"] = new_username
+                        renamed_sessions += 1
+            if renamed_sessions:
+                self._save_sessions()
         logger.info(
             "Renamed user '%s' -> '%s' (by %s); updated %d active session(s)",
             old_username, new_username, requesting_user, renamed_sessions,
@@ -521,60 +696,62 @@ class AuthManager:
         username = (username or "").strip().lower()
         requesting_user = (requesting_user or "").strip().lower()
         is_admin = bool(is_admin)
-        with self._config_lock:
-            target = self._config.get("users", {}).get(username)
-            if target is None:
-                return SetAdminResult.USER_NOT_FOUND
-            if not self.users.get(requesting_user, {}).get("is_admin"):
-                return SetAdminResult.NOT_AUTHORIZED
-            currently_admin = bool(target.get("is_admin"))
-            if currently_admin == is_admin:
-                return SetAdminResult.OK  # no-op; leave privileges untouched
-            if currently_admin and not is_admin:
-                admin_count = sum(1 for d in self.users.values() if d.get("is_admin"))
-                if admin_count <= 1:
-                    return SetAdminResult.LAST_ADMIN
-            # Invalidate grants before exposing either side of the role change.
-            self._bump_security_action_revision()
+        with self._session_authority_lock:
+            with self._config_lock:
+                target = self._config.get("users", {}).get(username)
+                if target is None:
+                    return SetAdminResult.USER_NOT_FOUND
+                if not self.users.get(requesting_user, {}).get("is_admin"):
+                    return SetAdminResult.NOT_AUTHORIZED
+                currently_admin = bool(target.get("is_admin"))
+                if currently_admin == is_admin:
+                    return SetAdminResult.OK  # no-op; leave privileges untouched
+                if currently_admin and not is_admin:
+                    admin_count = sum(1 for d in self.users.values() if d.get("is_admin"))
+                    if admin_count <= 1:
+                        return SetAdminResult.LAST_ADMIN
+                # Invalidate grants before exposing either side of the role change.
+                self._bump_security_action_revision()
             # Write order matters for lock-free readers: get_privileges()
             # reads without _config_lock and trusts is_admin, so the admin
             # flag must be flipped while the stored map is safe to expose —
             # before writing admin privileges on promote, after restoring
             # the pre-admin map on demote.
-            if is_admin:
-                target["is_admin"] = True
+                if is_admin:
+                    target["is_admin"] = True
                 # Stash the pre-admin map so a later demotion can restore it.
                 # While is_admin is set the stored map is inert: get_privileges
                 # short-circuits to ADMIN_PRIVILEGES and set_privileges refuses
                 # admins, so only set_admin ever touches the stash.
-                target["privileges_before_admin"] = dict(
-                    target.get("privileges") or DEFAULT_PRIVILEGES
-                )
-                target["privileges"] = dict(ADMIN_PRIVILEGES)
-            else:
+                    target["privileges_before_admin"] = dict(
+                        target.get("privileges") or DEFAULT_PRIVILEGES
+                    )
+                    target["privileges"] = dict(ADMIN_PRIVILEGES)
+                else:
                 # Restore the stashed pre-admin map. Fall back to defaults for
                 # users created as admins (their stored map is ADMIN_PRIVILEGES,
                 # which must not leak past demotion — e.g. can_use_bash) and
                 # for admins promoted before the stash existed.
-                target["privileges"] = dict(
-                    target.pop("privileges_before_admin", None)
-                    or DEFAULT_PRIVILEGES
-                )
-                target["is_admin"] = False
-            self._save()
+                    target["privileges"] = dict(
+                        target.pop("privileges_before_admin", None)
+                        or DEFAULT_PRIVILEGES
+                    )
+                    target["is_admin"] = False
+                self._save()
         logger.info("Set is_admin=%s for '%s' (by '%s')", is_admin, username, requesting_user)
         return SetAdminResult.OK
 
     def change_password(self, username: str, current_password: str, new_password: str) -> bool:
         username = username.strip().lower()
-        if username not in self.users:
+        if not self.verify_password(username, current_password):
             return False
-        if not _verify_password(current_password, self.users[username]["password_hash"]):
-            return False
-        with self._config_lock:
-            self._bump_security_action_revision()
-            self._config["users"][username]["password_hash"] = _hash_password(new_password)
-            self._save()
+        with self._session_authority_lock:
+            with self._config_lock:
+                if username not in self._config.get("users", {}):
+                    return False
+                self._bump_security_action_revision()
+                self._config["users"][username]["password_hash"] = _hash_password(new_password)
+                self._save()
         return True
 
     # ------------------------------------------------------------------
@@ -583,8 +760,9 @@ class AuthManager:
 
     def totp_enabled(self, username: str) -> bool:
         """Check if 2FA is enabled for a user."""
-        user = self.users.get(username.strip().lower(), {})
-        return bool(user.get("totp_enabled"))
+        with self._config_lock:
+            user = self._config.get("users", {}).get(username.strip().lower(), {})
+            return bool(user.get("totp_enabled")) if type(user) is dict else False
 
     def totp_generate_secret(self, username: str) -> Optional[str]:
         """Generate a new TOTP secret for a user. Returns the secret (not yet enabled)."""
@@ -605,30 +783,36 @@ class AuthManager:
     def totp_confirm_enable(self, username: str, code: str) -> bool:
         """Verify a TOTP code against the pending secret, then enable 2FA."""
         username = username.strip().lower()
-        user = self.users.get(username, {})
-        secret = user.get("totp_secret_pending")
+        with self._config_lock:
+            user = self._config.get("users", {}).get(username, {})
+            secret = user.get("totp_secret_pending") if type(user) is dict else None
         if not secret:
             return False
         totp = pyotp.TOTP(secret)
         if not totp.verify(code, valid_window=1):
             return False
         # Enable 2FA
-        with self._config_lock:
-            self._config["users"][username]["totp_secret"] = secret
-            self._config["users"][username]["totp_enabled"] = True
-            self._config["users"][username].pop("totp_secret_pending", None)
-            # Generate backup codes
-            backup = [secrets.token_hex(4) for _ in range(8)]
-            self._config["users"][username]["totp_backup_codes"] = backup
-            self._save()
+        with self._session_authority_lock:
+            with self._config_lock:
+                if username not in self._config.get("users", {}):
+                    return False
+                self._bump_security_action_revision()
+                self._config["users"][username]["totp_secret"] = secret
+                self._config["users"][username]["totp_enabled"] = True
+                self._config["users"][username].pop("totp_secret_pending", None)
+                # Generate backup codes
+                backup = [secrets.token_hex(4) for _ in range(8)]
+                self._config["users"][username]["totp_backup_codes"] = backup
+                self._save()
         logger.info(f"2FA enabled for '{username}'")
-        self._bump_security_action_revision()
         return True
 
     def totp_verify(self, username: str, code: str) -> bool:
         """Verify a TOTP code for login."""
         username = username.strip().lower()
-        user = self.users.get(username, {})
+        with self._config_lock:
+            stored = self._config.get("users", {}).get(username, {})
+            user = copy.deepcopy(stored) if type(stored) is dict else {}
         if not user.get("totp_enabled"):
             return True  # 2FA not enabled, always pass
         secret = user.get("totp_secret")
@@ -640,10 +824,15 @@ class AuthManager:
         # Check backup codes first
         backup = user.get("totp_backup_codes", [])
         if code in backup:
-            with self._config_lock:
-                backup.remove(code)
-                self._config["users"][username]["totp_backup_codes"] = backup
-                self._save()
+            with self._session_authority_lock:
+                with self._config_lock:
+                    current = self._config.get("users", {}).get(username)
+                    if type(current) is not dict or code not in current.get("totp_backup_codes", []):
+                        return False
+                    current_backup = list(current.get("totp_backup_codes", []))
+                    current_backup.remove(code)
+                    self._config["users"][username]["totp_backup_codes"] = current_backup
+                    self._save()
             logger.info(f"Backup code used for '{username}' ({len(backup)} remaining)")
             return True
         totp = pyotp.TOTP(secret)
@@ -657,7 +846,9 @@ class AuthManager:
         required by security-incident operator actions.
         """
         username = username.strip().lower()
-        user = self.users.get(username, {})
+        with self._config_lock:
+            stored = self._config.get("users", {}).get(username, {})
+            user = copy.deepcopy(stored) if type(stored) is dict else {}
         if not user.get("totp_enabled"):
             return False
         secret = user.get("totp_secret")
@@ -675,14 +866,17 @@ class AuthManager:
         username = username.strip().lower()
         if not self.verify_password(username, password):
             return False
-        with self._config_lock:
-            self._config["users"][username].pop("totp_secret", None)
-            self._config["users"][username].pop("totp_secret_pending", None)
-            self._config["users"][username].pop("totp_backup_codes", None)
-            self._config["users"][username]["totp_enabled"] = False
-            self._save()
+        with self._session_authority_lock:
+            with self._config_lock:
+                if username not in self._config.get("users", {}):
+                    return False
+                self._bump_security_action_revision()
+                self._config["users"][username].pop("totp_secret", None)
+                self._config["users"][username].pop("totp_secret_pending", None)
+                self._config["users"][username].pop("totp_backup_codes", None)
+                self._config["users"][username]["totp_enabled"] = False
+                self._save()
         logger.info(f"2FA disabled for '{username}'")
-        self._bump_security_action_revision()
         return True
 
     # ------------------------------------------------------------------
@@ -691,103 +885,256 @@ class AuthManager:
 
     def verify_password(self, username: str, password: str) -> bool:
         username = username.strip().lower()
-        if username not in self.users:
+        with self._config_lock:
+            record = self._config.get("users", {}).get(username)
+            password_hash = record.get("password_hash") if type(record) is dict else None
+        if not isinstance(password_hash, str) or not password_hash:
             return False
-        return _verify_password(password, self.users[username]["password_hash"])
+        try:
+            return _verify_password(password, password_hash)
+        except Exception:
+            return False
+
+    def capture_login_identity(self, username: str) -> Optional[LoginIdentityFence]:
+        username = username.strip().lower()
+        with self._session_authority_lock:
+            with self._config_lock:
+                record = self._config.get("users", {}).get(username)
+                subject_id = record.get("subject_id") if type(record) is dict else None
+                if not isinstance(subject_id, str) or not SUBJECT_ID_PATTERN.fullmatch(subject_id):
+                    return None
+                with self._security_action_revision_lock:
+                    fence = LoginIdentityFence(subject_id, self._security_action_revision)
+                    nonce = secrets.token_hex(16)
+                    object.__setattr__(fence, "_issuer", self._fence_issuer)
+                    object.__setattr__(fence, "_nonce", nonce)
+                    fence_id = id(fence)
+                    manager_ref = weakref.ref(self)
+
+                    def discard_abandoned_fence(
+                        fence_ref: weakref.ReferenceType[LoginIdentityFence],
+                        *,
+                        manager_ref: weakref.ReferenceType[AuthManager] = manager_ref,
+                        fence_id: int = fence_id,
+                    ) -> None:
+                        manager = manager_ref()
+                        if manager is None:
+                            return
+                        with manager._session_authority_lock:
+                            issued = manager._issued_login_fences.get(fence_id)
+                            if issued is not None and issued.fence_ref is fence_ref:
+                                manager._issued_login_fences.pop(fence_id, None)
+
+                    fence_ref = weakref.ref(fence, discard_abandoned_fence)
+                    self._issued_login_fences[fence_id] = _IssuedLoginFence(
+                        fence_ref=fence_ref,
+                        subject_id=subject_id,
+                        security_revision=self._security_action_revision,
+                        issuer=self._fence_issuer,
+                        nonce=nonce,
+                    )
+                    return fence
 
     def create_session(self, username: str, password: str) -> Optional[str]:
         """Verify credentials and return a session token, or None."""
         username = username.strip().lower()
+        identity_fence = self.capture_login_identity(username)
+        if identity_fence is None:
+            return None
         if not self.verify_password(username, password):
             return None
-        return self.create_session_trusted(username)
+        return self.create_session_trusted(username, identity_fence=identity_fence)
 
-    def create_session_trusted(self, username: str) -> Optional[str]:
+    def create_session_trusted(
+        self,
+        username: str,
+        *,
+        identity_fence: Optional[LoginIdentityFence] = None,
+    ) -> Optional[str]:
         """Issue a session token for an already-verified user.
         Call only after verify_password (and TOTP if enabled) have passed."""
         username = username.strip().lower()
         token = secrets.token_hex(32)
-        with self._config_lock:
-            if username not in self.users:
-                logger.warning("Refused to issue session for missing user '%s'", username)
+        if type(identity_fence) is not LoginIdentityFence:
+            return None
+        with self._session_authority_lock:
+            # Consume before checking mutable account state.  A copied,
+            # replayed, cross-manager, or manually-built object cannot enter
+            # this registry, and an issued fence cannot be retried.
+            issued = self._issued_login_fences.pop(id(identity_fence), None)
+            if issued is None or issued.fence_ref() is not identity_fence:
                 return None
-            with self._sessions_lock:
-                self._sessions[token] = {
-                    "username": username,
-                    "expiry": time.time() + TOKEN_TTL,
-                }
-        self._save_sessions()
+            if (
+                type(identity_fence.subject_id) is not str
+                or type(identity_fence.security_revision) is not int
+                or type(identity_fence._nonce) is not str
+                or identity_fence.subject_id != issued.subject_id
+                or identity_fence.security_revision != issued.security_revision
+                or identity_fence._issuer is not issued.issuer
+                or identity_fence._nonce != issued.nonce
+            ):
+                return None
+            with self._config_lock:
+                record = self._config.get("users", {}).get(username)
+                if type(record) is not dict:
+                    logger.warning("Refused to issue session for missing user '%s'", username)
+                    return None
+                subject_id = record.get("subject_id")
+                if not isinstance(subject_id, str) or not SUBJECT_ID_PATTERN.fullmatch(subject_id):
+                    return None
+                if identity_fence.subject_id != subject_id:
+                    return None
+                with self._security_action_revision_lock:
+                    if identity_fence.security_revision != self._security_action_revision:
+                        return None
+                with self._sessions_lock:
+                    self._sessions[token] = {
+                        "username": username,
+                        "subject_id": subject_id,
+                        "expiry": time.time() + TOKEN_TTL,
+                    }
+            if not self._save_sessions():
+                with self._sessions_lock:
+                    self._sessions.pop(token, None)
+                return None
         return token
 
-    def validate_token(self, token: Optional[str]) -> bool:
-        if not token:
-            return False
-        expired = False
-        deleted_user = False
-        with self._sessions_lock:
-            session = self._sessions.get(token)
-            if session is None:
-                return False
-            if time.time() > session["expiry"]:
-                self._sessions.pop(token, None)
-                expired = True
-            else:
-                # SECURITY: if the user record has since been removed (admin
-                # deleted them while their cookie was still valid), drop the
-                # session so the next request kicks them out instead of
-                # silently authenticating against a non-existent account.
-                if session.get("username") not in self.users:
+    def _current_session_identity(self, token: Optional[str], *, strict: bool) -> Optional[tuple[str, Optional[str]]]:
+        """Resolve a cookie from its persisted SID under one authority snapshot.
+
+        A legacy SID-less row remains usable only through the legacy helpers;
+        strict callers never repair or upgrade it from its mutable alias.
+        """
+        if not isinstance(token, str) or not token:
+            return None
+        invalid = False
+        resolved: Optional[tuple[str, Optional[str]]] = None
+        with self._session_authority_lock:
+            # Keep the normal runtime ordering AUTHORITY -> CONFIG -> SESSIONS.
+            # The snapshots are copied while their short locks are held, then
+            # validated without a CONFIG/SESSIONS nesting inversion.
+            with self._config_lock:
+                raw_users = self._config.get("users", {})
+                users = copy.deepcopy(raw_users) if type(raw_users) is dict else None
+            with self._sessions_lock:
+                session = self._sessions.get(token)
+                snapshot = copy.deepcopy(session) if type(session) is dict else None
+            if snapshot is None:
+                return None
+            expiry = snapshot.get("expiry")
+            if (
+                type(expiry) not in (int, float)
+                or not math.isfinite(expiry)
+                or time.time() >= expiry
+            ):
+                invalid = True
+            session_sid = snapshot.get("subject_id")
+            if session_sid is None and strict:
+                # Strict browser authentication must leave a valid legacy row
+                # untouched.  Only compatibility helpers may resolve it.
+                return None
+            if session_sid is not None and (not isinstance(session_sid, str) or not SUBJECT_ID_PATTERN.fullmatch(session_sid)):
+                # A present malformed SID is corruption, never a legacy alias.
+                invalid = True
+            if users is None:
+                invalid = True
+            elif not invalid and isinstance(session_sid, str):
+                # SID-bound rows consult the whole current registry and
+                # require exactly one valid owner.  SID-less legacy rows
+                # intentionally do not depend on other accounts' IDs.
+                sid_to_name: Dict[str, str] = {}
+                for name, record in users.items():
+                    registry_sid = record.get("subject_id") if type(record) is dict else None
+                    if registry_sid is None:
+                        continue
+                    if not isinstance(registry_sid, str) or not SUBJECT_ID_PATTERN.fullmatch(registry_sid) or registry_sid in sid_to_name:
+                        invalid = True
+                        break
+                    sid_to_name[registry_sid] = name
+                else:
+                    owner = sid_to_name.get(session_sid)
+                    resolved = (owner, session_sid) if owner else None
+                    invalid = resolved is None
+            elif not invalid:
+                owner = str(snapshot.get("username") or "").strip().lower()
+                record = users.get(owner)
+                resolved = (owner, None) if isinstance(record, dict) else None
+                invalid = resolved is None
+            if invalid:
+                with self._sessions_lock:
                     self._sessions.pop(token, None)
-                    deleted_user = True
-        if expired or deleted_user:
+        if invalid:
             self._save_sessions()
-            return False
-        return True
+        return resolved
+
+    def validate_token(self, token: Optional[str]) -> bool:
+        return self._current_session_identity(token, strict=False) is not None
 
     def get_username_for_token(self, token: Optional[str]) -> Optional[str]:
         """Return the username associated with a valid token."""
-        if not token:
+        identity = self._current_session_identity(token, strict=False)
+        return identity[0] if identity is not None else None
+
+    def strict_session_identity(self, token: Optional[str]) -> Optional[tuple[str, str]]:
+        identity = self._current_session_identity(token, strict=True)
+        if identity is None or identity[1] is None:
             return None
-        expired = False
-        deleted_user = False
-        with self._sessions_lock:
-            session = self._sessions.get(token)
-            if session is None:
-                return None
-            if time.time() > session["expiry"]:
-                self._sessions.pop(token, None)
-                expired = True
-            else:
-                _u = session["username"]
-                # SECURITY: orphan check — same rationale as validate_token.
-                if _u not in self.users:
-                    self._sessions.pop(token, None)
-                    deleted_user = True
-                else:
-                    return _u
-        if expired or deleted_user:
-            self._save_sessions()
-        return None
+        return identity[0], identity[1]
+
+    @contextmanager
+    def guard_current_session(self, token: str, expected_subject_id: str) -> Iterator[str]:
+        """Hold only session authority while a caller commits a SID-fenced CAS."""
+        with self._session_authority_lock:
+            identity = self._current_session_identity(token, strict=True)
+            if identity is None or identity[1] != expected_subject_id:
+                raise AuthSubjectIdentityError("current session is not authorized")
+            yield identity[0]
 
     def revoke_token(self, token: str):
-        with self._sessions_lock:
-            self._sessions.pop(token, None)
-        self._save_sessions()
+        with self._session_authority_lock:
+            with self._sessions_lock:
+                removed = self._sessions.pop(token, None)
+            if removed is None:
+                return None
+            if self._save_sessions():
+                return None
+            # Fail closed in this process.  The caller must not report a
+            # durable logout/revocation after the old file could not be
+            # replaced, and the removed token must never be re-enabled.
+            raise AuthSessionPersistenceError("session_revocation_not_durable")
 
     def revoke_user_sessions(self, username: str, except_token: Optional[str] = None) -> int:
         """Revoke active browser sessions for a user, optionally preserving one."""
         username = username.strip().lower()
         revoked = 0
-        with self._sessions_lock:
-            to_drop = [
-                token for token, session in self._sessions.items()
-                if token != except_token and (session or {}).get("username") == username
-            ]
-            for token in to_drop:
-                self._sessions.pop(token, None)
-                revoked += 1
+        with self._session_authority_lock:
+            with self._config_lock:
+                users = self._config.get("users")
+                record = users.get(username) if type(users) is dict else None
+                current_sid = record.get("subject_id") if type(record) is dict else None
+                if not isinstance(current_sid, str) or not SUBJECT_ID_PATTERN.fullmatch(current_sid):
+                    current_sid = None
+            with self._sessions_lock:
+                to_drop = [
+                    token for token, session in self._sessions.items()
+                    if token != except_token and type(session) is dict and (
+                        (
+                            isinstance(session.get("subject_id"), str)
+                            and current_sid is not None
+                            and session.get("subject_id") == current_sid
+                        )
+                        or (
+                            session.get("subject_id") is None
+                            and str(session.get("username") or "").strip().lower() == username
+                        )
+                    )
+                ]
+                for token in to_drop:
+                    self._sessions.pop(token, None)
+                    revoked += 1
             if revoked:
-                self._save_sessions()
+                if not self._save_sessions():
+                    raise AuthSessionPersistenceError("session_revocation_not_durable")
         return revoked
 
     def status(self, token: Optional[str]) -> Dict[str, Any]:

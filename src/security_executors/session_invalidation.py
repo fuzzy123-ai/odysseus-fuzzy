@@ -46,22 +46,32 @@ class SessionInvalidationExecutor:
     def execute(self, *, request: Any, scope: Any, operator_protection: Any, capability: Any, recovery: Any = None) -> dict[str, Any]:
         try:
             with self._lock:
-                targets = self._preflight(request=request, scope=scope, operator_protection=operator_protection, recovery=recovery)
-                if not isinstance(capability, SessionInvalidationExecutionAuthority):
-                    raise SecuritySessionContractError("session invalidation unavailable")
-                # The issuer consumes the single-use authority before the store
-                # can be mutated, and binds action/version/gate/scope/receipt.
-                receipt = _consume_test_session_invalidation_authority(capability, request, scope, self._isolated_store(), len(targets))
-                acknowledgement = SessionInvalidationAcknowledgement(receipt)
-                _bind_test_session_invalidation_acknowledgement(receipt, acknowledgement)
-                current = self._targets_locked(scope, operator_protection)
-                if current != targets:
-                    raise SecuritySessionContractError("session invalidation unavailable")
                 manager = self._manager()
-                for handle in current:
-                    manager._sessions.pop(handle, None)
-                manager._save_sessions()
-            return acknowledgement
+                authority = getattr(manager, "_session_authority_lock", None)
+                if not hasattr(authority, "__enter__"):
+                    raise SecuritySessionContractError("session invalidation unavailable")
+                # Retain the production authority across the two exact target
+                # checks, memory denial, and durable persistence.  The inner
+                # session lock is never held during external work.
+                with authority:
+                    targets = self._preflight(request=request, scope=scope, operator_protection=operator_protection, recovery=recovery)
+                    if not isinstance(capability, SessionInvalidationExecutionAuthority):
+                        raise SecuritySessionContractError("session invalidation unavailable")
+                    # Consumption intentionally precedes persistence: a failed
+                    # durable write still consumes this sealed, single-use
+                    # authority and leaves the in-memory session denied.
+                    receipt = _consume_test_session_invalidation_authority(capability, request, scope, self._isolated_store(), len(targets))
+                    with self._session_lock():
+                        current = self._targets_locked(scope, operator_protection)
+                        if current != targets:
+                            raise SecuritySessionContractError("session invalidation unavailable")
+                        for handle in current:
+                            manager._sessions.pop(handle, None)
+                    if manager._save_sessions() is not True:
+                        raise SecuritySessionContractError("session invalidation unavailable")
+                    acknowledgement = SessionInvalidationAcknowledgement(receipt)
+                    _bind_test_session_invalidation_acknowledgement(receipt, acknowledgement)
+                    return acknowledgement
         except Exception:
             return self._blocked("session_invalidation_unavailable")
 

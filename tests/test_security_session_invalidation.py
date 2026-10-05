@@ -2,6 +2,7 @@ import dataclasses
 import copy
 import json
 import pickle
+import threading
 
 import pytest
 
@@ -17,13 +18,19 @@ from src.security_session_contracts import (
 )
 
 
+def _trusted_session(manager, username):
+    fence = manager.capture_login_identity(username)
+    assert fence is not None
+    return manager.create_session_trusted(username, identity_fence=fence)
+
+
 def _manager(tmp_path):
     manager = IsolatedSessionTestAuthManager(str(tmp_path / "auth.json"))
     assert manager.create_user("operator", "safe-password", is_admin=True)
     assert manager.create_user("target", "safe-password")
-    operator = manager.create_session_trusted("operator")
-    target_one = manager.create_session_trusted("target")
-    target_two = manager.create_session_trusted("target")
+    operator = _trusted_session(manager, "operator")
+    target_one = _trusted_session(manager, "target")
+    target_two = _trusted_session(manager, "target")
     assert operator and target_one and target_two
     return manager, operator, target_one, target_two
 
@@ -136,7 +143,7 @@ def test_live_or_general_auth_manager_cannot_be_mislabeled_as_an_isolated_store(
     manager._IsolatedSessionTestAuthManager__session_invalidation_test_store_marker = object()
     assert manager.create_user("operator", "safe-password", is_admin=True)
     assert manager.create_user("target", "safe-password")
-    operator, target = manager.create_session_trusted("operator"), manager.create_session_trusted("target")
+    operator, target = _trusted_session(manager, "operator"), _trusted_session(manager, "target")
     assert operator and target
     scope, request = SessionInvalidationScope.single_session(account_id="target", session_handle=target), None
     request = _request(scope)
@@ -192,3 +199,86 @@ def test_default_disabled_bounds_recovery_and_store_exceptions_fail_closed_witho
     encoded = json.dumps(result, sort_keys=True)
     assert result == {"status": "blocked", "reason": "session_invalidation_unavailable", "executed": False, "verified": False, "raw_content_visible": False}
     assert target_one not in encoded and operator not in encoded and "very-secret" not in encoded and "provider response" not in encoded
+
+
+def test_executor_waits_for_isolated_manager_guard_then_persists_durable_invalidation(tmp_path):
+    manager, operator, target, _other = _manager(tmp_path)
+    store = IsolatedSessionStore.from_isolated_test_manager(manager)
+    scope, request = SessionInvalidationScope.single_session(account_id="target", session_handle=target), None
+    request = _request(scope)
+    entered, release, executor_attempted, finished = (threading.Event() for _ in range(4))
+    holder_thread = []
+    real_authority = manager._session_authority_lock
+
+    class ObservedAuthority:
+        def __enter__(self):
+            if threading.current_thread() is not holder_thread[0]:
+                executor_attempted.set()
+            real_authority.acquire()
+            return self
+
+        def __exit__(self, *args):
+            real_authority.release()
+
+    manager._session_authority_lock = ObservedAuthority()
+    errors, result = [], []
+    def guarded_work():
+        try:
+            with manager.guard_current_session(operator, manager.subject_id_for_username("operator")):
+                entered.set()
+                assert release.wait(3)
+        except Exception as exc:
+            errors.append(type(exc))
+
+    def invalidate():
+        try:
+            assert entered.wait(3)
+            result.append(_isolated_executor(manager, store=store).execute(
+                request=request, scope=scope, operator_protection=_protection(operator),
+                capability=_authority(request, scope, store),
+            ))
+            finished.set()
+        except Exception as exc:
+            errors.append(type(exc))
+
+    holder, worker = threading.Thread(target=guarded_work), threading.Thread(target=invalidate)
+    holder_thread.append(holder)
+    started_threads = []
+    try:
+        holder.start()
+        started_threads.append(holder)
+        worker.start()
+        started_threads.append(worker)
+        assert entered.wait(3) and executor_attempted.wait(3)
+        # The executor cannot have reached its session mutation while its
+        # real authority acquisition remains blocked by the browser guard.
+        assert not finished.is_set() and target in manager._sessions
+        release.set()
+    finally:
+        release.set()
+        for thread in started_threads:
+            thread.join(5)
+        manager._session_authority_lock = real_authority
+    assert not holder.is_alive() and not worker.is_alive() and errors == []
+    assert result[0]["status"] == "success" and manager.validate_token(target) is False
+    reopened = IsolatedSessionTestAuthManager(str(tmp_path / "auth.json"))
+    assert reopened.validate_token(target) is False
+
+
+def test_failed_invalidator_save_consumes_authority_without_receipt_or_session_revival(tmp_path, monkeypatch):
+    manager, operator, target, _other = _manager(tmp_path)
+    store = IsolatedSessionStore.from_isolated_test_manager(manager)
+    scope = SessionInvalidationScope.single_session(account_id="target", session_handle=target)
+    request = _request(scope)
+    capability = _authority(request, scope, store)
+    monkeypatch.setattr(manager, "_save_sessions", lambda: False)
+    result = _isolated_executor(manager, store=store).execute(
+        request=request, scope=scope, operator_protection=_protection(operator), capability=capability,
+    )
+    assert result == {"status": "blocked", "reason": "session_invalidation_unavailable", "executed": False, "verified": False, "raw_content_visible": False}
+    assert manager.validate_token(target) is False
+    # The sealed capability was consumed before the failing durable write.
+    repeat = _isolated_executor(manager, store=store).execute(
+        request=request, scope=scope, operator_protection=_protection(operator), capability=capability,
+    )
+    assert repeat["status"] == "blocked"

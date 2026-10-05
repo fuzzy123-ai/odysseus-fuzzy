@@ -7,7 +7,7 @@ import asyncio
 import logging
 import os
 
-from core.auth import AuthManager, RESERVED_USERNAMES, SetAdminResult, TOKEN_TTL
+from core.auth import AuthManager, AuthSessionPersistenceError, RESERVED_USERNAMES, SetAdminResult, TOKEN_TTL
 from src.constants import DEEP_RESEARCH_DIR, MEMORY_FILE, PASSWORD_MIN_LENGTH, SKILLS_DIR
 from src.rate_limiter import RateLimiter
 from src.settings_scrub import scrub_settings
@@ -353,6 +353,10 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
             raise HTTPException(429, "Too many requests — try again later")
         # Verify password first
         username = body.username.strip().lower()
+        identity_fence = auth_manager.capture_login_identity(username)
+        if identity_fence is None:
+            _emit_redacted_auth_event(request, username=username, outcome="failed", session_created="no", event_kind="login")
+            raise HTTPException(401, "Invalid credentials")
         if not await asyncio.to_thread(auth_manager.verify_password, username, body.password):
             _emit_redacted_auth_event(request, username=username, outcome="failed", session_created="no", event_kind="login")
             raise HTTPException(401, "Invalid credentials")
@@ -366,7 +370,7 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
                 _emit_redacted_auth_event(request, username=username, outcome="failed", session_created="no", event_kind="login")
                 raise HTTPException(401, "Invalid 2FA code")
         # All checks passed — create session (password already verified above)
-        token = await asyncio.to_thread(auth_manager.create_session_trusted, username)
+        token = await asyncio.to_thread(auth_manager.create_session_trusted, username, identity_fence=identity_fence)
         if not token:
             _emit_redacted_auth_event(request, username=username, outcome="unknown", session_created="no", event_kind="login")
             raise HTTPException(401, "Invalid credentials")
@@ -389,7 +393,10 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
         token = request.cookies.get(SESSION_COOKIE)
         username = auth_manager.get_username_for_token(token) if token else ""
         if token:
-            auth_manager.revoke_token(token)
+            try:
+                auth_manager.revoke_token(token)
+            except AuthSessionPersistenceError:
+                raise HTTPException(503, "Logout is temporarily unavailable") from None
         response.delete_cookie(SESSION_COOKIE, path="/")
         _emit_redacted_auth_event(request, username=username or "", outcome="success" if username else "not_applicable", session_created="no")
         return {"ok": True}

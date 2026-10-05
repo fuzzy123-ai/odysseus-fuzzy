@@ -1,8 +1,142 @@
 """Shared auth helpers used by all route files."""
 
 import os
-from typing import Optional
+from contextlib import contextmanager, ExitStack
+from dataclasses import dataclass
+from typing import Iterator, Optional
 from fastapi import Request, HTTPException
+from core.auth import AuthManager, AuthSubjectIdentityError, SUBJECT_ID_PATTERN
+
+
+@dataclass(frozen=True)
+class SessionPrincipal:
+    owner: str
+    creator_subject_id: str | None
+    authority: str
+
+
+def _valid_session_principal(principal: object, *, allow_local: bool) -> bool:
+    """Accept only the two principals this module can construct."""
+    if type(principal) is not SessionPrincipal or not isinstance(principal.owner, str):
+        return False
+    if principal.authority == "browser_session":
+        return (
+            bool(principal.owner)
+            and principal.owner == principal.owner.strip().lower()
+            and isinstance(principal.creator_subject_id, str)
+            and SUBJECT_ID_PATTERN.fullmatch(principal.creator_subject_id) is not None
+        )
+    return (
+        allow_local
+        and principal.authority == "local"
+        and principal.owner == "local"
+        and principal.creator_subject_id is None
+    )
+
+
+def _direct_loopback_request(request: Request) -> bool:
+    client = getattr(request, "client", None)
+    host = (client.host if client else "") or ""
+    headers = getattr(request, "headers", None)
+    forwarded = any(
+        headers.get(name) for name in ("forwarded", "x-forwarded-for", "x-forwarded-host", "x-real-ip")
+    ) if headers is not None else False
+    return host in ("127.0.0.1", "::1") and not forwarded
+
+
+def _request_auth_manager(request: Request) -> AuthManager | None:
+    """Return only the concrete server auth manager before invoking it."""
+    manager = getattr(request.app.state, "auth_manager", None)
+    if manager is not None and type(manager) is not AuthManager:
+        raise HTTPException(401, "Not authenticated")
+    return manager
+
+
+def strict_session_principal(request: Request) -> SessionPrincipal:
+    """Resolve only a server-issued cookie session; never trust request state."""
+    if _is_api_token_request(request) or _has_bearer_credentials(request):
+        raise HTTPException(401, "Not authenticated")
+    manager = _request_auth_manager(request)
+    token = getattr(request, "cookies", {}).get("odysseus_session") if manager is not None else None
+    try:
+        identity = manager.strict_session_identity(token) if manager is not None else None
+        if type(identity) is not tuple or len(identity) != 2:
+            raise ValueError("invalid browser identity")
+        owner, subject_id = identity
+        principal = SessionPrincipal(owner=owner, creator_subject_id=subject_id, authority="browser_session")
+    except Exception:
+        raise HTTPException(401, "Not authenticated")
+    if not _valid_session_principal(principal, allow_local=False):
+        raise HTTPException(401, "Not authenticated")
+    return principal
+
+
+def require_trusted_session_principal(request: Request) -> SessionPrincipal:
+    """Resolve a strict cookie principal, or the explicit local authority.
+
+    Local authority is never inferred from middleware request state, body data,
+    or forwarded headers.  A configured manager always requires a strict
+    server-issued SID-bound cookie, including when a localhost bypass flag is
+    set.
+    """
+    if _is_api_token_request(request) or _has_bearer_credentials(request):
+        raise HTTPException(401, "Not authenticated")
+    manager = _request_auth_manager(request)
+    # Disabled auth has one explicit local authority and never accepts a
+    # browser cookie as a competing proof.  This is intentionally owned by
+    # this helper, while strict_session_principal remains browser-only.
+    if _auth_disabled():
+        return SessionPrincipal(owner="local", creator_subject_id=None, authority="local")
+    try:
+        return strict_session_principal(request)
+    except HTTPException:
+        pass
+    if manager is not None and getattr(manager, "is_configured", False):
+        raise HTTPException(401, "Not authenticated")
+    if _direct_loopback_request(request):
+        return SessionPrincipal(owner="local", creator_subject_id=None, authority="local")
+    raise HTTPException(401, "Not authenticated")
+
+
+@contextmanager
+def guard_trusted_session_principal(
+    request: Request,
+    expected_principal: SessionPrincipal,
+) -> Iterator[SessionPrincipal]:
+    """Retain auth authority for a SID-bound durable action.
+
+    The request cookie is re-read inside the guard.  No request-state alias,
+    supplied token, callback, or principal field is an authorization proof.
+    """
+    if (
+        not _valid_session_principal(expected_principal, allow_local=True)
+        or _is_api_token_request(request)
+        or _has_bearer_credentials(request)
+    ):
+        raise HTTPException(401, "Not authenticated")
+    manager = _request_auth_manager(request)
+    if expected_principal.authority == "local":
+        actual = require_trusted_session_principal(request)
+        if actual != expected_principal:
+            raise HTTPException(401, "Not authenticated")
+        yield expected_principal
+        return
+    token = getattr(request, "cookies", {}).get("odysseus_session") if manager is not None else None
+    if manager is None or not isinstance(token, str):
+        raise HTTPException(401, "Not authenticated")
+    # Limit the authentication translation to context entry.  The yielded
+    # operation (including a database commit) executes outside that catch and
+    # therefore propagates its own typed failure unchanged.
+    with ExitStack() as stack:
+        try:
+            owner = stack.enter_context(
+                manager.guard_current_session(token, expected_principal.creator_subject_id)
+            )
+        except AuthSubjectIdentityError:
+            raise HTTPException(401, "Not authenticated") from None
+        if owner != expected_principal.owner:
+            raise HTTPException(401, "Not authenticated")
+        yield expected_principal
 
 
 def get_current_user(request: Request) -> Optional[str]:
@@ -37,6 +171,13 @@ def effective_user(request: Request) -> Optional[str]:
 def _is_api_token_request(request: Request) -> bool:
     """Return True when middleware authenticated a bearer API token."""
     return bool(getattr(request.state, "api_token", False))
+
+
+def _has_bearer_credentials(request: Request) -> bool:
+    """Deny mixed raw bearer/cookie requests even before middleware state exists."""
+    headers = getattr(request, "headers", None)
+    authorization = headers.get("authorization", "") if headers is not None else ""
+    return isinstance(authorization, str) and authorization.lower().startswith("bearer ")
 
 
 def require_authenticated_request(request: Request) -> str:
@@ -127,6 +268,8 @@ def require_user(request: Request) -> str:
     # AUTH_ENABLED=false (issue #622). Docker / reverse-proxy deployments
     # hit this because requests arrive from a non-loopback client.host, so
     # the loopback fall-through below never fires.
+    # Preserve the existing route-level compatibility policy.  The stricter
+    # explicit-local contract belongs only to require_trusted_session_principal.
     if _auth_disabled():
         return ""
     auth_mgr = getattr(request.app.state, "auth_manager", None)

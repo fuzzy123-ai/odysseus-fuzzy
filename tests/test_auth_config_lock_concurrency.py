@@ -210,31 +210,241 @@ class TestDiskConsistency:
 
         stop_event = threading.Event()
         corruption_found = []
+        successful_reads = []
+        reader_errors = []
+        writer_errors = []
+
+        def read_snapshot():
+            # Windows does not permit os.replace while an unlocked reader has
+            # the file open.  POSIX atomic replacement deliberately remains
+            # lock-free for readers; the writer FILE lock serializes both ends
+            # only on Windows.
+            if sys.platform == "win32":
+                import core.auth as auth_module
+                with auth_module._AUTH_FILE_WRITE_LOCK:
+                    with open(mgr.auth_path, "r") as f:
+                        return f.read()
+            with open(mgr.auth_path, "r") as f:
+                return f.read()
 
         def reader():
             while not stop_event.is_set():
                 try:
-                    with open(mgr.auth_path, "r") as f:
-                        content = f.read()
+                    content = read_snapshot()
                     json.loads(content)
+                    successful_reads.append(True)
                 except json.JSONDecodeError as e:
                     corruption_found.append(str(e))
                     break
-                except FileNotFoundError:
-                    pass
+                except Exception as exc:
+                    reader_errors.append(type(exc))
+                    break
                 time.sleep(0.001)
 
         def writer():
-            for i in range(50):
-                mgr.create_user(f"stress{i}", f"pw{i}")
+            try:
+                for i in range(50):
+                    if not mgr.create_user(f"stress{i}", f"pw{i}"):
+                        raise AssertionError("writer create failed")
+            except Exception as exc:
+                writer_errors.append(type(exc))
 
         reader_thread = threading.Thread(target=reader)
         writer_thread = threading.Thread(target=writer)
 
-        reader_thread.start()
-        writer_thread.start()
-        writer_thread.join()
-        stop_event.set()
-        reader_thread.join()
+        started_threads = []
+        try:
+            reader_thread.start()
+            started_threads.append(reader_thread)
+            writer_thread.start()
+            started_threads.append(writer_thread)
+            # bcrypt work is intentionally real here.  On Windows, fifty
+            # creates can take materially longer than the former ten seconds.
+            writer_thread.join(60)
+        finally:
+            stop_event.set()
+            for thread in started_threads:
+                thread.join(60)
 
+        assert not reader_thread.is_alive() and not writer_thread.is_alive()
+        assert reader_errors == [] and writer_errors == []
+        assert successful_reads, "The concurrent reader never obtained a valid JSON snapshot"
         assert not corruption_found, f"Corrupt JSON detected: {corruption_found[0]}"
+        persisted = json.loads(read_snapshot())
+        assert set(persisted["users"]) == set(mgr.users) == {"admin", *(f"stress{i}" for i in range(50))}
+
+
+class _ObservedRLock:
+    """A test wrapper which preserves actual RLock blocking behavior."""
+
+    def __init__(self, real, first_thread, second_attempt, writer_attempt=None):
+        self._real = real
+        self._first_thread = first_thread
+        self._second_attempt = second_attempt
+        self._writer_attempt = writer_attempt
+
+    def __enter__(self):
+        if threading.current_thread() is not self._first_thread:
+            self._second_attempt.set()
+            if self._writer_attempt is not None:
+                self._writer_attempt.set()
+        self._real.acquire()
+        return self
+
+    def __exit__(self, *args):
+        self._real.release()
+
+
+def test_second_constructor_attempts_file_lock_but_cannot_read_before_first_releases(tmp_path, monkeypatch):
+    from core.auth import AuthManager
+    import core.auth as auth_module
+
+    auth_path = tmp_path / "auth.json"
+    auth_path.write_text(json.dumps({"users": {"alice": {"password_hash": "legacy", "role": "admin"}}}), encoding="utf-8")
+    first_read, release_first, second_attempt, second_read = (threading.Event() for _ in range(4))
+    first_thread = []
+    original_read = AuthManager._read_auth_config_locked
+    errors, managers = [], []
+
+    def paused_read(manager):
+        if threading.current_thread() is first_thread[0]:
+            first_read.set()
+            assert release_first.wait(3)
+        else:
+            second_read.set()
+        return original_read(manager)
+
+    monkeypatch.setattr(AuthManager, "_read_auth_config_locked", paused_read)
+    original_lock = auth_module._AUTH_FILE_WRITE_LOCK
+
+    def construct():
+        try:
+            managers.append(AuthManager(str(auth_path)))
+        except Exception as exc:
+            errors.append(type(exc))
+
+    first = threading.Thread(target=construct)
+    first_thread.append(first)
+    auth_module._AUTH_FILE_WRITE_LOCK = _ObservedRLock(original_lock, first, second_attempt)
+    second = None
+    started_threads = []
+    try:
+        first.start()
+        started_threads.append(first)
+        assert first_read.wait(3)
+        second = threading.Thread(target=construct)
+        second.start()
+        started_threads.append(second)
+        assert second_attempt.wait(3)
+        assert not second_read.is_set()
+        release_first.set()
+    finally:
+        release_first.set()
+        for thread in started_threads:
+            thread.join(5)
+        auth_module._AUTH_FILE_WRITE_LOCK = original_lock
+    assert not first.is_alive() and not second.is_alive() and errors == []
+    durable = json.loads(auth_path.read_text(encoding="utf-8"))["users"]
+    assert len(managers) == 2
+    assert {manager.subject_id_for_username("alice") for manager in managers} == {durable["alice"]["subject_id"]}
+
+
+def test_completed_manager_writer_attempts_file_lock_before_paused_constructor_can_publish(tmp_path, monkeypatch):
+    from core.auth import AuthManager
+    import core.auth as auth_module
+
+    auth_path = tmp_path / "auth.json"
+    completed = AuthManager(str(auth_path))
+    assert completed.create_user("admin", "adminpw", is_admin=True)
+    original_sids = {name: row["subject_id"] for name, row in completed.users.items()}
+    constructor_read, release_constructor, writer_attempt, writer_published = (threading.Event() for _ in range(4))
+    original_read, original_write = AuthManager._read_auth_config_locked, auth_module._atomic_write_json
+    errors, constructed = [], []
+    constructor_thread = []
+
+    def paused_read(manager):
+        if threading.current_thread() is constructor_thread[0]:
+            constructor_read.set()
+            assert release_constructor.wait(3)
+        return original_read(manager)
+
+    def observing_write(*args, **kwargs):
+        writer_published.set()
+        return original_write(*args, **kwargs)
+
+    monkeypatch.setattr(AuthManager, "_read_auth_config_locked", paused_read)
+    monkeypatch.setattr(auth_module, "_atomic_write_json", observing_write)
+    original_lock = auth_module._AUTH_FILE_WRITE_LOCK
+
+    def construct():
+        try:
+            constructed.append(AuthManager(str(auth_path)))
+        except Exception as exc:
+            errors.append(type(exc))
+
+    def write_public_config():
+        try:
+            completed.signup_enabled = True
+        except Exception as exc:
+            errors.append(type(exc))
+
+    constructor = threading.Thread(target=construct)
+    constructor_thread.append(constructor)
+    auth_module._AUTH_FILE_WRITE_LOCK = _ObservedRLock(original_lock, constructor, writer_attempt, writer_attempt)
+    writer = None
+    started_threads = []
+    try:
+        constructor.start()
+        started_threads.append(constructor)
+        assert constructor_read.wait(3)
+        writer = threading.Thread(target=write_public_config)
+        writer.start()
+        started_threads.append(writer)
+        assert writer_attempt.wait(3)
+        assert not writer_published.is_set()
+        release_constructor.set()
+    finally:
+        release_constructor.set()
+        for thread in started_threads:
+            thread.join(5)
+        auth_module._AUTH_FILE_WRITE_LOCK = original_lock
+    assert not constructor.is_alive() and not writer.is_alive() and errors == []
+    persisted = json.loads(auth_path.read_text(encoding="utf-8"))
+    assert len(constructed) == 1 and persisted["signup_enabled"] is True
+    assert {name: row["subject_id"] for name, row in persisted["users"].items()} == original_sids
+
+
+def test_constructor_normalizes_all_legacy_rows_in_one_publication_or_exposes_no_config(tmp_path, monkeypatch):
+    from core.auth import AuthManager, AuthSubjectIdentityError, RESERVED_USERNAMES, SUBJECT_ID_PATTERN
+    import core.auth as auth_module
+
+    auth_path = tmp_path / "auth.json"
+    auth_path.write_text(json.dumps({"users": {
+        "Admin": {"password_hash": "legacy", "role": "admin"},
+        next(iter(RESERVED_USERNAMES)): {"password_hash": "legacy", "subject_id": "owner_" + "a" * 32},
+        "member": {"password_hash": "legacy", "is_admin": False},
+    }}), encoding="utf-8")
+    original_write = auth_module._atomic_write_json
+    shapes = []
+
+    def inspect_then_publish(path, candidate, **kwargs):
+        shapes.append({
+            "has_only_users": set(candidate) == {"users"},
+            "reserved_absent": not (set(candidate["users"]) & RESERVED_USERNAMES),
+            "all_sids_valid": all(SUBJECT_ID_PATTERN.fullmatch(row.get("subject_id", "")) for row in candidate["users"].values()),
+            "legacy_admin_normalized": candidate["users"]["admin"].get("is_admin") is True,
+        })
+        return original_write(path, candidate, **kwargs)
+
+    monkeypatch.setattr(auth_module, "_atomic_write_json", inspect_then_publish)
+    manager = AuthManager(str(auth_path))
+    assert shapes == [{"has_only_users": True, "reserved_absent": True, "all_sids_valid": True, "legacy_admin_normalized": True}]
+    assert set(manager.users) == {"admin", "member"}
+
+    auth_path.write_text(json.dumps({"users": {"again": {"password_hash": "legacy"}}}), encoding="utf-8")
+    monkeypatch.setattr(auth_module, "_atomic_write_json", lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("unavailable")))
+    failed = None
+    with pytest.raises(AuthSubjectIdentityError) as exc:
+        failed = AuthManager(str(auth_path))
+    assert str(exc.value) == "invalid account identity registry"
+    assert failed is None
