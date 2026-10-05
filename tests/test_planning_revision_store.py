@@ -23,6 +23,7 @@ from src.planning_roadmap_migration import (
     HISTORICAL_AUTHORITY_PINS,
     MIGRATION_MANIFEST_SCHEMA_V1,
     build_h1r03_migration_manifest,
+    strict_json_object,
 )
 from src.planning_revision_store import (
     DurablePlanningRevisionStore,
@@ -42,6 +43,74 @@ from src.mcp_authenticated_dispatch import (
 )
 from tests.test_planning_definition_projection import definition_fixture
 from tests.planning_durable_store_fixture import durable_planning_store
+
+
+_HISTORICAL_VECTOR_FIXTURE = (
+    Path(__file__).resolve().parents[1] / "tests/fixtures/h1r04-prepromotion-manifest-v3.json"
+)
+
+
+def _historical_vector_manifest() -> dict:
+    fixture = strict_json_object(_HISTORICAL_VECTOR_FIXTURE.read_bytes())
+    if set(fixture) != {
+        "batch_id", "fixture_id", "manifest_digest", "manifest_identity", "provenance",
+        "schema", "supporting_observation",
+    }:
+        raise AssertionError("historical vector fixture shape drift")
+    if fixture["schema"] != "odysseus.harbour.planning_manifest_fixture.v1":
+        raise AssertionError("historical vector fixture schema drift")
+    provenance = fixture["provenance"]
+    if set(provenance) != {
+        "accepted_batch_id", "accepted_manifest_digest", "immutable_vector_refs",
+        "materialization_copy_path", "materialization_copy_sha256", "receipt_manifest_digest",
+        "receipt_path", "source_artifact_class", "source_artifact_path", "source_artifact_sha256",
+    }:
+        raise AssertionError("historical vector fixture provenance shape drift")
+    if (
+        provenance["source_artifact_sha256"] != "a62097be6864ffc3785d9ae017d49edfcc6b5f3e8139a9728ee92b80b29eb979"
+        or provenance["source_artifact_class"] != "accepted_historical_serialized_store_bundle"
+        or provenance["receipt_path"] != "docs/plans/evidence/harbour-one-h1r05-repo-acceptance-20261003.receipt"
+    ):
+        raise AssertionError("historical vector fixture provenance drift")
+    observation = fixture["supporting_observation"]
+    if (
+        set(observation) != {"count", "digest"}
+        or type(observation["count"]) is not int
+        or observation["count"] != 424
+        or type(observation["digest"]) is not str
+        or observation["digest"] != "sha256:828c5f11324883f6350574d4d2b7ed8cf2498de7e4f2aee322511c1604c38330"
+    ):
+        raise AssertionError("historical census observation drift")
+    identity = fixture["manifest_identity"]
+    if set(identity) != {
+        "authority_map_id", "authority_pins", "normalized_payloads", "owner_id",
+        "project_id", "schema", "source_items", "structural_census", "supporting_relations",
+    }:
+        raise AssertionError("historical manifest identity shape drift")
+    if identity["schema"] != "odysseus.harbour.planning_migration_manifest.v2" or identity["authority_map_id"] != DOCS_ONLY_AUTHORITY_MAP_ID:
+        raise AssertionError("historical manifest identity map drift")
+    if (
+        len(identity["source_items"]) != 6
+        or len(identity["normalized_payloads"]) != 6
+        or len(identity["structural_census"]) != 766
+        or len(identity["authority_pins"]) != 11
+        or len(identity["supporting_relations"]) != 1
+    ):
+        raise AssertionError("historical manifest identity cardinality drift")
+    digest = durable_module._migration_digest(durable_module._migration_manifest_identity(identity))
+    if (
+        digest != fixture["manifest_digest"]
+        or fixture["batch_id"] != "planning-migration-batch:" + digest[7:]
+        or provenance["accepted_manifest_digest"] != digest
+        or provenance["accepted_batch_id"] != fixture["batch_id"]
+        or provenance["receipt_manifest_digest"] != digest
+    ):
+        raise AssertionError("historical manifest fixture digest drift")
+    manifest = deepcopy(identity)
+    manifest["manifest_digest"] = digest
+    manifest["batch_id"] = fixture["batch_id"]
+    manifest["supporting_observation"] = deepcopy(observation)
+    return manifest
 
 
 def test_subject_bound_bundle_is_complete_immutable_and_one_verified_image(durable_planning_store, monkeypatch):
@@ -1183,7 +1252,7 @@ def _historical_v1_manifest():
 def _successor_v2_manifest():
     from src.planning_roadmap_migration import SUCCESSOR_AUTHORITY_MAP_ID, SUCCESSOR_AUTHORITY_PINS
 
-    manifest = deepcopy(build_h1r03_migration_manifest(Path(__file__).resolve().parents[1]))
+    manifest = deepcopy(_historical_vector_manifest())
     manifest["authority_map_id"] = SUCCESSOR_AUTHORITY_MAP_ID
     manifest["authority_pins"] = deepcopy(SUCCESSOR_AUTHORITY_PINS)
     identity = durable_module._migration_manifest_identity(manifest)

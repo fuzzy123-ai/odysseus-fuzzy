@@ -53,6 +53,7 @@ from src.planning_revision_store import (
 
 
 ROOT = Path(__file__).resolve().parents[1]
+HISTORICAL_VECTOR_FIXTURE = ROOT / "tests/fixtures/h1r04-prepromotion-manifest-v3.json"
 NOW = datetime(2026, 8, 29, 12, 0, tzinfo=timezone.utc)
 AUTH_CONTEXT = "sha256:" + hashlib.sha256(b"h1r03-tests").hexdigest()
 LOCKED = {
@@ -108,6 +109,71 @@ def _migration_fixture_root(tmp_path: Path) -> Path:
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes((ROOT / relative).read_bytes())
     return fixture_root
+
+
+def _historical_vector_manifest() -> dict:
+    fixture = strict_json_object(HISTORICAL_VECTOR_FIXTURE.read_bytes())
+    if set(fixture) != {
+        "batch_id", "fixture_id", "manifest_digest", "manifest_identity", "provenance",
+        "schema", "supporting_observation",
+    }:
+        raise AssertionError("historical vector fixture shape drift")
+    if fixture["schema"] != "odysseus.harbour.planning_manifest_fixture.v1":
+        raise AssertionError("historical vector fixture schema drift")
+    provenance = fixture["provenance"]
+    if set(provenance) != {
+        "accepted_batch_id", "accepted_manifest_digest", "immutable_vector_refs",
+        "materialization_copy_path", "materialization_copy_sha256", "receipt_manifest_digest",
+        "receipt_path", "source_artifact_class", "source_artifact_path", "source_artifact_sha256",
+    }:
+        raise AssertionError("historical vector fixture provenance shape drift")
+    if (
+        provenance["source_artifact_sha256"] != "a62097be6864ffc3785d9ae017d49edfcc6b5f3e8139a9728ee92b80b29eb979"
+        or provenance["source_artifact_class"] != "accepted_historical_serialized_store_bundle"
+        or provenance["receipt_path"] != H1R05_ACCEPTANCE_RECEIPT_PATH
+    ):
+        raise AssertionError("historical vector fixture provenance drift")
+    observation = fixture["supporting_observation"]
+    if (
+        set(observation) != {"count", "digest"}
+        or type(observation["count"]) is not int
+        or observation["count"] != 424
+        or type(observation["digest"]) is not str
+        or observation["digest"] != "sha256:828c5f11324883f6350574d4d2b7ed8cf2498de7e4f2aee322511c1604c38330"
+    ):
+        raise AssertionError("historical census observation drift")
+    identity = fixture["manifest_identity"]
+    if set(identity) != {
+        "authority_map_id", "authority_pins", "normalized_payloads", "owner_id",
+        "project_id", "schema", "source_items", "structural_census", "supporting_relations",
+    }:
+        raise AssertionError("historical manifest identity shape drift")
+    if identity["schema"] != MIGRATION_MANIFEST_SCHEMA_V2 or identity["authority_map_id"] != DOCS_ONLY_AUTHORITY_MAP_ID:
+        raise AssertionError("historical manifest identity map drift")
+    if (
+        len(identity["source_items"]) != 6
+        or len(identity["normalized_payloads"]) != 6
+        or len(identity["structural_census"]) != 766
+        or len(identity["authority_pins"]) != 11
+        or len(identity["supporting_relations"]) != 1
+    ):
+        raise AssertionError("historical manifest identity cardinality drift")
+    from src.planning_revision_store import _migration_digest, _migration_manifest_identity
+
+    digest = _migration_digest(_migration_manifest_identity(identity))
+    if (
+        digest != fixture["manifest_digest"]
+        or fixture["batch_id"] != "planning-migration-batch:" + digest[7:]
+        or provenance["accepted_manifest_digest"] != digest
+        or provenance["accepted_batch_id"] != fixture["batch_id"]
+        or provenance["receipt_manifest_digest"] != digest
+    ):
+        raise AssertionError("historical manifest fixture digest drift")
+    manifest = deepcopy(identity)
+    manifest["manifest_digest"] = digest
+    manifest["batch_id"] = fixture["batch_id"]
+    manifest["supporting_observation"] = deepcopy(observation)
+    return manifest
 
 
 def test_current_reviewed_roadmap_pin_and_manifest_semantics_are_bound() -> None:
@@ -250,7 +316,7 @@ def test_successor_v2_product_pin_uses_raw_bytes_without_lf_normalization_fallba
 def test_docs_only_identity_freezes_v2_digest_and_closed_forward_relations() -> None:
     from src.planning_revision_store import _migration_digest, _migration_manifest_identity
 
-    manifest = build_h1r03_migration_manifest(ROOT)
+    manifest = _historical_vector_manifest()
     v2 = deepcopy(manifest)
     v2["authority_map_id"] = SUCCESSOR_AUTHORITY_MAP_ID
     v2["authority_pins"] = deepcopy(SUCCESSOR_AUTHORITY_PINS)
@@ -313,7 +379,7 @@ def test_repo_only_v4_receipt_is_a_closed_prepromotion_leaf() -> None:
 def test_prepromotion_v3_manifest_vector_stays_literal_under_v4() -> None:
     from src.planning_revision_store import _migration_digest, _migration_manifest_identity
 
-    current = deepcopy(build_h1r03_migration_manifest(ROOT))
+    current = _historical_vector_manifest()
     current["authority_map_id"] = DOCS_ONLY_AUTHORITY_MAP_ID
     current["authority_pins"] = deepcopy(DOCS_ONLY_AUTHORITY_PINS)
     identity = _migration_manifest_identity(current)
@@ -360,7 +426,7 @@ def _copy_fixture(source: Path, destination: Path) -> None:
 def test_historical_v1_digest_and_map_vector_remain_frozen() -> None:
     from src.planning_revision_store import _migration_digest, _migration_manifest_identity
 
-    manifest = build_h1r03_migration_manifest(ROOT)
+    manifest = _historical_vector_manifest()
     historical = deepcopy(manifest)
     historical["schema"] = MIGRATION_MANIFEST_SCHEMA_V1
     historical.pop("authority_map_id")
