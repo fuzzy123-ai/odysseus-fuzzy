@@ -2065,6 +2065,32 @@ class PlanningReceipt:
 
 
 @dataclass(frozen=True, slots=True, repr=False)
+class PlanningSubjectBoundReceipt:
+    receipt_handle: str
+    current_binding_digest: str
+    operation: str
+    producer: str
+    occurred_at: str
+    verified: bool
+    authorizes_mutation: bool
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.receipt_handle) is not str or _HASH_RE.fullmatch(self.receipt_handle) is None
+            or type(self.current_binding_digest) is not str or _HASH_RE.fullmatch(self.current_binding_digest) is None
+            or self.operation not in {"append_revision", "approve_revision", "revert_head"}
+            or self.producer != "harbour_planning_store"
+            or type(self.occurred_at) is not str or not self.occurred_at.endswith("Z")
+            or type(self.verified) is not bool or self.verified is not True
+            or type(self.authorizes_mutation) is not bool or self.authorizes_mutation is not False
+        ):
+            raise ValueError("invalid subject-bound Planning receipt")
+
+    def __repr__(self) -> str:
+        return "PlanningSubjectBoundReceipt(<content-free>)"
+
+
+@dataclass(frozen=True, slots=True, repr=False)
 class PlanningMigrationReceipt:
     receipt_type: str
     receipt_id: str
@@ -2631,6 +2657,112 @@ class DurablePlanningRevisionStore:
             )
             self._assert_retained_image_locked(entry_bytes, entry_digest)
             return bundle
+
+    @_durable_operation
+    def read_subject_bound_current_receipt(
+        self,
+        principal: TrustedPrincipal,
+        *,
+        project_id: str,
+        roadmap_id: str,
+        expected_head: PlanningHead,
+    ) -> PlanningSubjectBoundReceipt | None:
+        """Resolve the unique ordinary receipt that produced the bound head."""
+        self._ensure_available()
+        ref, _occurred = self._authenticate(principal)
+        try:
+            project = _harbour_identifier(project_id)
+            roadmap = _harbour_identifier(roadmap_id)
+        except ValueError:
+            raise DurablePlanningStoreError("validation_failed") from None
+        with self._lock, _interprocess_repository_lock(self.root):
+            entry_bytes = self._refresh_locked()
+            if type(entry_bytes) is not bytes:
+                raise DurablePlanningStoreError("stale_authority")
+            entry_digest = _canonical_digest(self._state)
+            stored_batch = self._subject_bound_accepted_batch_locked(ref, project)
+            owner = stored_batch["owner_id"]
+            materialized = self._materialize_accepted_migration_locked(
+                batch=stored_batch, owner=owner, project_id=project,
+            )
+            selected = [item for item in materialized.heads if item.roadmap_id == roadmap]
+            if len(selected) != 1:
+                raise DurablePlanningStoreError("not_found" if not selected else "validation_failed")
+            accepted = selected[0]
+            current = PlanningHead(
+                owner_id=accepted.owner_id,
+                project_id=accepted.project_id,
+                roadmap_id=accepted.roadmap_id,
+                current_revision_id=accepted.current_revision_id,
+                current_content_sha256=accepted.current_content_sha256,
+                approved_revision_id=accepted.approved_revision_id,
+                generation=accepted.generation,
+            )
+            expected = _exact_head(expected_head, owner, project, roadmap)
+            if expected != current:
+                raise DurablePlanningStoreError("stale_authority")
+            current_dict = _head_dict(current)
+            matches: list[tuple[dict[str, Any], PlanningReceipt]] = []
+            for transition in self._state["transitions"]:
+                if "batch_id" in transition or transition.get("after_head") != current_dict:
+                    continue
+                record = self._state["receipts"].get(transition.get("receipt_id"))
+                try:
+                    receipt = _receipt_from_dict(record)
+                except (ValueError, TypeError, KeyError):
+                    raise DurablePlanningStoreError("validation_failed") from None
+                if (
+                    receipt.command_kind not in {"append_revision", "approve_revision", "revert_head"}
+                    or transition.get("kind") != receipt.command_kind
+                    or receipt.after_head != current
+                ):
+                    raise DurablePlanningStoreError("validation_failed")
+                matches.append((transition, receipt))
+            if len(matches) > 1:
+                raise DurablePlanningStoreError("validation_failed")
+            if not matches:
+                self._assert_retained_image_locked(entry_bytes, entry_digest)
+                return None
+            _transition, receipt = matches[0]
+            try:
+                parsed_occurred = datetime.fromisoformat(receipt.occurred_at.replace("Z", "+00:00"))
+                canonical_occurred = parsed_occurred.astimezone(timezone.utc).isoformat(
+                    timespec="microseconds"
+                ).replace("+00:00", "Z")
+            except (TypeError, ValueError, OverflowError):
+                raise DurablePlanningStoreError("validation_failed") from None
+            if (
+                parsed_occurred.tzinfo is None
+                or parsed_occurred.utcoffset() != timezone.utc.utcoffset(parsed_occurred)
+                or canonical_occurred != receipt.occurred_at
+            ):
+                raise DurablePlanningStoreError("validation_failed")
+            binding_digest = _canonical_digest({
+                "schema": "odysseus.planning.subject_bound_current_receipt_binding.v1",
+                "issuer_id": ref.issuer_id,
+                "subject_id": ref.subject_id,
+                "owner_id": owner,
+                "project_id": project,
+                "roadmap_id": roadmap,
+                "head": current_dict,
+            })
+            handle = _canonical_digest({
+                "schema": "odysseus.planning.subject_bound_current_receipt_handle.v1",
+                "receipt_id": receipt.receipt_id,
+                "binding_digest": binding_digest,
+                "operation": receipt.command_kind,
+            })
+            result = PlanningSubjectBoundReceipt(
+                receipt_handle=handle,
+                current_binding_digest=binding_digest,
+                operation=receipt.command_kind,
+                producer=receipt.producer,
+                occurred_at=receipt.occurred_at,
+                verified=True,
+                authorizes_mutation=False,
+            )
+            self._assert_retained_image_locked(entry_bytes, entry_digest)
+            return result
 
     def _subject_bound_accepted_batch_locked(
         self, ref: PrincipalRef, project: str,
@@ -5037,5 +5169,6 @@ __all__ = [
     "PlanningContextRevisionMember",
     "PlanningMigrationReceipt",
     "PlanningReceipt",
+    "PlanningSubjectBoundReceipt",
     "PlanningRevision",
 ]
