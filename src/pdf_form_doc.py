@@ -17,9 +17,34 @@ import logging
 import os
 import re
 import uuid
+from contextlib import contextmanager
 from typing import Any, Optional
 
+from fastapi import HTTPException
+
 logger = logging.getLogger(__name__)
+
+
+@contextmanager
+def _document_creation_db(document_authority):
+    from src.database import SessionLocal
+    from src.document_subject_scope import (
+        current_document_owner_alias,
+        guard_document_request_authority,
+    )
+
+    guard = guard_document_request_authority(document_authority) if document_authority is not None else None
+    lease = guard.__enter__() if guard is not None else None
+    try:
+        db = SessionLocal()
+        try:
+            alias = current_document_owner_alias(lease) if lease is not None else None
+            yield db, lease, alias
+        finally:
+            db.close()
+    finally:
+        if guard is not None:
+            guard.__exit__(None, None, None)
 
 
 _FRONT_MATTER_RE = re.compile(
@@ -211,6 +236,9 @@ def create_plain_pdf_document(
     upload_id: str,
     title: str,
     body_text: Optional[str] = None,
+    *,
+    document_authority=None,
+    source_email: dict[str, Any] | None = None,
 ) -> Optional[str]:
     """Create a markdown Document for a non-form PDF and set it active.
 
@@ -218,15 +246,22 @@ def create_plain_pdf_document(
     so the existing /render-pages and /page/{n}.png endpoints can serve the
     pages without form-field overlays.
     """
-    from src.database import SessionLocal, Document, DocumentVersion, Session as DbSession
+    from src.database import Document, DocumentVersion, Session as DbSession
     from src.agent_tools.document_tools import set_active_document
+    from src.document_subject_scope import stamp_new_document
 
     content = render_plain_pdf_markdown(upload_id, title, body_text)
-    db = SessionLocal()
-    try:
+    with _document_creation_db(document_authority) as (db, lease, authority_owner):
+      try:
         doc_id = str(uuid.uuid4())
         ver_id = str(uuid.uuid4())
-        _sess = db.query(DbSession).filter(DbSession.id == session_id).first()
+        _sess_q = db.query(DbSession).filter(DbSession.id == session_id)
+        if authority_owner is not None:
+            _sess_q = _sess_q.filter(DbSession.owner == authority_owner)
+        _sess = _sess_q.first()
+        if session_id and _sess is None:
+            return None
+        local_owner = authority_owner if authority_owner is not None else (_sess.owner if _sess else None)
         doc = Document(
             id=doc_id,
             session_id=session_id,
@@ -235,8 +270,14 @@ def create_plain_pdf_document(
             current_content=content,
             version_count=1,
             is_active=True,
-            owner=_sess.owner if _sess else None,
+            owner=local_owner,
+            source_email_uid=(source_email or {}).get("uid"),
+            source_email_folder=(source_email or {}).get("folder"),
+            source_email_account_id=(source_email or {}).get("account_id"),
+            source_email_message_id=(source_email or {}).get("message_id"),
         )
+        if lease is not None:
+            stamp_new_document(doc, lease, local_owner=local_owner)
         ver = DocumentVersion(
             id=ver_id,
             document_id=doc_id,
@@ -250,12 +291,13 @@ def create_plain_pdf_document(
         db.commit()
         set_active_document(doc_id)
         return doc_id
-    except Exception as e:
+      except HTTPException:
         db.rollback()
-        logger.error(f"Failed to create plain PDF document: {e}")
+        raise
+      except Exception:
+        db.rollback()
+        logger.error("Failed to create plain PDF document")
         return None
-    finally:
-        db.close()
 
 
 def parse_markdown_to_values(content: str) -> dict[str, Any]:
@@ -394,6 +436,9 @@ def create_form_markdown_document(
     upload_id: str,
     title: str,
     intro_text: Optional[str] = None,
+    *,
+    document_authority=None,
+    source_email: dict[str, Any] | None = None,
 ) -> Optional[str]:
     """Create a markdown Document for an editable form and set it active.
 
@@ -401,15 +446,22 @@ def create_form_markdown_document(
     "markdown" — the form-ness is signalled only by the front-matter pointer
     inside the content, which the export route looks for.
     """
-    from src.database import SessionLocal, Document, DocumentVersion, Session as DbSession
+    from src.database import Document, DocumentVersion, Session as DbSession
     from src.agent_tools.document_tools import set_active_document
+    from src.document_subject_scope import stamp_new_document
 
     content = render_form_as_markdown(fields, upload_id, title, intro_text=intro_text)
-    db = SessionLocal()
-    try:
+    with _document_creation_db(document_authority) as (db, lease, authority_owner):
+      try:
         doc_id = str(uuid.uuid4())
         ver_id = str(uuid.uuid4())
-        _sess = db.query(DbSession).filter(DbSession.id == session_id).first()
+        _sess_q = db.query(DbSession).filter(DbSession.id == session_id)
+        if authority_owner is not None:
+            _sess_q = _sess_q.filter(DbSession.owner == authority_owner)
+        _sess = _sess_q.first()
+        if session_id and _sess is None:
+            return None
+        local_owner = authority_owner if authority_owner is not None else (_sess.owner if _sess else None)
         doc = Document(
             id=doc_id,
             session_id=session_id,
@@ -418,8 +470,14 @@ def create_form_markdown_document(
             current_content=content,
             version_count=1,
             is_active=True,
-            owner=_sess.owner if _sess else None,
+            owner=local_owner,
+            source_email_uid=(source_email or {}).get("uid"),
+            source_email_folder=(source_email or {}).get("folder"),
+            source_email_account_id=(source_email or {}).get("account_id"),
+            source_email_message_id=(source_email or {}).get("message_id"),
         )
+        if lease is not None:
+            stamp_new_document(doc, lease, local_owner=local_owner)
         ver = DocumentVersion(
             id=ver_id,
             document_id=doc_id,
@@ -433,9 +491,10 @@ def create_form_markdown_document(
         db.commit()
         set_active_document(doc_id)
         return doc_id
-    except Exception as e:
+      except HTTPException:
         db.rollback()
-        logger.error(f"Failed to create form markdown document: {e}")
+        raise
+      except Exception:
+        db.rollback()
+        logger.error("Failed to create form markdown document")
         return None
-    finally:
-        db.close()
