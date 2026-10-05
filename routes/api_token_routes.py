@@ -2,13 +2,14 @@
 
 import secrets
 import uuid
+from contextlib import contextmanager
 
 import bcrypt
 from fastapi import APIRouter, HTTPException, Request, Form
 
 from core.database import get_db_session, ApiToken
 from core.middleware import require_admin
-from src.auth_helpers import get_current_user
+from src.auth_helpers import get_current_user, strict_session_principal
 
 MAX_NAME_LEN = 100
 DEFAULT_SCOPES = "chat"
@@ -31,6 +32,8 @@ ALLOWED_SCOPES = {
     "vault:write",
     "vault:delete",
     "observability:read",
+    "mcp:planning:read",
+    "mcp:harbour:inbox",
 }
 TOKEN_PROFILES = {
     "chat": ["chat"],
@@ -82,7 +85,70 @@ def _normalize_scopes(scopes: str | list[str] | None = None, profile: str | None
     ensure_before("vault:write", "vault:read")
     ensure_before("vault:delete", "vault:read")
 
-    return normalized or [DEFAULT_SCOPES]
+    normalized = normalized or [DEFAULT_SCOPES]
+    mcp_scopes = {"mcp:planning:read", "mcp:harbour:inbox"}
+    if any(scope in normalized for scope in mcp_scopes) and len(normalized) != 1:
+        raise HTTPException(400, "MCP scope must be granted by itself")
+    return normalized
+
+
+@contextmanager
+def _guard_token_mutation(request: Request):
+    """Serialize every token commit with account/session mutations.
+
+    The shared process-local lock is only a commit boundary.  It does not
+    grant an identity, which preserves ordinary token management when auth is
+    disabled while still excluding account mutation during the SQL commit.
+    """
+    manager = getattr(request.app.state, "auth_manager", None)
+    guard = getattr(manager, "guard_session_authority", None)
+    if not callable(guard):
+        yield manager
+        return
+    with guard():
+        yield manager
+
+
+def _mcp_issuance_subject(request: Request, owner: str, manager) -> str:
+    """Resolve one cookie-bound current admin while the write lock is held."""
+    try:
+        if manager is None or not getattr(manager, "is_configured", False):
+            raise ValueError
+        principal = strict_session_principal(request)
+        if principal.owner != owner:
+            raise ValueError
+        subject_id = principal.creator_subject_id
+        identity = manager.active_admin_subject_identity(subject_id=subject_id)
+        if identity != (owner, subject_id):
+            raise ValueError
+        return subject_id
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(403, "Token mutation requires an active admin identity") from None
+
+
+def _validate_existing_mcp_token(token, current_user: str | None, manager) -> None:
+    """Fail closed for every existing row containing an MCP scope."""
+    raw_scopes = getattr(token, "scopes", "") or ""
+    if type(raw_scopes) is not str:
+        raise HTTPException(403, "Token scope authority is invalid")
+    stored = [part.strip() for part in raw_scopes.split(",") if part.strip()]
+    if not any(scope.startswith("mcp:") for scope in stored):
+        return
+    recognized = {"mcp:planning:read", "mcp:harbour:inbox"}
+    if raw_scopes not in recognized:
+        raise HTTPException(403, "MCP token authority is invalid")
+    owner = getattr(token, "owner", None)
+    subject_id = getattr(token, "owner_subject_id", None)
+    try:
+        if manager is None or not getattr(manager, "is_configured", False):
+            raise ValueError
+        identity = manager.active_admin_subject_identity(subject_id=subject_id)
+        if identity != (owner, subject_id) or current_user != owner:
+            raise ValueError
+    except Exception:
+        raise HTTPException(403, "MCP token authority is invalid") from None
 
 
 def setup_api_token_routes() -> APIRouter:
@@ -138,21 +204,25 @@ def setup_api_token_routes() -> APIRouter:
         owner = get_current_user(request)
         scope_list = _normalize_scopes(scopes, profile)
         scopes_value = ",".join(scope_list)
+        exact_mcp = scope_list in (["mcp:planning:read"], ["mcp:harbour:inbox"])
 
         raw_token = "ody_" + secrets.token_urlsafe(32)
         token_hash = bcrypt.hashpw(raw_token.encode(), bcrypt.gensalt()).decode()
         token_id = str(uuid.uuid4())[:8]
 
-        with get_db_session() as db:
-            db.add(ApiToken(
-                id=token_id,
-                owner=owner,
-                name=name,
-                token_hash=token_hash,
-                token_prefix=raw_token[:8],
-                scopes=scopes_value,
-                is_active=True,
-            ))
+        with _guard_token_mutation(request) as manager:
+            owner_subject_id = _mcp_issuance_subject(request, owner, manager) if exact_mcp else None
+            with get_db_session() as db:
+                db.add(ApiToken(
+                    id=token_id,
+                    owner=owner,
+                    name=name,
+                    token_hash=token_hash,
+                    token_prefix=raw_token[:8],
+                    scopes=scopes_value,
+                    owner_subject_id=owner_subject_id if exact_mcp else None,
+                    is_active=True,
+                ))
         _invalidate_cache(request)
 
         return {
@@ -174,33 +244,39 @@ def setup_api_token_routes() -> APIRouter:
             payload = {}
         if not isinstance(payload, dict):
             payload = {}
-        with get_db_session() as db:
-            token = db.query(ApiToken).filter(ApiToken.id == token_id).first()
-            if not token:
-                raise HTTPException(404, "Token not found")
-            if current_user and token.owner != current_user:
-                raise HTTPException(403, "Not your token")
-            if isinstance(payload.get("name"), str) and payload["name"].strip():
-                token.name = payload["name"].strip()[:MAX_NAME_LEN]
+        with _guard_token_mutation(request) as manager:
+            with get_db_session() as db:
+                token = db.query(ApiToken).filter(ApiToken.id == token_id).first()
+                if not token:
+                    raise HTTPException(404, "Token not found")
+                if current_user and token.owner != current_user:
+                    raise HTTPException(403, "Not your token")
+                _validate_existing_mcp_token(token, current_user, manager)
+                if isinstance(payload.get("name"), str) and payload["name"].strip():
+                    token.name = payload["name"].strip()[:MAX_NAME_LEN]
             # Only touch scopes when the caller actually sent them. A partial
             # update such as a rename ({"name": ...} with no "scopes" key) must
             # not silently reset the token to the default scope — that dropped
             # every previously granted scope.
-            if "scopes" in payload:
-                token.scopes = ",".join(_normalize_scopes(payload.get("scopes")))
-            db.add(token)
-            current_scopes = [
-                s.strip()
-                for s in (getattr(token, "scopes", "") or DEFAULT_SCOPES).split(",")
-                if s.strip()
-            ]
-            response = {
-                "id": token_id,
-                "name": getattr(token, "name", ""),
-                "owner": getattr(token, "owner", None),
-                "token_prefix": getattr(token, "token_prefix", ""),
-                "scopes": current_scopes,
-            }
+                if "scopes" in payload:
+                    new_scopes = _normalize_scopes(payload.get("scopes"))
+                    if any(scope.startswith("mcp:") for scope in new_scopes):
+                        raise HTTPException(400, "MCP scope is issuance-only")
+                    token.scopes = ",".join(new_scopes)
+                    token.owner_subject_id = None
+                db.add(token)
+                current_scopes = [
+                    s.strip()
+                    for s in (getattr(token, "scopes", "") or DEFAULT_SCOPES).split(",")
+                    if s.strip()
+                ]
+                response = {
+                    "id": token_id,
+                    "name": getattr(token, "name", ""),
+                    "owner": getattr(token, "owner", None),
+                    "token_prefix": getattr(token, "token_prefix", ""),
+                    "scopes": current_scopes,
+                }
         _invalidate_cache(request)
         return response
 
@@ -208,13 +284,15 @@ def setup_api_token_routes() -> APIRouter:
     def delete_token(request: Request, token_id: str):
         require_admin(request)
         current_user = get_current_user(request)
-        with get_db_session() as db:
-            token = db.query(ApiToken).filter(ApiToken.id == token_id).first()
-            if not token:
-                raise HTTPException(404, "Token not found")
-            if current_user and token.owner != current_user:
-                raise HTTPException(403, "Not your token")
-            db.delete(token)
+        with _guard_token_mutation(request) as manager:
+            with get_db_session() as db:
+                token = db.query(ApiToken).filter(ApiToken.id == token_id).first()
+                if not token:
+                    raise HTTPException(404, "Token not found")
+                if current_user and token.owner != current_user:
+                    raise HTTPException(403, "Not your token")
+                _validate_existing_mcp_token(token, current_user, manager)
+                db.delete(token)
         _invalidate_cache(request)
         return {"status": "deleted"}
 

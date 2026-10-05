@@ -10,6 +10,7 @@ import contextlib
 import datetime
 import secrets as _secrets_mod
 import sys
+import threading
 import types
 import uuid as _uuid_mod
 from types import SimpleNamespace
@@ -71,7 +72,27 @@ def token_routes_mod(monkeypatch):
 
 
 def _admin_mgr(is_admin: bool):
-    return SimpleNamespace(is_admin=lambda u: is_admin, is_configured=True)
+    subject = "owner_0123456789abcdef0123456789abcdef"
+    class Manager:
+        is_configured = True
+        def __init__(self): self.alias = "alice"
+        def is_admin(self, _username): return is_admin
+        @contextlib.contextmanager
+        def guard_session_authority(self):
+            yield
+        def active_admin_subject_identity(self, *, username=None, subject_id=None):
+            if not is_admin: return None
+            if username is not None:
+                self.alias = username
+                return (username, subject)
+            return (self.alias, subject) if subject_id == subject else None
+        @contextlib.contextmanager
+        def guard_current_admin_subject(self, expected):
+            if not is_admin or expected != subject: raise RuntimeError
+            yield self.alias
+        def strict_session_identity(self, token):
+            return (self.alias, subject) if token == "cookie" and is_admin else None
+    return Manager()
 
 
 def _req(current_user: str, *, is_admin: bool = False, invalidator=None):
@@ -81,6 +102,7 @@ def _req(current_user: str, *, is_admin: bool = False, invalidator=None):
     return SimpleNamespace(
         state=SimpleNamespace(current_user=current_user),
         headers={},
+        cookies={"odysseus_session": "cookie"},
         app=SimpleNamespace(state=app_state),
     )
 
@@ -583,3 +605,270 @@ def test_update_token_normal_object_still_works(monkeypatch, token_routes_mod):
     assert token.name == "updated"
     assert resp["name"] == "updated"
     invalidator.assert_called_once()
+
+
+def test_mcp_planning_scope_is_exact_and_subject_bound_at_creation(monkeypatch, token_routes_mod, tmp_path):
+    mod = token_routes_mod
+    monkeypatch.setenv("AUTH_ENABLED", "true")
+    captured = []
+
+    from core.auth import AuthManager
+    manager = AuthManager(str(tmp_path / "auth.json"))
+    assert manager.create_user("admin", "password", is_admin=True)
+    cookie = manager.create_session("admin", "password")
+    assert cookie is not None
+    subject_id = manager.subject_id_for_username("admin")
+
+    class TokenRow:
+        def __init__(self, **kwargs):
+            captured.append(kwargs)
+
+    class Db:
+        def add(self, _row):
+            pass
+
+    @contextlib.contextmanager
+    def db_session():
+        yield Db()
+
+    mod.ApiToken = TokenRow
+    mod.get_db_session = db_session
+    request = SimpleNamespace(
+        state=SimpleNamespace(current_user="admin"),
+        headers={},
+        cookies={"odysseus_session": cookie},
+        app=SimpleNamespace(state=SimpleNamespace(
+            auth_manager=manager, invalidate_token_cache=lambda: None,
+        )),
+    )
+    create = _get_handler(mod, "POST", "/tokens")
+    response = create(request=request, name="mcp-reader", scopes="mcp:planning:read", profile=None)
+    assert response["scopes"] == ["mcp:planning:read"]
+    assert captured[0]["owner_subject_id"] == subject_id
+    assert "token" in response
+
+    with pytest.raises(HTTPException) as composite:
+        mod._normalize_scopes("mcp:planning:read,chat")
+    assert composite.value.status_code == 400
+    assert "token" not in composite.value.detail.lower()
+    response = create(request=request, name="inbox-reader", scopes="mcp:harbour:inbox", profile=None)
+    assert response["scopes"] == ["mcp:harbour:inbox"]
+    assert captured[-1]["owner_subject_id"] == subject_id
+    with pytest.raises(HTTPException):
+        mod._normalize_scopes("mcp:planning:read,mcp:harbour:inbox")
+
+
+def test_inbox_scope_cannot_be_minted_by_internal_or_disabled_local_authority(monkeypatch, token_routes_mod):
+    mod = token_routes_mod
+    create = _get_handler(mod, "POST", "/tokens")
+    manager = _admin_mgr(True)
+    request = SimpleNamespace(
+        state=SimpleNamespace(current_user="internal-tool"), headers={}, cookies={},
+        app=SimpleNamespace(state=SimpleNamespace(auth_manager=manager, invalidate_token_cache=lambda: None)),
+    )
+    monkeypatch.setenv("AUTH_ENABLED", "true")
+    with pytest.raises(HTTPException):
+        create(request=request, name="internal-inbox", scopes="mcp:harbour:inbox", profile=None)
+    request.state.current_user = None
+    monkeypatch.setenv("AUTH_ENABLED", "false")
+    with pytest.raises(HTTPException):
+        create(request=request, name="local-inbox", scopes="mcp:harbour:inbox", profile=None)
+
+
+def test_existing_token_cannot_be_upgraded_to_mcp_planning_scope(monkeypatch, token_routes_mod):
+    mod = token_routes_mod
+    monkeypatch.setenv("AUTH_ENABLED", "true")
+    token = SimpleNamespace(
+        id="legacy-id", owner="admin", name="legacy", token_prefix="ody_demo",
+        scopes="chat", is_active=True,
+    )
+
+    class Query:
+        def filter(self, *_args): return self
+        def first(self): return token
+
+    class Db:
+        def query(self, _model): return Query()
+        def add(self, _token): pass
+
+    @contextlib.contextmanager
+    def db_session():
+        yield Db()
+
+    mod.get_db_session = db_session
+    request = SimpleNamespace(
+        state=SimpleNamespace(current_user="admin"),
+        headers={},
+        app=SimpleNamespace(state=SimpleNamespace(
+            auth_manager=_admin_mgr(True), invalidate_token_cache=lambda: None,
+        )),
+    )
+
+    async def payload():
+        return {"scopes": ["mcp:harbour:inbox"]}
+
+    request.json = payload
+    update = _get_handler(mod, "PATCH", "/tokens/{token_id}")
+    with pytest.raises(HTTPException) as rejected:
+        asyncio.run(update(request, "legacy-id"))
+    assert rejected.value.status_code == 400
+    assert token.scopes == "chat"
+
+
+def test_delete_holds_admin_authority_through_token_commit(monkeypatch, token_routes_mod, tmp_path):
+    from core.auth import AuthManager, SetAdminResult
+    mod = token_routes_mod
+    manager = AuthManager(str(tmp_path / "auth.json"))
+    assert manager.create_user("admin", "password", is_admin=True)
+    assert manager.create_user("guardian", "password", is_admin=True)
+    token = SimpleNamespace(
+        id="inbox-id", owner="admin", name="inbox", token_prefix="redacted",
+        scopes="mcp:harbour:inbox", owner_subject_id=manager.subject_id_for_username("admin"),
+    )
+    commit_entered, release = threading.Event(), threading.Event()
+    class Query:
+        def filter(self, *_args): return self
+        def first(self): return token
+    class Db:
+        def query(self, _model): return Query()
+        def delete(self, value): assert value is token
+    @contextlib.contextmanager
+    def db_session():
+        yield Db()
+        commit_entered.set()
+        assert release.wait(3)
+    monkeypatch.setattr(mod, "get_db_session", db_session)
+    request = SimpleNamespace(
+        state=SimpleNamespace(current_user="admin"), headers={}, cookies={},
+        app=SimpleNamespace(state=SimpleNamespace(
+            auth_manager=manager, invalidate_token_cache=lambda: None,
+        )),
+    )
+    delete = _get_handler(mod, "DELETE", "/tokens/{token_id}")
+    results, errors = [], []
+    def revoke():
+        try: results.append(delete(request, "inbox-id"))
+        except BaseException as exc: errors.append(type(exc))
+    def demote():
+        try: results.append(manager.set_admin("admin", False, "guardian"))
+        except BaseException as exc: errors.append(type(exc))
+    revoker, account_mutator = threading.Thread(target=revoke), threading.Thread(target=demote)
+    revoker_started = account_mutator_started = False
+    try:
+        revoker.start(); revoker_started = True
+        assert commit_entered.wait(2)
+        account_mutator.start(); account_mutator_started = True
+        account_mutator.join(.2)
+        assert account_mutator.is_alive()
+        release.set(); revoker.join(4); account_mutator.join(4)
+    finally:
+        release.set()
+        if revoker_started: revoker.join(1)
+        if account_mutator_started: account_mutator.join(1)
+    assert not revoker.is_alive() and not account_mutator.is_alive() and errors == []
+    assert {value.value if isinstance(value, SetAdminResult) else value.get("status") for value in results} == {"ok", "deleted"}
+
+
+def test_ordinary_noauth_update_holds_shared_lock_through_commit(monkeypatch, token_routes_mod, tmp_path):
+    from core.auth import AuthManager
+    mod = token_routes_mod
+    monkeypatch.setenv("AUTH_ENABLED", "false")
+    monkeypatch.setattr(mod, "get_current_user", lambda _request: None)
+    manager = AuthManager(str(tmp_path / "auth.json"))
+    assert manager.create_user("admin", "password", is_admin=True)
+    assert manager.create_user("guardian", "password", is_admin=True)
+    token = SimpleNamespace(
+        id="ordinary-id", owner="admin", name="ordinary", token_prefix="redacted",
+        scopes="chat", owner_subject_id=None,
+    )
+    commit_entered, release = threading.Event(), threading.Event()
+    class Query:
+        def filter(self, *_args): return self
+        def first(self): return token
+    class Db:
+        def query(self, _model): return Query()
+        def add(self, value): assert value is token
+    @contextlib.contextmanager
+    def db_session():
+        yield Db()
+        commit_entered.set()
+        assert release.wait(3)
+    monkeypatch.setattr(mod, "get_db_session", db_session)
+    request = SimpleNamespace(
+        state=SimpleNamespace(current_user=None), headers={}, cookies={},
+        app=SimpleNamespace(state=SimpleNamespace(
+            auth_manager=manager, invalidate_token_cache=lambda: None,
+        )),
+    )
+    async def payload(): return {"name": "renamed"}
+    request.json = payload
+    update = _get_handler(mod, "PATCH", "/tokens/{token_id}")
+    results, errors = [], []
+    def write_token():
+        try: results.append(asyncio.run(update(request, "ordinary-id")))
+        except BaseException as exc: errors.append(type(exc))
+    def delete_account():
+        try: results.append(manager.delete_user("admin", "guardian"))
+        except BaseException as exc: errors.append(type(exc))
+    writer = threading.Thread(target=write_token)
+    account_mutator = threading.Thread(target=delete_account)
+    writer_started = account_mutator_started = False
+    try:
+        writer.start(); writer_started = True
+        assert commit_entered.wait(2)
+        account_mutator.start(); account_mutator_started = True
+        account_mutator.join(.2)
+        assert account_mutator.is_alive()
+        release.set(); writer.join(4); account_mutator.join(4)
+    finally:
+        release.set()
+        if writer_started: writer.join(1)
+        if account_mutator_started: account_mutator.join(1)
+    assert not writer.is_alive() and not account_mutator.is_alive() and errors == []
+    assert token.name == "renamed"
+    assert any(value is True for value in results)
+
+
+@pytest.mark.parametrize("operation", ["downgrade", "delete"])
+@pytest.mark.parametrize("owner_subject_id", [None, "owner_ffffffffffffffffffffffffffffffff"])
+def test_special_token_with_missing_or_stale_sid_cannot_be_mutated(
+    monkeypatch, token_routes_mod, tmp_path, operation, owner_subject_id,
+):
+    from core.auth import AuthManager
+    mod = token_routes_mod
+    monkeypatch.setenv("AUTH_ENABLED", "true")
+    manager = AuthManager(str(tmp_path / "auth.json"))
+    assert manager.create_user("admin", "password", is_admin=True)
+    token = SimpleNamespace(
+        id="special-id", owner="admin", name="special", token_prefix="redacted",
+        scopes="mcp:harbour:inbox", owner_subject_id=owner_subject_id,
+    )
+    deleted = []
+    class Query:
+        def filter(self, *_args): return self
+        def first(self): return token
+    class Db:
+        def query(self, _model): return Query()
+        def add(self, _value): raise AssertionError("invalid special row was mutated")
+        def delete(self, value): deleted.append(value)
+    @contextlib.contextmanager
+    def db_session(): yield Db()
+    monkeypatch.setattr(mod, "get_db_session", db_session)
+    request = SimpleNamespace(
+        state=SimpleNamespace(current_user="admin"), headers={}, cookies={},
+        app=SimpleNamespace(state=SimpleNamespace(
+            auth_manager=manager, invalidate_token_cache=lambda: None,
+        )),
+    )
+    if operation == "downgrade":
+        async def payload(): return {"scopes": ["chat"]}
+        request.json = payload
+        invoke = lambda: asyncio.run(_get_handler(mod, "PATCH", "/tokens/{token_id}")(request, "special-id"))
+    else:
+        invoke = lambda: _get_handler(mod, "DELETE", "/tokens/{token_id}")(request, "special-id")
+    with pytest.raises(HTTPException) as denied:
+        invoke()
+    assert denied.value.status_code == 403
+    assert token.scopes == "mcp:harbour:inbox"
+    assert token.owner_subject_id == owner_subject_id
+    assert deleted == []
