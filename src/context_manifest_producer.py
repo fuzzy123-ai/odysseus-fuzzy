@@ -48,6 +48,26 @@ class _NativeCapture:
     forge: tuple[tuple[SourceSelection, ForgeMetadataManifest], ...]
     planning: tuple[object, ...]
     knowledge: object | None
+    target_manifest_digests: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class CombinedContextSnapshot:
+    """Immutable full-selection identity for content pagination."""
+
+    items: tuple[ManifestItem, ...]
+    target_manifest_digests: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.items) is not tuple
+            or any(type(item) is not ManifestItem for item in self.items)
+            or not 1 <= len(self.items) <= 300
+            or type(self.target_manifest_digests) is not tuple
+            or len(self.target_manifest_digests) != len(self.items)
+            or any(type(value) is not str or len(value) not in {64, 71} for value in self.target_manifest_digests)
+        ):
+            _fail("invalid_context")
 
 
 class CombinedContextManifestProducer:
@@ -114,6 +134,28 @@ class CombinedContextManifestProducer:
         except Exception:
             _fail("foundation_unavailable")
 
+    def capture_snapshot(
+        self,
+        binding: DisclosureBinding,
+        selection: ContextSelection,
+    ) -> CombinedContextSnapshot:
+        """Capture the canonical projection and native digest for every target."""
+        self._validate_inputs(binding, selection)
+        try:
+            with self._admin_guard(binding):
+                with self._knowledge_reservation(selection):
+                    first = self._capture_native(binding, selection)
+                    final = self._capture_native(binding, selection)
+                    if first != final:
+                        _fail("context_stale")
+                    return CombinedContextSnapshot(
+                        first.items, first.target_manifest_digests,
+                    )
+        except ContextManifestProducerError:
+            raise
+        except Exception:
+            _fail("capture_unavailable")
+
     def __repr__(self) -> str:
         return "CombinedContextManifestProducer(<redacted>)"
 
@@ -172,6 +214,7 @@ class CombinedContextManifestProducer:
         knowledge_selection = tuple(item for item in selection.items if item.source == "knowledge")
         forge_results: list[tuple[SourceSelection, ForgeMetadataManifest]] = []
         items: list[ManifestItem] = []
+        target_digests: dict[tuple[str, str, str], str] = {}
         try:
             for selected in forge_selection:
                 locator = selected.forge_locator
@@ -194,6 +237,7 @@ class CombinedContextManifestProducer:
                     _fail("context_stale")
                 forge_results.append((selected, manifest))
                 items.append(manifest.item)
+                target_digests[(selected.source, selected.selection_ref, selected.revision_ref)] = manifest.digest
 
             planning_results = self._planning.capture_metadata(
                 binding,
@@ -222,6 +266,13 @@ class CombinedContextManifestProducer:
                     "private",
                     metadata.provenance_ref,
                 ))
+            if planning_selection:
+                planning_manifest = ContextManifest(tuple(sorted(
+                    items[-len(planning_selection):],
+                    key=lambda item: json.dumps(item._canonical(), sort_keys=True, separators=(",", ":")),
+                )))
+                for selected in planning_selection:
+                    target_digests[(selected.source, selected.selection_ref, selected.revision_ref)] = planning_manifest.digest
 
             knowledge_result = self._knowledge.capture_metadata(
                 binding,
@@ -253,17 +304,23 @@ class CombinedContextManifestProducer:
                         native.classification,
                         native.provenance_ref,
                     ))
+                for selected in knowledge_selection:
+                    target_digests[(selected.source, selected.selection_ref, selected.revision_ref)] = knowledge_result.digest
             result = tuple(sorted(
                 items,
                 key=lambda item: json.dumps(item._canonical(), sort_keys=True, separators=(",", ":")),
             ))
             if len(result) != len(selection.items):
                 _fail("context_stale")
-            return _NativeCapture(result, tuple(forge_results), tuple(planning_results), knowledge_result)
+            ordered_digests = tuple(
+                target_digests[(item.source, item.selection_ref, item.revision_ref)]
+                for item in selection.items
+            )
+            return _NativeCapture(result, tuple(forge_results), tuple(planning_results), knowledge_result, ordered_digests)
         except ContextManifestProducerError:
             raise
         except Exception:
             _fail("capture_unavailable")
 
 
-__all__ = ["CombinedContextManifestProducer", "ContextManifestProducerError"]
+__all__ = ["CombinedContextManifestProducer", "CombinedContextSnapshot", "ContextManifestProducerError"]

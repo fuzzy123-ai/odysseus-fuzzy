@@ -14,6 +14,7 @@ from core.auth import AuthManager
 from routes.auth_routes import SESSION_COOKIE
 from src.auth_helpers import strict_session_principal
 from src.context_manifest_producer import CombinedContextManifestProducer
+from src.context_pack_assembler import ContextPackAssembler, ContextPackAssemblerError
 from src.forge_context_metadata import ForgeContextMetadata
 from src.forge_context_page import ForgeContextPageConsumer, ForgeContextPageRequest
 from src.harbour_knowledge_active_runtime import (
@@ -139,6 +140,13 @@ def create_context_source_router(
     ):
         raise ValueError("context services unavailable") from None
     repository = ChatConfirmationRepository(session_factory, authority)
+    pack_assembler = ContextPackAssembler(
+        manifest_producer=manifest_producer,
+        confirmation_app=confirmation_app,
+        forge_pages=forge_pages,
+        planning_pages=planning_pages,
+        knowledge_pages=knowledge_pages,
+    )
     router = APIRouter(prefix="/api/context", tags=["context"])
 
     def transport(request: Request) -> str:
@@ -203,6 +211,28 @@ def create_context_source_router(
     def worker(request: Request, operation: str, raw: object) -> tuple[bytes, str, dict[str, str]]:
         try:
             cookie = transport(request)
+            if operation == "pack":
+                body = _object(raw, {"chat_session_id", "selection", "page_bytes", "cursor"}, {"disclosure_message_id"})
+                chat = body["chat_session_id"]
+                if type(chat) is not str:
+                    raise _error(400, "invalid_request")
+                selection = _selection(body["selection"])
+                page_bytes = _integer(body["page_bytes"], minimum=1, maximum=1_000_000)
+                cursor = body["cursor"]
+                if cursor is not None and type(cursor) is not str:
+                    raise _error(400, "invalid_request")
+                disclosure_id = body.get("disclosure_message_id")
+                if disclosure_id is not None:
+                    _integer(disclosure_id, minimum=1)
+                try:
+                    payload = pack_assembler.page(
+                        cookie, chat, selection, page_bytes, cursor, disclosure_id,
+                    )
+                except ContextPackAssemblerError as error:
+                    code = "invalid_request" if error.code == "invalid_request" else "context_unavailable"
+                    raise _error(400 if code == "invalid_request" else 409, code) from None
+                transport(request)
+                return json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False).encode(), "application/json", {"Cache-Control": "no-store"}
             optional = {"forge_locators"} if operation == "metadata" else ({"disclosure_message_id"} if operation == "page" else set())
             required = {"chat_session_id"} if operation == "metadata" else {"chat_session_id", "selection"}
             if operation == "page":
@@ -318,5 +348,9 @@ def create_context_source_router(
     @router.post("/page")
     async def page(request: Request):
         return await respond(request, "page")
+
+    @router.post("/pack")
+    async def pack(request: Request):
+        return await respond(request, "pack")
 
     return router
