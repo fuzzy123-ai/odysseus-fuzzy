@@ -7,7 +7,58 @@ applicable scoped handoff. See `docs/plans/evidence/harbour-one-plan-reconciliat
 for the planning reconciliation. Historical next-action text below does not
 reopen accepted or released work.
 
-## Latest checkpoint: 2026-10-05 (canonical revision 2734)
+## Latest checkpoint: 2026-10-05 (canonical revision 2758)
+
+This snapshot is bound to canonical revision 2758 in
+`docs/plans/handoffs/abc-open-work-5h-run-20260905.json`, before this
+documentation claim. HEAD is `20f66adae8aa3f885fbd3277e4961c3f13b93e5f`;
+the campaign ledger contains twenty-one local commits. Unrelated working-tree
+and untracked files remain preserved; they are not all accepted or committed.
+
+The seven-path auth component is locally committed in that HEAD after
+independent review and Root source review. Trusted session helpers reject
+non-exact AuthManager objects before invoking their callbacks. A private
+immutable issued-fence record binds subject, security revision, issuer and
+nonce; use consumes the fence before validation, so mutation, restoration and
+replay cannot acquire another subject's session. Constructor-time legacy
+identity normalization and session invalidation durability are also covered
+by the accepted component.
+
+The final Root lane materialized committed HEAD plus only the seven frozen
+auth source/test paths. All seventy-one cases in the three required modules
+passed in 83.27 seconds, with observed process exit code 0 and unchanged
+candidate hashes. Receipt:
+`.abc-test-tmp/auth-identity-correction-r1-20261005/root-head7-final/receipt.json`.
+The author full-lane log also ended with seventy-one passes, but its wrapper
+exit was unobserved; that log was not relabeled an observed-exit PASS. The
+separate Root receipt supplies the required terminal evidence.
+
+The two-file document-subject provider architecture has independent static
+PASS against the committed schema and auth APIs. Its fresh claim
+`DOCSID-PROVIDER-HEAD-CLOSURE-R1-20261005` is started with
+`/root/planning_migration_r2_writer`; full-module evidence, final candidate
+review and HEAD-plus-provider closure remain pending at this snapshot. Its
+fifteen static test functions do not establish the runtime case count.
+The provider remains import-inert and does not itself integrate routes.
+
+The accepted Inbox session-factory slice remains uncommitted pending the
+document provider and separately reviewed whole-helper closure. The new
+`ULO02-EXACT-PROJECTION-DISPATCH-R1-20261005` claim is started with
+`/root/planning_current_acceptance_20261004`. It targets exact nested input
+projection, immutable issued state and captured dispatch/readback methods.
+No final candidate or required dependency-lane PASS is recorded yet; the
+earlier controlled nine-module timeout remains incomplete historical evidence.
+
+Not verified at this snapshot: document-provider final acceptance; Inbox and
+application dependency-closed commits; ULO-02 final review and required lanes;
+complete authenticated persistent MCP flow, restart and rollback acceptance;
+remaining foreign-change commits; UI, distributed-worker coordination, live
+credentials, production data migration, temporal checks, deployment, backup,
+restore and push. Auth coordination evidence is in-process only. No live or
+external action occurred. The goal remains active; historical checkpoints
+below do not describe the current queue.
+
+## Historical checkpoint: 2026-10-05 (canonical revision 2734)
 
 This snapshot is bound to canonical revision 2734 in
 `docs/plans/handoffs/abc-open-work-5h-run-20260905.json`. HEAD is
