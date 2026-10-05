@@ -7,7 +7,40 @@ applicable scoped handoff. See `docs/plans/evidence/harbour-one-plan-reconciliat
 for the planning reconciliation. Historical next-action text below does not
 reopen accepted or released work.
 
-## Latest checkpoint: 2026-10-05 (canonical revision 2869)
+## Latest checkpoint: 2026-10-05 (canonical revision 2914)
+
+HEAD is `822570e17e36e02ea2d28ab09f35a9981a9fbf19`; thirty-nine local
+commits precede this documentation commit. The signed-64 Forge corridor is
+committed with its 241-case isolated proof and complete independent ten-file
+review. Forge Pack2 is committed with eighteen passing cases. Reader2 is now
+committed as `1313f4746a74f9e465315c71f3c2b665ded2817b`, with fifty-five
+passing Reader/Pack cases and three focused cleanup cases, actual exit code 0,
+stable hashes and a complete independent final review. Receipt:
+`.abc-test-tmp/forge-reader-existing-framing-replan-20261005/root-head2-cleanup-final/receipt.json`.
+
+Planning legacy and native principal fences are corrected and frozen, but
+uncommitted. Two isolated focused attempts each stopped with seventeen fixture
+errors before the new checks executed; the full three-module lane has not run.
+The fixture depends on immutable migration authority files absent from HEAD,
+and raw authority byte pins require care because archive text conversion can
+change their representation. The exact historical H1R05 receipt is now committed
+as a migration input after independent review; this grants no current App PASS.
+Complete fixture closure is being diagnosed before another runtime attempt.
+
+Independent USI lifecycle/policy/signal review passed for seven files. The
+SQLite/jobs/migrations review found that the schema-v1 recovery gate omitted
+Forge records retained only in history. That bounded source/test correction is
+now frozen; its isolated migration-module check is running. The old 371-case
+Store proof remains historical evidence for its original forty inputs and does
+not cover the corrected migration bytes. Current corrected required-nine-module
+and coherent-fifteen-file publication evidence remain outstanding.
+
+The product roadmap remains at 9/17. Not verified: current whole authenticated
+persistent MCP application, Planning full-three-module acceptance, corrected USI
+required lanes, UI, live, production temporal behavior, deployment, backup,
+restore and push. The overall goal remains active.
+
+## Historical checkpoint: 2026-10-05 (canonical revision 2869)
 
 HEAD is `9b58d429c6f7be934f190e2948538dd8f248c9da`; thirty-four local
 commits precede this documentation commit. The bounded USI adapter and exact
