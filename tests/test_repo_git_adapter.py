@@ -239,6 +239,12 @@ def test_forge_snapshot_file_rejects_noncanonical_or_absolute_paths(path: str):
         ForgeSnapshotFile(path, "sha256:" + "d" * 64, 1)
 
 
+@pytest.mark.parametrize("byte_count", (True, -1, 2**63, EvilInt(1)))
+def test_forge_snapshot_file_rejects_non_identity_byte_counts(byte_count):
+    with pytest.raises(ForgeSnapshotError):
+        ForgeSnapshotFile("src/main.py", "sha256:" + "d" * 64, byte_count)
+
+
 def test_forge_snapshot_rejects_duplicate_paths_and_tampered_digest():
     item = ForgeSnapshotFile("src/main.py", "sha256:" + "e" * 64, 1)
     with pytest.raises(ForgeSnapshotError, match="duplicate"):
@@ -471,8 +477,103 @@ def test_fca03a_one_million_and_one_bytes_resume_without_gap_or_retention():
     assert not hasattr(first.next_cursor, "content")
 
 
+def test_generated_over_16_mib_stream_crosses_policy_pages_utf8_and_character_feeds():
+    import codecs
+
+    from src.rag_text_chunking import feed_exact_character_text, new_exact_character_feed_state
+    from src.unified_source_index_code_policy import (
+        PolicyDecision,
+        PolicyFileDecision,
+        PolicyObservation,
+    )
+
+    source_size = 16 * 1024 * 1024 + 1
+    pattern = "line Ω  repeated\r\n".encode("utf-8")
+
+    def generated(offset: int, size: int) -> bytes:
+        start = offset % len(pattern)
+        seed = pattern[start:] + pattern * ((size // len(pattern)) + 2)
+        return seed[:size]
+
+    expected_digest = hashlib.sha256()
+    for offset in range(0, source_size, 262_144):
+        expected_digest.update(generated(offset, min(262_144, source_size - offset)))
+    content_digest = "sha256:" + expected_digest.hexdigest()
+    binding = _forge_authority_binding(admission_policy_generation="fca.forge_code.admission.v2")
+    request = ForgeSnapshotRequest(
+        "user:alice", "forge.auth_context", "demo", "pv_" + "a" * 32, "b" * 40, binding
+    )
+    inventory = ForgeSnapshotInventory(
+        "user:alice", "demo", "pv_" + "a" * 32, "b" * 40,
+        "sha256:" + "c" * 64, binding,
+        (ForgeSnapshotFile("src/large.py", content_digest, source_size),),
+    )
+    policy_file = inventory.files[0]
+    policy = PolicyObservation.from_inventory(
+        inventory,
+        "code.index.policy.v1",
+        "sha256:" + "f" * 64,
+        (PolicyFileDecision(policy_file.path, content_digest, source_size, PolicyDecision.IN_SCOPE, "sha256:" + "e" * 64),),
+    )
+    assert policy.decisions[0].byte_count == source_size
+    assert policy.decisions[0].decision is PolicyDecision.IN_SCOPE
+
+    class GeneratedReader:
+        calls = 0
+
+        def read_exact_range(self, supplied_request, *, path, offset, max_bytes):
+            self.calls += 1
+            return forge.ForgeContentRange(
+                forge.FORGE_CONTENT_RANGE_SCHEMA_V2,
+                supplied_request.owner_scope,
+                supplied_request.repo_id,
+                supplied_request.version_id,
+                supplied_request.commit_sha,
+                inventory.snapshot_digest,
+                path,
+                content_digest,
+                source_size,
+                offset,
+                generated(offset, max_bytes),
+                supplied_request.authority_binding,
+            )
+
+    reader = GeneratedReader()
+    cursor = forge.open_forge_content_cursor(
+        request, inventory, path="src/large.py", page_bytes=262_144
+    )
+    decoder = codecs.getincrementaldecoder("utf-8")("strict")
+    feed_state = new_exact_character_feed_state(max_chars=32_768)
+    raw_digest = hashlib.sha256()
+    reconstructed_digest = hashlib.sha256()
+    decoded_chars = 0
+    while cursor is not None:
+        page = forge.read_forge_content_page(reader, request, inventory, cursor)
+        assert len(page.content) <= 1_000_000
+        raw_digest.update(page.content)
+        fragment = decoder.decode(page.content, final=page.complete)
+        decoded_chars += len(fragment)
+        emitted, feed_state = feed_exact_character_text(
+            feed_state,
+            fragment,
+            offset=feed_state.next_char_offset,
+            final=page.complete,
+        )
+        for chunk in emitted:
+            reconstructed_digest.update(chunk.encode("utf-8"))
+        assert len(feed_state.carry) < feed_state.max_chars
+        cursor = page.next_cursor
+
+    assert raw_digest.hexdigest() == expected_digest.hexdigest()
+    assert reconstructed_digest.hexdigest() == expected_digest.hexdigest()
+    assert feed_state.terminal is True
+    assert feed_state.carry == ""
+    assert decoded_chars < source_size
+    assert reader.calls == (source_size + 262_143) // 262_144
+
+
 def test_fca03a_max_file_completes_in_exactly_seventeen_bounded_pages():
-    content = b"z" * forge.MAX_FORGE_FILE_BYTES
+    content = b"z" * (16 * 1024 * 1024)
     request, inventory = _fca03a_world(content)
     reader = _fca03a_reader(content, inventory)
     cursor = forge.open_forge_content_cursor(request, inventory, path="src/main.py")
@@ -482,7 +583,7 @@ def test_fca03a_max_file_completes_in_exactly_seventeen_bounded_pages():
         sizes.append(len(page.content))
         cursor = page.next_cursor
     assert len(sizes) == 17
-    assert sum(sizes) == forge.MAX_FORGE_FILE_BYTES
+    assert sum(sizes) == 16 * 1024 * 1024
     assert max(sizes) <= forge.MAX_FORGE_CONTENT_PAGE_BYTES
 
 
@@ -499,6 +600,43 @@ def test_fca03a_file_and_page_max_plus_one_fail_closed():
     assert raised.value.__cause__ is None
     with pytest.raises(ForgeSnapshotError):
         ForgeSnapshotFile("src/large.bin", "sha256:" + "0" * 64, forge.MAX_FORGE_FILE_BYTES + 1)
+
+
+def test_signed_64_source_size_is_preserved_through_inventory_and_cursor_without_body_allocation():
+    maximum = 2**63 - 1
+    binding = _forge_authority_binding(admission_policy_generation="fca.forge_code.admission.v2")
+    file = ForgeSnapshotFile("src/large.py", "sha256:" + "d" * 64, maximum)
+    inventory = ForgeSnapshotInventory(
+        "user:alice", "demo", "pv_" + "a" * 32, "b" * 40,
+        "sha256:" + "c" * 64, binding, (file,),
+    )
+    request = ForgeSnapshotRequest(
+        "user:alice", "forge.auth_context", "demo", "pv_" + "a" * 32, "b" * 40, binding
+    )
+
+    class FirstPageReader:
+        def read_exact_range(self, supplied_request, *, path, offset, max_bytes):
+            return forge.ForgeContentRange(
+                forge.FORGE_CONTENT_RANGE_SCHEMA_V2,
+                supplied_request.owner_scope,
+                supplied_request.repo_id,
+                supplied_request.version_id,
+                supplied_request.commit_sha,
+                inventory.snapshot_digest,
+                path,
+                file.content_sha256,
+                maximum,
+                offset,
+                b"x" * max_bytes,
+                supplied_request.authority_binding,
+            )
+
+    cursor = forge.open_forge_content_cursor(request, inventory, path=file.path)
+    page = forge.read_forge_content_page(FirstPageReader(), request, inventory, cursor)
+    assert page.source_cursor.file_byte_count == maximum
+    assert page.next_cursor is not None
+    assert page.next_cursor.file_byte_count == maximum
+    assert page.next_cursor.next_offset == forge.MAX_FORGE_CONTENT_PAGE_BYTES
 
 
 def test_fca03a_cursor_hash_binds_every_identity_offset_and_page_field():

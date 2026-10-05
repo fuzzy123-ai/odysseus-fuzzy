@@ -127,6 +127,15 @@ def test_policy_observation_is_closed_content_addressed_and_roundtrips() -> None
     assert "activate" not in dir(observation)
 
 
+def test_signed_64_file_size_is_identity_metadata_not_a_policy_exclusion():
+    file = _file("src/huge.py", "1", 2**63 - 1)
+    observation = _observation(file)
+
+    assert observation.decisions[0].byte_count == 2**63 - 1
+    assert observation.decisions[0].decision is PolicyDecision.IN_SCOPE
+    assert PolicyObservation.from_canonical_bytes(observation.to_canonical_bytes()) == observation
+
+
 def test_policy_observation_digest_binds_every_semantic_field() -> None:
     file = _file()
     first = _observation(file)
@@ -314,6 +323,7 @@ def test_policy_observation_requires_complete_canonical_inventory_bijection(muta
         {"decision": True},
         {"evidence_ref": "manual-exclusion"},
         {"byte_count": True},
+        {"byte_count": -1},
         {"byte_count": MAX_POLICY_FILE_BYTES + 1},
         {"path": "src/../secret.py"},
         {"path": "src/cafe\u0301.py"},
