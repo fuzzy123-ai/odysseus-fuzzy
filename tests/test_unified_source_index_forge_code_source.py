@@ -1164,7 +1164,7 @@ def test_email_repository_owner_uses_exact_pvf_opaque_owner_scope():
         {"adapter_id": "forge.other"},
         {"adapter_version": "v2"},
         {"adapter_generation": "usi_generation_" + "0" * 64},
-        {"admission_policy_generation": "fca.forge_code.admission.v2"},
+        {"admission_policy_generation": "fca.forge_code.admission.v1"},
     ),
 )
 def test_request_rejects_foreign_authority_generation_before_reader(binding_changes: dict[str, str]):
@@ -1219,8 +1219,9 @@ def test_inventory_rejects_foreign_or_moving_snapshot_identity(inventory_changes
         source.snapshot_inventory(_request())
 
 
-def test_inventory_rejects_foreign_authority_binding_and_digest_changes_with_binding():
-    foreign_binding = _authority_binding(admission_policy_generation="fca.forge_code.admission.v2")
+@pytest.mark.parametrize("generation", ("fca.forge_code.admission.v1", "fca.forge_code.admission.v3"))
+def test_inventory_rejects_foreign_authority_binding_and_digest_changes_with_binding(generation):
+    foreign_binding = _authority_binding(admission_policy_generation=generation)
     inventory = _inventory(authority_binding=foreign_binding)
     baseline = _inventory()
     reader = FakeForgeSnapshotReader(inventory, _reference(inventory))

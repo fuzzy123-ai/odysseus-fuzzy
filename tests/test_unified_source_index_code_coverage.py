@@ -131,6 +131,20 @@ def test_fca02_r3_manifest_decoder_roundtrips_one_private_builtin_snapshot() -> 
     assert decoded == manifest and decoded.canonical_bytes() == manifest.canonical_bytes() and decoded.__slots__ == ("_snapshot",)
 
 
+def test_signed_64_source_size_roundtrips_as_coverage_identity_metadata():
+    inventory = _inventory(files=(ForgeSnapshotFile("src/huge.py", "sha256:" + "d" * 64, 2**63 - 1),))
+    occurrence = _occurrence(inventory)
+    manifest = build_coverage_manifest(
+        inventory=inventory,
+        attempt=_attempt(inventory, occurrence),
+        policy_observation=_policy(inventory),
+        observations=(_observation(inventory, occurrence),),
+    )
+    decoded = CoverageManifest.from_canonical_bytes(manifest.canonical_bytes())
+    assert decoded.files[0].byte_count == 2**63 - 1
+    assert decoded == manifest
+
+
 def test_fca02_r3_manifest_decoder_preserves_classified_errors_without_outer_remap() -> None:
     _assert_closed(
         lambda: CoverageManifest.from_canonical_bytes(b"x" * (16 * 1024 * 1024 + 1)),

@@ -51,7 +51,7 @@ from src.unified_source_index_source_registry import (
 FORGE_CODE_ADAPTER_ID = "forge.code"
 FORGE_CODE_DOMAIN_ID = "project_forge"
 FORGE_CODE_EXACT_READER_BOUNDARY = "forge.code_exact_reader"
-FORGE_CODE_ADMISSION_POLICY_GENERATION = "fca.forge_code.admission.v1"
+FORGE_CODE_ADMISSION_POLICY_GENERATION = "fca.forge_code.admission.v2"
 
 
 class ForgeCodeSourceError(ValueError):
