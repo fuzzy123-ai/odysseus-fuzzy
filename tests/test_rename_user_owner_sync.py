@@ -637,8 +637,10 @@ def test_owner_migration_failure_rolls_back_auth_rename(monkeypatch, tmp_path):
 
     db = _force_sql_owner_migration_failure(monkeypatch)
     am = _auth_manager_for_rollback_test(monkeypatch, tmp_path)
-    admin_token = am.create_session_trusted("admin")
-    alice_token = am.create_session_trusted("alice")
+    admin_fence = am.capture_login_identity("admin")
+    alice_fence = am.capture_login_identity("alice")
+    admin_token = am.create_session_trusted("admin", identity_fence=admin_fence)
+    alice_token = am.create_session_trusted("alice", identity_fence=alice_fence)
     endpoint = _route(ar.setup_auth_routes(am), "rename_user")
 
     with pytest.raises(HTTPException) as exc:
@@ -666,7 +668,8 @@ def test_self_rename_owner_migration_failure_rolls_back_auth_session(monkeypatch
 
     db = _force_sql_owner_migration_failure(monkeypatch)
     am = _auth_manager_for_rollback_test(monkeypatch, tmp_path)
-    admin_token = am.create_session_trusted("admin")
+    admin_fence = am.capture_login_identity("admin")
+    admin_token = am.create_session_trusted("admin", identity_fence=admin_fence)
     endpoint = _route(ar.setup_auth_routes(am), "rename_user")
 
     with pytest.raises(HTTPException) as exc:
