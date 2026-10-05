@@ -62,3 +62,4 @@ tests/test_context_pack_assembler.py -text
 tests/test_context_pack_routes.py -text
 tests/test_harbour_inbox_planning_receipts.py -text
 tests/test_planning_v2_routes.py -text
+.gitattributes -text
