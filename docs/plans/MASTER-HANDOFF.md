@@ -7,7 +7,52 @@ applicable scoped handoff. See `docs/plans/evidence/harbour-one-plan-reconciliat
 for the planning reconciliation. Historical next-action text below does not
 reopen accepted or released work.
 
-## Latest checkpoint: 2026-10-05 (canonical revision 2799)
+## Latest checkpoint: 2026-10-05 (canonical revision 2831)
+
+This snapshot follows canonical revision 2831 in the existing execution record.
+HEAD is `8eaee4411880d611b09f3287f0e58820316fe0ed`; the campaign ledger
+contains twenty-eight local commits before this documentation change. The
+private-context confirmation foundation and repository integration are now
+committed as an exact four-file component. Fresh independent source review
+passed; committed HEAD plus only these four files passed sixty runtime cases
+with observed exit code 0 and unchanged hashes. Receipt:
+`.abc-test-tmp/private-confirmation-head-closure-r1-20261005/receipt.json`.
+This closes the two missing source imports found during MCP dependency
+preparation; it does not establish whole H1R07 or native-chat acceptance.
+
+The retained-read cache publication race was corrected and independently
+verified. A subsequent operation-local validation reuse avoids one redundant
+full snapshot decode while preserving full primitive bindings, exact mapping
+identities, strict authority envelopes, and explicit/historical validation.
+Independent review found a late callback mutation gap in the initial candidate;
+the bounded correction adds a final fence after common snapshot comparisons and
+before transaction construction. The corrected candidate passed independent
+review and all eighty-three Store/Lifecycle/Policy cases.
+
+The corrected candidate also passed the exact 12,296-record atomic memory
+extraction case in 220.603 seconds, with observed pytest exit code 0 and all
+forty candidate/dependency pins unchanged. Receipt:
+`.abc-test-tmp/usi-operation-local-reuse-r1-20261005/root-memory12296/receipt.json`.
+The prior timeout remains historical failed evidence. The Store source/test
+pair remains frozen and uncommitted while the remaining required nine-module
+coverage, including the separate large SQLite case, is checked independently.
+The memory result does not imply a SQLite or whole-product performance PASS.
+
+The current H1R05/MCP parent requires refreshed evidence: eight of its
+twenty-nine parent inputs drifted from historical acceptance. Its current
+ninety-nine-input manifest is being rebound to committed HEAD and the frozen
+Store candidate. The next acceptance steps are the actual-application focused
+case, the required same-snapshot thirty-three-module lane, and independent
+whole-parent review. These are distinct from ULO-02's nine-module requirements.
+Historical application results are not credited to the changed parent.
+
+Not verified at this snapshot: remaining ULO-02/SQLite requirements; current
+H1R05/MCP parent and complete authenticated persistent backend flow;
+whole H1R07/native-chat integration; all remaining foreign-change commits;
+UI, live, temporal, production migration, deployment, backup, restore and push.
+The goal remains active. No live or external action occurred.
+
+## Historical checkpoint: 2026-10-05 (canonical revision 2799)
 
 This snapshot is bound to canonical revision 2799 in
 `docs/plans/handoffs/abc-open-work-5h-run-20260905.json`. HEAD is
