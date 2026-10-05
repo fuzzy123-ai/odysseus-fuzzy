@@ -44,3 +44,21 @@ ops/homeserver/redacted_predeploy_backup_*.py text eol=lf
 *.ico  binary
 *.woff binary
 *.woff2 binary
+
+# Accepted context/runtime artifacts retain their exact reviewed Git bytes.
+# Keep checkout and archive conversion from changing source/evidence identities.
+docs/context-pack-api.md -text
+docs/plans/forge-usi-code-source-adapter-roadmap.md -text
+docs/plans/open-work-completion-master-roadmap.json -text
+routes/context_source_routes.py -text
+src/context_manifest_producer.py -text
+src/context_pack_assembler.py -text
+src/harbour_inbox_service.py -text
+src/mcp_authenticated_dispatch.py -text
+static/frontpage-v3/context-api.js -text
+tests/frontend/context-api.test.cjs -text
+tests/test_app_context_pack.py -text
+tests/test_context_pack_assembler.py -text
+tests/test_context_pack_routes.py -text
+tests/test_harbour_inbox_planning_receipts.py -text
+tests/test_planning_v2_routes.py -text
