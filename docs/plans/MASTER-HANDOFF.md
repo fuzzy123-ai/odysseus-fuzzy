@@ -7,7 +7,57 @@ applicable scoped handoff. See `docs/plans/evidence/harbour-one-plan-reconciliat
 for the planning reconciliation. Historical next-action text below does not
 reopen accepted or released work.
 
-## Latest checkpoint: 2026-10-05 (canonical revision 2698)
+## Latest checkpoint: 2026-10-05 (canonical revision 2734)
+
+This snapshot is bound to canonical revision 2734 in
+`docs/plans/handoffs/abc-open-work-5h-run-20260905.json`. HEAD is
+`0768b6e159c792d00a14a77466b3361a8f12ddb5`; the campaign ledger contains
+nineteen local commits. Existing unrelated working-tree changes are preserved.
+
+The document subject schema is locally committed in that HEAD: nullable
+subject bindings, separate subject and legacy provenance indexes, immutable
+document subjects, and transactional SQLite convergence. Independent review
+covered all three schema paths and found no unrelated hunk. A fresh isolated
+migration module passed all twenty cases; staged bytes matched the reviewed
+source after line-ending normalization. Receipt:
+`.abc-test-tmp/db-schema-publish-20261005/receipt.json`.
+No production database migration ran.
+
+The Inbox session-factory component is accepted for its repository slice,
+with final route SHA256
+`f943eb4465c901676313d5a70e9261c6bbf38749b89f9599c4403a60585e8bdb`.
+Extraction holds no database Session or request lease. A fresh Session and
+lease revalidate authority before conditional update and version insertion
+in one transaction; final serialization uses another fresh lease. The final
+two-module author lane passed sixteen cases, independent review passed, and
+Root independently passed the three extraction, revocation and CAS-conflict
+cases. Receipts are under
+`.abc-test-tmp/INBOX-SESSION-FACTORY-ATOMIC-CAS-R1-20261005/`.
+This component remains uncommitted pending the separately reviewed auth,
+document-subject and helper dependency closure.
+
+The fresh ULO-02 strong-store-capability candidate is not accepted.
+Independent review found missing relation endpoint ancestry and nested
+instruction-reference type checks. Its one authorized correction has been
+applied; the corrected three-module author lane passed seventy-two cases.
+Final independent review returned HOLD: mutable reference leaf fields reach
+dictionary hashing before exact validation, evidence items are accessed before
+exact type checks, and verification freshly reads methods instead of using the
+issued captured table. The exhausted claim is released blocked and its bytes
+remain frozen; a fresh architecture is required before successor edits.
+The nine-module Root lane timed out under
+a controlled 360-second bound in the 12,296-record graph job, with unchanged
+candidate bytes and no complete test summary. Receipt:
+`.abc-test-tmp/ulo02-strongcap-r1-20261005/root-dependency-2724.receipt.json`.
+That lane is incomplete, not a PASS; it also predates the final correction.
+
+Not verified at this snapshot: final ULO-02 independent/deep acceptance and
+required dependency evidence; complete auth and application clean-HEAD
+integration; parser wall-clock bounds; remaining foreign-change commits;
+UI, live, temporal, deployment, backup, restore and push. No live or external
+action occurred. Historical snapshots below do not describe the current queue.
+
+## Historical checkpoint: 2026-10-05 (canonical revision 2698)
 
 HEAD is `d19b7b402a1584177cfbe4620e1b1ae34174506a`; the local campaign ledger
 contains sixteen commits. The Telegram PC bounded-ingress source pair is an
