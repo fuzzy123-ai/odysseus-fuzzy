@@ -246,6 +246,10 @@ scan or automatic productive reindex. The initial implementation uses only
 synthetic repositories and fake Forge readers; production scanning remains
 disabled until the parent activation gate names a concrete repository scope.
 
+`FCA-05A` proposes automatic initial and successor-revision jobs only after
+separately authorized enrollment. It does not relax this default-off boundary,
+authorize ambient discovery, or make an ordinary query trigger reindexing.
+
 For a successor revision, Forge supplies inventory/delta evidence against one
 predecessor. The adapter classifies add, modify, delete, rename and unchanged
 paths deterministically:
@@ -625,6 +629,43 @@ itself can never turn `policy_out_of_scope` into exclusion authority.
 - Done when: a consumer can distinguish current USI coverage from stale/missing
   projections without triggering a source read or auto-reindex.
 
+### FCA-05A - Enrolled Forge Initial And Revision-Delta Indexing
+
+- Status: OPEN proposal; nonclaimable pending the design and authority gates
+  below. The reported sidechat request is context, not a verified activation
+  decision. This amendment grants no implementation or productive indexing.
+- Dependencies: `FCA-04`, `FCA-05` and their inherited prerequisites; the
+  separately authorized repository enrollment and resource-policy contract.
+  Existing FCA/UIR/ULO/CBM acceptance and ordering remain unchanged; this
+  successor contributes to a future `FCA-07` parent packet.
+- Outcome: after one authorized enrollment, first Forge import/use schedules
+  bounded background initial indexing. Committed successor revisions schedule
+  durable idempotent delta reconciliation without a repeated manual reindex
+  command. Foreground Forge operations return without waiting for indexing.
+- Authority: Forge retains immutable repository/revision truth and exact reads;
+  USI owns jobs, occurrences and coverage. Reuse unchanged extraction artifacts
+  only through new revision-bound occurrences; never mix target revisions or
+  introduce a second CBM/Memory source of truth.
+- Lifecycle: edits, deletes and renames invalidate affected current coverage;
+  permission/enrollment revocation stops further reads and invalidates search
+  eligibility. Duplicate, delayed and lost signals converge through durable
+  bounded reconciliation against the selected immutable revision.
+- Honest inventory/status: expose the target owner, revision and policy
+  generation, with pending/indexing/complete/partial/stale/failed states and
+  specific remaining gaps. Typed extraction must show policy exclusions and
+  genuinely nontext items individually. Read, extraction and budget failures
+  remain visible; they cannot become exclusions or a complete badge.
+- Open design gates: define resumable pages/checkpoints, fair scheduling,
+  concurrency, CPU/memory/IO/time/queue budgets, retry limits and generic
+  revision-bound fallback before implementation acceptance. No numerical limits
+  or benchmarks are established here; size alone never silently excludes text.
+- Acceptance: execute the actual public local owning-app path with a pinned
+  synthetic large repository: enrollment/import, automatic initial jobs,
+  successor edits/renames/deletes, duplicate/lost signals, restart/resume and
+  owner-access revocation. Report observed coverage, resource fairness and
+  foreground timings with bounded exact-read evidence; no result is claimed
+  before execution. UI, temporal and parent live gates remain separate.
+
 ### FCA-06 - Query Coverage And Exact-Read Precondition Integration
 
 - Dependencies: `FCA-05`; accepted code-intelligence two-call certification
@@ -713,7 +754,10 @@ disabling the adapter/query scope and retaining Forge/USI audit evidence.
 This phrase must name the repository scope, read policy, target revision/ref
 policy, adapter/profile versions, coverage status requirement, job limit,
 projection-generation behavior, observation window, rollback owner and exact
-Forge reader. It grants no repository write, provider sync, commit, branch
+Forge reader. Future `FCA-05A` enrollment must additionally name initial import,
+successor-revision scheduling, revocation and the resource policy; the same
+parent activation remains mandatory. It grants no repository write, provider
+sync, commit, branch
 change, filesystem crawl, network call or broad reindex.
 
 An optional Lens control is only a later UIR/Lens slice: display a revision,
