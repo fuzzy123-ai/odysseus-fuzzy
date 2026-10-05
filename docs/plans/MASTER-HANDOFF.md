@@ -7,7 +7,43 @@ applicable scoped handoff. See `docs/plans/evidence/harbour-one-plan-reconciliat
 for the planning reconciliation. Historical next-action text below does not
 reopen accepted or released work.
 
-## Latest checkpoint: 2026-10-05 (canonical revision 2914)
+## Latest checkpoint: 2026-10-05 (canonical revision 2944)
+
+HEAD is `fafa3069b8f7776f45ac5181b70b01723e780329`; 43 accepted local commits precede this
+documentation commit. The overall implementation goal remains active.
+
+USI's coherent seventeen-file store, lifecycle, policy, SQLite, jobs, migration,
+signal/outbox and Harbour knowledge bundle is committed as
+`fd82992ef95020dcdc17ee5ab3e1b0103b1a16bd`. Its isolated ten-module
+lane passed 441 cases, including both 12,296-record cases, with exit code 0 and
+stable input hashes. Corrected migration history screening passed 45 cases;
+the current Knowledge adapter passed 67. Independent complete component and
+current-bundle reviews passed. The older 371-case receipt remains historical.
+Receipt: `.abc-test-tmp/usi-knowledge-current-head-closure-20261005/root-head17-required10/receipt.json`.
+
+The six Planning source/test files are committed as
+`fafa3069b8f7776f45ac5181b70b01723e780329`. Exact principal type,
+identity and revision checks now fence callback execution. The completed
+isolated input was the recorded prior HEAD plus these six files and nineteen
+explicit frozen metadata fixtures: 73 full cases and 17 focused cases passed,
+exit code 0, stable hashes and complete independent current-six review.
+Nine metadata/attribute paths are also committed. The actual staged Git archive
+passed all twelve authority pins, six frozen-member identities, supporting pin
+and ten exact raw-byte rules. Earlier fixture and archive failures remain
+preserved. The unchanged historical authority test has an EOF blank-line style
+warning; the aggregate metadata diff check returned 2, while attributes passed.
+Receipts: `.abc-test-tmp/planning-authority-byte-closure-20261005/root-head6-authority19/receipt.json`
+and `.abc-test-tmp/planning-authority-byte-closure-20261005/archive-byte-proof-final.json`.
+
+Next: review and publish the seven remaining App dependency modules in scoped
+source/test packets, then rebind the current parent inputs and run current App
+integration. Product-roadmap progress remains 9/17; historical H1R05 evidence
+does not establish current application acceptance. Not verified: current whole
+authenticated persistent MCP App/strong33, UI, live, production migration and
+temporal behavior, deployment, backup, restore and push. Foreign working-tree
+changes remain preserved; local publication does not authorize live effects.
+
+## Historical checkpoint: 2026-10-05 (canonical revision 2914)
 
 HEAD is `822570e17e36e02ea2d28ab09f35a9981a9fbf19`; thirty-nine local
 commits precede this documentation commit. The signed-64 Forge corridor is
