@@ -338,6 +338,29 @@ def test_legacy_cursor_type_validation_precedes_recordref_and_hostile_string_hoo
     assert "duplicate" not in str(duplicate_error.value)
 
 
+def test_bounded_legacy_cursor_parser_recursion_fails_closed_without_cause(
+    tmp_path, monkeypatch,
+):
+    source = _source("doc:legacy-parser-depth")
+    version = _version(source, "rev:1")
+    chunk = _chunk(version, "legacy parser depth")
+    store = SQLiteUnifiedSourceIndexStore(tmp_path / "usi.db")
+    _insert(store, chunk, version, source)
+    query = _query("legacy parser", limit=1)
+    snapshot = store.current_snapshot()
+    bounded_payload = "[" * 512 + "]" * 512
+    assert len(bounded_payload) <= lexical_module.MAX_CURSOR_CHARS
+
+    def raise_recursion(*args, **kwargs):
+        raise RecursionError("parser depth detail must not escape")
+
+    monkeypatch.setattr(lexical_module.json, "loads", raise_recursion)
+    with pytest.raises(LexicalRetrievalError) as raised:
+        lexical_module._decode_cursor(bounded_payload, snapshot, query)
+    assert str(raised.value) == "lexical cursor is not valid JSON"
+    assert raised.value.__cause__ is None
+
+
 def test_snippet_stale_and_candidate_clipping_states_are_explicit_and_bounded(tmp_path):
     source = _source("doc:bounds")
     version = _version(source, "rev:1")

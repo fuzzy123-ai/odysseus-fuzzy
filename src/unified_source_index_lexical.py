@@ -514,6 +514,8 @@ def _decode_cursor(
         payload = json.loads(value, object_pairs_hook=_unique_json_object)
     except LexicalRetrievalError:
         raise LexicalRetrievalError("lexical cursor is invalid") from None
+    except RecursionError:
+        raise LexicalRetrievalError("lexical cursor is not valid JSON") from None
     except (TypeError, ValueError, json.JSONDecodeError) as exc:
         raise LexicalRetrievalError("lexical cursor is not valid JSON") from None
     if type(payload) is not dict or set(payload) != {"s", "r", "q", "t", "l", "i", "h"}:
