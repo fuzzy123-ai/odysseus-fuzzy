@@ -81,6 +81,8 @@ from src.private_context_confirmation_app import (
     PrivateContextConfirmationApp,
     SourceSelection,
 )
+from src.context_metadata_binding import McpContextMetadataAdmissionError, _mcp_recipient_digest, _require_mcp_metadata_admission
+from src.mcp_context_authority import McpContextAuthorityError
 
 
 _ZERO = "sha256:" + "0" * 64
@@ -796,6 +798,51 @@ class ActiveKnowledgeComposition:
         )
         return subject, store, principal, canonical_generation, selection_digest, self._usi.current_snapshot()
 
+    def _context_runtime_mcp(self, admission: object, metadata_binding: object) -> tuple[
+        str, HarbourKnowledgeStore, Any, str, str, Any, Any, tuple[Any, tuple[str, ...], str, str, HarbourKnowledgeStore],
+    ]:
+        """Issue a short-lived native principal from the live MCP foundation only."""
+        foundation = _require_mcp_metadata_admission(admission, metadata_binding)
+        subject, alias = foundation.owner_subject_id, foundation.owner_alias
+        identity = self._auth.active_admin_subject_identity(subject_id=subject)
+        if (identity != (alias, subject)
+                or self._auth.subject_id_for_username(alias) != subject
+                or not self._auth.has_active_subject_id(subject)
+                or self._auth.security_action_revision() != foundation.security_action_revision
+                or subject not in self._config.allowed_owners
+                or "native_knowledge" not in self._config.allowed_domains):
+            raise ValueError("knowledge context owner unavailable")
+        selected = self._staging.selected_runtime(subject)
+        if selected is None:
+            raise ValueError("knowledge context selection unavailable")
+        _reference, owners, canonical_generation, selection_digest, store = selected
+        if (type(canonical_generation) is not str
+                or _GENERATION_ID.fullmatch(canonical_generation) is None
+                or type(selection_digest) is not str
+                or subject not in owners
+                or type(store) is not HarbourKnowledgeStore):
+            raise ValueError("knowledge context selection unavailable")
+        selection_digest = "sha256:" + _context_sha(selection_digest)
+        current_key = _app_secret()
+        if not hmac.compare_digest(hashlib.sha256(current_key).digest(), hashlib.sha256(self._key).digest()):
+            raise ValueError("knowledge context key changed")
+        issuer = AuthenticatedPrincipalIssuer(
+            issuer_id="harbour-knowledge-runtime", key_id="app-key-v1",
+            secret=hmac.new(current_key, b"odysseus.harbour.knowledge.issuer.v1\0", hashlib.sha256).digest(),
+        )
+        principal = issuer.issue(
+            subject_id=subject, owner_id=subject,
+            auth_context_digest="sha256:" + _mcp_recipient_digest(
+                "odysseus.context.mcp_metadata.knowledge.principal.v1", metadata_binding,
+                {"owner_alias": alias, "owner_sid": subject,
+                 "security_revision": foundation.security_action_revision,
+                 "canonical_generation": canonical_generation, "selection": selection_digest,
+                 "usi_generation": self._usi_generation.to_dict()}),
+            ttl_seconds=60,
+        )
+        _require_mcp_metadata_admission(admission, metadata_binding)
+        return subject, store, principal, canonical_generation, selection_digest, self._usi.current_snapshot(), foundation, selected
+
     def _validate_context_usi_parents(
         self, owner_scope: str, snapshot: Any,
         projections: tuple[tuple[KnowledgeIndexRecord, Any], ...],
@@ -1002,6 +1049,179 @@ class ActiveKnowledgeComposition:
             canonical_generation=canonical_generation, selection_digest=selection_digest,
             store=store, principal=principal,
         )
+
+    def _capture_context_material_mcp(
+        self, admission: object, metadata_binding: object, selection: ContextSelection,
+    ) -> tuple[KnowledgeContextManifest, str]:
+        """Capture detached Knowledge metadata under a rechecked MCP lease."""
+        if type(selection) is not ContextSelection or not selection.items:
+            raise ValueError("knowledge context selection unavailable")
+        if any(item.source != "knowledge" for item in selection.items):
+            raise ValueError("knowledge context source unavailable")
+        subject, store, principal, canonical_generation, selection_digest, usi_snapshot, foundation, selected_runtime = self._context_runtime_mcp(admission, metadata_binding)
+        initial_reference, initial_owners, initial_generation, initial_raw_selection_digest, initial_store = selected_runtime
+        initial_completion = self._staging.verify_completion(initial_reference)
+        config_fence = (self._config.allowed_owners, self._config.allowed_sources, self._config.allowed_domains)
+        runtime_generation = self._usi_generation
+        key_digest = hashlib.sha256(self._key).hexdigest()
+        snapshot = store.capture_index_snapshot(principal, owner_id=subject)
+        if (type(snapshot) is not KnowledgeIndexSnapshot or snapshot.owner_id != subject
+                or type(snapshot.records) is not tuple):
+            raise ValueError("knowledge context snapshot unavailable")
+        owner_scope = OwnerScope.for_subject_id(subject).value
+        projections = []
+        for record in snapshot.records:
+            if type(record) is not KnowledgeIndexRecord or record.state != "active":
+                continue
+            projection = project_harbour_knowledge_index_records(owner_scope, record)
+            source_id = projection.source.source_id
+            if type(self._config.allowed_sources) is tuple and source_id not in self._config.allowed_sources:
+                continue
+            if projection.source.classification.value not in {"public", "private"}:
+                continue
+            projections.append((record, projection))
+        projections = tuple(projections)
+        owner_heads = tuple(sorted(({
+            "knowledge_id": record.knowledge_id, "knowledge_kind": record.knowledge_kind,
+            "revision_id": record.revision_id, "revision": record.revision,
+            "parent_revision_id": record.parent_revision_id, "generation": record.generation,
+            "state": record.state, "tombstoned_at": record.tombstoned_at,
+            "purge_requested_at": record.purge_requested_at,
+            "payload_schema_id": record.payload_schema_id, "payload_media_type": record.payload_media_type,
+            "payload_sha256": record.payload_sha256, "classification": record.classification,
+            "source_revisions_json": record.source_revisions_json, "provenance_json": record.provenance_json,
+            "references_json": record.references_json, "retention_json": record.retention_json,
+            "created_at": record.created_at, "record_digest": record.record_digest,
+        } for record in snapshot.records), key=lambda value: (value["knowledge_id"], value["revision_id"])))
+        entries: list[_KnowledgeContextEntry] = []
+        matched_projections: list[tuple[KnowledgeIndexRecord, Any]] = []
+        for selected_item in selection.items:
+            matches = [(record, projection) for record, projection in projections
+                       if selected_item.selection_ref == projection.source.source_id
+                       and selected_item.revision_ref == projection.source_version.source_version_id]
+            if len(matches) != 1:
+                raise ValueError("knowledge context selection unavailable")
+            record, projection = matches[0]
+            matched_projections.append((record, projection))
+            native_record_digest = "sha256:" + _context_sha(record.record_digest)
+            payload_digest = "sha256:" + _context_sha(record.payload_sha256)
+            provenance_ref = _context_framed_digest("provenance", {
+                "record": native_record_digest, "provenance": record.provenance_json,
+                "source_revisions": record.source_revisions_json, "references": record.references_json,
+            })
+            record_fences = {
+                "owner": {"sid": subject, "alias": foundation.owner_alias,
+                          "security_revision": foundation.security_action_revision},
+                "owner_head": {"boundary": snapshot.captured_head_boundary,
+                               "snapshot": snapshot.snapshot_digest, "records": owner_heads},
+                "selected": {"canonical_generation": canonical_generation,
+                             "selection_digest": selection_digest},
+                "usi": {"snapshot": usi_snapshot.to_dict(),
+                        "runtime_generation": self._usi_generation.to_dict()},
+                "config": {"allowed_owners": list(self._config.allowed_owners),
+                           "allowed_sources": list(self._config.allowed_sources),
+                           "allowed_domains": list(self._config.allowed_domains)},
+                "source": projection.source.to_dict(), "source_version": projection.source_version.to_dict(),
+                "knowledge_metadata": {"generation": record.generation,
+                    "payload_schema_id": record.payload_schema_id,
+                    "payload_media_type": record.payload_media_type,
+                    "payload_sha256": payload_digest, "provenance": record.provenance_json,
+                    "record_digest": native_record_digest, "references": record.references_json,
+                    "revision": record.revision, "revision_id": record.revision_id,
+                    "parent_revision_id": record.parent_revision_id,
+                    "source_revisions": record.source_revisions_json, "state": record.state,
+                    "tombstoned_at": record.tombstoned_at,
+                    "purge_requested_at": record.purge_requested_at},
+                "key_digest": hashlib.sha256(self._key).hexdigest(),
+            }
+            native_boundary = _context_framed_digest("complete-boundary", {
+                "domain": "odysseus.knowledge.context.boundary.v2", **record_fences,
+            })
+            boundary = _mcp_recipient_digest(
+                "odysseus.context.mcp_metadata.knowledge.boundary.v1", metadata_binding,
+                {"native": native_boundary, "fences": record_fences})
+            native_record = _context_framed_digest("native-record", {
+                "native_original_record_digest": native_record_digest,
+                "native_boundary": native_boundary, "fences": record_fences,
+            })
+            record_digest = _mcp_recipient_digest(
+                "odysseus.context.mcp_metadata.knowledge.record.v1", metadata_binding,
+                {"native": native_record, "native_original_record_digest": native_record_digest,
+                 "boundary": boundary, "fences": record_fences})
+            metadata = KnowledgeContextManifestItem(
+                source="knowledge", selection_ref=selected_item.selection_ref,
+                revision_ref=selected_item.revision_ref, boundary_sha256=boundary,
+                record_sha256=record_digest, payload_sha256=payload_digest,
+                classification=projection.source.classification.value, provenance_ref=provenance_ref,
+            )
+            entries.append(_KnowledgeContextEntry(
+                metadata=metadata, knowledge_id=record.knowledge_id,
+                revision_id=record.revision_id, generation=record.generation,
+                payload_media_type=record.payload_media_type,
+            ))
+        if len({entry.metadata.selection_ref for entry in entries}) != len(entries):
+            raise ValueError("knowledge context selection unavailable")
+        self._validate_context_usi_parents(owner_scope, usi_snapshot, tuple(matched_projections))
+        owner_binding_digest = _mcp_recipient_digest(
+            "odysseus.context.mcp_metadata.knowledge.boundary.v1", metadata_binding, {"kind": "owner", "owner_sid": subject,
+            "owner_alias": foundation.owner_alias,
+            "security_revision": foundation.security_action_revision})
+        selection_binding = _mcp_recipient_digest(
+            "odysseus.context.mcp_metadata.knowledge.boundary.v1", metadata_binding, {"kind": "selection", "items": [
+            {"source": item.source, "selection": item.selection_ref, "revision": item.revision_ref}
+            for item in selection.items], "owner": subject,
+            "selection_digest": selection_digest})
+        canonical_generation_digest = _mcp_recipient_digest(
+            "odysseus.context.mcp_metadata.knowledge.boundary.v1", metadata_binding, {"kind": "generation",
+            "canonical_generation": canonical_generation,
+            "selection_digest": selection_digest})
+        usi_snapshot_digest = _mcp_recipient_digest(
+            "odysseus.context.mcp_metadata.knowledge.boundary.v1", metadata_binding, {"kind": "usi", "snapshot": usi_snapshot.to_dict()})
+        head_boundary = _mcp_recipient_digest(
+            "odysseus.context.mcp_metadata.knowledge.boundary.v1", metadata_binding, {"kind": "head",
+            "captured_head_boundary": snapshot.captured_head_boundary,
+             "snapshot_digest": snapshot.snapshot_digest, "records": owner_heads})
+        binding_digest = _mcp_recipient_digest(
+            "odysseus.context.mcp_metadata.knowledge.boundary.v1", metadata_binding, {"kind": "binding",
+            "canonical_generation": canonical_generation, "head_boundary": head_boundary,
+            "owner_binding": owner_binding_digest, "selection_binding": selection_binding,
+            "usi_snapshot": usi_snapshot_digest})
+        manifest = KnowledgeContextManifest(tuple(sorted(
+            (entry.metadata for entry in entries),
+            key=lambda item: json.dumps(item._canonical(), sort_keys=True, separators=(",", ":")),
+        )), owner_binding_digest, selection_binding, canonical_generation_digest,
+            usi_snapshot_digest, head_boundary, binding_digest)
+        target = _mcp_recipient_digest(
+            "odysseus.context.mcp_metadata.knowledge.target.v1", metadata_binding,
+            {"manifest": manifest.digest, "items": [item._canonical() for item in manifest.items],
+             "binding": binding_digest})
+        fresh = _require_mcp_metadata_admission(admission, metadata_binding)
+        if (fresh is not foundation or fresh.owner_subject_id != subject
+                or fresh.owner_alias != foundation.owner_alias
+                or self._auth.active_admin_subject_identity(subject_id=subject) != (fresh.owner_alias, subject)
+                or self._auth.subject_id_for_username(fresh.owner_alias) != subject
+                or self._auth.security_action_revision() != fresh.security_action_revision
+                or not self._auth.has_active_subject_id(subject)):
+            raise ValueError("knowledge context owner changed")
+        final_runtime = self._staging.selected_runtime(subject)
+        if final_runtime is None:
+            raise ValueError("knowledge context selection changed")
+        final_reference, final_owners, final_generation, final_raw_selection_digest, final_store = final_runtime
+        final_completion = self._staging.verify_completion(final_reference)
+        final_snapshot = store.capture_index_snapshot(principal, owner_id=subject)
+        completion_fields = ("migration_digest", "source_manifest_digest", "owner_set_digest", "write_count", "receipt_set_digest", "head_manifest_digest")
+        if (store is not initial_store or final_owners != initial_owners or final_generation != initial_generation
+                or final_raw_selection_digest != initial_raw_selection_digest or final_store is not initial_store
+                or any(getattr(final_completion, field) != getattr(initial_completion, field) for field in completion_fields)
+                or self._usi.current_snapshot() != usi_snapshot
+                or (final_snapshot.captured_head_boundary != snapshot.captured_head_boundary
+                    or final_snapshot.snapshot_digest != snapshot.snapshot_digest
+                    or final_snapshot.records != snapshot.records)
+                or self._usi_generation != runtime_generation
+                or (self._config.allowed_owners, self._config.allowed_sources, self._config.allowed_domains) != config_fence
+                or hashlib.sha256(self._key).hexdigest() != key_digest):
+            raise ValueError("knowledge context selection changed")
+        return manifest, target
 
     def _read_context_payload(self, binding: DisclosureBinding, entry: _KnowledgeContextEntry) -> bytes:
         subject, store, principal, _generation, _selection_digest, _usi_snapshot = self._context_runtime(binding)
@@ -1338,6 +1558,32 @@ class KnowledgeContextManifestProducer:
         except ConfirmationError:
             raise
         except KnowledgeContextError:
+            raise
+        except Exception:
+            raise KnowledgeContextError("capture_unavailable") from None
+
+    def capture_metadata_mcp(
+        self, admission: object, metadata_binding: object,
+        knowledge_selection: ContextSelection,
+    ) -> tuple[KnowledgeContextManifest, str]:
+        """Capture native, recipient-bound Knowledge metadata under an MCP lease."""
+        try:
+            _require_mcp_metadata_admission(admission, metadata_binding)
+            with self._composition._context_operation():
+                manifest, target = self._composition._capture_context_material_mcp(
+                    admission, metadata_binding, knowledge_selection,
+                )
+            _require_mcp_metadata_admission(admission, metadata_binding)
+            if type(manifest) is not KnowledgeContextManifest or type(target) is not str:
+                raise ValueError("knowledge context capture unavailable")
+            return manifest, target
+        except McpContextAuthorityError:
+            raise
+        except McpContextMetadataAdmissionError:
+            raise
+        except KnowledgeContextError:
+            raise
+        except ValueError:
             raise
         except Exception:
             raise KnowledgeContextError("capture_unavailable") from None

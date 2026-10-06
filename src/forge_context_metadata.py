@@ -18,6 +18,8 @@ from typing import Iterator
 from core.auth import AuthManager
 from src.forge_context_reader import ImmutableForgeContextReader, RetainedForgeVersion
 from src.private_context_confirmation import DisclosureBinding, ManifestItem
+from src.context_metadata_binding import McpContextMetadataAdmissionError, _mcp_recipient_digest, _require_mcp_metadata_admission
+from src.mcp_context_authority import McpContextAuthorityError
 from src.project_forge_local import LocalProjectForge
 from src.project_version_store import StoredProjectVersion, owner_key_for, validate_repo_id, validate_version_id
 from src.repo_git_adapter import ForgeSnapshotAuthorityBinding, ForgeSnapshotRequest
@@ -287,6 +289,46 @@ class ForgeContextMetadata:
             manifest, fence = self._capture(binding, owner, repo_id, version_id, paths)
             self._recheck(binding, owner, repo_id, version_id, fence)
             return manifest
+
+    def capture_version_metadata_mcp(self, admission: object, metadata_binding: object,
+                                     repo_id: str, version_id: str, paths: tuple[str, ...]) -> tuple[ForgeMetadataManifest, str]:
+        """Separate recipient-bound metadata capture; it never admits a cookie."""
+        foundation = _require_mcp_metadata_admission(admission, metadata_binding)
+        try:
+            repo = validate_repo_id(repo_id); version = validate_version_id(version_id)
+            if type(paths) is not tuple or len(paths) != 1: _fail("invalid_context")
+            selected = tuple(_path(path) for path in paths)
+            initial = self._authority_snapshot(foundation.owner_subject_id, repo, version)
+            owner_scope = OwnerScope.for_subject_id(foundation.owner_subject_id)
+            authority = self._authority_binding(foundation.owner_subject_id, repo, version, initial.stored)
+            request = ForgeSnapshotRequest(owner_scope.value, "forge_public_registry", repo, version, initial.stored.commit_sha, authority)
+            retained = RetainedForgeVersion(initial.repository, owner_scope.value, repo, version, initial.stored.commit_sha, initial.stored.manifest_sha256, authority)
+            inventory = ImmutableForgeContextReader(retained, timeout_seconds=self._timeout_seconds).inventory(request, paths=selected)
+            files = tuple(ForgeSelectedPath(item.path, item.content_sha256, item.byte_count) for item in inventory.files)
+            if files != tuple(sorted(files, key=lambda item: item.path)) or tuple(item.path for item in files) != selected: _fail("forge_context_integrity")
+            self._verify_artifacts(initial.stored, files)
+            if self._authority_snapshot(foundation.owner_subject_id, repo, version).fence != initial.fence: _fail("forge_context_stale")
+            native_boundary = _digest({"authority": authority.to_dict(), "config_roots": [str(root) for root in self._roots], "owner_sid": foundation.owner_subject_id, "security_revision": foundation.security_action_revision, "project": initial.record.to_dict(), "selection": [item.canonical() for item in files], "stored_manifest": dict(initial.stored.manifest)})
+            boundary = _mcp_recipient_digest("odysseus.context.mcp_metadata.forge.boundary.v1", metadata_binding, {"native": native_boundary, "repo_id": repo, "version_id": version, "files": [item.canonical() for item in files]})
+            payload = files[0].content_sha256
+            native_record = _digest({"boundary_sha256": native_boundary, "commit_sha": initial.stored.commit_sha, "manifest_sha256": _sha(initial.stored.manifest_sha256), "payload_sha256": payload, "repo_id": repo, "version_id": version})
+            record = _mcp_recipient_digest("odysseus.context.mcp_metadata.forge.record.v1", metadata_binding, {"native": native_record, "boundary": boundary, "payload": payload, "commit": initial.stored.commit_sha})
+            provenance = "forge.public.provenance." + _digest({"inventory": _sha(inventory.snapshot_digest), "path": files[0].path, "repo_id": repo, "version_id": version})
+            source_id = make_source_id(owner_scope.value, SourceKind.CODE, "forge.context_public.v1:" + repo + ":" + files[0].path)
+            revision_ref = "forge.context_public.v1:" + version + ":" + initial.stored.commit_sha + ":" + files[0].path
+            source_version_id = make_source_version_id(source_id, revision_ref, files[0].content_sha256)
+            descriptor = ForgeSelectionDescriptor(owner_scope.value, repo, version, initial.stored.commit_sha, source_id, source_version_id, files, _sha(inventory.snapshot_digest), payload, boundary, record, provenance)
+            item = ManifestItem("forge", source_id, source_version_id, boundary, record, payload, "public", provenance)
+            target = _mcp_recipient_digest("odysseus.context.mcp_metadata.forge.target.v1", metadata_binding, {"descriptor": descriptor.canonical(), "item": _manifest_item_canonical(item)})
+            _require_mcp_metadata_admission(admission, metadata_binding)
+            if self._authority_snapshot(foundation.owner_subject_id, repo, version).fence != initial.fence: _fail("forge_context_stale")
+            manifest_digest = _digest({"descriptor": descriptor.canonical(), "item": _manifest_item_canonical(item)})
+            return ForgeMetadataManifest(descriptor, item, manifest_digest), target
+        except McpContextAuthorityError: raise
+        except McpContextMetadataAdmissionError: raise
+        except ForgeContextMetadataError: raise
+        except ValueError: raise
+        except Exception: _fail("forge_context_unavailable")
 
     def resolve_selection(
         self,

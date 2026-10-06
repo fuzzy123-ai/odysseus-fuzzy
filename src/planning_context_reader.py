@@ -30,6 +30,8 @@ from src.private_context_confirmation import (
     VerifiedDisclosure,
     ConfirmationError,
 )
+from src.context_metadata_binding import McpContextMetadataAdmissionError, _mcp_recipient_digest, _require_mcp_metadata_admission
+from src.mcp_context_authority import McpContextAuthorityError
 from src.private_context_confirmation_app import (
     ContextSelection,
     CookieConfirmationAuthority,
@@ -334,6 +336,31 @@ class PlanningContextManifestProducer:
 
     def capture_metadata(self, binding: DisclosureBinding, selection: ContextSelection) -> tuple[PlanningMetadata, ...]:
         return self._capture_metadata(binding, selection)
+
+    def capture_metadata_mcp(self, admission: object, metadata_binding: object,
+                             selection: ContextSelection) -> tuple[tuple[PlanningMetadata, ...], str]:
+        """Capture only native durable Planning metadata under an MCP lease."""
+        if type(selection) is not ContextSelection or self._durable_source is None or self._approved_source_service is not None:
+            _fail("invalid_context")
+        selected = tuple(item for item in selection.items if item.source == "planning")
+        if not selected or len(selected) != len(selection.items): _fail("invalid_context")
+        _require_mcp_metadata_admission(admission, metadata_binding)
+        try:
+            descriptors = self._durable_source.resolve_mcp(admission, metadata_binding, selection)
+            if type(descriptors) is not tuple or len(descriptors) != len(selected): _fail("planning_stale")
+            result=[]
+            for item, descriptor in zip(selected, descriptors):
+                if type(descriptor) is not DurablePlanningSourceDescriptor or descriptor.selection() != item: _fail("planning_stale")
+                result.append(PlanningMetadata(item,descriptor.project_id,descriptor.roadmap_id,descriptor.approved_revision,descriptor.durable_revision_id,descriptor.durable_content_sha256,descriptor.durable_payload_sha256,descriptor.canonical_projection_sha256,descriptor.provenance_ref,descriptor.boundary_sha256,descriptor.record_sha256))
+            target=_mcp_recipient_digest("odysseus.context.mcp_metadata.planning.target.v1",metadata_binding,{"items":[item.canonical() for item in result]})
+            _require_mcp_metadata_admission(admission,metadata_binding)
+            return tuple(result),target
+        except McpContextAuthorityError: raise
+        except McpContextMetadataAdmissionError: raise
+        except DurablePlanningContextError as error: self._native_error(error)
+        except PlanningContextReaderError: raise
+        except ValueError: raise
+        except Exception: _fail("planning_unavailable")
 
     def read_document(self, binding: DisclosureBinding, target: SourceSelection) -> bytes:
         if type(target) is not SourceSelection or target.source != "planning":

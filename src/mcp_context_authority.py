@@ -307,6 +307,7 @@ class McpContextAuthority:
             raise ValueError("invalid authority")
         self._auth_manager = auth_manager
         self._session_factory = session_factory if session_factory is not None else SessionLocal
+        self._session_factory_pin = self._session_factory
         self._app_state = app_state
         self._monotonic = monotonic
         self._wall_time = wall_time
@@ -422,6 +423,8 @@ class McpContextAuthority:
         chat: str,
     ) -> None:
         manager = self._auth_manager
+        if self._session_factory is not self._session_factory_pin:
+            _fail("stale_authentication")
         try:
             with manager.guard_current_admin_subject(sid) as current_alias:
                 if type(current_alias) is not str or current_alias != alias:
@@ -798,20 +801,26 @@ class _LiveLease:
         self._binding = self._authority.recheck_lease(self._lease)
         return self._binding
     def __exit__(self, exc_type: object, exc: object, tb: object) -> bool:
+        original = exc if type(exc) is McpContextAuthorityError else None
         code = None
         try:
-            self._authority.recheck_lease(self._lease)
-        except McpContextAuthorityError as error:
-            code = error.code
-        self._binding = None
-        if code is None:
-            return False
-        exc_type = exc = tb = None
-        error = McpContextAuthorityError(code)
-        try:
-            raise error from None
+            try:
+                self._authority.recheck_lease(self._lease)
+            except McpContextAuthorityError as error:
+                code = error.code
+            if original is not None:
+                original.__cause__ = None; original.__context__ = None
+                return False
+            if code is None:
+                return False
+            exc_type = exc = tb = None
+            error = McpContextAuthorityError(code)
+            try:
+                raise error from None
+            finally:
+                error.__cause__ = None
+                error.__context__ = None
         finally:
-            error.__cause__ = None
-            error.__context__ = None
+            self._binding = None
 
 

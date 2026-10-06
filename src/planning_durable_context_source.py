@@ -20,6 +20,8 @@ from src.planning_revision_store import (
     PlanningContextRevisionMember,
 )
 from src.private_context_confirmation import DisclosureBinding
+from src.context_metadata_binding import McpContextMetadataAdmissionError, _mcp_recipient_digest, _require_mcp_metadata_admission
+from src.mcp_context_authority import McpContextAuthorityError
 from src.private_context_confirmation_app import ContextSelection, SourceSelection
 from src.unified_source_index_contract import (
     Classification,
@@ -318,6 +320,102 @@ class DurablePlanningContextSource:
             raise
         except Exception:
             _fail("capture_unavailable")
+        finally:
+            self._assert_runtime_pins()
+
+    def resolve_mcp(self, admission: object, metadata_binding: object, selection: ContextSelection) -> tuple[DurablePlanningSourceDescriptor, ...]:
+        """Resolve durable records through the live MCP lease, never a cookie adapter."""
+        self._assert_runtime_pins()
+        if type(selection) is not ContextSelection:
+            _fail("invalid_context")
+        selected = tuple(item for item in selection.items if item.source == "planning")
+        if not selected or len(selected) != len(selection.items): _fail("invalid_context")
+        foundation = _require_mcp_metadata_admission(admission, metadata_binding)
+        try:
+            with self._principal_mcp(admission, metadata_binding) as (principal, alias, foundation):
+                captured = self._stable_capture_mcp(admission, metadata_binding, principal, alias, foundation).snapshot
+                by_key = {(item.source.source_id, item.source_version.source_version_id): item for item in captured.descriptors}
+                result = tuple(by_key.get((item.selection_ref, item.revision_ref)) for item in selected)
+                if any(item is None for item in result): _fail("source_not_found")
+                _require_mcp_metadata_admission(admission, metadata_binding)
+                return result
+        except McpContextAuthorityError: raise
+        except McpContextMetadataAdmissionError: raise
+        except DurablePlanningContextError: raise
+        except ValueError: raise
+        except Exception: _fail("capture_unavailable")
+        finally: self._assert_runtime_pins()
+
+    @contextmanager
+    def _principal_mcp(self, admission: object, metadata_binding: object):
+        self._assert_runtime_pins()
+        foundation = _require_mcp_metadata_admission(admission, metadata_binding)
+        manager = self._auth_manager
+        try:
+            with manager.guard_current_admin_subject(foundation.owner_subject_id) as alias:
+                identity = manager.active_admin_subject_identity(subject_id=foundation.owner_subject_id)
+                if identity != (alias, foundation.owner_subject_id) or manager.security_action_revision() != foundation.security_action_revision: _fail("invalid_binding")
+                principal = self._issuer.issue(subject_id=foundation.owner_subject_id, owner_id=alias,
+                    auth_context_digest="sha256:" + _mcp_recipient_digest("odysseus.context.mcp_metadata.planning.principal.v1", metadata_binding, {"project_id": self._project_id, "policy": self._policy.canonical()}), ttl_seconds=60)
+                try:
+                    yield principal, alias, foundation
+                finally:
+                    fresh = _require_mcp_metadata_admission(admission, metadata_binding)
+                    if fresh is not foundation or manager.active_admin_subject_identity(subject_id=fresh.owner_subject_id) != (alias, fresh.owner_subject_id) or manager.security_action_revision() != fresh.security_action_revision: _fail("invalid_binding")
+        except McpContextAuthorityError: raise
+        except McpContextMetadataAdmissionError: raise
+        except DurablePlanningContextError: raise
+        except ValueError: raise
+        except Exception: _fail("invalid_binding")
+        finally:
+            self._assert_runtime_pins()
+
+    def _stable_capture_mcp(self, admission: object, metadata_binding: object, principal: TrustedPrincipal, alias: str, foundation: object) -> _Capture:
+        first = self._capture_mcp(admission, metadata_binding, principal, alias, foundation)
+        final = self._capture_mcp(admission, metadata_binding, principal, alias, foundation)
+        if final.snapshot != first.snapshot: _fail("planning_stale")
+        return final
+
+    def _capture_mcp(self, admission: object, metadata_binding: object, principal: TrustedPrincipal, alias: str, foundation: object) -> _Capture:
+        """Native durable-store capture with recipient-bound boundaries only."""
+        self._assert_runtime_pins(); current = _require_mcp_metadata_admission(admission, metadata_binding)
+        if current is not foundation: _fail("invalid_binding")
+        try:
+            bundle = self._store.read_subject_bound_accepted_migration_bundle(principal, project_id=self._project_id)
+            if type(bundle) is not PlanningAcceptedMigrationBundle or bundle.owner_id != alias or bundle.project_id != self._project_id: _fail("planning_stale")
+            _sha(bundle.state_digest)
+            batch = json.loads(bundle.batch_bytes.decode("utf-8"))
+            if type(batch) is not dict or _canonical(batch) != bundle.batch_bytes or batch.get("state") != "accepted" or batch.get("owner_id") != alias or batch.get("project_id") != self._project_id: _fail("planning_stale")
+            if type(batch.get("source_items")) is not list or not batch["source_items"] or any(type(item) is not dict for item in batch["source_items"]): _fail("planning_stale")
+            head_map = self._heads(alias, bundle.heads); record_map = self._records(alias, bundle.revisions, head_map)
+            source_roadmaps = tuple(item.get("roadmap_id") for item in batch["source_items"])
+            if (any(type(roadmap_id) is not str or not roadmap_id for roadmap_id in source_roadmaps)
+                    or len(set(source_roadmaps)) != len(source_roadmaps)
+                    or set(source_roadmaps) != set(head_map)):
+                _fail("planning_stale")
+            heads = [head_map[roadmap_id] for roadmap_id in source_roadmaps]
+            native_boundary = _object_digest({"backend": {"issuer_id": self._issuer.issuer_id, "key_id": self._issuer.key_id, "runtime": type(self._runtime).__qualname__, "store": type(self._store).__qualname__}, "batch": batch, "heads": heads, "records": record_map["boundary_records"], "policy": self._policy.canonical(), "project_id": self._project_id})
+            boundary = "sha256:" + _mcp_recipient_digest("odysseus.context.mcp_metadata.planning.boundary.v1", metadata_binding, {"native": native_boundary, "project_id": self._project_id})
+            descriptors=[]
+            for roadmap_id in sorted(head_map):
+                head=head_map[roadmap_id]; current_record=record_map["revisions"].get(head["current_revision_id"])
+                if current_record is None: _fail("planning_stale")
+                payload=record_map["payloads"][current_record.revision_id]; document=record_map["documents"][current_record.revision_id]
+                if self._policy.reject_sensitive_content and planning_policy._contains_sensitive_value(payload.decode("utf-8")): _fail("policy_denied")
+                projection={"schema_id": _PROJECTION_SCHEMA,"project_id":self._project_id,"roadmap":document.get("roadmaps",[{}])[0]}; projection_hash=_object_digest(projection)
+                owner_scope=OwnerScope.for_subject_id(foundation.owner_subject_id); source=SourceRecord(owner_scope=owner_scope.value,source_kind=SourceKind.PLANNING,canonical_ref=f"{_NAMESPACE}:{self._project_id}:{roadmap_id}",classification=Classification.PRIVATE,content_policy=ContentPolicy.INLINE_LOCAL,provider_ref=_PROVIDER_REF)
+                version=SourceVersionRecord.create(source,revision_ref=f"durable:{current_record.revision_id}:{current_record.payload_sha256}",content_hash=current_record.payload_sha256,version_observed_at=current_record.created_at,provider_ref=_PROVIDER_REF,classification=Classification.PRIVATE,content_policy=ContentPolicy.INLINE_LOCAL)
+                native_record=_object_digest({"boundary_sha256":native_boundary,"canonical_projection_sha256":projection_hash,"content_sha256":current_record.content_sha256,"durable_revision_id":current_record.revision_id,"payload_sha256":current_record.payload_sha256,"provenance_ref":version.source_version_id,"project_id":self._project_id,"roadmap_id":roadmap_id})
+                record="sha256:" + _mcp_recipient_digest("odysseus.context.mcp_metadata.planning.record.v1",metadata_binding,{"native":native_record,"boundary":boundary,"source":version.source_version_id})
+                descriptors.append(DurablePlanningSourceDescriptor(source=source,source_version=version,project_id=self._project_id,roadmap_id=roadmap_id,approved_revision=head["approved_revision"],durable_revision_id=current_record.revision_id,durable_content_sha256=current_record.content_sha256,durable_payload_sha256=current_record.payload_sha256,canonical_projection_sha256=projection_hash,provenance_ref=version.source_version_id,boundary_sha256=boundary,record_sha256=record))
+            snapshot=DurablePlanningSourceSnapshot(tuple(descriptors),self._policy,boundary,"sha256:" + _mcp_recipient_digest("odysseus.context.mcp_metadata.planning.target.v1",metadata_binding,{"boundary":boundary,"descriptors":[x.canonical() for x in descriptors]}))
+            _require_mcp_metadata_admission(admission,metadata_binding)
+            return _Capture(snapshot,tuple(sorted(((item.revision.revision_id,bytes(item.payload)) for item in bundle.revisions),key=lambda item:item[0])))
+        except McpContextAuthorityError: raise
+        except McpContextMetadataAdmissionError: raise
+        except DurablePlanningContextError: raise
+        except ValueError: raise
+        except Exception: _fail("planning_unavailable")
         finally:
             self._assert_runtime_pins()
 

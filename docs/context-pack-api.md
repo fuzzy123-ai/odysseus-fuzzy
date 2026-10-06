@@ -184,6 +184,61 @@ The accepted internal foundation is implemented in [`src/mcp_context_contract.py
 
 This is an internal foundation acceptance at commit `14b9b67e801cb6ec6930d75a7dd89fe289ab4ec0`, backed by the independent R11 deep review and focused/auth compatibility lanes (153 tests total). It does not claim that existing REST routes use the new authority, or that MCP registration, content delivery, private grants, native permit wiring, production parity, strict filesystem blocking, UI, live, or temporal behavior has been accepted. Whole-product acceptance remains false.
 
+## Prepared internal MCP native metadata interface
+
+The locally verified native metadata layer extends the internal foundation through
+[`src/context_metadata_binding.py`](../src/context_metadata_binding.py) and the
+existing Forge, Durable Planning, and Knowledge producers. The repaired candidate
+passed 127 focused tests and 175 compatibility tests with zero failures, errors,
+or skips, plus a fresh independent deep review. The compatibility retry changed
+only its generated scratch prerequisite and output paths; the eight candidate
+files and all 3,817 frozen inputs were identical. This is local component evidence.
+This section describes
+the prepared Python interface; it does not register an MCP tool or activate an
+HTTP route, content reader, private disclosure grant, or default runtime.
+
+`CombinedContextManifestProducer.capture_mcp_snapshot(lease, selection)` accepts
+an actual live `McpContextReadLease`. The aggregate opens one private metadata
+admission, captures every selected native source twice, rechecks the original
+provider identities after its guards exit, and returns a detached
+`CombinedContextSnapshot`. Private admissions cannot be supplied as cookie
+bindings or used to read payload pages.
+
+The snapshot contains `ManifestItem` values, target manifest digests in selection
+order, and one `McpContextMetadataBinding`. The binding has exactly nine fields:
+`schema`, `audience`, `owner_sid`, `chat_session_id`, `recipient_token_id`, `scope`,
+`cache_generation`, `security_revision`, and `app_epoch`. Seven values must be
+exact built-in strings and the two revision/generation values exact nonnegative
+integers. Type checks run before comparison or truthiness operations; string and
+integer subclasses, booleans, and other objects are rejected. This detached DTO
+is a value, not an authority grant.
+
+Native metadata ports use the same private admission and exact detached binding:
+`ForgeContextMetadata.capture_version_metadata_mcp`,
+`DurablePlanningContextSource.resolve_mcp`,
+`PlanningContextManifestProducer.capture_metadata_mcp`, and
+`KnowledgeContextManifestProducer.capture_metadata_mcp`. Admission identity is
+bound to the original authority, lease, Foundation binding, creating thread,
+process, and session factory. Admission capacity is 64; duplicate live use and
+use after context exit are rejected. Replacing the session factory is rejected
+before authority database access and at aggregate entry and completion.
+
+Recipient-specific boundary, record, and target digests use fixed domain names,
+length framing, and canonical JSON containing the nine recipient fields. Public
+manifest and target digests remain raw 64-character SHA-256 values; native
+Planning descriptors retain their `sha256:` form. Across cookie and MCP captures,
+match items by `(source, selection_ref, revision_ref)` and compare the six native
+fields: source, selection, revision, payload hash, classification, and provenance.
+Recipient-bound boundary and record digests intentionally differ. Canonical item
+order can differ from selection order.
+
+The returned graph contains no payload, cookie, bearer proof, lease, authority,
+store, native principal, or private admission. Existing content-page and pack
+interfaces retain their cookie authority boundary. The separate MCP consent
+service and App adapter remain inactive preparation until their real browser
+witness, committed message-pair readback, lifecycle checks, and independent
+acceptance are complete. Whole-product, UI, live, and temporal gates remain open.
+
 ## Verification limits
 
 This reference is grounded in the accepted local backend component at `HEAD 8eb28b7fe81457b8ba889c91cee4f98b6aa78cef`, with source pins:
