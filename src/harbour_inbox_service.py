@@ -16,7 +16,7 @@ import re
 from typing import TYPE_CHECKING, Any, Mapping
 
 from core.auth import AuthSubjectIdentityError
-from core.database import ApiToken, get_db_session
+from core.database import ApiToken, Document, get_db_session
 from src.auth_helpers import SessionPrincipal
 from src.clarification_store import (
     ClarificationInboxItem,
@@ -103,6 +103,30 @@ class PlanningInboxSnapshot:
         return "PlanningInboxSnapshot(<redacted>)"
 
 
+@dataclass(frozen=True, slots=True, repr=False)
+class DocumentInboxItem:
+    item_handle: str
+    binding_digest: str
+    current_revision: int
+    document_id: str
+    canonical_row: tuple[Any, ...]
+
+    def __repr__(self) -> str:
+        return "DocumentInboxItem(<redacted>)"
+
+
+@dataclass(frozen=True, slots=True, repr=False)
+class DocumentInboxSnapshot:
+    whole_count: int
+    eligible_count: int
+    binding_digest: str
+    items: tuple[DocumentInboxItem, ...]
+    clipped: bool
+
+    def __repr__(self) -> str:
+        return "DocumentInboxSnapshot(<redacted>)"
+
+
 def build_harbour_inbox_tool_contracts() -> tuple[dict[str, Any], ...]:
     action_properties = {
         "clarification_id": {"type": "string", "minLength": 8, "maxLength": 120},
@@ -117,6 +141,7 @@ def build_harbour_inbox_tool_contracts() -> tuple[dict[str, Any], ...]:
                 "oneOf": [
                     {"type": "object", "properties": {"limit": {"type": "integer", "minimum": 1, "maximum": 100}}, "additionalProperties": False},
                     {"type": "object", "properties": {"view": {"const": "unified"}, "limit": {"type": "integer", "minimum": 1, "maximum": 100}}, "required": ["view"], "additionalProperties": False},
+                    {"type": "object", "properties": {"view": {"const": "typed"}, "limit": {"type": "integer", "minimum": 1, "maximum": 100}}, "required": ["view"], "additionalProperties": False},
                     {"type": "object", "properties": {"view": {"const": "unified_receipts"}, "limit": {"type": "integer", "minimum": 1, "maximum": 100}}, "required": ["view", "limit"], "additionalProperties": False},
                     {"type": "object", "properties": {"view": {"const": "receipt"}, "receipt_ref": {"oneOf": [_clarification_receipt_ref_schema(), _knowledge_receipt_ref_schema(), _planning_receipt_ref_schema()]}}, "required": ["view", "receipt_ref"], "additionalProperties": False},
                 ],
@@ -197,7 +222,7 @@ class HarbourInboxService:
                 # transport post-read fences.
                 return HarbourInboxOutcome(
                     result, name != "harbour_inbox_list"
-                    or parsed.get("view") not in {"unified", "unified_receipts", "receipt"},
+                    or parsed.get("view") not in {"unified", "unified_receipts", "receipt", "typed"},
                 )
         except AuthSubjectIdentityError:
             raise HarbourInboxError("unauthorized") from None
@@ -269,6 +294,8 @@ class HarbourInboxService:
                     "authority": "mcp_subject", "freshness": "current"}
         if parsed["view"] == "receipt":
             return self._read_receipt(principal, identity, parsed["receipt_ref"])
+        if parsed["view"] == "typed":
+            return self._list_typed(principal, identity, parsed["limit"])
         # One reservation spans every producer capture, projection validation,
         # and every revalidation.  A close/key/selection change therefore
         # cannot race a partially validated unified response.
@@ -357,6 +384,49 @@ class HarbourInboxService:
         if enriched is None:
             raise HarbourInboxError("inbox_failed")
         return enriched
+
+    def _list_typed(self, principal: SessionPrincipal, identity: Any, limit: int) -> dict[str, Any]:
+        """Prepare the v3 read seam; native dispatch adds the matching planning opt-in later."""
+        if self._planning_runtime is None or self._knowledge_composition is None:
+            raise HarbourInboxError("inbox_failed")
+        try:
+            clarification = ClarificationStore(session_factory=self._session_factory).capture_inbox_snapshot(
+                principal=principal, limit=limit,
+            )
+            document = _capture_document_inbox_snapshot(
+                self._session_factory, principal.creator_subject_id, limit,
+            )
+            with self._knowledge_composition.guard_inbox_read():
+                planning = self._planning_runtime.capture_inbox_snapshot(
+                    identity=identity, limit=limit, include_receipts=True, typed=True,
+                )
+                knowledge = self._knowledge_composition.capture_inbox_snapshot(
+                    identity=identity, limit=limit, _reservation_held=True,
+                )
+                payload = _typed_payload({
+                    "clarification": clarification, "planning": planning, "knowledge": knowledge, "document": document,
+                }, limit)
+                again = ClarificationStore(session_factory=self._session_factory).capture_inbox_snapshot(
+                    principal=principal, limit=limit, expected_boundary_digest=clarification.boundary_digest,
+                )
+                rebound_document = _capture_document_inbox_snapshot(self._session_factory, principal.creator_subject_id, limit)
+                rebound_planning = self._planning_runtime.capture_inbox_snapshot(
+                    identity=identity, limit=limit, expected_binding_digest=planning.binding_digest,
+                    include_receipts=True, typed=True,
+                )
+                rebound_knowledge = self._knowledge_composition.capture_inbox_snapshot(
+                    identity=identity, limit=limit, expected_capture=knowledge, _reservation_held=True,
+                )
+        except HarbourInboxError:
+            raise
+        except Exception:
+            raise HarbourInboxError("inbox_failed") from None
+        _validate_document_snapshot_subject(document, principal.creator_subject_id)
+        _validate_document_snapshot_subject(rebound_document, principal.creator_subject_id)
+        if (again.binding_digest != clarification.binding_digest or rebound_document != document
+                or rebound_planning != planning or rebound_knowledge != knowledge):
+            raise HarbourInboxError("inbox_failed")
+        return payload
 
     def _read_receipt(
         self, principal: SessionPrincipal, identity: Any, receipt_ref: Mapping[str, Any],
@@ -471,6 +541,13 @@ def _validate_arguments(name: str, arguments: Mapping[str, Any]) -> dict[str, An
         if type(view) is not str:
             raise HarbourInboxError("invalid_params")
         if view == "unified":
+            if set(arguments) - {"view", "limit"}:
+                raise HarbourInboxError("invalid_params")
+            limit = arguments.get("limit", 25)
+            if type(limit) is not int or not 1 <= limit <= 100:
+                raise HarbourInboxError("invalid_params")
+            return {"limit": limit, "view": view}
+        if view == "typed":
             if set(arguments) - {"view", "limit"}:
                 raise HarbourInboxError("invalid_params")
             limit = arguments.get("limit", 25)
@@ -959,3 +1036,145 @@ def _unified_payload(captures: Mapping[str, Any], unavailable: set[str], limit: 
     if len(json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")) > 32_768:
         raise HarbourInboxError("budget_exceeded")
     return payload
+
+
+def _document_timestamp(value: Any) -> str | None:
+    if value is None:
+        return None
+    if type(value) is not datetime:
+        raise HarbourInboxError("inbox_failed")
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    else:
+        value = value.astimezone(timezone.utc)
+    return value.isoformat(timespec="microseconds").replace("+00:00", "Z")
+
+
+def _document_row_bytes(row: tuple[Any, ...], subject_id: str) -> bytes:
+    if type(row) is not tuple or len(row) != 11:
+        raise HarbourInboxError("inbox_failed")
+    document_id, creator, session_id, version, active, archived, verdict, source_kind, source_hash, created, updated = row
+    if (type(document_id) is not str or type(creator) is not str or creator != subject_id
+            or type(version) is not int or isinstance(version, bool) or version < 1
+            or type(active) is not bool or type(archived) is not bool
+            or verdict is not None and type(verdict) is not str
+            or type(session_id) is not str and session_id is not None
+            or type(source_kind) is not str or not source_kind
+            or type(source_hash) is not str or re.fullmatch(r"sha256:[0-9a-f]{64}", source_hash) is None):
+        raise HarbourInboxError("inbox_failed")
+    values = [document_id, creator, session_id, version, active, archived, verdict, source_kind, source_hash,
+              _document_timestamp(created), _document_timestamp(updated)]
+    return json.dumps(values, ensure_ascii=True, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
+
+
+def _frame(value: bytes) -> bytes:
+    return len(value).to_bytes(8, "big") + value
+
+
+def _capture_document_inbox_snapshot(factory: Any, subject_id: str, limit: int) -> DocumentInboxSnapshot:
+    if type(subject_id) is not str or type(limit) is not int or not 1 <= limit <= 100:
+        raise HarbourInboxError("inbox_failed")
+    context = factory() if factory is not None else get_db_session()
+    if factory is not None:
+        class _SessionContext:
+            def __init__(self, session: Any) -> None: self.session = session
+            def __enter__(self) -> Any: return self.session
+            def __exit__(self, *_args: Any) -> None: self.session.close()
+        context = _SessionContext(context)
+    digest = hashlib.sha256(b"odysseus.harbour_inbox.document_source.v3\0" + _frame(subject_id.encode("utf-8")))
+    retained: list[tuple[str, DocumentInboxItem]] = []
+    whole_count = eligible_count = 0
+    with context as db:
+        rows = db.query(Document.id, Document.creator_subject_id, Document.session_id, Document.version_count,
+                        Document.is_active, Document.archived, Document.tidy_verdict, Document.source_kind,
+                        Document.source_ref_hash, Document.created_at, Document.updated_at).filter(
+                            Document.creator_subject_id == subject_id,
+                            Document.creator_subject_id.is_not(None),
+                            Document.source_kind.is_not(None),
+                            Document.source_ref_hash.is_not(None),
+                        ).order_by(Document.id).yield_per(100)
+        for row in rows:
+            captured = tuple(row)
+            canonical = _document_row_bytes(captured, subject_id)
+            document_id, _creator, _session_id, version, _active, archived, _verdict, _source_kind, _source_hash, _created, _updated = captured
+            digest.update(_frame(canonical)); whole_count += 1
+            if archived is not False:
+                continue
+            eligible_count += 1
+            item_digest = hashlib.sha256(b"odysseus.harbour_inbox.document_item.v3\0" + _frame(subject_id.encode("utf-8")) + _frame(canonical)).hexdigest()
+            binding = "sha256:" + item_digest
+            item = DocumentInboxItem(
+                "hi1:document:" + _unified_digest("document", binding, document_id), binding, version,
+                document_id, captured,
+            )
+            retained.append((item.item_handle, item)); retained.sort(key=lambda value: value[0])
+            if len(retained) > limit:
+                retained.pop()
+    return DocumentInboxSnapshot(whole_count, eligible_count, "sha256:" + digest.hexdigest(),
+                                 tuple(item for _handle, item in retained), eligible_count > limit)
+
+
+def _typed_payload(captures: Mapping[str, Any], limit: int) -> dict[str, Any]:
+    """Closed v3 projection. Existing v1/v2 projections and receipts remain untouched."""
+    document = captures.get("document")
+    if type(document) is not DocumentInboxSnapshot or type(limit) is not int or not 1 <= limit <= 100:
+        raise HarbourInboxError("inbox_failed")
+    for document_item in document.items:
+        if type(document_item) is not DocumentInboxItem:
+            raise HarbourInboxError("inbox_failed")
+        if type(document_item.canonical_row) is not tuple or len(document_item.canonical_row) != 11:
+            raise HarbourInboxError("inbox_failed")
+        creator_subject_id = document_item.canonical_row[1]
+        canonical = _document_row_bytes(document_item.canonical_row, creator_subject_id)
+        if (document_item.document_id != document_item.canonical_row[0]
+                or document_item.current_revision != document_item.canonical_row[3]
+                or document_item.item_handle != "hi1:document:" + _unified_digest(
+                    "document", document_item.binding_digest, document_item.document_id,
+                )
+                or document_item.binding_digest != "sha256:" + hashlib.sha256(
+                    b"odysseus.harbour_inbox.document_item.v3\0"
+                    + _frame(document_item.canonical_row[1].encode("utf-8")) + _frame(canonical)
+                ).hexdigest()):
+            raise HarbourInboxError("inbox_failed")
+    # Reuse frozen validators for the three established producers. Typed requests
+    # deliberately fail closed rather than publish an unavailable-source shape.
+    base = _unified_payload({key: captures[key] for key in ("clarification", "planning", "knowledge")}, set(), limit)
+    redaction = {"content": True, "identity": True, "events": True}
+    items = []
+    planning_receipts = {
+        item.record: item.receipt for item in captures["planning"].items
+    }
+    for item in base["items"]:
+        item = dict(item); item.pop("due")
+        receipt_ref = item.pop("receipt_handle")
+        if item["source"] in {"planning", "knowledge"}:
+            receipt = planning_receipts.get(item["binding_digest"])
+            if item["source"] == "knowledge":
+                receipt = receipt_ref
+            receipt_ref = None if receipt is None else {
+                "source": item["source"], "item_handle": item["item_handle"],
+                "binding_digest": item["binding_digest"],
+                "receipt_handle": receipt.receipt_handle if item["source"] == "planning" else receipt,
+            }
+        item["due_state"] = "unscheduled"; item["authority"] = {"access": "read", "owner_subsystem": {"clarification": "clarification_store", "planning": "harbour_planning_store", "knowledge": "harbour_knowledge_store"}[item["source"]], "mutation_supported": item["source"] == "clarification"}
+        item["receipt_ref"] = receipt_ref
+        items.append(item)
+    for item in document.items:
+        items.append({"item_handle": item.item_handle, "source": "document", "owner": "self", "signal_type": "materialized_document", "status": "available", "required_action": "none", "due_state": "unscheduled", "authority": {"access": "read", "owner_subsystem": "document_workbench", "mutation_supported": False}, "binding_digest": item.binding_digest, "receipt_ref": None, "redaction_flags": dict(redaction), "current_revision": item.current_revision})
+    rank = {"clarification": 0, "planning": 1, "knowledge": 2, "document": 3}; items.sort(key=lambda item: (rank[item["source"]], item["item_handle"])); clipped = base["clipped"] or document.clipped or len(items) > 300; items = items[:300]
+    sources = [*base["sources"], {"source": "document", "status": "captured_revalidated", "clipped": document.clipped, "binding_digest": document.binding_digest}]
+    payload = {"schema": "odysseus.harbour_inbox_unified_list.v3", "items": items, "count": len(items), "sources": sources, "complete": not clipped, "clipped": clipped, "authority": "mcp_subject", "freshness": "captured_revalidated", "cross_source_atomic": False}
+    while len(json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")) > 32768 and payload["items"]:
+        payload["items"].pop(); payload["count"] = len(payload["items"]); payload["clipped"] = True; payload["complete"] = False
+    if len(json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")) > 32768:
+        raise HarbourInboxError("budget_exceeded")
+    return payload
+
+
+def _validate_document_snapshot_subject(document: Any, subject_id: str) -> None:
+    if type(document) is not DocumentInboxSnapshot or type(subject_id) is not str:
+        raise HarbourInboxError("inbox_failed")
+    for item in document.items:
+        if type(item) is not DocumentInboxItem or type(item.canonical_row) is not tuple or len(item.canonical_row) != 11:
+            raise HarbourInboxError("inbox_failed")
+        _document_row_bytes(item.canonical_row, subject_id)

@@ -964,7 +964,8 @@ try:
             browser = client.get("/api/clarifications/clar-app-inbox-001")
             revoked = client.delete("/api/tokens/" + token_id, headers={"Origin": "http://testserver"})
             denied = client.post("/api/plugins/mcp", headers=auth, json={
-                "jsonrpc": "2.0", "id": 7, "method": "tools/list", "params": {},
+                "jsonrpc": "2.0", "id": 7, "method": "tools/call",
+                "params": {"name": "harbour_inbox_list", "arguments": {"view": "typed"}},
             })
             reopened_payload = json.loads(reopened.json()["result"]["content"][0]["text"])
             manager = application.app.state.auth_manager
@@ -1200,6 +1201,21 @@ try:
         assert all(row.get("owner") == "self" and row.get("item_handle", "").startswith("hi1:") for row in items)
         assert all(row.get("redaction_flags") == {"content": True, "identity": True, "events": True} for row in items)
         assert "real-unified-private-content-must-not-leak" not in rendered and subject not in rendered and token not in rendered
+    def assert_typed(value):
+        rendered = json.dumps(value, sort_keys=True)
+        assert set(value) == {"schema", "items", "count", "sources", "complete", "clipped", "authority", "freshness", "cross_source_atomic"}
+        assert value["schema"] == "odysseus.harbour_inbox_unified_list.v3"
+        assert value["complete"] is True and value["clipped"] is False and value["count"] == 5
+        assert [(row.get("source"), row.get("status")) for row in value["sources"]] == [
+            ("clarification", "captured_revalidated"), ("planning", "captured_revalidated"),
+            ("knowledge", "captured_revalidated"), ("document", "captured_revalidated"),
+        ]
+        common = {"item_handle", "source", "owner", "signal_type", "status", "required_action", "due_state", "authority", "binding_digest", "receipt_ref", "redaction_flags"}
+        extras = {"clarification": {"clarification_id", "expected_version", "ready_for_plan", "updated_at"}, "planning": {"current_revision", "approved_revision"}, "knowledge": {"knowledge_kind", "generation", "revision", "occurred_at"}, "document": {"current_revision"}}
+        assert all(set(item) == common | extras[item["source"]] for item in value["items"])
+        assert all("due" not in item and "receipt_handle" not in item for item in value["items"])
+        assert all(item["authority"]["access"] == "read" and item["owner"] == "self" for item in value["items"])
+        assert "real-unified-private-content-must-not-leak" not in rendered and subject not in rendered and token not in rendered
     setup_plugin()
     manifest = build_h1r03_migration_manifest(Path.cwd())
     census = "sha256:" + hashlib.sha256(canonical_json_bytes(manifest["structural_census"])).hexdigest()
@@ -1244,6 +1260,24 @@ try:
                    "questions": [], "batch": {"label": "Real", "index": 1, "total": 1, "max_visible_questions": 3}, "defaults_visible": False}
         assert client.post("/api/clarifications", headers=headers, json={"session_id": "real-unified-session", "request": request,
                    "project_slug": "real-unified-project", "clarification_id": "real-unified-clar-001"}).status_code == 200
+        upload = client.post("/api/upload", files={"files": ("typed-inbox.md", b"# typed inbox private working copy\n", "text/markdown")})
+        assert upload.status_code == 200
+        upload_id = upload.json()["files"][0]["id"]
+        working_copy = client.post("/api/universal-inbox/items/upload:" + upload_id + "/working-copy", json={})
+        assert working_copy.status_code == 201
+        working_copy_id = working_copy.json()["id"]
+        from core.database import Document, get_db_session
+        with get_db_session() as db:
+            produced = db.get(Document, working_copy_id)
+            assert produced is not None and produced.creator_subject_id == subject and produced.session_id is None
+            stamped_session = None
+            db.add_all([
+                Document(id="typed-real-inactive", creator_subject_id=subject, session_id=stamped_session, version_count=2, is_active=False, archived=False, source_kind="working_copy", source_ref_hash="sha256:" + "1" * 64),
+                Document(id="typed-real-archived", creator_subject_id=subject, session_id=stamped_session, version_count=1, is_active=True, archived=True, source_kind="working_copy", source_ref_hash="sha256:" + "2" * 64),
+                Document(id="typed-real-foreign", creator_subject_id="owner_" + "b" * 32, session_id=stamped_session, version_count=1, is_active=True, archived=False, source_kind="working_copy", source_ref_hash="sha256:" + "3" * 64),
+                Document(id="typed-real-null-creator", creator_subject_id=None, session_id=stamped_session, version_count=1, is_active=True, archived=False, source_kind="working_copy", source_ref_hash="sha256:" + "4" * 64),
+            ])
+            db.commit()
         minted = client.post("/api/tokens", headers=headers, data={"name": "real-unified-inbox", "scopes": "mcp:harbour:inbox"})
         token = minted.json().get("token", "")
         assert minted.status_code == 200 and isinstance(token, str) and token
@@ -1253,6 +1287,20 @@ try:
         })
         assert first.status_code == 200
         assert_real(payload(first))
+        typed = client.post("/api/plugins/mcp", headers={"Authorization": "Bearer " + token}, json={
+            "jsonrpc": "2.0", "id": 11, "method": "tools/call",
+            "params": {"name": "harbour_inbox_list", "arguments": {"view": "typed", "limit": 10}},
+        })
+        assert typed.status_code == 200
+        assert_typed(payload(typed))
+        documents = [item for item in payload(typed)["items"] if item["source"] == "document"]
+        assert sorted(item["current_revision"] for item in documents) == [1, 2]
+        public_document_descriptors = frozenset(
+            (item["item_handle"], item["binding_digest"], item["current_revision"])
+            for item in documents
+        )
+        assert len(public_document_descriptors) == 2
+        assert working_copy_id not in json.dumps(payload(typed), sort_keys=True)
     stage = "restart"
     import src.plugin_system as plugin_system
     plugin_system.MANAGER = None
@@ -1266,6 +1314,17 @@ try:
         })
         assert restarted.status_code == 200
         assert_real(payload(restarted))
+        typed_restarted = client.post("/api/plugins/mcp", headers={"Authorization": "Bearer " + token}, json={
+            "jsonrpc": "2.0", "id": 12, "method": "tools/call",
+            "params": {"name": "harbour_inbox_list", "arguments": {"view": "typed", "limit": 10}},
+        })
+        assert typed_restarted.status_code == 200
+        assert_typed(payload(typed_restarted))
+        restarted_documents = [item for item in payload(typed_restarted)["items"] if item["source"] == "document"]
+        assert frozenset(
+            (item["item_handle"], item["binding_digest"], item["current_revision"])
+            for item in restarted_documents
+        ) == public_document_descriptors
     result_file.write_text(json.dumps({"ok": True, "selection": bool(selection), "stage": "complete"}, sort_keys=True), encoding="utf-8")
 except Exception:
     result_file.write_text(json.dumps({

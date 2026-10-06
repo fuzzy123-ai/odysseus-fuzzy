@@ -98,6 +98,51 @@ The result must contain exactly `harbour_inbox_list`,
 The list response contains only the current administrator's owned, redacted
 metadata and has `freshness: "current"`.
 
+### Typed Inbox v3
+
+Use `harbour_inbox_list` with `{"view":"typed"}` or
+`{"view":"typed","limit":10}` for the closed typed projection. `limit` is
+an integer from 1 through 100 and defaults to 25. The request remains under
+the standalone `mcp:harbour:inbox` scope and adds no tool. The response schema
+is `odysseus.harbour_inbox_unified_list.v3`.
+
+```json
+{"jsonrpc":"2.0","id":10,"method":"tools/call","params":{"name":"harbour_inbox_list","arguments":{"view":"typed","limit":10}}}
+```
+
+The v3 response is a redacted, read-only projection of four mandatory source
+captures: `clarification`, `planning`, `knowledge`, and `document`. Each source
+is captured and fresh-revalidated, including an empty source; an unavailable
+or stale source is a fixed error. The envelope reports
+`authority: "mcp_subject"`, `freshness: "captured_revalidated"`, and
+`cross_source_atomic: false`. Items expose opaque `item_handle` values and
+redacted metadata with `redaction_flags`; titles and content are not exposed.
+Document native IDs, creator SIDs, sessions, provenance details, receipts, and
+actions are not exposed; clarification retains the existing native identity
+needed by its explicit action handlers.
+
+Clarification items retain the existing explicit native action handlers; the
+typed view itself is read-only. Planning and Knowledge remain read-only and
+retain their exact native authority mapping. Ownership is the active
+administrator's native SID: foreign or null creators and archived documents
+are excluded, inactive owned records remain eligible, and real working-copy
+records may have a null session. Planning and Knowledge receipt references
+are emitted only when the existing native receipt is available and matches
+the opaque item reference. Planning's four-key `receipt_ref` is nullable;
+Knowledge's four-key `receipt_ref` is mandatory. A clarification receipt link
+is optional and a document item's `receipt_ref` is always `null`. Receipt
+lookup uses the exact offered reference with `{"view":"receipt","receipt_ref":...}`
+and never fabricates a receipt, authority, launch, or consent result.
+
+Each producer contributes at most 100 items, then the unified result applies a
+300-item global ceiling and a 32,768-byte encoded response ceiling. Therefore
+`count` may be below the requested producer limit or global ceiling. When any
+producer or byte/global bound clips the result, `clipped` is `true` and
+`complete` is `false`; otherwise those flags are truthful. The omitted `view`
+continues to use the default v1 behavior, and `unified_receipts` remains the
+existing v2 view (legacy receipt clipping rejects while the typed prefix is
+supported).
+
 For an actual owned clarification, replace `clar-owned-0001` with the actual
 owned ID. The following uses valid illustrative values and an initial version
 of `1`:

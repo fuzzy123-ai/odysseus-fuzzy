@@ -258,7 +258,8 @@ class AppOwnedPlanningRuntime:
 
     def capture_inbox_snapshot(self, *, identity: McpAuthenticatedIdentity, limit: int,
                                expected_binding_digest: str | None = None,
-                               include_receipts: bool = False) -> "PlanningInboxSnapshot":
+                               include_receipts: bool = False,
+                               typed: bool = False) -> "PlanningInboxSnapshot":
         """Read the accepted subject-bound Planning migration as Inbox metadata.
 
         This deliberately uses the runtime's existing durable issuer and
@@ -285,7 +286,7 @@ class AppOwnedPlanningRuntime:
             # The durable reader has already authenticated its full accepted
             # chain.  Re-encode only a closed, scalar boundary here; never use
             # repr(), attribute fallback, or a partial prefix as a binding.
-            if type(include_receipts) is not bool:
+            if type(include_receipts) is not bool or type(typed) is not bool:
                 raise McpDispatchFailure("invalid_params")
             head_by_roadmap: dict[str, tuple[int, int, str, str, PlanningHead]] = {}
             canonical_heads: list[dict[str, Any]] = []
@@ -362,7 +363,10 @@ class AppOwnedPlanningRuntime:
                     normalized.append((current, approved, record, current_head))
             normalized.sort(key=lambda item: (item[0], item[1], item[2]))
             clipped = len(normalized) > limit
-            if include_receipts and clipped:
+            # The legacy receipt view proves a complete selected planning set.
+            # The typed v3 read instead binds the full source separately and
+            # may publish receipts for its bounded normalized prefix.
+            if include_receipts and clipped and not typed:
                 raise McpDispatchFailure("planning_failed")
             selected = normalized[:limit]
             items: list[PlanningInboxItem] = []
@@ -789,7 +793,7 @@ def _is_unified_inbox_read(message: Any, identity: McpAuthenticatedIdentity) -> 
         and type(params) is dict
         and params.get("name") == "harbour_inbox_list"
         and type(params.get("arguments")) is dict
-        and params["arguments"].get("view") in {"unified", "unified_receipts", "receipt"}
+        and params["arguments"].get("view") in {"unified", "unified_receipts", "receipt", "typed"}
     )
 
 

@@ -16,7 +16,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from core.auth import AuthManager
-from core.database import ApiToken, Base, ClarificationEvent, ClarificationRun
+from core.database import ApiToken, Base, ClarificationEvent, ClarificationRun, Document, Session
 from src.auth_helpers import SessionPrincipal
 from src.clarification_store import ClarificationStore, ClarificationStoreError
 from src.harbour_inbox_service import (
@@ -25,8 +25,17 @@ from src.harbour_inbox_service import (
     HarbourInboxService,
     MCP_HARBOUR_INBOX_SCOPE,
     build_harbour_inbox_tool_contracts,
+    DocumentInboxItem,
+    DocumentInboxSnapshot,
+    _validate_arguments,
+    _capture_document_inbox_snapshot,
+    _document_row_bytes,
+    _frame,
+    _typed_payload,
+    _unified_digest,
     _unified_payload,
 )
+import src.harbour_inbox_service as harbour_inbox_service
 from src.mcp_authenticated_dispatch import (
     McpAuthenticatedIdentity,
     McpBearerProof,
@@ -304,6 +313,249 @@ def test_contract_is_exact_and_list_action_replay_are_closed(tmp_path):
         principal=principal, clarification_id="clar-inbox-001"
     )
     assert browser["version"] == created["version"] + 1 and browser["status"] == "paused"
+
+
+def test_typed_list_contract_accepts_only_the_closed_v3_argument_shapes():
+    inbox = next(tool for tool in build_harbour_inbox_tool_contracts() if tool["name"] == "harbour_inbox_list")
+    typed = [branch for branch in inbox["inputSchema"]["oneOf"] if branch["properties"].get("view", {}).get("const") == "typed"]
+    assert len(typed) == 1 and typed[0]["additionalProperties"] is False
+    assert _validate_arguments("harbour_inbox_list", {"view": "typed"}) == {"view": "typed", "limit": 25}
+    assert _validate_arguments("harbour_inbox_list", {"view": "typed", "limit": 100}) == {"view": "typed", "limit": 100}
+    for arguments in ({"view": "typed", "limit": True}, {"view": "typed", "limit": 101}, {"view": "typed", "extra": 1}):
+        with pytest.raises(HarbourInboxError) as error:
+            _validate_arguments("harbour_inbox_list", arguments)
+        assert error.value.code == "invalid_params"
+
+
+def test_typed_payload_has_exact_v3_shapes_and_keeps_document_ids_private(tmp_path):
+    _engine, factory, _manager, _service, identity, _principal, _created = _fixture(tmp_path)
+    subject = identity.owner_subject_id
+    db = factory()
+    try:
+        db.add(Session(id="private-session", name="private", endpoint_url="http://example.invalid", model="test", owner="admin"))
+        db.add_all([
+            Document(id="typed-doc-active-001", creator_subject_id=subject, session_id="private-session",
+                     version_count=3, is_active=False, archived=False, tidy_verdict=None,
+                     source_kind="working_copy", source_ref_hash="sha256:" + "a" * 64),
+            Document(id="typed-doc-archive-01", creator_subject_id=subject, session_id="private-session",
+                     version_count=1, is_active=True, archived=True, tidy_verdict=None,
+                     source_kind="working_copy", source_ref_hash="sha256:" + "b" * 64),
+            Document(id="typed-doc-foreign-01", creator_subject_id="owner_" + "b" * 32, session_id="private-session",
+                     version_count=1, is_active=True, archived=False, tidy_verdict=None,
+                     source_kind="working_copy", source_ref_hash="sha256:" + "c" * 64),
+            Document(id="typed-doc-null-session", creator_subject_id=subject, session_id=None,
+                     version_count=1, is_active=True, archived=False, tidy_verdict=None,
+                     source_kind="working_copy", source_ref_hash="sha256:" + "d" * 64),
+        ])
+        db.commit()
+    finally:
+        db.close()
+    document = _capture_document_inbox_snapshot(factory, subject, 25)
+    payload = _typed_payload({
+        "clarification": _clarification_capture(identity, count=1),
+        "planning": _planning_capture(identity, count=1),
+        "knowledge": _knowledge_capture(identity, count=1),
+        "document": document,
+    }, 25)
+    assert set(payload) == {"schema", "items", "count", "sources", "complete", "clipped", "authority", "freshness", "cross_source_atomic"}
+    assert payload["schema"] == "odysseus.harbour_inbox_unified_list.v3"
+    assert [(row["source"], row["status"]) for row in payload["sources"]] == [
+        ("clarification", "captured_revalidated"), ("planning", "captured_revalidated"),
+        ("knowledge", "captured_revalidated"), ("document", "captured_revalidated"),
+    ]
+    active_descriptor = next(item for item in document.items if item.document_id == "typed-doc-active-001")
+    row = next(
+        item for item in payload["items"]
+        if item["source"] == "document" and item["item_handle"] == active_descriptor.item_handle
+    )
+    assert set(row) == {"item_handle", "source", "owner", "signal_type", "status", "required_action", "due_state", "authority", "binding_digest", "receipt_ref", "redaction_flags", "current_revision"}
+    assert row["status"] == "available" and row["current_revision"] == 3
+    assert row["authority"] == {"access": "read", "owner_subsystem": "document_workbench", "mutation_supported": False}
+    assert row["redaction_flags"] == {"content": True, "identity": True, "events": True}
+    rendered = json.dumps(payload, sort_keys=True)
+    assert "typed-doc-active-001" not in rendered and "private-session" not in rendered and subject not in rendered
+    assert document.whole_count == 3 and document.eligible_count == 2 and document.clipped is False
+    assert {item.document_id for item in document.items} == {"typed-doc-active-001", "typed-doc-null-session"}
+    assert {item.current_revision for item in document.items} == {1, 3}
+    public_documents = [item for item in payload["items"] if item["source"] == "document"]
+    assert len(public_documents) == 2
+    assert {item["current_revision"] for item in public_documents} == {1, 3}
+    assert all(len(item.canonical_row) == 11 and item.canonical_row[1] == subject for item in document.items)
+    assert "typed-doc-null-session" not in rendered
+    knowledge = next(item for item in payload["items"] if item["source"] == "knowledge")
+    assert set(knowledge["receipt_ref"]) == {"source", "item_handle", "binding_digest", "receipt_handle"}
+    assert knowledge["receipt_ref"]["source"] == "knowledge"
+    db = factory()
+    try:
+        doc = db.get(Document, "typed-doc-active-001")
+        doc.archived = True
+        db.commit()
+    finally:
+        db.close()
+    archived = _capture_document_inbox_snapshot(factory, subject, 25)
+    assert archived.eligible_count == 1 and archived.binding_digest != document.binding_digest
+    db = factory()
+    try:
+        db.get(Document, "typed-doc-active-001").archived = False
+        db.commit()
+    finally:
+        db.close()
+    restored = _capture_document_inbox_snapshot(factory, subject, 25)
+    assert restored.eligible_count == 2 and restored.items and restored.binding_digest != archived.binding_digest
+    db = factory()
+    try:
+        db.delete(db.get(Session, "private-session"))
+        db.commit()
+    finally:
+        db.close()
+    after_session_deletion = _capture_document_inbox_snapshot(factory, subject, 25)
+    assert {item.document_id for item in after_session_deletion.items} == {
+        "typed-doc-active-001", "typed-doc-null-session",
+    }
+    assert next(item for item in after_session_deletion.items if item.document_id == "typed-doc-active-001").canonical_row[2] is None
+
+
+@pytest.mark.parametrize("bad_row", [
+    (),
+    ("short",) * 10,
+    ("long",) * 12,
+    (1, "owner_" + "a" * 32, "s", 1, True, False, None, "working_copy", "sha256:" + "a" * 64, None, None),
+    ("d", "owner_" + "a" * 32, "s", 0, True, False, None, "working_copy", "sha256:" + "a" * 64, None, None),
+    ("d", "owner_" + "a" * 32, "s", 1, True, "false", None, "working_copy", "sha256:" + "a" * 64, None, None),
+    ("d", "owner_" + "a" * 32, "s", 1, True, False, None, "working_copy", "sha256:" + "z" * 64, None, None),
+])
+def test_typed_document_row_rejects_malformed_closed_eleven_column_rows(bad_row):
+    with pytest.raises(HarbourInboxError) as error:
+        _document_row_bytes(bad_row, "owner_" + "a" * 32)
+    assert error.value.code == "inbox_failed"
+
+
+def test_typed_payload_enforces_global_300_and_zero_item_byte_budget(tmp_path):
+    _engine, _factory, _manager, _service, identity, _principal, _created = _fixture(tmp_path)
+    document = DocumentInboxSnapshot(0, 0, "sha256:" + "d" * 64, (), False)
+    payload = _typed_payload({
+        "clarification": _clarification_capture(identity, count=100),
+        "planning": _planning_capture(identity, count=100),
+        "knowledge": _knowledge_capture(identity, count=100),
+        "document": document,
+    }, 100)
+    # The producer cap is applied before the closed v3 envelope's independent
+    # byte cap.  The byte cap may remove the deterministic suffix, never alter
+    # the source ordering or produce an over-budget response.
+    assert payload["count"] < 300 and payload["clipped"] is True and payload["complete"] is False
+    assert [row["source"] for row in payload["sources"]] == ["clarification", "planning", "knowledge", "document"]
+    rank = {"clarification": 0, "planning": 1, "knowledge": 2, "document": 3}
+    assert [(rank[row["source"]], row["item_handle"]) for row in payload["items"]] == sorted(
+        (rank[row["source"]], row["item_handle"]) for row in payload["items"]
+    )
+    assert len(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")) <= 32_768
+    # The oversized binding, zero-envelope branch is defensive: no native
+    # source can create it because the source capture is bounded and typed.
+    with pytest.raises(HarbourInboxError) as error:
+        _typed_payload({
+            "clarification": _clarification_capture(identity, count=0),
+            "planning": _planning_capture(identity, count=0),
+            "knowledge": _knowledge_capture(identity, count=0),
+            "document": DocumentInboxSnapshot(0, 0, "sha256:" + "f" * 40000, (), False),
+        }, 1)
+    assert error.value.code == "budget_exceeded"
+
+
+@pytest.mark.parametrize("case", ["archive", "unarchive", "beyond_prefix", "planning_failure", "subject_drift"])
+def test_typed_service_revalidates_every_mandatory_source_and_denies_drift(tmp_path, case):
+    _engine, factory, manager, service, identity, _principal, _created = _fixture(tmp_path)
+    subject = identity.owner_subject_id
+    db = factory()
+    try:
+        db.add(Session(id="typed-revalidate-session", name="typed", endpoint_url="http://example.invalid", model="test", owner="admin"))
+        db.add(Document(id="typed-revalidate-doc", creator_subject_id=subject, session_id="typed-revalidate-session", version_count=1, is_active=False, archived=False, source_kind="working_copy", source_ref_hash="sha256:" + "9" * 64))
+        db.add(Document(id="typed-revalidate-archived", creator_subject_id=subject, session_id="typed-revalidate-session", version_count=1, is_active=True, archived=True, source_kind="working_copy", source_ref_hash="sha256:" + "8" * 64))
+        db.add(Document(id="typed-revalidate-prefix-tail", creator_subject_id=subject, session_id="typed-revalidate-session", version_count=1, is_active=True, archived=False, source_kind="working_copy", source_ref_hash="sha256:" + "7" * 64))
+        db.commit()
+    finally:
+        db.close()
+    beyond_prefix_id = None
+    if case == "beyond_prefix":
+        selected = _capture_document_inbox_snapshot(factory, subject, 1).items[0].item_handle
+        db = factory()
+        try:
+            rows = db.query(Document.id, Document.creator_subject_id, Document.session_id, Document.version_count,
+                            Document.is_active, Document.archived, Document.tidy_verdict, Document.source_kind,
+                            Document.source_ref_hash, Document.created_at, Document.updated_at).filter(
+                            Document.creator_subject_id == subject,
+                            ).all()
+            for row in rows:
+                captured = tuple(row)
+                binding = "sha256:" + hashlib.sha256(
+                    b"odysseus.harbour_inbox.document_item.v3\0" + _frame(subject.encode("utf-8")) + _frame(_document_row_bytes(captured, subject))
+                ).hexdigest()
+                if "hi1:document:" + _unified_digest("document", binding, captured[0]) != selected:
+                    beyond_prefix_id = captured[0]
+                    break
+        finally:
+            db.close()
+        assert beyond_prefix_id is not None
+    planning = _planning_capture(identity)
+    knowledge = _knowledge_capture(identity)
+    class Planning:
+        def capture_inbox_snapshot(self, **kwargs):
+            if case == "planning_failure" and "expected_binding_digest" in kwargs:
+                raise RuntimeError("closed failure")
+            return planning
+    class Knowledge:
+        @contextmanager
+        def guard_inbox_read(self): yield
+        def capture_inbox_snapshot(self, **kwargs):
+            if case in {"archive", "unarchive", "beyond_prefix"} and "expected_capture" not in kwargs:
+                db = factory()
+                try:
+                    target = {"archive": "typed-revalidate-doc", "unarchive": "typed-revalidate-archived", "beyond_prefix": beyond_prefix_id}[case]
+                    db.get(Document, target).archived = case != "unarchive"
+                    if case == "beyond_prefix":
+                        db.get(Document, target).version_count = 2
+                    db.commit()
+                finally:
+                    db.close()
+            return knowledge
+    service._planning_runtime, service._knowledge_composition = Planning(), Knowledge()
+    if case == "subject_drift":
+        db = factory()
+        try:
+            db.query(ApiToken).filter(ApiToken.id == identity.token_id).update({"owner_subject_id": "owner_" + "c" * 32})
+            db.commit()
+        finally:
+            db.close()
+    with pytest.raises(HarbourInboxError) as error:
+        service.dispatch("harbour_inbox_list", {"view": "typed", "limit": 1}, identity)
+    assert error.value.code in {"inbox_failed", "unauthorized"}
+
+
+def test_typed_service_requires_all_four_sources_even_when_every_capture_is_empty(tmp_path):
+    _engine, _factory, _manager, service, identity, _principal, created = _fixture(tmp_path)
+    _action(service, identity, "harbour_inbox_cancel", created["version"], "typed-empty-cancel")
+    class Planning:
+        def capture_inbox_snapshot(self, **kwargs): return _planning_capture(identity, count=0)
+    class Knowledge:
+        @contextmanager
+        def guard_inbox_read(self): yield
+        def capture_inbox_snapshot(self, **kwargs): return _knowledge_capture(identity, count=0)
+    service._planning_runtime, service._knowledge_composition = Planning(), Knowledge()
+    outcome = service.dispatch("harbour_inbox_list", {"view": "typed", "limit": 1}, identity)
+    assert outcome.authority_finalized is False
+    assert outcome.payload["count"] == 0
+    assert [row["source"] for row in outcome.payload["sources"]] == ["clarification", "planning", "knowledge", "document"]
+
+
+@pytest.mark.parametrize("failure", ["document", "clarification"])
+def test_typed_service_maps_initial_mandatory_capture_failures_to_fixed_inbox_failure(tmp_path, monkeypatch, failure):
+    _engine, _factory, _manager, service, identity, _principal, _created = _fixture(tmp_path)
+    if failure == "document":
+        monkeypatch.setattr(harbour_inbox_service, "_capture_document_inbox_snapshot", lambda *_args: (_ for _ in ()).throw(RuntimeError()))
+    else:
+        monkeypatch.setattr(ClarificationStore, "capture_inbox_snapshot", lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError()))
+    with pytest.raises(HarbourInboxError) as error:
+        service.dispatch("harbour_inbox_list", {"view": "typed", "limit": 1}, identity)
+    assert error.value.code == "inbox_failed"
 
 
 def test_unified_projection_has_fixed_sources_and_redaction(tmp_path):

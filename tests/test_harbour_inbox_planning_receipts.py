@@ -108,6 +108,44 @@ def test_planning_capture_default_is_receipt_free_and_opt_in_reads_selected_head
     assert enriched.items[0].receipt.authorizes_mutation is False
 
 
+def test_typed_planning_capture_keeps_receipts_on_the_bounded_prefix(tmp_path):
+    runtime, identity = _runtime_fixture(tmp_path)
+    # The typed opt-in stays explicit and keeps the receipt reader scoped to
+    # the normalized prefix; legacy callers retain their original default.
+    typed = runtime.capture_inbox_snapshot(identity=identity, limit=1, include_receipts=True, typed=True)
+    assert len(typed.items) == 1
+    assert typed.items[0].receipt is not None
+
+
+def test_typed_clipped_planning_keeps_prefix_receipt_while_legacy_v2_rejects(tmp_path):
+    runtime, identity = _runtime_fixture(tmp_path)
+    context = "mcp-planning-read-v1\0" + identity.token_id + "\0" + identity.owner_subject_id
+    principal = runtime.issuer.issue(
+        subject_id=identity.owner_subject_id, owner_id=identity.owner_alias,
+        auth_context_digest="sha256:" + __import__("hashlib").sha256(context.encode("utf-8")).hexdigest(), ttl_seconds=60,
+    )
+    owner, _batch, _records, heads = runtime.durable_store.read_subject_bound_accepted_migration_records(
+        principal, project_id="harbour-one",
+    )
+    head = next(value for value in heads if value["current_revision"] == value["approved_revision"])
+    current = runtime.durable_store.get_head(principal, owner_id=owner, project_id="harbour-one", roadmap_id=head["roadmap_id"])
+    document = json.loads(runtime.durable_store.read_payload(principal, owner_id=owner, revision_id=current.current_revision_id).decode("utf-8"))
+    roadmap = document["roadmaps"][0]
+    roadmap["revision"] = int(head["current_revision"]) + 1
+    roadmap["title"] = "Typed clipped planning prefix fixture"
+    roadmap["content_hash"] = compute_roadmap_content_hash(roadmap)
+    document["project"]["latest_approved_revision"] = {roadmap["roadmap_id"]: {"revision": roadmap["revision"], "content_hash": roadmap["content_hash"]}}
+    document["project"]["draft_refs"] = []
+    runtime.durable_store.append_revision(principal, owner_id=owner, project_id="harbour-one", roadmap_id=roadmap["roadmap_id"], payload_bytes=canonical_json_bytes(document), expected_head=current, idempotency_key="typed-clipped-prefix-002")
+    pending = runtime.capture_inbox_snapshot(identity=identity, limit=100, include_receipts=True)
+    assert len(pending.items) == 2
+    typed = runtime.capture_inbox_snapshot(identity=identity, limit=1, include_receipts=True, typed=True)
+    assert typed.clipped is True and len(typed.items) == 1 and typed.items[0].receipt is not None
+    with pytest.raises(McpDispatchFailure) as legacy:
+        runtime.capture_inbox_snapshot(identity=identity, limit=1, include_receipts=True)
+    assert legacy.value.code == "planning_failed"
+
+
 def test_planning_receipt_reference_and_closed_shape_bind_item_digest(tmp_path):
     runtime, identity = _runtime_fixture(tmp_path)
     capture = runtime.capture_inbox_snapshot(identity=identity, limit=1, include_receipts=True)

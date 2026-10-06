@@ -805,6 +805,14 @@ def test_global_planning_gate_hides_and_blocks_tools():
     asyncio.run(scenario())
 
 
+def test_typed_inbox_read_is_classified_for_the_final_authority_fence():
+    identity = McpAuthenticatedIdentity(
+        "token-id", "admin", "owner_" + "a" * 32, 4, 9, "mcp:harbour:inbox",
+    )
+    message = _rpc("tools/call", {"name": "harbour_inbox_list", "arguments": {"view": "typed"}})
+    assert authenticated_dispatch._is_unified_inbox_read(message, identity) is True
+
+
 def test_http_read_roadmap_rejects_raw_preview_before_dispatch():
     async def scenario():
         runtime = _Runtime()
