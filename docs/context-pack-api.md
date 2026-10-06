@@ -178,6 +178,12 @@ The HTTP boundary exposes only these error codes: `invalid_request`, `body_too_l
 
 The API is read-only. It performs no send, provider write, authority grant, or external side effect. The pack flags are explicit: `read_only: true`, `authority_granted: false`, and `send_performed: false`. The backend binds existing providers and a forked cookie authority in the application; callers cannot submit provider, authority, or session objects.
 
+## Internal MCP context foundation
+
+The accepted internal foundation is implemented in [`src/mcp_context_contract.py`](../src/mcp_context_contract.py) and [`src/mcp_context_authority.py`](../src/mcp_context_authority.py). The contract layer accepts closed, exact typed JSON with bounded depth, node, selection, cursor, and byte budgets, and emits detached serialized values with fixed error codes. The authority layer issues immutable `McpContextBinding` and `McpContextReadLease` objects only after real Auth/SQLite authority checks; registry identity, atomic claims, and post external-validation fences prevent stale or forged objects from becoming live context. Lease expiry revokes the binding and proof. Cancellation frees live-lease capacity while retaining a bounded weak cancellation marker; binding release and authority close remove owned registrations, with weak-reference callbacks and pruning cleaning dead registrations.
+
+This is an internal foundation acceptance at commit `14b9b67e801cb6ec6930d75a7dd89fe289ab4ec0`, backed by the independent R11 deep review and focused/auth compatibility lanes (153 tests total). It does not claim that existing REST routes use the new authority, or that MCP registration, content delivery, private grants, native permit wiring, production parity, strict filesystem blocking, UI, live, or temporal behavior has been accepted. Whole-product acceptance remains false.
+
 ## Verification limits
 
 This reference is grounded in the accepted local backend component at `HEAD 8eb28b7fe81457b8ba889c91cee4f98b6aa78cef`, with source pins:
