@@ -1355,6 +1355,10 @@ def test_native_page_boundary_uses_exact_source_range(consent_app, mode):
         assert _assert_success(client.post("/test/readback")).json() == {
             "pair_verified": True, "owned_row_count": 2}
         _assert_success(client.post("/test/arm_page_boundary", json={"mode": mode}))
+        service = client.app.state.service
+        entry = service._entries[request_id]
+        original_deadlines = (entry.deadline, entry.mono_deadline,
+                              entry.ack_deadline, entry.ack_mono_deadline)
         response = client.post("/test/consume")
         if mode in {"past_eof", "target_oob", "nonplanning"}:
             assert response.status_code == 403
@@ -1372,6 +1376,16 @@ def test_native_page_boundary_uses_exact_source_range(consent_app, mode):
                 assert value["offset"] == 1
                 assert value["end"] == min(value["total_bytes"], 1 + 16384)
                 assert value["page_bytes"] == value["end"] - 1
+            lifecycle = _assert_success(client.post("/test/substitution_readback")).json()
+            assert service._entries[request_id] is entry and entry.state == "disclosed"
+            assert original_deadlines == (entry.deadline, entry.mono_deadline,
+                                          entry.ack_deadline, entry.ack_mono_deadline)
+            assert not lifecycle["request_absent"] and not lifecycle["all42_scrubbed"]
+            assert lifecycle["secondary_unchanged"] and lifecycle["permit_ref_cleared"]
+            assert lifecycle["permits_empty"] and lifecycle["exchanges_empty"] and lifecycle["completions_empty"]
+            # A target EOF may precede other selected sources. The coordinator
+            # explicitly revokes at final pack EOF (or cancels a partial pack).
+            service.revoke(request_id)
             lifecycle = _assert_success(client.post("/test/substitution_readback")).json()
             assert lifecycle["request_absent"] and lifecycle["all42_scrubbed"] and lifecycle["secondary_unchanged"]
             assert lifecycle["permits_empty"] and lifecycle["exchanges_empty"] and lifecycle["completions_empty"]

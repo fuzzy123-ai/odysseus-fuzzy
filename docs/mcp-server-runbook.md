@@ -68,6 +68,15 @@ Signed-wire validation alone grants no access; each use still requires native
 authority verification. Closing or replacing the cursor authority invalidates
 its old tokens. Dispatcher wiring and full-pack pagination remain separate work.
 
+Successful native page publication consumes its permit and completion once,
+then retains the same disclosed consent request for subsequent pages. Each new
+permit repeats native context and persisted acknowledgement checks against the
+original selection, snapshots and deadlines; pagination never renews consent.
+The retained request still occupies its capacity slot. Target EOF alone does
+not end a mixed-source pack: its coordinator must explicitly revoke consent
+after the final selected target, cancellation or shutdown. Failed execution,
+revocation and expiry remain terminal. Full-pack coordination remains pending.
+
 Clock sampling and rollback detection share one lock. Genuine invalid clocks
 or rollback invalidate registered requests; ordinary concurrent sampling must
 not cause a false rollback. Retained Forge versions use an exact two-record Git

@@ -791,6 +791,20 @@ class McpPrivateContextConfirmationService:
         if type(capture) is not VerifiedPlanningCapture or type(capture.receipt) is not _PlanningCompletionReceipt:
             _fail("permit_invalid")
         receipt = capture.receipt; page = capture.page
+        try:
+            instance_methods = vars(self)
+        except BaseException:
+            instance_methods = {"_execute_planning_page": None}
+        if (type(self).__dict__.get("_execute_planning_page") is not _TRUSTED_PLANNING_EXECUTOR
+                or type(self).__dict__.get("_consume_planning_completion") is not _TRUSTED_COMPLETION_CONSUMER
+                or "_execute_planning_page" in instance_methods
+                or "_consume_planning_completion" in instance_methods):
+            with self._lock:
+                row = self._completions.get(id(receipt))
+                entry = row.entry_ref() if type(row) is _CompletionRow else None
+                if entry is not None and self._entries.get(row.request_id) is entry:
+                    self._terminate(entry)
+            _fail("permit_invalid")
         with self._lock:
             row = self._completions.get(id(receipt))
             if row is None: _fail("permit_invalid")
@@ -841,7 +855,12 @@ class McpPrivateContextConfirmationService:
                 if self._entries.get(row.request_id) is entry: self._terminate(entry)
                 _fail("permit_invalid")
             self._completions.pop(id(receipt), None)
-            self._terminate(entry)
+            entry.permit_ref = None; entry.permit_nonce = None
+            entry.permit_deadline = None; entry.permit_mono_deadline = None
+            entry.permit_operation_nonce = None
+            entry.execution_nonce = None; entry.execution_thread_ref = None
+            entry.execution_thread_ident = None; entry.execution_pid = None
+            entry.state = "disclosed"
 
     @staticmethod
     def _page_commitment(page: object, expected_type: type) -> str:
@@ -1251,3 +1270,7 @@ class McpPrivateContextConfirmationService:
             if entry.state in {"disclosed", "permit_issuing", "permitted", "verifying"} and entry.ack_deadline is not None:
                 expired = expired or now >= entry.ack_deadline or mono >= (entry.ack_mono_deadline or float("inf"))
             if expired: self._terminate(entry)
+
+
+_TRUSTED_PLANNING_EXECUTOR = McpPrivateContextConfirmationService._execute_planning_page
+_TRUSTED_COMPLETION_CONSUMER = McpPrivateContextConfirmationService._consume_planning_completion
