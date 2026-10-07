@@ -323,7 +323,7 @@ def test_actual_default_app_private_confirmation_routes(tmp_path, request):
     _write_parent_phase(tmp_path, "setup_after")
     _write_parent_phase(tmp_path, "spawn_before")
     completed = subprocess.Popen(
-        [sys.executable, "-c", _CHILD], cwd=repo_root, env=env,
+        [sys.executable, "-B", "-c", _CHILD], cwd=repo_root, env=env,
         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
     )
     _write_parent_phase(tmp_path, "spawn_after")

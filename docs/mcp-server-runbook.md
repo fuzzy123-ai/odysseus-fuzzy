@@ -40,6 +40,32 @@ This is intentional. Enabling the plugin creates a powerful automation surface f
 - Shell/Python/file-write/email-send/admin/settings/token/plugin-management tools: hidden by default.
 - Docker MCP is not part of this deployment model. Runtime checks must assume Podman/pods and remain read-only unless a separate operator approval explicitly allows a mutation.
 
+## Native private-context consent package
+
+The local consent package in `src/mcp_private_context_confirmation.py` and
+`src/mcp_private_context_confirmation_app.py` has passed local package acceptance.
+Local package acceptance does not enable the plugin, mount its HTTP adapter, or
+extend either bearer-token scope's tool inventory.
+
+Private disclosure requires authenticated browser attachment, the exact human
+confirmation command, and a signed acknowledgement pair before an opaque
+execution permit can be issued. Native Planning execution revalidates the
+accepted context, revisions, lease, and cookie binding; completion is available
+only after the guarded page has been committed.
+
+Clock sampling and rollback detection share one lock. Genuine invalid clocks
+or rollback invalidate registered requests; ordinary concurrent sampling must
+not cause a false rollback. Retained Forge versions use an exact two-record Git
+batch probe, with the original object-type and retained-ref checks as fallback
+for every untrusted or failed probe.
+
+Local package acceptance requires current candidate-bound native, capacity,
+focused, and compatibility results plus independent review. Native 4 MiB,
+ancestry/EOF, owner-eight, and global-64 checks do not establish production
+bcrypt timing, temporal behavior, default activation, or live readiness. Those
+remain separate gates. No deployment or credential change follows from a local
+package PASS.
+
 ## Codex MCP Workbench
 
 When the corresponding MCP services, plugins or connectors are available in

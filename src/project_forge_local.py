@@ -315,6 +315,29 @@ class LocalProjectForge:
         if not repository.is_dir():
             raise ProjectVersionIntegrityError("local Forge bare repository is missing")
         commit_sha = validate_commit_sha(stored.commit_sha)
+        try:
+            probe_ref = f"refs/odysseus/versions/{validate_version_id(stored.version_id)}"
+            probe = self._run_git(
+                ("--git-dir", str(repository), "cat-file", "--batch-check=%(objectname) %(objecttype)"),
+                store_path=repository,
+                allow_failure=True,
+                integrity_check=True,
+                input_text=f"{commit_sha}\n{probe_ref}^{{commit}}\n",
+            )
+            # Only two complete, canonical commit records prove both identities.
+            # Every other result uses the original checks and error ordering below.
+            probe_returncode = probe.returncode
+            probe_stdout = probe.stdout
+            if (
+                type(probe_returncode) is int
+                and probe_returncode == 0
+                and type(probe_stdout) is str
+                and probe_stdout == f"{commit_sha} commit\n{commit_sha} commit\n"
+            ):
+                return
+        except Exception:
+            # A failed optional probe must not replace a legacy integrity error.
+            pass
         object_type = self._run_git(
             ("--git-dir", str(repository), "cat-file", "-t", commit_sha),
             store_path=repository,
@@ -339,6 +362,7 @@ class LocalProjectForge:
         store_path: Path | None = None,
         allow_failure: bool = False,
         integrity_check: bool = False,
+        input_text: str | None = None,
     ) -> subprocess.CompletedProcess[str]:
         if source_path is not None:
             self._assert_authorized_source(source_path.resolve(strict=True))
@@ -363,6 +387,7 @@ class LocalProjectForge:
                 errors="replace",
                 env=_git_environment(),
                 timeout=30,
+                **({"input": input_text} if input_text is not None else {}),
             )
         except (OSError, subprocess.SubprocessError) as exc:
             error_type = ProjectVersionIntegrityError if integrity_check else LocalProjectForgeError
