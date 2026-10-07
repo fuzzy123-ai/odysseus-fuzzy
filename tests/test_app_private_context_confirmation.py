@@ -292,6 +292,7 @@ def test_actual_default_app_private_confirmation_routes(tmp_path, request):
     _write_parent_phase(tmp_path, "body_entered")
     repo_root = Path(__file__).resolve().parents[1]
     _write_parent_phase(tmp_path, "allocation_before")
+    (repo_root / ".abc-test-tmp").mkdir(exist_ok=True)
     child_tmp = tempfile.TemporaryDirectory(prefix="ac-", dir=repo_root / ".abc-test-tmp")
     _write_parent_phase(tmp_path, "allocation_after")
     request.addfinalizer(child_tmp.cleanup)
