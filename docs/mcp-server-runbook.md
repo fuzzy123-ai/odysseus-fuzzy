@@ -60,6 +60,14 @@ completion. Its page schema preserves exact ranges, hashes and Base64 bytes;
 it does not mint a cursor or claim whole-pack completion. Dispatcher wiring,
 Forge/Knowledge page execution and default activation remain separate work.
 
+`src/mcp_context_cursor_authority.py` signs manifest (`m1`) and content (`c1`)
+cursors with separate internally generated ephemeral keys. Verification binds
+the current native lease, recipient, chat, process epoch, selection, snapshot,
+pack, fixed page size and expiry before returning continuation coordinates.
+Signed-wire validation alone grants no access; each use still requires native
+authority verification. Closing or replacing the cursor authority invalidates
+its old tokens. Dispatcher wiring and full-pack pagination remain separate work.
+
 Clock sampling and rollback detection share one lock. Genuine invalid clocks
 or rollback invalidate registered requests; ordinary concurrent sampling must
 not cause a false rollback. Retained Forge versions use an exact two-record Git

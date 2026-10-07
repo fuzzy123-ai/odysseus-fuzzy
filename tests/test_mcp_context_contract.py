@@ -25,21 +25,29 @@ def _selection():
     }]
 
 
-def _cursor():
-    return McpContextCursorEnvelope(
-        request_id="request.1",
-        pack_id="pack.1",
-        recipient="owner_" + "a" * 32,
-        chat="chat.1",
-        process_epoch="epoch_" + "b" * 32,
-        selection="sha256:" + "1" * 64,
-        snapshot="sha256:" + "2" * 64,
-        kind="content",
-        target_index=0,
-        offset=0,
-        page_bytes=16_384,
-        expiry=1_800_000_000,
-    )
+def _cursor(**changes):
+    values = {
+        "request_id": "request.1",
+        "pack_id": "pack.1",
+        "recipient": "owner_" + "a" * 32,
+        "chat": "chat.1",
+        "process_epoch": "epoch_" + "b" * 32,
+        "selection": "sha256:" + "1" * 64,
+        "snapshot": "sha256:" + "2" * 64,
+        "kind": "content",
+        "target_index": 0,
+        "offset": 0,
+        "page_bytes": 16_384,
+        "expiry": 1_800_000_000,
+    }
+    values.update(changes)
+    return McpContextCursorEnvelope(**values)
+
+
+def _signed_wire(prefix):
+    payload = base64.urlsafe_b64encode(b"opaque structural payload").decode().rstrip("=")
+    tag = base64.urlsafe_b64encode(b"\x00" * 32).decode().rstrip("=")
+    return f"{prefix}.{payload}.{tag}"
 
 
 def test_closed_tool_schemas_and_native_selection_detach():
@@ -55,6 +63,42 @@ def test_closed_tool_schemas_and_native_selection_detach():
         )
     assert error.value.code == "invalid_request"
     assert "__untrusted_input_marker__" not in repr(error.value)
+
+
+def test_signed_wire_cursor_arguments_are_structural_and_domain_specific():
+    manifest = _signed_wire("m1")
+    content = _signed_wire("c1")
+    manifest_args = validate_context_tool_arguments(
+        "harbour_context_manifest",
+        {"request_id": "request.1", "manifest_cursor": manifest},
+    )
+    content_args = validate_context_tool_arguments(
+        "harbour_context_page",
+        {"request_id": "request.1", "content_cursor": content},
+    )
+    assert manifest_args == {"request_id": "request.1", "manifest_cursor": manifest}
+    assert content_args == {"request_id": "request.1", "content_cursor": content}
+    # Opaque payload and all-zero tag are deliberately accepted here: this
+    # contract owns wire shape only; the cursor authority verifies the MAC.
+    for method, key, value in (
+        ("harbour_context_manifest", "manifest_cursor", content),
+        ("harbour_context_page", "content_cursor", manifest),
+    ):
+        with pytest.raises(McpContextContractError) as error:
+            validate_context_tool_arguments(method, {"request_id": "request.1", key: value})
+        assert error.value.code == "invalid_request"
+
+
+def test_signed_wire_arguments_reject_unsigned_legacy_cursor_payloads():
+    legacy = encode_context_cursor(_cursor())
+    assert decode_context_cursor(legacy) == _cursor()
+    for method, key in (
+        ("harbour_context_manifest", "manifest_cursor"),
+        ("harbour_context_page", "content_cursor"),
+    ):
+        with pytest.raises(McpContextContractError) as error:
+            validate_context_tool_arguments(method, {"request_id": "request.1", key: legacy})
+        assert error.value.code == "invalid_request"
 
 
 def test_single_json_rpc_request_rejects_batches_notifications_duplicates_and_bool_ids():
@@ -106,6 +150,45 @@ def test_cursor_exact_types_and_budget_errors_are_fixed():
     with pytest.raises(McpContextContractError) as error:
         parse_mcp_context_request(b"{" + b"x" * 262_144 + b"}")
     assert error.value.code == "budget_exceeded"
+
+
+class _IntegerChild(int):
+    pass
+
+
+def test_cursor_native_numeric_boundaries_are_exact():
+    cursor = _cursor(
+        target_index=299,
+        offset=2**53 - 1,
+        page_bytes=16_384,
+        expiry=1_800_000_000,
+    )
+    assert decode_context_cursor(encode_context_cursor(cursor)) == cursor
+
+
+@pytest.mark.parametrize(
+    "changes",
+    (
+        {"target_index": 300},
+        {"offset": 2**53},
+        {"page_bytes": 16_385},
+        {"expiry": 1.0},
+        {"expiry": True},
+        {"expiry": _IntegerChild(1)},
+    ),
+    ids=[
+        "target_index_over",
+        "offset_over",
+        "page_bytes_over",
+        "expiry_float",
+        "expiry_bool",
+        "expiry_int_subclass",
+    ],
+)
+def test_cursor_native_numeric_boundaries_reject_outside_values(changes):
+    with pytest.raises(McpContextContractError) as error:
+        _cursor(**changes)
+    assert error.value.code == "invalid_cursor"
 
 
 def test_response_and_tree_budgets_are_closed_at_boundaries():
@@ -250,7 +333,7 @@ def test_cursor_duplicate_nonfinite_and_malformed_fields_are_invalid_cursor():
 @pytest.mark.parametrize("field,value", [
     ("request_id", "bad space"), ("pack_id", ""), ("recipient", "bad space"),
     ("chat", ""), ("process_epoch", "bad space"),
-])
+], ids=["request_id", "pack_id", "recipient", "chat", "process_epoch"])
 def test_cursor_identifier_fields_always_map_to_invalid_cursor(field, value):
     values = dict(_cursor().__dict__) if hasattr(_cursor(), "__dict__") else {
         name: getattr(_cursor(), name) for name in ("request_id", "pack_id", "recipient", "chat", "process_epoch", "selection", "snapshot", "kind", "target_index", "offset", "page_bytes", "expiry", "schema")

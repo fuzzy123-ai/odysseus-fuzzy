@@ -107,6 +107,40 @@ def _cursor_id(value: object, *, maximum: int = 512) -> str:
         raise McpContextContractError("invalid_cursor") from None
 
 
+def _validate_signed_cursor_wire(value: object, *, expected_prefix: str) -> str:
+    """Validate only the authenticated cursor wire shape, never its authority."""
+    if (
+        type(value) is not str
+        or not 1 <= len(value) <= MCP_CONTEXT_CURSOR_MAX_CHARS
+        or not value.isascii()
+        or "=" in value
+    ):
+        _fail("invalid_request")
+    parts = value.split(".")
+    if (
+        len(parts) != 3
+        or parts[0] != expected_prefix
+        or not parts[1]
+        or len(parts[2]) != 43
+    ):
+        _fail("invalid_request")
+    try:
+        for index, segment in enumerate(parts[1:], start=1):
+            if re.fullmatch(r"[A-Za-z0-9_-]+", segment) is None:
+                _fail("invalid_request")
+            padded = segment + "=" * ((4 - len(segment) % 4) % 4)
+            decoded = base64.b64decode(padded, altchars=b"-_", validate=True)
+            if base64.urlsafe_b64encode(decoded).decode("ascii").rstrip("=") != segment:
+                _fail("invalid_request")
+            if index == 2 and len(decoded) != 32:
+                _fail("invalid_request")
+    except McpContextContractError:
+        raise
+    except (binascii.Error, UnicodeError, ValueError, TypeError):
+        raise McpContextContractError("invalid_request") from None
+    return value
+
+
 def _reject_constant(_value: str) -> object:
     _fail("invalid_request")
 
@@ -299,7 +333,10 @@ def validate_context_tool_arguments(method: object, arguments: object) -> dict[s
             result[key] = _safe_id(value, maximum=256)
         elif key in {"manifest_cursor", "content_cursor"}:
             if value is not None:
-                decode_context_cursor(value)
+                value = _validate_signed_cursor_wire(
+                    value,
+                    expected_prefix="m1" if key == "manifest_cursor" else "c1",
+                )
             result[key] = value
         elif key == "page_bytes":
             if type(value) is not int or isinstance(value, bool) or not 1 <= value <= MCP_CONTEXT_RAW_PAGE_MAX_BYTES:
@@ -349,6 +386,8 @@ def parse_mcp_context_request(raw: object) -> McpContextToolCall:
 
 @dataclass(frozen=True, slots=True, repr=False)
 class McpContextCursorEnvelope:
+    """Structural bare payload envelope; it grants no read authority."""
+
     request_id: str = field(repr=False)
     pack_id: str = field(repr=False)
     recipient: str = field(repr=False)
@@ -360,7 +399,7 @@ class McpContextCursorEnvelope:
     target_index: int = field(repr=False)
     offset: int = field(repr=False)
     page_bytes: int = field(repr=False)
-    expiry: int | float = field(repr=False)
+    expiry: int = field(repr=False)
     schema: str = field(default=MCP_CONTEXT_PACK_SCHEMA, repr=False)
 
     def __post_init__(self) -> None:
@@ -374,11 +413,11 @@ class McpContextCursorEnvelope:
             _fail("invalid_cursor")
         if type(self.target_index) is not int or isinstance(self.target_index, bool) or not 0 <= self.target_index < MCP_CONTEXT_SELECTION_MAX:
             _fail("invalid_cursor")
-        if type(self.offset) is not int or isinstance(self.offset, bool) or not 0 <= self.offset <= 2**31 - 1:
+        if type(self.offset) is not int or isinstance(self.offset, bool) or not 0 <= self.offset <= 2**53 - 1:
             _fail("invalid_cursor")
         if type(self.page_bytes) is not int or isinstance(self.page_bytes, bool) or not 1 <= self.page_bytes <= MCP_CONTEXT_RAW_PAGE_MAX_BYTES:
             _fail("invalid_cursor")
-        if type(self.expiry) not in {int, float} or isinstance(self.expiry, bool) or not math.isfinite(self.expiry) or self.expiry <= 0:
+        if type(self.expiry) is not int or isinstance(self.expiry, bool) or self.expiry <= 0:
             _fail("invalid_cursor")
 
     @property
@@ -386,7 +425,7 @@ class McpContextCursorEnvelope:
         return self.chat
 
     @property
-    def expires_at(self) -> int | float:
+    def expires_at(self) -> int:
         return self.expiry
 
     def __repr__(self) -> str:
@@ -394,6 +433,7 @@ class McpContextCursorEnvelope:
 
 
 def encode_context_cursor(cursor: McpContextCursorEnvelope) -> str:
+    """Encode the legacy structural payload; this does not authenticate it."""
     if type(cursor) is not McpContextCursorEnvelope:
         _fail("invalid_cursor")
     # Re-run the closed scalar validation while taking the projection.  Frozen
@@ -431,6 +471,7 @@ def encode_context_cursor(cursor: McpContextCursorEnvelope) -> str:
 
 
 def decode_context_cursor(value: object) -> McpContextCursorEnvelope:
+    """Decode the legacy structural payload; this does not authorize a read."""
     if type(value) is not str or not value or len(value) > MCP_CONTEXT_CURSOR_MAX_CHARS:
         _fail("invalid_cursor")
     if not value.isascii() or "=" in value or re.fullmatch(r"[A-Za-z0-9_-]+", value) is None:
