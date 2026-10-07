@@ -60,6 +60,19 @@ completion. Its page schema preserves exact ranges, hashes and Base64 bytes;
 it does not mint a cursor or claim whole-pack completion. Dispatcher wiring,
 Forge/Knowledge page execution and default activation remain separate work.
 
+The accepted native seams `read_native_forge_context_page` and
+`read_native_knowledge_context_page` require an already-held authenticated
+`DisclosureBinding` and corresponding immutable manifest; they grant no MCP
+admission, consent or permit. The native cap is 16,384 bytes, with exact byte
+forms `git_blob` for Forge and `knowledge_payload` for Knowledge. Forge's
+`expected_item` is cookie-native, while `expected_manifest_digest` is the
+raw64hex native target digest. Knowledge's `expected_item` is a
+recipient-bound MCP item matching six native invariants, with boundary and
+record hashes distinct from native; its `expected_manifest_digest` is the
+cookie-native `sha256:`-prefixed target digest, and all selected Knowledge
+entries remain in original order. Legacy Forge and Knowledge caps remain
+1,000,000 and 1,048,576 bytes.
+
 `src/mcp_context_cursor_authority.py` signs manifest (`m1`) and content (`c1`)
 cursors with separate internally generated ephemeral keys. Verification binds
 the current native lease, recipient, chat, process epoch, selection, snapshot,
