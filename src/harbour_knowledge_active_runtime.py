@@ -112,6 +112,7 @@ class KnowledgeInboxSnapshot:
 _CONTEXT_SHA_RE = re.compile(r"^(?:sha256:)?[0-9a-f]{64}$")
 _CONTEXT_REF_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$")
 _CONTEXT_MAX_PAGE = 1_048_576
+_CONTEXT_MAX_NATIVE_PAGE = 16_384
 _CONTEXT_MAX_JSON_INT = (1 << 53) - 1
 
 
@@ -328,6 +329,10 @@ class KnowledgeContextPage:
     @property
     def payload(self) -> bytes:
         return self.payload_bytes
+
+    @property
+    def byteform(self) -> str:
+        return "knowledge_payload"
 
     @property
     def whole_payload_sha256(self) -> str:
@@ -1702,14 +1707,16 @@ class KnowledgeContextPageConsumer:
                     )
                     if type(verified) is not VerifiedDisclosure:
                         raise ConfirmationError("invalid_context") from None
-                payload = self._composition._read_context_payload(binding, target)
-                final = self._composition._capture_context_material(binding, knowledge_selection)
-                if (final.manifest.digest != first.manifest.digest
-                        or not hmac.compare_digest(
-                            _context_sha(final.manifest.digest),
-                            _context_sha(request.expected_knowledge_manifest_digest),
-                        )):
-                    raise ValueError("knowledge context changed")
+                page = _read_verified_knowledge_context_page_from_initial(
+                    composition=self._composition,
+                    binding=binding,
+                    knowledge_selection=knowledge_selection,
+                    target=request.target,
+                    expected_manifest_digest=request.expected_knowledge_manifest_digest,
+                    offset=request.offset,
+                    page_bytes=request.limit,
+                    initial=first,
+                )
                 if private_selected:
                     final_subset = self._producer.capture_private_subset(
                         binding, knowledge_selection,
@@ -1723,18 +1730,351 @@ class KnowledgeContextPageConsumer:
                         raise ConfirmationError("invalid_context") from None
                 self._authority.recheck(binding)
                 self._repository.assert_chat_owned(binding)
-                total = len(payload)
-                if request.offset > total:
-                    raise ValueError("knowledge context offset unavailable")
-                end = min(total, request.offset + request.limit)
-                page = payload[request.offset:end]
-                whole_sha = "sha256:" + hashlib.sha256(payload).hexdigest()
-                page_sha = "sha256:" + hashlib.sha256(page).hexdigest()
-                return KnowledgeContextPage(
-                    payload_bytes=page, total=total, offset=request.offset,
-                    end=end, whole_sha256=whole_sha, page_sha256=page_sha,
-                    manifest_digest=final.manifest.digest,
-                )
+                return page
+
+
+def read_native_knowledge_context_page(
+    *,
+    composition: ActiveKnowledgeComposition,
+    binding: DisclosureBinding,
+    knowledge_selection: ContextSelection,
+    target: SourceSelection,
+    expected_item: ManifestItem,
+    expected_manifest_digest: str,
+    offset: int,
+    page_bytes: int,
+) -> KnowledgeContextPage:
+    """Read stored Knowledge bytes while the caller retains its authority guard.
+
+    This seam does not validate or grant cookie, MCP, disclosure, or lease
+    authority.  Its exact ``DisclosureBinding`` must already be held by the
+    caller for the complete operation.
+    """
+    try:
+        if (
+            not _exact_native_knowledge_inputs(
+                composition=composition,
+                binding=binding,
+                knowledge_selection=knowledge_selection,
+                target=target,
+                expected_item=expected_item,
+                expected_manifest_digest=expected_manifest_digest,
+                offset=offset,
+                page_bytes=page_bytes,
+            )
+            or page_bytes > _CONTEXT_MAX_NATIVE_PAGE
+        ):
+            raise ValueError("knowledge context read unavailable")
+        with composition._context_operation():
+            initial = composition._capture_context_material(binding, knowledge_selection)
+            entry = _native_capture_target(
+                composition, initial, binding, knowledge_selection, target,
+                expected_manifest_digest,
+            )
+            _match_recipient_knowledge_item(entry.metadata, expected_item)
+            return _read_verified_knowledge_context_page_from_initial(
+                composition=composition,
+                binding=binding,
+                knowledge_selection=knowledge_selection,
+                target=target,
+                expected_manifest_digest=expected_manifest_digest,
+                offset=offset,
+                page_bytes=page_bytes,
+                initial=initial,
+            )
+    except KnowledgeContextError:
+        raise
+    except Exception:
+        raise KnowledgeContextError("read_unavailable") from None
+
+
+def _exact_native_knowledge_inputs(
+    *,
+    composition: ActiveKnowledgeComposition,
+    binding: DisclosureBinding,
+    knowledge_selection: ContextSelection,
+    target: SourceSelection,
+    expected_item: ManifestItem,
+    expected_manifest_digest: str,
+    offset: int,
+    page_bytes: int,
+) -> bool:
+    if (
+        type(composition) is not ActiveKnowledgeComposition
+        or type(offset) is not int
+        or not 0 <= offset <= _CONTEXT_MAX_JSON_INT
+        or not _exact_knowledge_read_inputs(
+            composition=composition,
+            binding=binding,
+            knowledge_selection=knowledge_selection,
+            target=target,
+            expected_manifest_digest=expected_manifest_digest,
+            offset=offset,
+            page_bytes=page_bytes,
+        )
+    ):
+        return False
+    try:
+        return (
+            type(expected_item) is ManifestItem
+            and ManifestItem(
+                expected_item.source,
+                expected_item.selection_ref,
+                expected_item.revision_ref,
+                expected_item.boundary_sha256,
+                expected_item.record_sha256,
+                expected_item.payload_sha256,
+                expected_item.classification,
+                expected_item.provenance_ref,
+            ) == expected_item
+            and expected_item.source == "knowledge"
+        )
+    except Exception:
+        return False
+
+
+def _exact_knowledge_read_inputs(
+    *,
+    composition: ActiveKnowledgeComposition,
+    binding: DisclosureBinding,
+    knowledge_selection: ContextSelection,
+    target: SourceSelection,
+    expected_manifest_digest: str,
+    offset: int,
+    page_bytes: int,
+) -> bool:
+    if (
+        not isinstance(composition, ActiveKnowledgeComposition)
+        or type(binding) is not DisclosureBinding
+        or type(knowledge_selection) is not ContextSelection
+        or type(target) is not SourceSelection
+        or type(expected_manifest_digest) is not str
+        or type(offset) is not int
+        or offset < 0
+        or type(page_bytes) is not int
+        or not 1 <= page_bytes <= _CONTEXT_MAX_PAGE
+    ):
+        return False
+    try:
+        if DisclosureBinding(
+            binding.owner_sid,
+            binding.chat_session_id,
+            binding.auth_session_binding,
+            binding.security_revision,
+            binding.audience,
+        ) != binding:
+            return False
+        canonical_items = tuple(
+            SourceSelection(
+                item.source,
+                item.selection_ref,
+                item.revision_ref,
+                item.forge_locator,
+            )
+            for item in knowledge_selection.items
+            if type(item) is SourceSelection
+        )
+        if (
+            len(canonical_items) != len(knowledge_selection.items)
+            or ContextSelection(canonical_items) != knowledge_selection
+            or any(item.source != "knowledge" or item.forge_locator is not None
+                   for item in canonical_items)
+            or SourceSelection(
+                target.source,
+                target.selection_ref,
+                target.revision_ref,
+                target.forge_locator,
+            ) != target
+            or target.source != "knowledge"
+            or target.forge_locator is not None
+            or sum(item == target for item in canonical_items) != 1
+        ):
+            return False
+        _context_sha(expected_manifest_digest)
+    except Exception:
+        return False
+    return True
+
+
+def _native_capture_target(
+    composition: ActiveKnowledgeComposition,
+    capture: _KnowledgeContextCapture,
+    binding: DisclosureBinding,
+    knowledge_selection: ContextSelection,
+    target: SourceSelection,
+    expected_manifest_digest: str,
+) -> _KnowledgeContextEntry:
+    if (
+        type(capture) is not _KnowledgeContextCapture
+        or type(capture.manifest) is not KnowledgeContextManifest
+        or type(capture.entries) is not tuple
+        or len(capture.entries) != len(knowledge_selection.items)
+        or type(capture.owner_id) is not str
+        or capture.owner_id != binding.owner_sid
+        or type(capture.canonical_generation) is not str
+        or _GENERATION_ID.fullmatch(capture.canonical_generation) is None
+        or type(capture.selection_digest) is not str
+        or type(capture.store) is not HarbourKnowledgeStore
+    ):
+        raise ValueError("knowledge context capture unavailable")
+    canonical_manifest = KnowledgeContextManifest(
+        capture.manifest.items,
+        capture.manifest.owner_binding_digest,
+        capture.manifest.selection_binding_digest,
+        capture.manifest.canonical_generation_digest,
+        capture.manifest.usi_snapshot_digest,
+        capture.manifest.captured_head_boundary,
+        capture.manifest.binding_digest,
+    )
+    selected = composition._staging.selected_runtime(binding.owner_sid)
+    if (
+        canonical_manifest != capture.manifest
+        or canonical_manifest.digest != capture.manifest.digest
+        or type(selected) is not tuple
+        or len(selected) != 5
+        or type(selected[1]) is not tuple
+        or binding.owner_sid not in selected[1]
+        or selected[2] != capture.canonical_generation
+        or _context_sha(selected[3]) != _context_sha(capture.selection_digest)
+        or selected[4] is not capture.store
+    ):
+        raise ValueError("knowledge context capture unavailable")
+    _context_sha(capture.selection_digest)
+    if not hmac.compare_digest(
+        _context_sha(capture.manifest.digest), _context_sha(expected_manifest_digest),
+    ):
+        raise ValueError("knowledge context manifest stale")
+    selection_keys = tuple(
+        (item.source, item.selection_ref, item.revision_ref)
+        for item in knowledge_selection.items
+    )
+    entry_keys: list[tuple[str, str, str]] = []
+    for entry in capture.entries:
+        if (
+            type(entry) is not _KnowledgeContextEntry
+            or type(entry.metadata) is not KnowledgeContextManifestItem
+            or KnowledgeContextManifestItem(
+                entry.metadata.source,
+                entry.metadata.selection_ref,
+                entry.metadata.revision_ref,
+                entry.metadata.boundary_sha256,
+                entry.metadata.record_sha256,
+                entry.metadata.payload_sha256,
+                entry.metadata.classification,
+                entry.metadata.provenance_ref,
+            ) != entry.metadata
+            or type(entry.knowledge_id) is not str
+            or type(entry.revision_id) is not str
+            or type(entry.generation) is not int
+            or not 1 <= entry.generation <= _CONTEXT_MAX_JSON_INT
+            or type(entry.payload_media_type) is not str
+            or not entry.payload_media_type
+        ):
+            raise ValueError("knowledge context capture unavailable")
+        _context_opaque(entry.knowledge_id)
+        _context_opaque(entry.revision_id)
+        entry_keys.append((
+            entry.metadata.source,
+            entry.metadata.selection_ref,
+            entry.metadata.revision_ref,
+        ))
+    if (
+        sorted(entry_keys) != sorted(selection_keys)
+        or tuple(sorted(
+            (entry.metadata for entry in capture.entries),
+            key=lambda item: json.dumps(item._canonical(), sort_keys=True, separators=(",", ":")),
+        )) != capture.manifest.items
+    ):
+        raise ValueError("knowledge context capture unavailable")
+    matched = tuple(
+        entry for entry in capture.entries
+        if entry.metadata.source == target.source
+        and entry.metadata.selection_ref == target.selection_ref
+        and entry.metadata.revision_ref == target.revision_ref
+    )
+    if len(matched) != 1:
+        raise ValueError("knowledge context target unavailable")
+    return matched[0]
+
+
+def _match_recipient_knowledge_item(
+    native_item: KnowledgeContextManifestItem,
+    expected_item: ManifestItem,
+) -> None:
+    if (
+        native_item.source != expected_item.source
+        or native_item.selection_ref != expected_item.selection_ref
+        or native_item.revision_ref != expected_item.revision_ref
+        or _context_sha(native_item.payload_sha256) != _context_sha(expected_item.payload_sha256)
+        or native_item.classification != expected_item.classification
+        or native_item.provenance_ref != expected_item.provenance_ref
+        or _context_sha(native_item.boundary_sha256) == _context_sha(expected_item.boundary_sha256)
+        or _context_sha(native_item.record_sha256) == _context_sha(expected_item.record_sha256)
+    ):
+        raise ValueError("knowledge context item unavailable")
+
+
+def _read_verified_knowledge_context_page_from_initial(
+    *,
+    composition: ActiveKnowledgeComposition,
+    binding: DisclosureBinding,
+    knowledge_selection: ContextSelection,
+    target: SourceSelection,
+    expected_manifest_digest: str,
+    offset: int,
+    page_bytes: int,
+    initial: _KnowledgeContextCapture,
+) -> KnowledgeContextPage:
+    if (
+        not _exact_knowledge_read_inputs(
+            composition=composition,
+            binding=binding,
+            knowledge_selection=knowledge_selection,
+            target=target,
+            expected_manifest_digest=expected_manifest_digest,
+            offset=offset,
+            page_bytes=page_bytes,
+        )
+    ):
+        raise ValueError("knowledge context read unavailable")
+    entry = _native_capture_target(
+        composition, initial, binding, knowledge_selection, target,
+        expected_manifest_digest,
+    )
+    payload = composition._read_context_payload(binding, entry)
+    if (
+        type(payload) is not bytes
+        or hashlib.sha256(payload).hexdigest() != _context_sha(entry.metadata.payload_sha256)
+    ):
+        raise ValueError("knowledge context payload changed")
+    final = composition._capture_context_material(binding, knowledge_selection)
+    _native_capture_target(
+        composition, final, binding, knowledge_selection, target,
+        expected_manifest_digest,
+    )
+    if (
+        final.manifest != initial.manifest
+        or final.entries != initial.entries
+        or final.owner_id != initial.owner_id
+        or final.canonical_generation != initial.canonical_generation
+        or final.selection_digest != initial.selection_digest
+        or final.store is not initial.store
+    ):
+        raise ValueError("knowledge context changed")
+    total = len(payload)
+    if offset > total:
+        raise ValueError("knowledge context offset unavailable")
+    end = min(total, offset + page_bytes)
+    page = payload[offset:end]
+    return KnowledgeContextPage(
+        payload_bytes=page,
+        total=total,
+        offset=offset,
+        end=end,
+        whole_sha256="sha256:" + hashlib.sha256(payload).hexdigest(),
+        page_sha256="sha256:" + hashlib.sha256(page).hexdigest(),
+        manifest_digest=final.manifest.digest,
+    )
 
 
 def build_active_knowledge_composition(config: UnifiedSourceIndexRuntimeConfig,
