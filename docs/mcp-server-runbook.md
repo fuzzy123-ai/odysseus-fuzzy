@@ -53,6 +53,13 @@ execution permit can be issued. Native Planning execution revalidates the
 accepted context, revisions, lease, and cookie binding; completion is available
 only after the guarded page has been committed.
 
+`src/mcp_context_planning_page.py` provides an inactive Planning-only publication
+adapter. It encodes the complete bounded JSON-RPC page inside the guarded
+execution and returns those bytes only after consuming the issued one-use
+completion. Its page schema preserves exact ranges, hashes and Base64 bytes;
+it does not mint a cursor or claim whole-pack completion. Dispatcher wiring,
+Forge/Knowledge page execution and default activation remain separate work.
+
 Clock sampling and rollback detection share one lock. Genuine invalid clocks
 or rollback invalidate registered requests; ordinary concurrent sampling must
 not cause a false rollback. Retained Forge versions use an exact two-record Git
