@@ -1089,6 +1089,14 @@ import logging
 import os
 from pathlib import Path
 import sqlite3
+import types
+
+def _mcp_rejected(response):
+    try:
+        body = response.json()
+        return isinstance(body.get("error"), dict) or body.get("result", {}).get("isError") is True
+    except (ValueError, AttributeError, TypeError):
+        return False
 
 result_file = Path(os.environ["ODYSSEUS_TEST_RESULT_FILE"])
 stage = "fixture"
@@ -1201,20 +1209,26 @@ try:
         assert all(row.get("owner") == "self" and row.get("item_handle", "").startswith("hi1:") for row in items)
         assert all(row.get("redaction_flags") == {"content": True, "identity": True, "events": True} for row in items)
         assert "real-unified-private-content-must-not-leak" not in rendered and subject not in rendered and token not in rendered
-    def assert_typed(value):
+    def assert_typed(value, *, upload_enabled=False):
         rendered = json.dumps(value, sort_keys=True)
         assert set(value) == {"schema", "items", "count", "sources", "complete", "clipped", "authority", "freshness", "cross_source_atomic"}
         assert value["schema"] == "odysseus.harbour_inbox_unified_list.v3"
-        assert value["complete"] is True and value["clipped"] is False and value["count"] == 5
-        assert [(row.get("source"), row.get("status")) for row in value["sources"]] == [
+        assert value["complete"] is True and value["clipped"] is False
+        expected_sources = [
             ("clarification", "captured_revalidated"), ("planning", "captured_revalidated"),
             ("knowledge", "captured_revalidated"), ("document", "captured_revalidated"),
         ]
+        if upload_enabled:
+            expected_sources.append(("upload", "captured_revalidated"))
+        assert [(row.get("source"), row.get("status")) for row in value["sources"]] == expected_sources
         common = {"item_handle", "source", "owner", "signal_type", "status", "required_action", "due_state", "authority", "binding_digest", "receipt_ref", "redaction_flags"}
-        extras = {"clarification": {"clarification_id", "expected_version", "ready_for_plan", "updated_at"}, "planning": {"current_revision", "approved_revision"}, "knowledge": {"knowledge_kind", "generation", "revision", "occurred_at"}, "document": {"current_revision"}}
+        extras = {"clarification": {"clarification_id", "expected_version", "ready_for_plan", "updated_at"}, "planning": {"current_revision", "approved_revision"}, "knowledge": {"knowledge_kind", "generation", "revision", "occurred_at"}, "document": {"current_revision"}, "upload": set()}
         assert all(set(item) == common | extras[item["source"]] for item in value["items"])
         assert all("due" not in item and "receipt_handle" not in item for item in value["items"])
         assert all(item["authority"]["access"] == "read" and item["owner"] == "self" for item in value["items"])
+        upload_rows = [item for item in value["items"] if item["source"] == "upload"]
+        assert len(upload_rows) == (1 if upload_enabled else 0)
+        assert value["count"] == 5 + len(upload_rows)
         assert "real-unified-private-content-must-not-leak" not in rendered and subject not in rendered and token not in rendered
     setup_plugin()
     manifest = build_h1r03_migration_manifest(Path.cwd())
@@ -1255,7 +1269,12 @@ try:
         summary_rows = client.get("/api/planning/projects/harbour-one/roadmaps").json().get("items", [])
         summary = next((row for row in summary_rows if row.get("roadmap_id") == roadmap_id), {})
         assert summary.get("newest_revision") == 2 and summary.get("latest_approved_revision") == 1
-        assert client.post("/api/plugins/mcp/config", headers=headers, json={"enabled": True, "allow_planning_reads": True}).status_code == 200
+        default_config = client.post(
+            "/api/plugins/mcp/config", headers=headers,
+            json={"enabled": True, "allow_planning_reads": True},
+        )
+        assert default_config.status_code == 200
+        assert default_config.json().get("allow_upload_inbox_reads") is False
         request = {"schema": "odysseus.clarification_request.v2", "scope": "project", "intent_summary": "Real unified fixture.",
                    "questions": [], "batch": {"label": "Real", "index": 1, "total": 1, "max_visible_questions": 3}, "defaults_visible": False}
         assert client.post("/api/clarifications", headers=headers, json={"session_id": "real-unified-session", "request": request,
@@ -1266,6 +1285,33 @@ try:
         working_copy = client.post("/api/universal-inbox/items/upload:" + upload_id + "/working-copy", json={})
         assert working_copy.status_code == 201
         working_copy_id = working_copy.json()["id"]
+        native_upload_handler = application.app.state.upload_handler
+        upload_index_path = Path(native_upload_handler.upload_dir) / "uploads.json"
+        upload_index = native_upload_handler._load_upload_index()
+        assert len(upload_index) == 1
+        current_upload_key, current_upload_row = next(iter(upload_index.items()))
+        assert current_upload_row.get("creator_subject_id") == subject
+        historical_subject = "owner_" + "c" * 32
+        foreign_subject = "owner_" + "d" * 32
+        excluded_upload_metadata = []
+        for alias, row_subject, marker in (
+            ("fuzzy", historical_subject, "b"),
+            ("fuzzy", None, "c"),
+            ("foreign", foreign_subject, "d"),
+            ("fuzzy", "owner_" + "e" * 32, "e"),
+        ):
+            row = dict(current_upload_row)
+            file_hash = marker * 64
+            row.update({
+                "id": marker * 32 + ".txt", "hash": file_hash, "owner": alias,
+                "creator_subject_id": row_subject, "name": "excluded-" + marker + ".txt",
+                "original_name": "excluded-private-" + marker + ".txt",
+                "path": "excluded-private-path-" + marker,
+            })
+            key = f"{alias}:{row_subject}:{file_hash}" if row_subject is not None else f"{alias}:{file_hash}"
+            upload_index[key] = row
+            excluded_upload_metadata.extend((key, row["id"], row["name"], row["original_name"], row["path"]))
+        native_upload_handler._atomic_write_json(str(upload_index_path), upload_index)
         from core.database import Document, get_db_session
         with get_db_session() as db:
             produced = db.get(Document, working_copy_id)
@@ -1301,6 +1347,141 @@ try:
         )
         assert len(public_document_descriptors) == 2
         assert working_copy_id not in json.dumps(payload(typed), sort_keys=True)
+
+        for non_boolean in ("true", 1, [], {}):
+            rejected_config = client.post(
+                "/api/plugins/mcp/config", headers=headers,
+                json={"allow_upload_inbox_reads": non_boolean},
+            )
+            assert rejected_config.status_code == 200
+            assert rejected_config.json().get("allow_upload_inbox_reads") is False
+        config_path = data / "mcp-plugin" / "config.json"
+        persisted_non_boolean = json.loads(config_path.read_text(encoding="utf-8"))
+        persisted_non_boolean["allow_upload_inbox_reads"] = "true"
+        config_path.write_text(json.dumps(persisted_non_boolean, indent=2), encoding="utf-8")
+        assert client.get(
+            "/api/plugins/mcp/config", headers=headers,
+        ).json().get("allow_upload_inbox_reads") is False
+        still_disabled = client.post("/api/plugins/mcp", headers={"Authorization": "Bearer " + token}, json={
+            "jsonrpc": "2.0", "id": 12, "method": "tools/call",
+            "params": {"name": "harbour_inbox_list", "arguments": {"view": "typed", "limit": 10}},
+        })
+        assert still_disabled.status_code == 200
+        assert_typed(payload(still_disabled))
+
+        enabled_config = client.post(
+            "/api/plugins/mcp/config", headers=headers,
+            json={"allow_upload_inbox_reads": True},
+        )
+        assert enabled_config.status_code == 200
+        assert enabled_config.json().get("allow_upload_inbox_reads") is True
+
+        application.app.state.upload_handler = None
+        absent = client.post("/api/plugins/mcp", headers={"Authorization": "Bearer " + token}, json={
+            "jsonrpc": "2.0", "id": 13, "method": "tools/call",
+            "params": {"name": "harbour_inbox_list", "arguments": {"view": "typed", "limit": 10}},
+        })
+        assert absent.status_code == 200
+        assert_typed(payload(absent))
+
+        application.app.state.upload_handler = object()
+        broken = client.post("/api/plugins/mcp", headers={"Authorization": "Bearer " + token}, json={
+            "jsonrpc": "2.0", "id": 14, "method": "tools/call",
+            "params": {"name": "harbour_inbox_list", "arguments": {"view": "typed", "limit": 10}},
+        })
+        assert broken.status_code == 200 and _mcp_rejected(broken)
+        assert '"source":"upload"' not in json.dumps(broken.json(), sort_keys=True, separators=(",", ":"))
+
+        application.app.state.upload_handler = native_upload_handler
+        enabled = client.post("/api/plugins/mcp", headers={"Authorization": "Bearer " + token}, json={
+            "jsonrpc": "2.0", "id": 15, "method": "tools/call",
+            "params": {"name": "harbour_inbox_list", "arguments": {"view": "typed", "limit": 10}},
+        })
+        assert enabled.status_code == 200
+        assert_typed(payload(enabled), upload_enabled=True)
+        public_upload_descriptors = frozenset(
+            (item["item_handle"], item["binding_digest"])
+            for item in payload(enabled)["items"] if item["source"] == "upload"
+        )
+        assert len(public_upload_descriptors) == 1
+        enabled_rendered = json.dumps(payload(enabled), sort_keys=True)
+        assert current_upload_key not in enabled_rendered
+        assert all(value not in enabled_rendered for value in excluded_upload_metadata)
+
+        native_capture = native_upload_handler.capture_inbox_snapshot
+
+        drift_calls = [0]
+        def drift_during_capture(self, **kwargs):
+            drift_calls[0] += 1
+            captured = native_capture(**kwargs)
+            if drift_calls[0] == 1:
+                changed = self._load_upload_index()
+                changed[current_upload_key]["last_accessed"] = "2026-10-08T23:59:51"
+                self._atomic_write_json(str(upload_index_path), changed)
+            return captured
+        native_upload_handler.capture_inbox_snapshot = types.MethodType(
+            drift_during_capture, native_upload_handler,
+        )
+        drifted = client.post("/api/plugins/mcp", headers={"Authorization": "Bearer " + token}, json={
+            "jsonrpc": "2.0", "id": 16, "method": "tools/call",
+            "params": {"name": "harbour_inbox_list", "arguments": {"view": "typed", "limit": 10}},
+        })
+        del native_upload_handler.capture_inbox_snapshot
+        assert drift_calls == [2] and drifted.status_code == 200 and _mcp_rejected(drifted)
+        assert '"source":"upload"' not in json.dumps(drifted.json(), sort_keys=True, separators=(",", ":"))
+
+        disable_calls = [0]
+        def disable_during_capture(self, **kwargs):
+            disable_calls[0] += 1
+            captured = native_capture(**kwargs)
+            if disable_calls[0] == 1:
+                persisted = json.loads(config_path.read_text(encoding="utf-8"))
+                persisted["allow_upload_inbox_reads"] = False
+                config_path.write_text(json.dumps(persisted, indent=2), encoding="utf-8")
+            return captured
+        native_upload_handler.capture_inbox_snapshot = types.MethodType(
+            disable_during_capture, native_upload_handler,
+        )
+        disabled_mid_request = client.post("/api/plugins/mcp", headers={"Authorization": "Bearer " + token}, json={
+            "jsonrpc": "2.0", "id": 17, "method": "tools/call",
+            "params": {"name": "harbour_inbox_list", "arguments": {"view": "typed", "limit": 10}},
+        })
+        del native_upload_handler.capture_inbox_snapshot
+        assert disable_calls == [2] and disabled_mid_request.status_code == 200 and _mcp_rejected(disabled_mid_request)
+        assert '"source":"upload"' not in json.dumps(disabled_mid_request.json(), sort_keys=True, separators=(",", ":"))
+        assert client.post(
+            "/api/plugins/mcp/config", headers=headers, json={"allow_upload_inbox_reads": True},
+        ).json().get("allow_upload_inbox_reads") is True
+
+        replacement_calls = [0]
+        def replace_during_recapture(self, **kwargs):
+            replacement_calls[0] += 1
+            captured = native_capture(**kwargs)
+            if replacement_calls[0] == 2:
+                application.app.state.upload_handler = object()
+            return captured
+        native_upload_handler.capture_inbox_snapshot = types.MethodType(
+            replace_during_recapture, native_upload_handler,
+        )
+        replaced_mid_request = client.post("/api/plugins/mcp", headers={"Authorization": "Bearer " + token}, json={
+            "jsonrpc": "2.0", "id": 18, "method": "tools/call",
+            "params": {"name": "harbour_inbox_list", "arguments": {"view": "typed", "limit": 10}},
+        })
+        del native_upload_handler.capture_inbox_snapshot
+        application.app.state.upload_handler = native_upload_handler
+        assert replacement_calls == [2] and replaced_mid_request.status_code == 200 and _mcp_rejected(replaced_mid_request)
+        assert '"source":"upload"' not in json.dumps(replaced_mid_request.json(), sort_keys=True, separators=(",", ":"))
+
+        stable_enabled = client.post("/api/plugins/mcp", headers={"Authorization": "Bearer " + token}, json={
+            "jsonrpc": "2.0", "id": 19, "method": "tools/call",
+            "params": {"name": "harbour_inbox_list", "arguments": {"view": "typed", "limit": 10}},
+        })
+        assert stable_enabled.status_code == 200
+        assert_typed(payload(stable_enabled), upload_enabled=True)
+        public_upload_descriptors = frozenset(
+            (item["item_handle"], item["binding_digest"])
+            for item in payload(stable_enabled)["items"] if item["source"] == "upload"
+        )
     stage = "restart"
     import src.plugin_system as plugin_system
     plugin_system.MANAGER = None
@@ -1308,6 +1489,9 @@ try:
     setup_plugin()
     with TestClient(application.app) as client:
         assert client.post("/api/auth/login", json={"username": "fuzzy", "password": password}).status_code == 200
+        persisted_config = client.get("/api/plugins/mcp/config", headers={"Origin": "http://testserver"})
+        assert persisted_config.status_code == 200
+        assert persisted_config.json().get("allow_upload_inbox_reads") is True
         restarted = client.post("/api/plugins/mcp", headers={"Authorization": "Bearer " + token}, json={
             "jsonrpc": "2.0", "id": 2, "method": "tools/call",
             "params": {"name": "harbour_inbox_list", "arguments": {"view": "unified", "limit": 10}},
@@ -1319,12 +1503,17 @@ try:
             "params": {"name": "harbour_inbox_list", "arguments": {"view": "typed", "limit": 10}},
         })
         assert typed_restarted.status_code == 200
-        assert_typed(payload(typed_restarted))
+        assert_typed(payload(typed_restarted), upload_enabled=True)
         restarted_documents = [item for item in payload(typed_restarted)["items"] if item["source"] == "document"]
         assert frozenset(
             (item["item_handle"], item["binding_digest"], item["current_revision"])
             for item in restarted_documents
         ) == public_document_descriptors
+        restarted_uploads = [item for item in payload(typed_restarted)["items"] if item["source"] == "upload"]
+        assert frozenset(
+            (item["item_handle"], item["binding_digest"])
+            for item in restarted_uploads
+        ) == public_upload_descriptors
     result_file.write_text(json.dumps({"ok": True, "selection": bool(selection), "stage": "complete"}, sort_keys=True), encoding="utf-8")
 except Exception:
     result_file.write_text(json.dumps({
@@ -1335,7 +1524,7 @@ except Exception:
 '''
 
 
-def test_actual_default_app_unified_inbox_captures_real_clarification_planning_and_knowledge_after_restart(tmp_path):
+def test_actual_default_app_unified_inbox_captures_real_sources_and_opt_in_upload_after_restart(tmp_path):
     repo_root = Path(__file__).resolve().parents[1]
     profile_root, data_root = tmp_path / "profile", tmp_path / "data"
     for path in (profile_root, data_root, profile_root / "roaming", profile_root / "local", tmp_path / "temp", tmp_path / "cache"):

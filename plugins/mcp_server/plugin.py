@@ -64,6 +64,7 @@ DEFAULT_CONFIG = {
     "allow_filesystem_reads": False,
     "allow_generic_api": False,
     "allow_planning_reads": False,
+    "allow_upload_inbox_reads": False,
 }
 
 
@@ -140,7 +141,12 @@ class McpServerState:
         try:
             loaded = json.loads(self.config_path.read_text(encoding="utf-8"))
             if isinstance(loaded, dict):
-                config.update({key: loaded.get(key, value) for key, value in DEFAULT_CONFIG.items()})
+                config.update({
+                    key: loaded.get(key, value)
+                    for key, value in DEFAULT_CONFIG.items()
+                    if key != "allow_upload_inbox_reads"
+                })
+                config["allow_upload_inbox_reads"] = loaded.get("allow_upload_inbox_reads") is True
         except Exception:
             pass
         if _bool_env("ODYSSEUS_MCP_SERVER_ENABLED"):
@@ -151,7 +157,11 @@ class McpServerState:
         config = self.load_config()
         for key in DEFAULT_CONFIG:
             if key in incoming:
-                config[key] = bool(incoming[key])
+                config[key] = (
+                    incoming[key] is True
+                    if key == "allow_upload_inbox_reads"
+                    else bool(incoming[key])
+                )
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.config_path.write_text(json.dumps(config, indent=2), encoding="utf-8")
         return config
@@ -572,10 +582,16 @@ def setup(ctx):
             return JSONResponse(
                 dispatch_failure_response("disabled"), status_code=403,
             )
+        upload_inbox_handler = None
         def _authentication_fence() -> None:
             current_config = state.load_config()
             if not current_config.get("enabled"):
                 raise McpDispatchFailure("disabled")
+            if upload_inbox_handler is not None and (
+                current_config.get("allow_upload_inbox_reads") is not True
+                or getattr(request.app.state, "upload_handler", None) is not upload_inbox_handler
+            ):
+                raise McpDispatchFailure("inbox_failed")
             current = (
                 authenticate_mcp_request(request, bearer_proof)
                 if identity.scope == MCP_HARBOUR_INBOX_SCOPE
@@ -597,11 +613,29 @@ def setup(ctx):
             payload = parse_json_body(raw)
             if identity.scope == MCP_HARBOUR_INBOX_SCOPE:
                 from src.harbour_inbox_service import HarbourInboxService
+                messages = payload if type(payload) is list else [payload]
+                typed_read = any(
+                    type(message) is dict
+                    and message.get("method") == "tools/call"
+                    and type(message.get("params")) is dict
+                    and message["params"].get("name") == "harbour_inbox_list"
+                    and type(message["params"].get("arguments")) is dict
+                    and message["params"]["arguments"].get("view") == "typed"
+                    for message in messages
+                )
+                if typed_read and config.get("allow_upload_inbox_reads") is True:
+                    candidate = getattr(request.app.state, "upload_handler", None)
+                    if candidate is not None:
+                        from src.upload_handler import UploadHandler
+                        if type(candidate) is not UploadHandler:
+                            raise McpDispatchFailure("inbox_failed")
+                        upload_inbox_handler = candidate
                 runtime = HarbourInboxService(
                     auth_manager=request.app.state.auth_manager,
                     bearer_proof=bearer_proof,
                     planning_runtime=getattr(request.app.state, "planning_mcp_runtime", None),
                     knowledge_composition=getattr(request.app.state, "knowledge_composition", None),
+                    upload_handler=upload_inbox_handler,
                 )
             else:
                 runtime = getattr(request.app.state, "planning_mcp_runtime", None)
