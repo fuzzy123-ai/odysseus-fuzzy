@@ -112,10 +112,13 @@ cancellation and `close()` release those records without closing the borrowed
 graph. Its fixed lease lifetime is 300 seconds, with limits of 64 records
 globally and eight per owner.
 
-Independent static deep review has passed for the current candidate. The
-focused 11-case runtime lane is prepared and independently reviewed, but has
-not executed. Source review is not runtime acceptance. The shared dependency
-lane passed all 108 cases and independent receipt review at commit `68146dc5`;
+The earlier independent static deep review did not establish runtime acceptance.
+The focused 11-case lane has now executed and stopped on its first case: the
+native runtime rejects the genuine slotted producer during construction, before
+the prepare-return test hook runs. This candidate is not accepted; its bounded
+graph-admission correction and independent review remain pending. The shared
+dependency lane passed all 108 cases and independent receipt review at commit
+`68146dc5`;
 the exact three-file commit also passed direct Git readback. Those results
 cover the dependency, not this new runtime. The new module has no
 App, dispatcher or plugin wiring, and none of these records establish default
@@ -357,10 +360,11 @@ not transfer old uploads. Historical or null-subject entries are excluded from
 the trusted Inbox model until a separate data decision authorizes assignment.
 This follows the human decision to bind new uploads and initially exclude history.
 
-The subsequent opt-in typed upload projection is implemented but not yet
-accepted. Its current independent source review has passed. A separate
-187-case runtime lane and its corrected ownership controller have independent
-static approval. Its final runtime evidence remains pending. This prerequisite
+The subsequent opt-in typed upload projection is locally accepted at commit
+`81a22af3`. Its independent source review and actual isolated runtime lane passed:
+187 unique cases, zero failures/errors/skips, all frozen inputs unchanged and
+the owned process job empty. Independent receipt acceptance, exact four-file
+commit and direct Git byte readback also passed. This component acceptance
 does not establish actual application/MCP transport acceptance,
 activate the plugin, or satisfy live, cross-process recovery, UI or temporal
 gates. If removal of a newly created file is refused, the upload returns a fixed
