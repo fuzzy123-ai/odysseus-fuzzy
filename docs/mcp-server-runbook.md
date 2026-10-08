@@ -73,6 +73,22 @@ cookie-native `sha256:`-prefixed target digest, and all selected Knowledge
 entries remain in original order. Legacy Forge and Knowledge caps remain
 1,000,000 and 1,048,576 bytes.
 
+Combined snapshots sort `items` by canonical JSON, independently of the
+selection order. Resolve a selected item by its full
+`(source, selection_ref, revision_ref)` key within each snapshot. The
+`target_manifest_digests` tuple retains selection order; do not zip it with the
+sorted snapshot items or use a selection index as a snapshot index.
+
+Cookie and MCP captures preserve the same source facts: source, selection and
+revision references, payload hash, classification, and provenance reference.
+Their binding hashes have source-specific meaning. Forge cookie metadata binds
+owner, security revision and source state without chat identity. Knowledge
+cookie boundaries include chat identity, while their record hash remains the
+original source-record hash. For both sources, MCP metadata binds boundary and
+record hashes to the recipient. Compare the intended binding domain as well as
+the source facts; Knowledge cookie items from distinct chats cannot be assumed
+equal, and cookie items cannot substitute for recipient-bound MCP items.
+
 `src/mcp_context_cursor_authority.py` signs manifest (`m1`) and content (`c1`)
 cursors with separate internally generated ephemeral keys. Verification binds
 the current native lease, recipient, chat, process epoch, selection, snapshot,
