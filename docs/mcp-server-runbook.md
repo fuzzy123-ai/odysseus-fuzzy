@@ -57,8 +57,23 @@ only after the guarded page has been committed.
 adapter. It encodes the complete bounded JSON-RPC page inside the guarded
 execution and returns those bytes only after consuming the issued one-use
 completion. Its page schema preserves exact ranges, hashes and Base64 bytes;
-it does not mint a cursor or claim whole-pack completion. Dispatcher wiring,
-Forge/Knowledge page execution and default activation remain separate work.
+it does not mint a cursor or claim whole-pack completion. Dispatcher wiring
+and default activation remain separate work.
+
+`src/mcp_context_native_page.py` provides the inactive `publish_forge_page`
+and `publish_knowledge_page` adapters accepted in commit `7e7a634`. They require
+a service-issued permit and genuine guarded paired cookie/MCP captures. The
+complete bounded JSON-RPC page is encoded and validated before its one-use
+completion is consumed; successful consumption is followed only by returning
+the already frozen bytes. Changed source or recipient evidence denies content
+publication. Pre-execution rejection uses the permit's weak original-state
+anchor to clear only its proven owned request; an unproven anchor fails closed
+without mutating unrelated requests.
+
+That component received 217 revision-bound local PASS results and independent
+deep review. These results accept the inactive publication component only;
+mixed-pack coordination, dispatcher wiring, default activation and live
+behavior still require their own implementation and acceptance evidence.
 
 The accepted native seams `read_native_forge_context_page` and
 `read_native_knowledge_context_page` require an already-held authenticated
