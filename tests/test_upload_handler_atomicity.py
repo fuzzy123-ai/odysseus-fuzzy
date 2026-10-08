@@ -41,7 +41,12 @@ except Exception:  # pragma: no cover
             super().__init__(detail)
 
 
-from src.upload_handler import UploadHandler  # noqa: E402
+from src.upload_handler import (  # noqa: E402
+    UploadHandler,
+    UploadInboxItem,
+    UploadInboxSnapshot,
+    UploadInboxSnapshotError,
+)
 
 
 N_WRITERS = 10
@@ -697,3 +702,255 @@ def test_bound_create_collision_does_not_delete_preexisting_file(tmp_path, monke
     assert exc_info.value.status_code == 500
     assert exc_info.value.detail == "Failed to save file"
     assert collision.read_bytes() == b"preexisting collision"
+
+
+def _sid_upload_row(alias: str, sid: str | None, marker: str) -> tuple[str, dict]:
+    file_hash = marker * 64
+    upload_id = marker * 32 + ".txt"
+    row = _seed_entry(alias, file_hash, upload_id)
+    row["creator_subject_id"] = sid
+    key = f"{alias}:{sid}:{file_hash}" if sid is not None else f"{alias}:{file_hash}"
+    return key, row
+
+
+def test_inbox_capture_is_lock_held_detached_read_only_and_binds_beyond_prefix(tmp_path, monkeypatch):
+    handler = _make_handler(tmp_path)
+    sid = "owner_" + "a" * 32
+    first_key, first = _sid_upload_row("alice", sid, "a")
+    tail_key, tail = _sid_upload_row("alice", sid, "b")
+    legacy_key, legacy = _sid_upload_row("alice", None, "c")
+    historical_key, historical = _sid_upload_row("alice", "owner_" + "d" * 32, "d")
+    index = {first_key: first, tail_key: tail, legacy_key: legacy, historical_key: historical}
+    handler._atomic_write_json(_db_path(handler), index)
+    before = Path(_db_path(handler)).read_bytes()
+    original_load = handler._load_strict_upload_index
+    reads = []
+
+    def locked_load():
+        assert handler._index_lock.locked()
+        reads.append(True)
+        return original_load()
+
+    monkeypatch.setattr(handler, "_load_strict_upload_index", locked_load)
+    monkeypatch.setattr(handler, "_atomic_write_json", lambda *_args, **_kwargs: pytest.fail("capture wrote the index"))
+    capture = handler.capture_inbox_snapshot(owner_alias="alice", creator_subject_id=sid, limit=1)
+    assert capture.selected_count == 2 and len(capture.items) == 1 and capture.clipped is True
+    assert Path(_db_path(handler)).read_bytes() == before
+    assert "alice" not in repr(capture) and sid not in repr(capture)
+
+    full_capture = handler.capture_inbox_snapshot(owner_alias="alice", creator_subject_id=sid, limit=10)
+    assert full_capture.selected_count == 2 and len(full_capture.items) == 2
+    assert full_capture.clipped is False
+    assert full_capture.binding_digest == capture.binding_digest
+    wrong_full_digest = "sha256:" + (
+        ("0" if full_capture.binding_digest[7] != "0" else "1")
+        + full_capture.binding_digest[8:]
+    )
+    wrong_full = UploadInboxSnapshot(
+        full_capture.selected_count, wrong_full_digest, full_capture.items, full_capture.clipped,
+    )
+    reads_before = len(reads)
+    with pytest.raises(UploadInboxSnapshotError, match="inbox_failed"):
+        handler.capture_inbox_snapshot(
+            owner_alias="alice", creator_subject_id=sid, limit=10, expected_capture=wrong_full,
+        )
+    assert len(reads) == reads_before
+    assert handler.capture_inbox_snapshot(
+        owner_alias="alice", creator_subject_id=sid, limit=10, expected_capture=full_capture,
+    ) == full_capture
+    assert len(reads) == reads_before + 1
+
+    wrong_clipped = UploadInboxSnapshot(
+        capture.selected_count, wrong_full_digest, capture.items, capture.clipped,
+    )
+    reads_before = len(reads)
+    with pytest.raises(UploadInboxSnapshotError, match="inbox_failed"):
+        handler.capture_inbox_snapshot(
+            owner_alias="alice", creator_subject_id=sid, limit=1, expected_capture=wrong_clipped,
+        )
+    assert len(reads) == reads_before + 1
+
+    beyond_key = next(key for key in (first_key, tail_key) if key != capture.items[0].index_key)
+    index[beyond_key]["last_accessed"] = "2026-06-02T00:00:00"
+    Path(_db_path(handler)).write_text(json.dumps(index), encoding="utf-8")
+    changed = handler.capture_inbox_snapshot(owner_alias="alice", creator_subject_id=sid, limit=1)
+    assert changed.binding_digest != capture.binding_digest
+    reads_before = len(reads)
+    with pytest.raises(UploadInboxSnapshotError, match="inbox_failed"):
+        handler.capture_inbox_snapshot(
+            owner_alias="alice", creator_subject_id=sid, limit=1, expected_capture=capture,
+        )
+    assert len(reads) == reads_before + 1
+
+
+def test_inbox_capture_uses_only_a_strict_validated_backup_and_missing_both_is_empty(
+    tmp_path, monkeypatch,
+):
+    handler = _make_handler(tmp_path)
+    sid = "owner_" + "e" * 32
+    key, row = _sid_upload_row("alice", sid, "e")
+    path = Path(_db_path(handler))
+    path.with_suffix(path.suffix + ".bak").write_text(json.dumps({key: row}), encoding="utf-8")
+    empty = handler.capture_inbox_snapshot(owner_alias="nobody", creator_subject_id="owner_" + "f" * 32, limit=10)
+    assert empty.selected_count == 0 and empty.items == () and empty.clipped is False
+
+    original_load = handler._load_strict_upload_index
+    reads = []
+
+    def observed_read():
+        reads.append(True)
+        return original_load()
+
+    monkeypatch.setattr(handler, "_load_strict_upload_index", observed_read)
+    wrong_empty_digest = "sha256:" + (
+        ("0" if empty.binding_digest[7] != "0" else "1") + empty.binding_digest[8:]
+    )
+    wrong_empty = UploadInboxSnapshot(0, wrong_empty_digest, (), False)
+    with pytest.raises(UploadInboxSnapshotError, match="inbox_failed"):
+        handler.capture_inbox_snapshot(
+            owner_alias="nobody", creator_subject_id="owner_" + "f" * 32,
+            limit=10, expected_capture=wrong_empty,
+        )
+    assert reads == []
+    assert handler.capture_inbox_snapshot(
+        owner_alias="nobody", creator_subject_id="owner_" + "f" * 32,
+        limit=10, expected_capture=empty,
+    ) == empty
+    assert reads == [True]
+
+    path.write_text("{truncated", encoding="utf-8")
+    recovered = handler.capture_inbox_snapshot(owner_alias="alice", creator_subject_id=sid, limit=10)
+    assert recovered.selected_count == 1
+    path.with_suffix(path.suffix + ".bak").write_text('{"duplicate":1,"duplicate":2}', encoding="utf-8")
+    with pytest.raises(UploadInboxSnapshotError, match="inbox_failed"):
+        handler.capture_inbox_snapshot(owner_alias="alice", creator_subject_id=sid, limit=10)
+
+    path.unlink()
+    path.with_suffix(path.suffix + ".bak").unlink()
+    missing = handler.capture_inbox_snapshot(owner_alias="alice", creator_subject_id=sid, limit=10)
+    assert missing.selected_count == 0 and missing.items == ()
+
+
+@pytest.mark.parametrize("case", ["wrong_alias", "wrong_key", "malformed_matching_row"])
+def test_inbox_capture_fails_closed_for_current_sid_alias_or_key_inconsistency(tmp_path, case):
+    handler = _make_handler(tmp_path)
+    sid = "owner_" + "1" * 32
+    key, row = _sid_upload_row("alice", sid, "a")
+    if case == "wrong_alias":
+        row["owner"] = "mallory"
+    elif case == "wrong_key":
+        key += ":unexpected"
+    else:
+        row = ["not", "a", "row"]
+    Path(_db_path(handler)).write_text(json.dumps({key: row}), encoding="utf-8")
+    with pytest.raises(UploadInboxSnapshotError, match="inbox_failed"):
+        handler.capture_inbox_snapshot(owner_alias="alice", creator_subject_id=sid, limit=10)
+
+
+def test_inbox_capture_excludes_legacy_foreign_and_recreated_alias_rows(tmp_path):
+    handler = _make_handler(tmp_path)
+    current_sid = "owner_" + "2" * 32
+    rows = dict([
+        _sid_upload_row("alice", current_sid, "a"),
+        _sid_upload_row("alice", None, "b"),
+        _sid_upload_row("alice", "owner_" + "3" * 32, "c"),
+        _sid_upload_row("other", "owner_" + "4" * 32, "d"),
+    ])
+    Path(_db_path(handler)).write_text(json.dumps(rows), encoding="utf-8")
+    capture = handler.capture_inbox_snapshot(owner_alias="alice", creator_subject_id=current_sid, limit=10)
+    assert capture.selected_count == 1
+    assert capture.items[0].index_key.startswith(f"alice:{current_sid}:")
+
+
+def test_inbox_capture_follows_a_sid_preserving_owner_rename(tmp_path):
+    handler = _make_handler(tmp_path)
+    sid = "owner_" + "5" * 32
+    key, row = _sid_upload_row("alice", sid, "e")
+    Path(_db_path(handler)).write_text(json.dumps({key: row}), encoding="utf-8")
+    assert handler.rename_owner("alice", "alice2") == 1
+    capture = handler.capture_inbox_snapshot(owner_alias="alice2", creator_subject_id=sid, limit=10)
+    assert capture.selected_count == 1
+    assert capture.items[0].index_key == f"alice2:{sid}:{row['hash']}"
+
+
+def test_inbox_capture_rejects_non_exact_identity_and_limit_before_index_read(tmp_path, monkeypatch):
+    handler = _make_handler(tmp_path)
+    sid = "owner_" + "6" * 32
+
+    class Text(str):
+        pass
+
+    monkeypatch.setattr(
+        handler,
+        "_load_strict_upload_index",
+        lambda: pytest.fail("invalid capture arguments reached the index"),
+    )
+    for owner, subject, limit in (
+        (Text("alice"), sid, 1),
+        ("alice", Text(sid), 1),
+        ("alice", sid, True),
+        ("alice", sid, 0),
+    ):
+        with pytest.raises(UploadInboxSnapshotError, match="inbox_failed"):
+            handler.capture_inbox_snapshot(
+                owner_alias=owner, creator_subject_id=subject, limit=limit,
+            )
+
+
+@pytest.mark.parametrize("hostile_location", ["snapshot", "item"])
+def test_inbox_capture_rejects_hostile_exact_expected_snapshot_before_index_read(
+    tmp_path, monkeypatch, hostile_location,
+):
+    handler = _make_handler(tmp_path)
+    sid = "owner_" + "7" * 32
+    reads = []
+
+    class Hostile:
+        def __eq__(self, _other):
+            raise AssertionError("hostile equality was invoked")
+
+        def __ne__(self, _other):
+            raise AssertionError("hostile inequality was invoked")
+
+    if hostile_location == "snapshot":
+        expected = UploadInboxSnapshot(0, Hostile(), (), False)
+    else:
+        expected = UploadInboxSnapshot(
+            1,
+            "sha256:" + "0" * 64,
+            (UploadInboxItem(
+                "hi1:upload:" + "0" * 64,
+                "sha256:" + "0" * 64,
+                Hostile(),
+                "0" * 32 + ".txt",
+                b"{}",
+            ),),
+            False,
+        )
+
+    def observed_read():
+        reads.append(True)
+        return {}
+
+    monkeypatch.setattr(handler, "_load_strict_upload_index", observed_read)
+    with pytest.raises(UploadInboxSnapshotError, match="inbox_failed"):
+        handler.capture_inbox_snapshot(
+            owner_alias="alice", creator_subject_id=sid, limit=1, expected_capture=expected,
+        )
+    assert reads == []
+
+
+@pytest.mark.parametrize("raw", [
+    '{"foreign":{"nested":{"duplicate":1,"duplicate":2}}}',
+    '{"foreign":{"number":1e309}}',
+    '{"foreign":{"number":Infinity}}',
+])
+def test_inbox_capture_strict_index_rejects_nested_duplicate_and_overflow_infinity_cases(
+    tmp_path, raw,
+):
+    handler = _make_handler(tmp_path)
+    Path(_db_path(handler)).write_text(raw, encoding="utf-8")
+    with pytest.raises(UploadInboxSnapshotError, match="inbox_failed"):
+        handler.capture_inbox_snapshot(
+            owner_alias="alice", creator_subject_id="owner_" + "8" * 32, limit=1,
+        )

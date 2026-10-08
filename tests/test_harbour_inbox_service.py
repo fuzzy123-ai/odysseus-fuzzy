@@ -5,6 +5,7 @@ from contextlib import contextmanager
 from dataclasses import replace
 import hashlib
 import json
+from pathlib import Path
 import threading
 import time
 from types import SimpleNamespace
@@ -43,6 +44,7 @@ from src.mcp_authenticated_dispatch import (
     capture_mcp_bearer_proof,
     dispatch_http_payload,
 )
+from src.upload_handler import UploadHandler
 
 
 def _request():
@@ -556,6 +558,218 @@ def test_typed_service_maps_initial_mandatory_capture_failures_to_fixed_inbox_fa
     with pytest.raises(HarbourInboxError) as error:
         service.dispatch("harbour_inbox_list", {"view": "typed", "limit": 1}, identity)
     assert error.value.code == "inbox_failed"
+
+
+def _typed_upload_handler(tmp_path, identity, *, count=1):
+    base = tmp_path / "typed-upload-base"
+    uploads = tmp_path / "typed-uploads"
+    base.mkdir(exist_ok=True)
+    uploads.mkdir(exist_ok=True)
+    handler = UploadHandler(base_dir=str(base), upload_dir=str(uploads))
+    index = {}
+    for number in range(count):
+        marker = f"{number + 1:064x}"
+        upload_id = f"{number + 1:032x}.txt"
+        key = f"admin:{identity.owner_subject_id}:{marker}"
+        index[key] = {
+            "id": upload_id,
+            "path": str(uploads / "private" / upload_id),
+            "mime": "text/private-fixture",
+            "size": number + 1,
+            "name": f"private-{number}.txt",
+            "hash": marker,
+            "original_name": f"secret-{number}.txt",
+            "uploaded_at": f"2026-10-08T00:00:{number:02d}",
+            "last_accessed": f"2026-10-08T00:01:{number:02d}",
+            "client_ip": "192.0.2.10",
+            "owner": "admin",
+            "creator_subject_id": identity.owner_subject_id,
+        }
+    Path(handler.upload_dir, "uploads.json").write_text(json.dumps(index), encoding="utf-8")
+    return handler, index
+
+
+def _enable_typed_sources(service, identity, handler):
+    planning = _planning_capture(identity, count=0)
+    knowledge = _knowledge_capture(identity, count=0)
+
+    class Planning:
+        def capture_inbox_snapshot(self, **_kwargs):
+            return planning
+
+    class Knowledge:
+        @contextmanager
+        def guard_inbox_read(self):
+            yield
+
+        def capture_inbox_snapshot(self, **_kwargs):
+            return knowledge
+
+    service._planning_runtime = Planning()
+    service._knowledge_composition = Knowledge()
+    service._upload_handler = handler
+
+
+@pytest.mark.parametrize("failure_at", ["initial", "recapture"])
+def test_typed_upload_source_configured_none_is_fixed_failure(tmp_path, failure_at):
+    _engine, _factory, _manager, service, identity, _principal, _created = _fixture(tmp_path)
+    handler, _index = _typed_upload_handler(tmp_path, identity, count=1)
+    valid = handler.capture_inbox_snapshot(
+        owner_alias="admin", creator_subject_id=identity.owner_subject_id, limit=1,
+    )
+    _enable_typed_sources(service, identity, handler)
+
+    class ConfiguredUpload:
+        calls = 0
+
+        def capture_inbox_snapshot(self, **_kwargs):
+            self.calls += 1
+            if failure_at == "initial" or self.calls == 2:
+                return None
+            return valid
+
+    configured = ConfiguredUpload()
+    service._upload_handler = configured
+    with pytest.raises(HarbourInboxError) as error:
+        service.dispatch("harbour_inbox_list", {"view": "typed", "limit": 1}, identity)
+    assert error.value.code == "inbox_failed"
+    assert configured.calls == (1 if failure_at == "initial" else 2)
+
+
+def test_typed_payload_rejects_present_null_upload_capture(tmp_path):
+    _engine, _factory, _manager, _service, identity, _principal, _created = _fixture(tmp_path)
+    with pytest.raises(HarbourInboxError) as error:
+        _typed_payload({
+            "clarification": _clarification_capture(identity, count=0),
+            "planning": _planning_capture(identity, count=0),
+            "knowledge": _knowledge_capture(identity, count=0),
+            "document": DocumentInboxSnapshot(0, 0, "sha256:" + "d" * 64, (), False),
+            "upload": None,
+        }, 1)
+    assert error.value.code == "inbox_failed"
+
+
+def test_typed_upload_source_is_opt_in_closed_redacted_and_read_only(tmp_path, monkeypatch):
+    _engine, _factory, _manager, service, identity, _principal, created = _fixture(tmp_path)
+    _action(service, identity, "harbour_inbox_cancel", created["version"], "typed-upload-empty")
+    handler, private_index = _typed_upload_handler(tmp_path, identity, count=2)
+    before = Path(handler.upload_dir, "uploads.json").read_bytes()
+    monkeypatch.setattr(handler, "_atomic_write_json", lambda *_args, **_kwargs: pytest.fail("Inbox capture wrote"))
+    _enable_typed_sources(service, identity, handler)
+
+    outcome = service.dispatch("harbour_inbox_list", {"view": "typed", "limit": 1}, identity)
+    assert outcome.authority_finalized is False
+    assert [row["source"] for row in outcome.payload["sources"]] == [
+        "clarification", "planning", "knowledge", "document", "upload",
+    ]
+    upload_source = outcome.payload["sources"][-1]
+    assert upload_source["status"] == "captured_revalidated" and upload_source["clipped"] is True
+    upload_rows = [row for row in outcome.payload["items"] if row["source"] == "upload"]
+    assert len(upload_rows) == 1
+    assert set(upload_rows[0]) == {
+        "item_handle", "source", "owner", "signal_type", "status", "required_action",
+        "due_state", "authority", "binding_digest", "receipt_ref", "redaction_flags",
+    }
+    assert upload_rows[0] == {
+        **upload_rows[0],
+        "source": "upload", "owner": "self", "signal_type": "raw_upload", "status": "available",
+        "required_action": "none", "due_state": "unscheduled",
+        "authority": {"access": "read", "owner_subsystem": "upload_handler", "mutation_supported": False},
+        "receipt_ref": None, "redaction_flags": {"content": True, "identity": True, "events": True},
+    }
+    rendered = json.dumps(outcome.payload, sort_keys=True)
+    private = next(iter(private_index.values()))
+    for value in (
+        identity.owner_subject_id, "admin", private["id"], private["path"], private["name"],
+        private["mime"], private["hash"], private["client_ip"],
+        private["uploaded_at"], private["original_name"],
+    ):
+        assert value not in rendered
+    assert Path(handler.upload_dir, "uploads.json").read_bytes() == before
+
+
+@pytest.mark.parametrize("mutation", ["insert", "update", "delete", "beyond_prefix"])
+def test_typed_upload_source_revalidation_denies_full_selected_set_drift(tmp_path, mutation):
+    _engine, _factory, _manager, service, identity, _principal, _created = _fixture(tmp_path)
+    handler, index = _typed_upload_handler(tmp_path, identity, count=2)
+    initial = handler.capture_inbox_snapshot(
+        owner_alias="admin", creator_subject_id=identity.owner_subject_id, limit=1,
+    )
+    selected_key = initial.items[0].index_key
+    beyond_key = next(key for key in index if key != selected_key)
+    planning = _planning_capture(identity, count=0)
+    knowledge = _knowledge_capture(identity, count=0)
+
+    class Planning:
+        def capture_inbox_snapshot(self, **_kwargs):
+            return planning
+
+    class Knowledge:
+        calls = 0
+
+        @contextmanager
+        def guard_inbox_read(self):
+            yield
+
+        def capture_inbox_snapshot(self, **_kwargs):
+            self.calls += 1
+            if self.calls == 1:
+                changed = json.loads(json.dumps(index))
+                if mutation == "insert":
+                    marker = "f" * 64
+                    changed[f"admin:{identity.owner_subject_id}:{marker}"] = {
+                        **next(iter(changed.values())), "id": "f" * 32 + ".txt", "hash": marker,
+                    }
+                elif mutation in {"update", "beyond_prefix"}:
+                    target = selected_key if mutation == "update" else beyond_key
+                    changed[target]["last_accessed"] = "2026-10-08T23:59:59"
+                else:
+                    changed.pop(selected_key)
+                with handler._index_lock:
+                    handler._atomic_write_json(str(Path(handler.upload_dir, "uploads.json")), changed)
+            return knowledge
+
+    service._planning_runtime = Planning()
+    service._knowledge_composition = Knowledge()
+    service._upload_handler = handler
+    with pytest.raises(HarbourInboxError) as error:
+        service.dispatch("harbour_inbox_list", {"view": "typed", "limit": 1}, identity)
+    assert error.value.code == "inbox_failed"
+
+
+@pytest.mark.parametrize("lifecycle", ["restart", "revoke", "delete_recreate"])
+def test_typed_upload_source_direct_service_lifecycle_fences(tmp_path, lifecycle):
+    _engine, factory, manager, service, identity, _principal, _created = _fixture(tmp_path)
+    handler, _index = _typed_upload_handler(tmp_path, identity, count=1)
+    _enable_typed_sources(service, identity, handler)
+    restarted = HarbourInboxService(
+        auth_manager=manager,
+        bearer_proof=service._bearer_proof,
+        session_factory=factory,
+        planning_runtime=service._planning_runtime,
+        knowledge_composition=service._knowledge_composition,
+        upload_handler=handler,
+    )
+    if lifecycle == "restart":
+        payload = restarted.dispatch("harbour_inbox_list", {"view": "typed", "limit": 10}, identity).payload
+        assert [row["source"] for row in payload["sources"]][-1] == "upload"
+        assert len([row for row in payload["items"] if row["source"] == "upload"]) == 1
+        return
+    if lifecycle == "revoke":
+        db = factory()
+        try:
+            db.query(ApiToken).filter(ApiToken.id == identity.token_id).update({"is_active": False})
+            db.commit()
+        finally:
+            db.close()
+    else:
+        assert manager.create_user("guardian", "password", is_admin=True)
+        assert manager.delete_user("admin", "guardian")
+        assert manager.create_user("admin", "password", is_admin=True)
+        assert manager.subject_id_for_username("admin") != identity.owner_subject_id
+    with pytest.raises(HarbourInboxError) as error:
+        restarted.dispatch("harbour_inbox_list", {"view": "typed", "limit": 10}, identity)
+    assert error.value.code == "unauthorized"
 
 
 def test_unified_projection_has_fixed_sources_and_redaction(tmp_path):

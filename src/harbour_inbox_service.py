@@ -167,12 +167,14 @@ class HarbourInboxService:
     """Execute one Inbox operation beneath the account/token authority lock."""
 
     def __init__(self, *, auth_manager: Any, bearer_proof: Any, session_factory: Any = None,
-                 planning_runtime: Any = None, knowledge_composition: Any = None) -> None:
+                 planning_runtime: Any = None, knowledge_composition: Any = None,
+                 upload_handler: Any = None) -> None:
         self._auth_manager = auth_manager
         self._bearer_proof = bearer_proof
         self._session_factory = session_factory
         self._planning_runtime = planning_runtime
         self._knowledge_composition = knowledge_composition
+        self._upload_handler = upload_handler
 
     def tool_contracts(self) -> tuple[dict[str, Any], ...]:
         return build_harbour_inbox_tool_contracts()
@@ -396,6 +398,15 @@ class HarbourInboxService:
             document = _capture_document_inbox_snapshot(
                 self._session_factory, principal.creator_subject_id, limit,
             )
+            upload_configured = self._upload_handler is not None
+            upload = None
+            if upload_configured:
+                upload = self._upload_handler.capture_inbox_snapshot(
+                    owner_alias=principal.owner,
+                    creator_subject_id=principal.creator_subject_id,
+                    limit=limit,
+                )
+                upload = _validate_upload_capture(upload, limit)
             with self._knowledge_composition.guard_inbox_read():
                 planning = self._planning_runtime.capture_inbox_snapshot(
                     identity=identity, limit=limit, include_receipts=True, typed=True,
@@ -403,9 +414,12 @@ class HarbourInboxService:
                 knowledge = self._knowledge_composition.capture_inbox_snapshot(
                     identity=identity, limit=limit, _reservation_held=True,
                 )
-                payload = _typed_payload({
+                captures = {
                     "clarification": clarification, "planning": planning, "knowledge": knowledge, "document": document,
-                }, limit)
+                }
+                if upload_configured:
+                    captures["upload"] = upload
+                payload = _typed_payload(captures, limit)
                 again = ClarificationStore(session_factory=self._session_factory).capture_inbox_snapshot(
                     principal=principal, limit=limit, expected_boundary_digest=clarification.boundary_digest,
                 )
@@ -417,6 +431,15 @@ class HarbourInboxService:
                 rebound_knowledge = self._knowledge_composition.capture_inbox_snapshot(
                     identity=identity, limit=limit, expected_capture=knowledge, _reservation_held=True,
                 )
+                rebound_upload = None
+                if upload_configured:
+                    rebound_upload = self._upload_handler.capture_inbox_snapshot(
+                        owner_alias=principal.owner,
+                        creator_subject_id=principal.creator_subject_id,
+                        limit=limit,
+                        expected_capture=upload,
+                    )
+                    rebound_upload = _validate_upload_capture(rebound_upload, limit)
         except HarbourInboxError:
             raise
         except Exception:
@@ -424,7 +447,8 @@ class HarbourInboxService:
         _validate_document_snapshot_subject(document, principal.creator_subject_id)
         _validate_document_snapshot_subject(rebound_document, principal.creator_subject_id)
         if (again.binding_digest != clarification.binding_digest or rebound_document != document
-                or rebound_planning != planning or rebound_knowledge != knowledge):
+                or rebound_planning != planning or rebound_knowledge != knowledge
+                or upload_configured and rebound_upload != upload):
             raise HarbourInboxError("inbox_failed")
         return payload
 
@@ -1114,6 +1138,41 @@ def _capture_document_inbox_snapshot(factory: Any, subject_id: str, limit: int) 
                                  tuple(item for _handle, item in retained), eligible_count > limit)
 
 
+def _validate_upload_capture(value: Any, limit: int) -> Any:
+    from src.upload_handler import UploadInboxItem, UploadInboxSnapshot
+
+    if (
+        type(value) is not UploadInboxSnapshot
+        or type(value.selected_count) is not int
+        or isinstance(value.selected_count, bool)
+        or value.selected_count < 0
+        or type(value.items) is not tuple
+        or len(value.items) != min(value.selected_count, limit)
+        or type(value.clipped) is not bool
+        or value.clipped is not (value.selected_count > limit)
+    ):
+        raise HarbourInboxError("inbox_failed")
+    _capture_digest(value.binding_digest, prefixed=True)
+    previous = None
+    for item in value.items:
+        if (
+            type(item) is not UploadInboxItem
+            or type(item.item_handle) is not str
+            or re.fullmatch(r"hi1:upload:[0-9a-f]{64}", item.item_handle) is None
+            or type(item.binding_digest) is not str
+            or item.binding_digest != "sha256:" + item.item_handle.removeprefix("hi1:upload:")
+            or type(item.index_key) is not str
+            or type(item.upload_id) is not str
+            or type(item.canonical_row) is not bytes
+            or not item.canonical_row
+            or len(item.canonical_row) > 64 * 1024
+            or previous is not None and item.item_handle <= previous
+        ):
+            raise HarbourInboxError("inbox_failed")
+        previous = item.item_handle
+    return value
+
+
 def _typed_payload(captures: Mapping[str, Any], limit: int) -> dict[str, Any]:
     """Closed v3 projection. Existing v1/v2 projections and receipts remain untouched."""
     document = captures.get("document")
@@ -1136,6 +1195,9 @@ def _typed_payload(captures: Mapping[str, Any], limit: int) -> dict[str, Any]:
                     + _frame(document_item.canonical_row[1].encode("utf-8")) + _frame(canonical)
                 ).hexdigest()):
             raise HarbourInboxError("inbox_failed")
+    upload = None
+    if "upload" in captures:
+        upload = _validate_upload_capture(captures["upload"], limit)
     # Reuse frozen validators for the three established producers. Typed requests
     # deliberately fail closed rather than publish an unavailable-source shape.
     base = _unified_payload({key: captures[key] for key in ("clarification", "planning", "knowledge")}, set(), limit)
@@ -1161,8 +1223,13 @@ def _typed_payload(captures: Mapping[str, Any], limit: int) -> dict[str, Any]:
         items.append(item)
     for item in document.items:
         items.append({"item_handle": item.item_handle, "source": "document", "owner": "self", "signal_type": "materialized_document", "status": "available", "required_action": "none", "due_state": "unscheduled", "authority": {"access": "read", "owner_subsystem": "document_workbench", "mutation_supported": False}, "binding_digest": item.binding_digest, "receipt_ref": None, "redaction_flags": dict(redaction), "current_revision": item.current_revision})
-    rank = {"clarification": 0, "planning": 1, "knowledge": 2, "document": 3}; items.sort(key=lambda item: (rank[item["source"]], item["item_handle"])); clipped = base["clipped"] or document.clipped or len(items) > 300; items = items[:300]
+    if upload is not None:
+        for item in upload.items:
+            items.append({"item_handle": item.item_handle, "source": "upload", "owner": "self", "signal_type": "raw_upload", "status": "available", "required_action": "none", "due_state": "unscheduled", "authority": {"access": "read", "owner_subsystem": "upload_handler", "mutation_supported": False}, "binding_digest": item.binding_digest, "receipt_ref": None, "redaction_flags": dict(redaction)})
+    rank = {"clarification": 0, "planning": 1, "knowledge": 2, "document": 3, "upload": 4}; items.sort(key=lambda item: (rank[item["source"]], item["item_handle"])); clipped = base["clipped"] or document.clipped or upload is not None and upload.clipped or len(items) > 300; items = items[:300]
     sources = [*base["sources"], {"source": "document", "status": "captured_revalidated", "clipped": document.clipped, "binding_digest": document.binding_digest}]
+    if upload is not None:
+        sources.append({"source": "upload", "status": "captured_revalidated", "clipped": upload.clipped, "binding_digest": upload.binding_digest})
     payload = {"schema": "odysseus.harbour_inbox_unified_list.v3", "items": items, "count": len(items), "sources": sources, "complete": not clipped, "clipped": clipped, "authority": "mcp_subject", "freshness": "captured_revalidated", "cross_source_atomic": False}
     while len(json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")) > 32768 and payload["items"]:
         payload["items"].pop(); payload["count"] = len(payload["items"]); payload["clipped"] = True; payload["complete"] = False

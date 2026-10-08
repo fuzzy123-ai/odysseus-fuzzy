@@ -10,6 +10,7 @@ import shutil
 import stat
 import tempfile
 import threading
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
 from fastapi import HTTPException, UploadFile
@@ -42,6 +43,232 @@ logger = logging.getLogger(__name__)
 # id. Requiring `.ext` made those ids fail validation, so the stored file
 # could never be resolved or downloaded again.
 UPLOAD_ID_RE = re.compile(r"^[0-9a-fA-F]{32}(?:\.[A-Za-z0-9]+)?$")
+_UPLOAD_HASH_RE = re.compile(r"^[0-9a-f]{64}$")
+_INBOX_INDEX_MAX_BYTES = 4 * 1024 * 1024
+_INBOX_INDEX_MAX_ROWS = 10_000
+_INBOX_ROW_MAX_BYTES = 64 * 1024
+_INBOX_JSON_MAX_DEPTH = 16
+_INBOX_JSON_MAX_NODES = 1_024
+
+
+class UploadInboxSnapshotError(ValueError):
+    """Fixed failure raised when the private upload index is not trustworthy."""
+
+
+@dataclass(frozen=True, slots=True, repr=False)
+class UploadInboxItem:
+    """Detached private descriptor used to build one opaque Inbox row."""
+
+    item_handle: str
+    binding_digest: str
+    index_key: str
+    upload_id: str
+    canonical_row: bytes
+
+    def __repr__(self) -> str:
+        return "UploadInboxItem(<redacted>)"
+
+
+@dataclass(frozen=True, slots=True, repr=False)
+class UploadInboxSnapshot:
+    """Detached SID-and-alias-bound snapshot of every selected upload row."""
+
+    selected_count: int
+    binding_digest: str
+    items: tuple[UploadInboxItem, ...]
+    clipped: bool
+
+    def __repr__(self) -> str:
+        return "UploadInboxSnapshot(<redacted>)"
+
+
+def _inbox_frame(value: bytes) -> bytes:
+    return len(value).to_bytes(8, "big") + value
+
+
+def _bounded_inbox_utf8(value: Any, maximum: int) -> bytes:
+    if type(value) is not str:
+        raise UploadInboxSnapshotError("inbox_failed")
+    try:
+        encoded = value.encode("utf-8")
+    except UnicodeError:
+        raise UploadInboxSnapshotError("inbox_failed") from None
+    if len(encoded) > maximum:
+        raise UploadInboxSnapshotError("inbox_failed")
+    return encoded
+
+
+def _reject_json_constant(_value: str) -> None:
+    raise UploadInboxSnapshotError("inbox_failed")
+
+
+def _strict_json_float(value: str) -> float:
+    try:
+        parsed = float(value)
+    except (ValueError, OverflowError):
+        raise UploadInboxSnapshotError("inbox_failed") from None
+    if parsed != parsed or parsed in {float("inf"), float("-inf")}:
+        raise UploadInboxSnapshotError("inbox_failed")
+    return parsed
+
+
+def _strict_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if type(key) is not str or key in result:
+            raise UploadInboxSnapshotError("inbox_failed")
+        result[key] = value
+    return result
+
+
+def _validate_inbox_json(value: Any, *, depth: int = 0, nodes: list[int] | None = None) -> None:
+    if nodes is None:
+        nodes = [0]
+    nodes[0] += 1
+    if nodes[0] > _INBOX_JSON_MAX_NODES or depth > _INBOX_JSON_MAX_DEPTH:
+        raise UploadInboxSnapshotError("inbox_failed")
+    if value is None or type(value) in {bool, int, float, str}:
+        if type(value) is str:
+            _bounded_inbox_utf8(value, _INBOX_ROW_MAX_BYTES)
+        if type(value) is float and (value != value or value in {float("inf"), float("-inf")}):
+            raise UploadInboxSnapshotError("inbox_failed")
+        return
+    if type(value) is list:
+        for item in value:
+            _validate_inbox_json(item, depth=depth + 1, nodes=nodes)
+        return
+    if type(value) is dict:
+        for key, item in value.items():
+            if type(key) is not str:
+                raise UploadInboxSnapshotError("inbox_failed")
+            _validate_inbox_json(key, depth=depth + 1, nodes=nodes)
+            _validate_inbox_json(item, depth=depth + 1, nodes=nodes)
+        return
+    raise UploadInboxSnapshotError("inbox_failed")
+
+
+def _canonical_inbox_json(value: Any) -> bytes:
+    _validate_inbox_json(value)
+    try:
+        encoded = json.dumps(
+            value, sort_keys=True, separators=(",", ":"), ensure_ascii=True, allow_nan=False,
+        ).encode("ascii")
+    except (TypeError, ValueError, UnicodeError, OverflowError):
+        raise UploadInboxSnapshotError("inbox_failed") from None
+    if len(encoded) > _INBOX_ROW_MAX_BYTES:
+        raise UploadInboxSnapshotError("inbox_failed")
+    return encoded
+
+
+def _validated_expected_inbox_snapshot(
+    value: UploadInboxSnapshot,
+    *,
+    owner_alias: str,
+    creator_subject_id: str,
+    limit: int,
+    owner_bytes: bytes,
+) -> tuple[int, str, tuple[tuple[str, str, str, str, bytes], ...], bool]:
+    """Detach and validate an expected snapshot before any private index read."""
+    if type(value) is not UploadInboxSnapshot:
+        raise UploadInboxSnapshotError("inbox_failed")
+    selected_count = value.selected_count
+    binding_digest = value.binding_digest
+    source_items = value.items
+    clipped = value.clipped
+    if (
+        type(selected_count) is not int
+        or isinstance(selected_count, bool)
+        or not 0 <= selected_count <= _INBOX_INDEX_MAX_ROWS
+        or type(binding_digest) is not str
+        or re.fullmatch(r"sha256:[0-9a-f]{64}", binding_digest) is None
+        or type(source_items) is not tuple
+        or len(source_items) != min(selected_count, limit)
+        or type(clipped) is not bool
+        or clipped is not (selected_count > limit)
+    ):
+        raise UploadInboxSnapshotError("inbox_failed")
+    _bounded_inbox_utf8(binding_digest, 71)
+
+    detached: list[tuple[str, str, str, str, bytes]] = []
+    previous_handle: str | None = None
+    subject_bytes = creator_subject_id.encode("ascii")
+    for source_item in source_items:
+        if type(source_item) is not UploadInboxItem:
+            raise UploadInboxSnapshotError("inbox_failed")
+        item_handle = source_item.item_handle
+        item_binding = source_item.binding_digest
+        index_key = source_item.index_key
+        upload_id = source_item.upload_id
+        canonical_row = source_item.canonical_row
+        if (
+            type(item_handle) is not str
+            or re.fullmatch(r"hi1:upload:[0-9a-f]{64}", item_handle) is None
+            or type(item_binding) is not str
+            or item_binding != "sha256:" + item_handle.removeprefix("hi1:upload:")
+            or type(index_key) is not str
+            or type(upload_id) is not str
+            or not is_valid_upload_id(upload_id)
+            or type(canonical_row) is not bytes
+            or not canonical_row
+            or len(canonical_row) > _INBOX_ROW_MAX_BYTES
+            or previous_handle is not None
+            and item_handle <= previous_handle
+        ):
+            raise UploadInboxSnapshotError("inbox_failed")
+        key_bytes = _bounded_inbox_utf8(index_key, _INBOX_ROW_MAX_BYTES)
+        try:
+            row = json.loads(
+                canonical_row.decode("ascii"),
+                object_pairs_hook=_strict_json_object,
+                parse_constant=_reject_json_constant,
+                parse_float=_strict_json_float,
+            )
+        except UploadInboxSnapshotError:
+            raise
+        except (UnicodeError, ValueError, RecursionError, MemoryError):
+            raise UploadInboxSnapshotError("inbox_failed") from None
+        if type(row) is not dict or _canonical_inbox_json(row) != canonical_row:
+            raise UploadInboxSnapshotError("inbox_failed")
+        row_owner = row.get("owner")
+        row_subject = row.get("creator_subject_id")
+        row_upload_id = row.get("id")
+        row_hash = row.get("hash")
+        if (
+            type(row_owner) is not str
+            or row_owner != owner_alias
+            or type(row_subject) is not str
+            or row_subject != creator_subject_id
+            or type(row_upload_id) is not str
+            or row_upload_id != upload_id
+            or type(row_hash) is not str
+            or _UPLOAD_HASH_RE.fullmatch(row_hash) is None
+            or index_key != f"{owner_alias}:{creator_subject_id}:{row_hash}"
+        ):
+            raise UploadInboxSnapshotError("inbox_failed")
+        item_digest = hashlib.sha256(
+            b"odysseus.harbour_inbox.upload_item.v3\0"
+            + _inbox_frame(owner_bytes)
+            + _inbox_frame(subject_bytes)
+            + _inbox_frame(key_bytes)
+            + _inbox_frame(canonical_row)
+        ).hexdigest()
+        if item_handle != "hi1:upload:" + item_digest or item_binding != "sha256:" + item_digest:
+            raise UploadInboxSnapshotError("inbox_failed")
+        detached.append((item_handle, item_binding, index_key, upload_id, canonical_row))
+        previous_handle = item_handle
+    if not clipped:
+        source = hashlib.sha256(
+            b"odysseus.harbour_inbox.upload_source.v3\0"
+            + _inbox_frame(owner_bytes)
+            + _inbox_frame(subject_bytes)
+        )
+        for _, _, index_key, _, canonical_row in sorted(detached, key=lambda item: item[2]):
+            source.update(_inbox_frame(_bounded_inbox_utf8(index_key, _INBOX_ROW_MAX_BYTES)))
+            source.update(_inbox_frame(canonical_row))
+        source.update(selected_count.to_bytes(8, "big"))
+        if binding_digest != "sha256:" + source.hexdigest():
+            raise UploadInboxSnapshotError("inbox_failed")
+    return selected_count, binding_digest, tuple(detached), clipped
 
 
 def is_valid_upload_id(upload_id: str) -> bool:
@@ -354,6 +581,158 @@ class UploadHandler:
                 logger.warning(f"Failed to read uploads database ({candidate}): {e}")
                 continue
         return {}
+
+    @staticmethod
+    def _read_strict_upload_index_candidate(path: str) -> Optional[dict[str, Any]]:
+        try:
+            with open(path, "rb") as handle:
+                raw = handle.read(_INBOX_INDEX_MAX_BYTES + 1)
+        except FileNotFoundError:
+            return None
+        except OSError:
+            raise UploadInboxSnapshotError("inbox_failed") from None
+        if len(raw) > _INBOX_INDEX_MAX_BYTES:
+            raise UploadInboxSnapshotError("inbox_failed")
+        try:
+            text = raw.decode("utf-8")
+            data = json.loads(
+                text,
+                object_pairs_hook=_strict_json_object,
+                parse_constant=_reject_json_constant,
+                parse_float=_strict_json_float,
+            )
+        except UploadInboxSnapshotError:
+            raise
+        except (UnicodeError, ValueError, RecursionError, MemoryError):
+            raise UploadInboxSnapshotError("inbox_failed") from None
+        if type(data) is not dict or len(data) > _INBOX_INDEX_MAX_ROWS:
+            raise UploadInboxSnapshotError("inbox_failed")
+        for key in data:
+            _bounded_inbox_utf8(key, _INBOX_ROW_MAX_BYTES)
+        return data
+
+    def _load_strict_upload_index(self) -> dict[str, Any]:
+        """Read only the live index or a strictly validated backup."""
+        live = os.path.join(self.upload_dir, "uploads.json")
+        backup = live + ".bak"
+        invalid = False
+        for candidate in (live, backup):
+            try:
+                data = self._read_strict_upload_index_candidate(candidate)
+            except UploadInboxSnapshotError:
+                invalid = True
+                continue
+            if data is not None:
+                return data
+        if invalid:
+            raise UploadInboxSnapshotError("inbox_failed")
+        return {}
+
+    def capture_inbox_snapshot(
+        self,
+        *,
+        owner_alias: str,
+        creator_subject_id: str,
+        limit: int,
+        expected_capture: Optional[UploadInboxSnapshot] = None,
+    ) -> UploadInboxSnapshot:
+        """Capture current SID-bound upload metadata without reading upload content."""
+        if (
+            type(owner_alias) is not str
+            or not owner_alias
+            or type(creator_subject_id) is not str
+            or SUBJECT_ID_PATTERN.fullmatch(creator_subject_id) is None
+            or type(limit) is not int
+            or isinstance(limit, bool)
+            or not 1 <= limit <= 100
+        ):
+            raise UploadInboxSnapshotError("inbox_failed")
+        owner_bytes = _bounded_inbox_utf8(owner_alias, 320)
+        expected_values = None
+        if expected_capture is not None:
+            expected_values = _validated_expected_inbox_snapshot(
+                expected_capture,
+                owner_alias=owner_alias,
+                creator_subject_id=creator_subject_id,
+                limit=limit,
+                owner_bytes=owner_bytes,
+            )
+
+        current_prefix = f"{owner_alias}:{creator_subject_id}:"
+        selected: list[tuple[str, str, bytes]] = []
+        with self._index_lock:
+            index = self._load_strict_upload_index()
+            for index_key, row in index.items():
+                if type(row) is not dict:
+                    if index_key.startswith(current_prefix):
+                        raise UploadInboxSnapshotError("inbox_failed")
+                    continue
+                row_subject = row.get("creator_subject_id")
+                if row_subject != creator_subject_id:
+                    if index_key.startswith(current_prefix):
+                        raise UploadInboxSnapshotError("inbox_failed")
+                    continue
+                row_owner = row.get("owner")
+                upload_id = row.get("id")
+                file_hash = row.get("hash")
+                if (
+                    type(row_subject) is not str
+                    or type(row_owner) is not str
+                    or row_owner != owner_alias
+                    or type(upload_id) is not str
+                    or not is_valid_upload_id(upload_id)
+                    or type(file_hash) is not str
+                    or _UPLOAD_HASH_RE.fullmatch(file_hash) is None
+                    or index_key != f"{owner_alias}:{creator_subject_id}:{file_hash}"
+                ):
+                    raise UploadInboxSnapshotError("inbox_failed")
+                selected.append((index_key, upload_id, _canonical_inbox_json(row)))
+
+        selected.sort(key=lambda value: value[0])
+        source = hashlib.sha256(
+            b"odysseus.harbour_inbox.upload_source.v3\0"
+            + _inbox_frame(owner_bytes)
+            + _inbox_frame(creator_subject_id.encode("ascii"))
+        )
+        items: list[UploadInboxItem] = []
+        for index_key, upload_id, canonical_row in selected:
+            key_bytes = _bounded_inbox_utf8(index_key, _INBOX_ROW_MAX_BYTES)
+            source.update(_inbox_frame(key_bytes))
+            source.update(_inbox_frame(canonical_row))
+            item = hashlib.sha256(
+                b"odysseus.harbour_inbox.upload_item.v3\0"
+                + _inbox_frame(owner_bytes)
+                + _inbox_frame(creator_subject_id.encode("ascii"))
+                + _inbox_frame(key_bytes)
+                + _inbox_frame(canonical_row)
+            ).hexdigest()
+            items.append(UploadInboxItem(
+                item_handle="hi1:upload:" + item,
+                binding_digest="sha256:" + item,
+                index_key=index_key,
+                upload_id=upload_id,
+                canonical_row=canonical_row,
+            ))
+        source.update(len(selected).to_bytes(8, "big"))
+        items.sort(key=lambda value: value.item_handle)
+        snapshot = UploadInboxSnapshot(
+            selected_count=len(selected),
+            binding_digest="sha256:" + source.hexdigest(),
+            items=tuple(items[:limit]),
+            clipped=len(selected) > limit,
+        )
+        snapshot_values = (
+            snapshot.selected_count,
+            snapshot.binding_digest,
+            tuple(
+                (item.item_handle, item.binding_digest, item.index_key, item.upload_id, item.canonical_row)
+                for item in snapshot.items
+            ),
+            snapshot.clipped,
+        )
+        if expected_values is not None and snapshot_values != expected_values:
+            raise UploadInboxSnapshotError("inbox_failed")
+        return snapshot
 
     def get_upload_info(self, upload_id: str) -> Optional[Dict[str, Any]]:
         """Return the uploads.json metadata row for an upload ID, if present."""
