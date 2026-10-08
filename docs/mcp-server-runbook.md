@@ -112,17 +112,17 @@ cancellation and `close()` release those records without closing the borrowed
 graph. Its fixed lease lifetime is 300 seconds, with limits of 64 records
 globally and eight per owner.
 
-The earlier independent static deep review did not establish runtime acceptance.
-The focused 11-case lane has now executed and stopped on its first case: the
-native runtime rejects the genuine slotted producer during construction, before
-the prepare-return test hook runs. This candidate is not accepted; its bounded
-graph-admission correction and independent review remain pending. The shared
-dependency lane passed all 108 cases and independent receipt review at commit
-`68146dc5`;
-the exact three-file commit also passed direct Git readback. Those results
-cover the dependency, not this new runtime. The new module has no
-App, dispatcher or plugin wiring, and none of these records establish default
-activation, live operation or Harbour One package acceptance.
+The corrected request-runtime source has passed independent static deep
+review. Its latest focused 11-case run collected all 11 cases, then reached
+its bounded execution deadline without a final JUnit result. The owned process
+job is empty; actual 11-case acceptance and the specific timeout cause remain
+unverified. The earlier genuine slotted-producer constructor failure and its
+correction remain recorded. A bounded causal diagnosis precedes another runtime
+attempt. The shared dependency lane passed all 108 cases and independent
+receipt review at commit `68146dc5`; its exact three-file commit also passed
+direct Git readback. Those results cover the dependency, not this new runtime.
+The new module has no App, dispatcher or plugin wiring. Default activation,
+live operation and Harbour One package acceptance remain separate gates.
 
 The accepted native seams `read_native_forge_context_page` and
 `read_native_knowledge_context_page` require an already-held authenticated
@@ -365,10 +365,24 @@ The subsequent opt-in typed upload projection is locally accepted at commit
 187 unique cases, zero failures/errors/skips, all frozen inputs unchanged and
 the owned process job empty. Independent receipt acceptance, exact four-file
 commit and direct Git byte readback also passed. This component acceptance
-does not establish actual application/MCP transport acceptance,
-activate the plugin, or satisfy live, cross-process recovery, UI or temporal
-gates. If removal of a newly created file is refused, the upload returns a fixed
-cleanup failure; physical cleanup and operational recovery are not claimed.
+does not activate the plugin or satisfy live, cross-process recovery, UI or
+temporal gates. If removal of a newly created file is refused, the upload
+returns a fixed cleanup failure; physical cleanup and operational recovery
+are not claimed.
+
+The opt-in App composition is separately accepted at commit `13d645b7`.
+Only an exact enabled `allow_upload_inbox_reads` flag composes the existing
+native upload handler into typed Inbox MCP reads. Disabled or absent handlers
+retain the four-source behavior; configured invalid handlers fail closed.
+Authentication and handler identity are checked again before response egress.
+The three actual application cases passed, including restart, revocation and
+upload-source composition. Independent evidence review accepted their original
+JUnit and owned-job cleanup without repeating runtime: the controller's
+original accounting failure remains preserved, while reconciliation accounts
+for 655 generated Python caches against 3,834 unchanged sealed source files.
+The exact two-file commit and separate Root Git byte readback passed. This
+closes that isolated App component, not whole Harbour One 09, the context
+request transport, default activation or the remaining package and live gates.
 
 ## Local Smoke
 
