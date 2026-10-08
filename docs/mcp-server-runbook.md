@@ -296,6 +296,28 @@ preserves identity after convergence, while in-flight stale owner/alias pairs
 fail closed. Deleting and recreating the same alias creates a new SID and never
 inherits the old token authority.
 
+### Raw-upload ownership prerequisite
+
+Commit `2a33dc66` accepts the new-upload SID capture prerequisite with 85 local
+PASS results and independent deep review. Authenticated browser-cookie uploads
+bind new private index entries to the current immutable user subject while the
+principal guard remains held through file/index commit. Public upload responses
+do not disclose that subject. Local uploads without that cookie binding remain
+outside the trusted Inbox source.
+
+Deduplication separates immutable subjects and historical entries. Renaming an
+owner retains its subject binding; deleting and recreating the same alias does
+not transfer old uploads. Historical or null-subject entries are excluded from
+the trusted Inbox model until a separate data decision authorizes assignment.
+This follows the human decision to bind new uploads and initially exclude history.
+
+The subsequent opt-in typed upload projection is implemented but not yet
+accepted. Its independent review and runtime evidence remain pending. This
+prerequisite does not establish actual application/MCP transport acceptance,
+activate the plugin, or satisfy live, cross-process recovery, UI or temporal
+gates. If removal of a newly created file is refused, the upload returns a fixed
+cleanup failure; physical cleanup and operational recovery are not claimed.
+
 ## Local Smoke
 
 Use placeholders only; never paste token values into docs or logs.
