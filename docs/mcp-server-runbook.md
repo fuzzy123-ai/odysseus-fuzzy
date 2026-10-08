@@ -72,8 +72,29 @@ without mutating unrelated requests.
 
 That component received 217 revision-bound local PASS results and independent
 deep review. These results accept the inactive publication component only;
-mixed-pack coordination, dispatcher wiring, default activation and live
-behavior still require their own implementation and acceptance evidence.
+mixed-pack coordination has its separate acceptance described below.
+Dispatcher wiring, default activation and live behavior still require their
+own implementation and acceptance evidence.
+
+## Inactive mixed-pack coordinator
+
+Commit `fceb2a2487e85ab3b2ca584b6ab69b8da79744ec` accepts
+`src/mcp_context_pack_coordinator.py` with its private-consent integration and
+coordinator tests. The coordinator combines the guarded native page adapters
+without activating an HTTP tool or adding an admission path.
+
+Local acceptance at that commit comprises 23 freshly executed coordinator
+cases plus 73 independently approved, unchanged regression results: 96 unique
+cases. The 73 results are scoped reuse, not a fresh 96-case run. Independent
+deep review checked the current coordinator, the bounded reuse proof and the
+fresh runtime receipt. Failed cleanup-anchor or substituted execution-fence
+evidence denies publication before caller-controlled comparisons.
+
+This evidence belongs to the stated commit. The subsequent request-ID
+compatibility change and direct JSON-RPC request runtime require their own
+current checks and acceptance. App/dispatcher wiring, default activation,
+live operation, temporal behavior and whole Harbour One package acceptance
+remain separate gates.
 
 The accepted native seams `read_native_forge_context_page` and
 `read_native_knowledge_context_page` require an already-held authenticated
