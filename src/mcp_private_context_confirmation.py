@@ -24,6 +24,7 @@ from typing import Iterator
 
 from core.auth import AuthManager
 from src.context_manifest_producer import CombinedContextManifestProducer, CombinedContextSnapshot
+from src.context_metadata_binding import McpContextMetadataBinding
 import src.context_manifest_producer as _context_manifest_module
 import src.forge_context_page as _forge_page_module
 import src.forge_context_reader as _forge_reader_module
@@ -37,7 +38,7 @@ from src.mcp_context_authority import (
     McpContextBinding,
     McpContextReadLease,
 )
-from src.private_context_confirmation import ConfirmationError
+from src.private_context_confirmation import ConfirmationError, ManifestItem
 
 _AUDIENCE = "authenticated_mcp_context_read"
 _SCHEMA = "mcp_private_context_envelope"
@@ -52,6 +53,13 @@ def _app_types():
     # Deferred to preserve the inactive app/service composition boundary.
     from src.private_context_confirmation_app import CookieConfirmationAuthority, ContextSelection
     return CookieConfirmationAuthority, ContextSelection
+
+def _selection_types():
+    # Deferred for the same import-cycle reason as ``_app_types``.
+    from src.private_context_confirmation_app import (
+        ContextSelection, ForgeSelectionLocator, SourceSelection,
+    )
+    return ContextSelection, SourceSelection, ForgeSelectionLocator
 
 class McpPrivateContextConfirmationError(Exception):
     def __init__(self, code: str) -> None:
@@ -301,6 +309,8 @@ _COMPLETION_ROW_ENTRY_REF_SLOT = _CompletionRow.__dict__["entry_ref"]
 _NATIVE_COMPLETION_ROW_ENTRY_REF_SLOT = _NativeCompletionRow.__dict__["entry_ref"]
 _ENTRY_REQUEST_ID_SLOT = _Entry.__dict__["request_id"]
 _ENTRY_STATE_SLOT = _Entry.__dict__["state"]
+_ENTRY_LEASE_REF_SLOT = _Entry.__dict__["lease_ref"]
+_ENTRY_BINDING_REF_SLOT = _Entry.__dict__["binding_ref"]
 _ENTRY_PERMIT_REF_SLOT = _Entry.__dict__["permit_ref"]
 _ENTRY_GENERATION_SLOT = _Entry.__dict__["generation"]
 _ENTRY_PERMIT_NONCE_SLOT = _Entry.__dict__["permit_nonce"]
@@ -371,13 +381,54 @@ _FORGE_PAGE_FIELDS = (
 )
 _KNOWLEDGE_PAGE_FIELDS = _FORGE_PAGE_FIELDS
 
-def _value_class_state(value_class: type, fields: tuple[str, ...]) -> tuple[object, ...]:
-    namespace = value_class.__dict__
+_TRUSTED_TYPE_GETATTRIBUTE = type.__getattribute__
+_TRUSTED_STATICMETHOD_TYPE = staticmethod
+_TRUSTED_STATICMETHOD_GET = staticmethod.__get__
+_TRUSTED_MEMBER_DESCRIPTOR_TYPE = types.MemberDescriptorType
+
+def _raw_effective_special(
+    value_class: type,
+    name: str,
+    _type_getattribute: object = type.__getattribute__,
+    _staticmethod_type: type = staticmethod,
+    _staticmethod_get: object = staticmethod.__get__,
+) -> object:
+    if type(value_class) is not type or name not in {"__new__", "__getattribute__"}:
+        _fail("context_stale")
+    mro = _type_getattribute(value_class, "__mro__")
+    if type(mro) is not tuple or not mro:
+        _fail("context_stale")
+    for base in mro:
+        if type(base) is not type:
+            _fail("context_stale")
+        namespace = _type_getattribute(base, "__dict__")
+        if name in namespace:
+            raw = namespace[name]
+            if type(raw) is _staticmethod_type:
+                return _staticmethod_get(raw, None, value_class)
+            return raw
+    _fail("context_stale")
+
+_TRUSTED_RAW_EFFECTIVE_SPECIAL = _raw_effective_special
+
+def _value_class_state(
+    value_class: type,
+    fields: tuple[str, ...],
+    _type_getattribute: object = type.__getattribute__,
+    _effective: object = _TRUSTED_RAW_EFFECTIVE_SPECIAL,
+    _member_descriptor_type: type = types.MemberDescriptorType,
+) -> tuple[object, ...]:
+    namespace = _type_getattribute(value_class, "__dict__")
+    field_slots = tuple(namespace.get(name) for name in fields)
+    if any(type(slot) is not _member_descriptor_type for slot in field_slots):
+        _fail("context_stale")
     return (
-        namespace.get("__init__"), namespace.get("__new__"), value_class.__new__,
-        namespace.get("__getattribute__"), value_class.__getattribute__,
+        namespace.get("__init__"), namespace.get("__new__"),
+        _effective(value_class, "__new__"),
+        namespace.get("__getattribute__"),
+        _effective(value_class, "__getattribute__"),
         namespace.get("__post_init__"), namespace.get("__setattr__"),
-        tuple(namespace.get(name) for name in fields),
+        field_slots,
     )
 
 _TRUSTED_VALUE_CLASS_STATE = _value_class_state
@@ -395,6 +446,154 @@ def _value_class_matches(value_class: type, fields: tuple[str, ...], expected: t
                     for value, expected_value in zip(current[-1], expected[-1])))
 
 _TRUSTED_VALUE_CLASS_MATCHES = _value_class_matches
+
+_SELECTION_FIELDS = ("items",)
+_SOURCE_SELECTION_FIELDS = ("source", "selection_ref", "revision_ref", "forge_locator")
+_FORGE_LOCATOR_FIELDS = ("repo_id", "version_id", "path")
+_SNAPSHOT_FIELDS = ("items", "target_manifest_digests", "mcp_metadata_binding")
+_MANIFEST_ITEM_FIELDS = (
+    "source", "selection_ref", "revision_ref", "boundary_sha256", "record_sha256",
+    "payload_sha256", "classification", "provenance_ref",
+)
+_MCP_METADATA_FIELDS = (
+    "schema", "audience", "owner_sid", "chat_session_id", "recipient_token_id", "scope",
+    "cache_generation", "security_revision", "app_epoch",
+)
+_TRUSTED_COMBINED_SNAPSHOT_CLASS = CombinedContextSnapshot
+_TRUSTED_MANIFEST_ITEM_CLASS = ManifestItem
+_TRUSTED_METADATA_BINDING_CLASS = McpContextMetadataBinding
+_TRUSTED_SNAPSHOT_STATE = _TRUSTED_VALUE_CLASS_STATE(
+    _TRUSTED_COMBINED_SNAPSHOT_CLASS, _SNAPSHOT_FIELDS,
+)
+_TRUSTED_MANIFEST_ITEM_STATE = _TRUSTED_VALUE_CLASS_STATE(
+    _TRUSTED_MANIFEST_ITEM_CLASS, _MANIFEST_ITEM_FIELDS,
+)
+_TRUSTED_MCP_METADATA_STATE = _TRUSTED_VALUE_CLASS_STATE(
+    _TRUSTED_METADATA_BINDING_CLASS, _MCP_METADATA_FIELDS,
+)
+
+def _trusted_slots(value: object, expected_type: type, state: tuple[object, ...]) -> tuple[object, ...]:
+    if type(value) is not expected_type:
+        _fail("context_stale")
+    slots = state[-1]
+    try:
+        return tuple(type(slot).__get__(slot, value, expected_type) for slot in slots)
+    except BaseException:
+        _fail("context_stale")
+
+def _service_selection_projection(
+    value: object,
+    type_pins: tuple[type, type, type],
+    state_pins: tuple[tuple[object, ...], tuple[object, ...], tuple[object, ...]],
+) -> tuple[tuple[object, ...], ...]:
+    context_type, source_type, locator_type = type_pins
+    context_state, source_state, locator_state = state_pins
+    if (not _TRUSTED_VALUE_CLASS_MATCHES(context_type, _SELECTION_FIELDS, context_state)
+            or not _TRUSTED_VALUE_CLASS_MATCHES(source_type, _SOURCE_SELECTION_FIELDS, source_state)
+            or not _TRUSTED_VALUE_CLASS_MATCHES(locator_type, _FORGE_LOCATOR_FIELDS, locator_state)):
+        _fail("context_stale")
+    (items,) = _TRUSTED_SLOTS(value, context_type, context_state)
+    if type(items) is not tuple or not 1 <= len(items) <= 300:
+        _fail("context_stale")
+    projected: list[tuple[object, ...]] = []
+    seen: set[tuple[str, str, str]] = set()
+    for item in items:
+        source, selection_ref, revision_ref, locator = _TRUSTED_SLOTS(
+            item, source_type, source_state,
+        )
+        if (type(source) is not str or source not in {"forge", "planning", "knowledge"}
+                or type(selection_ref) is not str or not selection_ref or len(selection_ref) > 256
+                or type(revision_ref) is not str or not revision_ref or len(revision_ref) > 256
+                or not selection_ref.isascii() or not revision_ref.isascii()):
+            _fail("context_stale")
+        key = (source, selection_ref, revision_ref)
+        if key in seen:
+            _fail("context_stale")
+        seen.add(key)
+        if source == "forge":
+            repo_id, version_id, path = _TRUSTED_SLOTS(locator, locator_type, locator_state)
+            if (any(type(part) is not str or not part or len(part) > 1024 for part in
+                    (repo_id, version_id, path)) or not repo_id.isascii()
+                    or not version_id.isascii() or not path.isascii()):
+                _fail("context_stale")
+            locator_projection: object = (repo_id, version_id, path)
+        else:
+            if locator is not None:
+                _fail("context_stale")
+            locator_projection = None
+        projected.append((source, selection_ref, revision_ref, locator_projection))
+    return tuple(projected)
+
+def _service_snapshot_projection(value: object, *, require_metadata: bool = True) -> tuple[object, ...]:
+    if (not _TRUSTED_VALUE_CLASS_MATCHES(
+                _TRUSTED_COMBINED_SNAPSHOT_CLASS, _SNAPSHOT_FIELDS, _TRUSTED_SNAPSHOT_STATE,
+            ) or not _TRUSTED_VALUE_CLASS_MATCHES(
+                _TRUSTED_MANIFEST_ITEM_CLASS, _MANIFEST_ITEM_FIELDS, _TRUSTED_MANIFEST_ITEM_STATE,
+            ) or not _TRUSTED_VALUE_CLASS_MATCHES(
+                _TRUSTED_METADATA_BINDING_CLASS, _MCP_METADATA_FIELDS,
+                _TRUSTED_MCP_METADATA_STATE,
+            )):
+        _fail("context_stale")
+    items, targets, metadata = _TRUSTED_SLOTS(
+        value, _TRUSTED_COMBINED_SNAPSHOT_CLASS, _TRUSTED_SNAPSHOT_STATE,
+    )
+    if (type(require_metadata) is not bool
+            or type(items) is not tuple or not 1 <= len(items) <= 300
+            or type(targets) is not tuple or len(targets) != len(items)
+            or (type(metadata) is not _TRUSTED_METADATA_BINDING_CLASS if require_metadata
+                else metadata is not None)):
+        _fail("context_stale")
+    item_rows: list[tuple[str, ...]] = []
+    seen: set[tuple[str, str, str]] = set()
+    for item in items:
+        row = _TRUSTED_SLOTS(item, _TRUSTED_MANIFEST_ITEM_CLASS, _TRUSTED_MANIFEST_ITEM_STATE)
+        if any(type(part) is not str for part in row):
+            _fail("context_stale")
+        source, selection_ref, revision_ref, boundary, record, payload, classification, provenance = row
+        if (source not in {"forge", "planning", "knowledge"}
+                or classification not in {"public", "private"}
+                or any(not part or len(part) > 256 or not part.isascii()
+                       for part in (selection_ref, revision_ref, provenance))
+                or any(len(digest) != 64 or any(ch not in "0123456789abcdef" for ch in digest)
+                       for digest in (boundary, record, payload))):
+            _fail("context_stale")
+        key = (source, selection_ref, revision_ref)
+        if key in seen:
+            _fail("context_stale")
+        seen.add(key)
+        item_rows.append(row)
+    for target in targets:
+        if type(target) is not str:
+            _fail("context_stale")
+        if require_metadata:
+            valid_target = (len(target) == 64
+                            and all(ch in "0123456789abcdef" for ch in target))
+        else:
+            valid_target = (
+                (len(target) == 64
+                 and all(ch in "0123456789abcdef" for ch in target))
+                or (len(target) == 71 and target[:7] == "sha256:"
+                    and all(ch in "0123456789abcdef" for ch in target[7:]))
+            )
+        if not valid_target:
+            _fail("context_stale")
+    if not require_metadata:
+        return tuple(item_rows), targets, None
+    metadata_row = _TRUSTED_SLOTS(
+        metadata, _TRUSTED_METADATA_BINDING_CLASS, _TRUSTED_MCP_METADATA_STATE,
+    )
+    if (any(type(part) is not str for part in (*metadata_row[:6], metadata_row[8]))
+            or any(type(part) is not int or isinstance(part, bool) or part < 0
+                   for part in metadata_row[6:8])
+            or metadata_row[0] != "odysseus.context.mcp_metadata_binding.v1"
+            or metadata_row[1] != "authenticated_mcp_context_read"
+            or metadata_row[5] != "mcp:harbour:context:read"):
+        _fail("context_stale")
+    return tuple(item_rows), targets, metadata_row
+
+_TRUSTED_SLOTS = _trusted_slots
+_TRUSTED_SERVICE_SELECTION_PROJECTION = _service_selection_projection
+_TRUSTED_SERVICE_SNAPSHOT_PROJECTION = _service_snapshot_projection
 _TRUSTED_KNOWLEDGE_COMPOSITION_GETATTRIBUTE_SLOT = (
     _TRUSTED_KNOWLEDGE_COMPOSITION.__dict__.get("__getattribute__")
 )
@@ -575,6 +774,12 @@ class McpPrivateContextConfirmationService:
             knowledge_producer = producer._knowledge; composition = knowledge_producer._composition
             self._native_provider_identity = (forge_metadata, local_forge, local_forge.store,
                 knowledge_producer, composition, composition._staging, producer)
+            self._selection_types_pin = _TRUSTED_SELECTION_TYPES()
+            self._selection_states_pin = (
+                _TRUSTED_VALUE_CLASS_STATE(self._selection_types_pin[0], _SELECTION_FIELDS),
+                _TRUSTED_VALUE_CLASS_STATE(self._selection_types_pin[1], _SOURCE_SELECTION_FIELDS),
+                _TRUSTED_VALUE_CLASS_STATE(self._selection_types_pin[2], _FORGE_LOCATOR_FIELDS),
+            )
         except BaseException:
             _fail("invalid_context")
         self._entries: dict[str, _Entry] = {}; self._permits: dict[int, _PermitRow] = {}; self._exchanges: dict[int, _HumanExchangeRow] = {}; self._completions: dict[int, _CompletionRow] = {}; self._native_completions: dict[int, _NativeCompletionRow] = {}
@@ -1699,6 +1904,192 @@ class McpPrivateContextConfirmationService:
             "manifest_digest": page.manifest_digest, "byteform": page.byteform,
             "page_bytes_sha256": hashlib.sha256(page.page_bytes).hexdigest()})).hexdigest()
 
+    def _fence_disclosed_publication(
+        self,
+        request_id: str,
+        lease: McpContextReadLease,
+        original_selection: object,
+        authenticated_mcp_snapshot: CombinedContextSnapshot,
+        *,
+        page_bytes: int,
+    ) -> None:
+        """Recheck one retained disclosure without issuing or extending authority."""
+        if (type(self) is not McpPrivateContextConfirmationService
+                or type(request_id) is not str or not request_id
+                or type(lease) is not McpContextReadLease
+                or type(page_bytes) is not int or not 1 <= page_bytes <= 16384):
+            _fail("context_stale")
+        cleanup_anchor = _TRUSTED_PUBLICATION_CLEANUP_ANCHOR(self, request_id, lease)
+        entry: _Entry | None = None
+        try:
+            if cleanup_anchor is None:
+                _fail("context_stale")
+            namespace = type(self).__dict__
+            instance = vars(self)
+            if (type(self._lock) is not _NATIVE_RLOCK_TYPE
+                    or namespace.get("_fence_disclosed_publication") is not _TRUSTED_DISCLOSURE_FENCE
+                    or namespace.get("_clock") is not _TRUSTED_FENCE_CLOCK
+                    or namespace.get("_guards") is not _TRUSTED_FENCE_GUARDS
+                    or namespace.get("_capture_cookie") is not _TRUSTED_FENCE_CAPTURE_COOKIE
+                    or namespace.get("_capture_mcp") is not _TRUSTED_FENCE_CAPTURE_MCP
+                    or namespace.get("_registered_app_method") is not _TRUSTED_FENCE_APP_METHOD
+                    or namespace.get("_valid_attestation") is not _TRUSTED_FENCE_VALID_ATTESTATION
+                    or namespace.get("_page_request_descriptor")
+                        is not _TRUSTED_PAGE_REQUEST_DESCRIPTOR_SLOT
+                    or any(name in instance for name in (
+                        "_fence_disclosed_publication", "_clock", "_guards", "_capture_cookie",
+                        "_capture_mcp", "_registered_app_method", "_valid_attestation",
+                        "_page_request_descriptor",
+                    ))):
+                _fail("context_stale")
+            _TRUSTED_SERVICE_ASSERT_PINS(self)
+            selection_projection = _TRUSTED_SERVICE_SELECTION_PROJECTION(
+                original_selection, self._selection_types_pin, self._selection_states_pin,
+            )
+            supplied_mcp = _TRUSTED_SERVICE_SNAPSHOT_PROJECTION(authenticated_mcp_snapshot)
+            selected_keys = tuple(row[:3] for row in selection_projection)
+            supplied_items = {row[:3]: row for row in supplied_mcp[0]}
+            if (len(supplied_items) != len(selected_keys)
+                    or set(supplied_items) != set(selected_keys)
+                    or len(supplied_mcp[1]) != len(selected_keys)):
+                _fail("context_stale")
+            expected_descriptor = _TRUSTED_PAGE_REQUEST_DESCRIPTOR(original_selection, page_bytes)
+            current_thread = _NATIVE_CURRENT_THREAD()
+            current_ident = _NATIVE_GET_IDENT()
+            current_pid = _NATIVE_GETPID()
+            with self._lock:
+                entry = self._entries.get(request_id)
+                if (self._closed or type(entry) is not _Entry
+                        or type(entry.state) is not str or entry.state != "disclosed"
+                        or entry.request_id != request_id or entry.lease_ref() is not lease
+                        or entry.binding_ref() is not lease.binding
+                        or entry.selection is None or entry.page_bytes != page_bytes
+                        or entry.page_request_sha256 != expected_descriptor.digest
+                        or entry.cookie_snapshot is None or entry.mcp_snapshot is None
+                        or entry.receipt is None or entry.ack_wall_time is None
+                        or entry.ack_mono_time is None or entry.ack_deadline is None
+                        or entry.ack_mono_deadline is None
+                        or entry.permit_ref is not None or entry.permit_nonce is not None
+                        or entry.permit_deadline is not None or entry.permit_mono_deadline is not None
+                        or entry.execution_nonce is not None or entry.execution_thread_ref is not None
+                        or entry.execution_thread_ident is not None or entry.execution_pid is not None
+                        or not _TRUSTED_FENCE_VALID_ATTESTATION(self, entry)):
+                    _fail("context_stale")
+                retained_selection = _TRUSTED_SERVICE_SELECTION_PROJECTION(
+                    entry.selection, self._selection_types_pin, self._selection_states_pin,
+                )
+                retained_cookie = _TRUSTED_SERVICE_SNAPSHOT_PROJECTION(
+                    entry.cookie_snapshot, require_metadata=False,
+                )
+                retained_mcp = _TRUSTED_SERVICE_SNAPSHOT_PROJECTION(entry.mcp_snapshot)
+                retained_metadata = _TRUSTED_SLOTS(
+                    entry.metadata_binding, _TRUSTED_METADATA_BINDING_CLASS,
+                    _TRUSTED_MCP_METADATA_STATE,
+                )
+                if (retained_selection != selection_projection or retained_mcp != supplied_mcp
+                        or retained_metadata != retained_mcp[2]):
+                    _fail("context_stale")
+                generation = entry.generation
+                retained_scalars = (
+                    entry.deadline, entry.mono_deadline, entry.ack_wall_time, entry.ack_mono_time,
+                    entry.ack_deadline, entry.ack_mono_deadline,
+                )
+                retained_refs = (
+                    entry.metadata_binding, entry.receipt, entry.cookie_snapshot,
+                    entry.mcp_snapshot, entry.selection, entry.lease_ref, entry.binding_ref,
+                )
+            now, mono = _TRUSTED_FENCE_CLOCK(self)
+            if (now >= retained_scalars[0] or mono >= retained_scalars[1]
+                    or now >= retained_scalars[4] or mono >= retained_scalars[5]):
+                _fail("expired")
+            binding = lease.binding
+            sources = frozenset(row[0] for row in selection_projection)
+            for source in sources:
+                if source in {"forge", "knowledge"}:
+                    _TRUSTED_ASSERT_NATIVE_BODY_PINS(self, source, binding)
+            with _TRUSTED_FENCE_GUARDS(self, lease, entry.cookie) as held_binding:
+                if held_binding is not binding or entry.binding_ref() is not binding:
+                    _fail("invalid_binding")
+                cookie_first = _TRUSTED_FENCE_CAPTURE_COOKIE(self, held_binding, original_selection)
+                cookie_last = _TRUSTED_FENCE_CAPTURE_COOKIE(self, held_binding, original_selection)
+                mcp_first = _TRUSTED_FENCE_CAPTURE_MCP(self, lease, original_selection)
+                mcp_last = _TRUSTED_FENCE_CAPTURE_MCP(self, lease, original_selection)
+                cookie_first_projection = _TRUSTED_SERVICE_SNAPSHOT_PROJECTION(
+                    cookie_first, require_metadata=False,
+                )
+                cookie_last_projection = _TRUSTED_SERVICE_SNAPSHOT_PROJECTION(
+                    cookie_last, require_metadata=False,
+                )
+                mcp_first_projection = _TRUSTED_SERVICE_SNAPSHOT_PROJECTION(mcp_first)
+                mcp_last_projection = _TRUSTED_SERVICE_SNAPSHOT_PROJECTION(mcp_last)
+                if (cookie_first_projection != cookie_last_projection
+                        or cookie_first_projection != retained_cookie
+                        or mcp_first_projection != mcp_last_projection
+                        or mcp_first_projection != retained_mcp
+                        or mcp_first_projection != supplied_mcp):
+                    _fail("context_stale")
+                cookie_by_key = {row[:3]: row for row in cookie_first_projection[0]}
+                mcp_by_key = {row[:3]: row for row in mcp_first_projection[0]}
+                if (len(cookie_by_key) != len(selected_keys)
+                        or len(mcp_by_key) != len(selected_keys)
+                        or set(cookie_by_key) != set(selected_keys)
+                        or set(mcp_by_key) != set(selected_keys)):
+                    _fail("context_stale")
+                for key in selected_keys:
+                    cookie_row = cookie_by_key[key]
+                    mcp_row = mcp_by_key[key]
+                    if ((cookie_row[0], cookie_row[1], cookie_row[2], cookie_row[5],
+                            cookie_row[6], cookie_row[7])
+                            != (mcp_row[0], mcp_row[1], mcp_row[2], mcp_row[5],
+                                mcp_row[6], mcp_row[7])):
+                        _fail("context_stale")
+                app = self._app_ref() if self._app_ref is not None else None
+                if app is None:
+                    _fail("readback_failed")
+                readback = _TRUSTED_FENCE_APP_METHOD(self, "_readback_ack_under_guard")
+                readback(app, entry, held_binding)
+                for source in sources:
+                    if source in {"forge", "knowledge"}:
+                        _TRUSTED_ASSERT_NATIVE_BODY_PINS(self, source, held_binding)
+            _TRUSTED_SERVICE_ASSERT_PINS(self)
+            final_now, final_mono = _TRUSTED_FENCE_CLOCK(self)
+            with self._lock:
+                if (self._closed or self._entries.get(request_id) is not entry
+                        or type(entry.state) is not str or entry.state != "disclosed"
+                        or entry.generation != generation
+                        or entry.lease_ref() is not lease or entry.binding_ref() is not binding
+                        or entry.page_bytes != page_bytes
+                        or entry.page_request_sha256 != expected_descriptor.digest
+                        or _NATIVE_CURRENT_THREAD() is not current_thread
+                        or _NATIVE_GET_IDENT() != current_ident or _NATIVE_GETPID() != current_pid
+                        or final_now >= retained_scalars[0] or final_mono >= retained_scalars[1]
+                        or final_now >= retained_scalars[4] or final_mono >= retained_scalars[5]
+                        or (entry.deadline, entry.mono_deadline, entry.ack_wall_time,
+                            entry.ack_mono_time, entry.ack_deadline, entry.ack_mono_deadline)
+                            != retained_scalars
+                        or any(current is not retained for current, retained in zip(
+                            (entry.metadata_binding, entry.receipt, entry.cookie_snapshot,
+                             entry.mcp_snapshot, entry.selection, entry.lease_ref,
+                             entry.binding_ref),
+                            retained_refs,
+                        ))
+                        or _TRUSTED_SERVICE_SELECTION_PROJECTION(
+                            entry.selection, self._selection_types_pin, self._selection_states_pin,
+                        ) != selection_projection
+                        or _TRUSTED_SERVICE_SNAPSHOT_PROJECTION(entry.mcp_snapshot) != supplied_mcp
+                        or _TRUSTED_SERVICE_SNAPSHOT_PROJECTION(
+                            entry.cookie_snapshot, require_metadata=False,
+                        ) != retained_cookie
+                        or _TRUSTED_SLOTS(
+                            entry.metadata_binding, _TRUSTED_METADATA_BINDING_CLASS,
+                            _TRUSTED_MCP_METADATA_STATE,
+                        ) != retained_metadata
+                        or not _TRUSTED_FENCE_VALID_ATTESTATION(self, entry)):
+                    _fail("context_stale")
+        except BaseException:
+            _TRUSTED_TERMINATE_ANCHORED_PUBLICATION(cleanup_anchor)
+            _fail("context_stale")
+
     def revoke(self, request_id: str) -> None:
         if type(request_id) is not str: _fail("invalid_request")
         with self._lock:
@@ -1793,7 +2184,31 @@ class McpPrivateContextConfirmationService:
                 or type(self._producer._planning).__dict__.get("read_document") is not self._planning_reader_pin
                 or self._cookie_authority._auth_manager is not self._auth_pin
                 or self._authority._session_factory is not self._session_factory_pin
-                or self._authority._session_factory is not self._authority._session_factory_pin):
+                or self._authority._session_factory is not self._authority._session_factory_pin
+                or globals().get("_selection_types") is not _TRUSTED_SELECTION_TYPES
+                or globals().get("_raw_effective_special") is not _TRUSTED_RAW_EFFECTIVE_SPECIAL
+                or _TRUSTED_SELECTION_TYPES() != self._selection_types_pin
+                or globals().get("_canon") is not _TRUSTED_SERVICE_CANON
+                or globals().get("CombinedContextSnapshot") is not _TRUSTED_COMBINED_SNAPSHOT_CLASS
+                or globals().get("ManifestItem") is not _TRUSTED_MANIFEST_ITEM_CLASS
+                or globals().get("McpContextMetadataBinding") is not _TRUSTED_METADATA_BINDING_CLASS
+                or globals().get("_trusted_slots") is not _TRUSTED_SLOTS
+                or globals().get("_service_selection_projection")
+                    is not _TRUSTED_SERVICE_SELECTION_PROJECTION
+                or globals().get("_service_snapshot_projection")
+                    is not _TRUSTED_SERVICE_SNAPSHOT_PROJECTION
+                or not _TRUSTED_VALUE_CLASS_MATCHES(
+                    self._selection_types_pin[0], _SELECTION_FIELDS,
+                    self._selection_states_pin[0],
+                )
+                or not _TRUSTED_VALUE_CLASS_MATCHES(
+                    self._selection_types_pin[1], _SOURCE_SELECTION_FIELDS,
+                    self._selection_states_pin[1],
+                )
+                or not _TRUSTED_VALUE_CLASS_MATCHES(
+                    self._selection_types_pin[2], _FORGE_LOCATOR_FIELDS,
+                    self._selection_states_pin[2],
+                )):
             _fail("invalid_binding")
         try:
             self._producer._assert_mcp_provider_pins()
@@ -2096,8 +2511,285 @@ class McpPrivateContextConfirmationService:
             if expired: self._terminate(entry)
 
 
+_SERVICE_INSTANCE_DICT_SLOT = McpPrivateContextConfirmationService.__dict__["__dict__"]
+_SERVICE_INSTANCE_DICT_GET = type(_SERVICE_INSTANCE_DICT_SLOT).__get__
+
+
+def _publication_cleanup_anchor(
+    service: object,
+    request_id: object,
+    lease: object,
+    _service_type: type = McpPrivateContextConfirmationService,
+    _capsule_type: type = _NativePermitRejectionCapsule,
+    _entry_type: type = _Entry,
+    _lease_type: type = McpContextReadLease,
+    _binding_type: type = McpContextBinding,
+    _authority_type: type = McpContextAuthority,
+    _weakref_type: type = _NATIVE_WEAKREF_TYPE,
+    _rlock_type: type = _NATIVE_RLOCK_TYPE,
+    _local_type: type = _NATIVE_LOCAL_TYPE,
+    _weakref_call: object = _NATIVE_WEAKREF_CALL,
+    _member_get: object = _NATIVE_MEMBER_GET,
+    _instance_dict_slot: object = _SERVICE_INSTANCE_DICT_SLOT,
+    _instance_dict_get: object = _SERVICE_INSTANCE_DICT_GET,
+    _capsule_slots: tuple[object, ...] = _CAPSULE_SLOTS,
+    _entry_request_id_slot: object = _ENTRY_REQUEST_ID_SLOT,
+    _entry_state_slot: object = _ENTRY_STATE_SLOT,
+    _entry_lease_ref_slot: object = _ENTRY_LEASE_REF_SLOT,
+    _entry_binding_ref_slot: object = _ENTRY_BINDING_REF_SLOT,
+    _lease_authority_slot: object = _LEASE_AUTHORITY_SLOT,
+    _lease_binding_slot: object = _LEASE_BINDING_SLOT,
+) -> tuple[object, ...] | None:
+    """Capture an original-map cleanup capability for one genuine disclosed entry."""
+    try:
+        if (type(service) is not _service_type or type(request_id) is not str
+                or not request_id or type(lease) is not _lease_type):
+            return None
+        instance = _instance_dict_get(_instance_dict_slot, service, _service_type)
+        if (type(instance) is not dict
+                or any(type(key) is not str for key in tuple(dict.keys(instance)))):
+            return None
+        capsule = dict.get(instance, "_native_rejection_capsule")
+        if type(capsule) is not _capsule_type:
+            return None
+        (service_ref, lock, entries, permits, exchanges, completions, native_completions,
+         authority, execution_local) = tuple(
+            _member_get(slot, capsule, _capsule_type) for slot in _capsule_slots
+        )
+        if (type(service_ref) is not _weakref_type or _weakref_call(service_ref) is not service
+                or type(lock) is not _rlock_type or type(entries) is not dict
+                or type(permits) is not dict or type(exchanges) is not dict
+                or type(completions) is not dict or type(native_completions) is not dict
+                or type(authority) is not _authority_type
+                or type(execution_local) is not _local_type
+                or dict.get(instance, "_lock") is not lock
+                or dict.get(instance, "_entries") is not entries
+                or dict.get(instance, "_permits") is not permits
+                or dict.get(instance, "_exchanges") is not exchanges
+                or dict.get(instance, "_completions") is not completions
+                or dict.get(instance, "_native_completions") is not native_completions
+                or dict.get(instance, "_authority") is not authority
+                or dict.get(instance, "_execution_local") is not execution_local):
+            return None
+        with lock:
+            entry = None
+            for key, candidate in tuple(dict.items(entries)):
+                if type(key) is not str or type(candidate) is not _entry_type:
+                    return None
+                if key == request_id:
+                    entry = candidate
+            if type(entry) is not _entry_type:
+                return None
+            entry_request_id = _member_get(_entry_request_id_slot, entry, _entry_type)
+            entry_state = _member_get(_entry_state_slot, entry, _entry_type)
+            lease_ref = _member_get(_entry_lease_ref_slot, entry, _entry_type)
+            binding_ref = _member_get(_entry_binding_ref_slot, entry, _entry_type)
+            if (type(entry_request_id) is not str or entry_request_id != request_id
+                    or type(entry_state) is not str or entry_state != "disclosed"
+                    or type(lease_ref) is not _weakref_type
+                    or type(binding_ref) is not _weakref_type
+                    or _weakref_call(lease_ref) is not lease):
+                return None
+            binding = _weakref_call(binding_ref)
+            if (type(binding) is not _binding_type
+                    or _member_get(_lease_authority_slot, lease, _lease_type) is not authority
+                    or _member_get(_lease_binding_slot, lease, _lease_type) is not binding):
+                return None
+            return (
+                service, capsule, lock, entries, permits, exchanges, completions,
+                native_completions, authority, execution_local, entry, lease, binding,
+                lease_ref, binding_ref, request_id,
+            )
+    except BaseException:
+        return None
+
+
+def _terminate_anchored_publication(
+    anchor: object,
+    _service_type: type = McpPrivateContextConfirmationService,
+    _capsule_type: type = _NativePermitRejectionCapsule,
+    _entry_type: type = _Entry,
+    _permit_row_type: type = _PermitRow,
+    _exchange_row_type: type = _HumanExchangeRow,
+    _completion_row_type: type = _CompletionRow,
+    _native_completion_row_type: type = _NativeCompletionRow,
+    _lease_type: type = McpContextReadLease,
+    _binding_type: type = McpContextBinding,
+    _authority_type: type = McpContextAuthority,
+    _weakref_type: type = _NATIVE_WEAKREF_TYPE,
+    _rlock_type: type = _NATIVE_RLOCK_TYPE,
+    _local_type: type = _NATIVE_LOCAL_TYPE,
+    _weakref_call: object = _NATIVE_WEAKREF_CALL,
+    _member_get: object = _NATIVE_MEMBER_GET,
+    _member_set: object = _NATIVE_MEMBER_SET,
+    _instance_dict_slot: object = _SERVICE_INSTANCE_DICT_SLOT,
+    _instance_dict_get: object = _SERVICE_INSTANCE_DICT_GET,
+    _capsule_slots: tuple[object, ...] = _CAPSULE_SLOTS,
+    _permit_row_entry_ref_slot: object = _PERMIT_ROW_ENTRY_REF_SLOT,
+    _human_row_request_id_slot: object = _HUMAN_ROW_REQUEST_ID_SLOT,
+    _completion_row_entry_ref_slot: object = _COMPLETION_ROW_ENTRY_REF_SLOT,
+    _native_completion_row_entry_ref_slot: object = _NATIVE_COMPLETION_ROW_ENTRY_REF_SLOT,
+    _entry_request_id_slot: object = _ENTRY_REQUEST_ID_SLOT,
+    _entry_state_slot: object = _ENTRY_STATE_SLOT,
+    _entry_lease_ref_slot: object = _ENTRY_LEASE_REF_SLOT,
+    _entry_binding_ref_slot: object = _ENTRY_BINDING_REF_SLOT,
+    _entry_generation_slot: object = _ENTRY_GENERATION_SLOT,
+    _entry_scrub_slot_values: tuple[tuple[object, object], ...] = _ENTRY_SCRUB_SLOT_VALUES,
+    _lease_authority_slot: object = _LEASE_AUTHORITY_SLOT,
+    _lease_binding_slot: object = _LEASE_BINDING_SLOT,
+) -> bool:
+    """Scrub only the still-identical entry proven by an original-map anchor."""
+    try:
+        if type(anchor) is not tuple or len(anchor) != 16:
+            return False
+        (service, capsule, lock, entries, permits, exchanges, completions,
+         native_completions, authority, execution_local, entry, lease, binding,
+         lease_ref, binding_ref, request_id) = anchor
+        if (type(service) is not _service_type or type(capsule) is not _capsule_type
+                or type(lock) is not _rlock_type or type(entries) is not dict
+                or type(permits) is not dict or type(exchanges) is not dict
+                or type(completions) is not dict or type(native_completions) is not dict
+                or type(authority) is not _authority_type
+                or type(execution_local) is not _local_type
+                or type(entry) is not _entry_type or type(lease) is not _lease_type
+                or type(binding) is not _binding_type or type(lease_ref) is not _weakref_type
+                or type(binding_ref) is not _weakref_type or type(request_id) is not str):
+            return False
+        instance = _instance_dict_get(_instance_dict_slot, service, _service_type)
+        if (type(instance) is not dict
+                or any(type(key) is not str for key in tuple(dict.keys(instance)))
+                or dict.get(instance, "_native_rejection_capsule") is not capsule
+                or dict.get(instance, "_lock") is not lock
+                or dict.get(instance, "_entries") is not entries
+                or dict.get(instance, "_permits") is not permits
+                or dict.get(instance, "_exchanges") is not exchanges
+                or dict.get(instance, "_completions") is not completions
+                or dict.get(instance, "_native_completions") is not native_completions
+                or dict.get(instance, "_authority") is not authority
+                or dict.get(instance, "_execution_local") is not execution_local):
+            return False
+        capsule_values = tuple(
+            _member_get(slot, capsule, _capsule_type) for slot in _capsule_slots
+        )
+        retained_capsule_values = (
+            lock, entries, permits, exchanges, completions, native_completions,
+            authority, execution_local,
+        )
+        if (len(capsule_values) != 9
+                or type(capsule_values[0]) is not _weakref_type
+                or _weakref_call(capsule_values[0]) is not service
+                or any(current is not retained for current, retained in zip(
+                    capsule_values[1:], retained_capsule_values,
+                ))):
+            return False
+        with lock:
+            matched_entry = None
+            for key, candidate in tuple(dict.items(entries)):
+                if type(key) is not str or type(candidate) is not _entry_type:
+                    return False
+                if key == request_id:
+                    matched_entry = candidate
+            entry_request_id = _member_get(_entry_request_id_slot, entry, _entry_type)
+            entry_state = _member_get(_entry_state_slot, entry, _entry_type)
+            current_lease_ref = _member_get(_entry_lease_ref_slot, entry, _entry_type)
+            current_binding_ref = _member_get(_entry_binding_ref_slot, entry, _entry_type)
+            entry_generation = _member_get(_entry_generation_slot, entry, _entry_type)
+            if (type(entry_request_id) is not str or entry_request_id != request_id
+                    or type(entry_state) is not str or entry_state != "disclosed"
+                    or current_lease_ref is not lease_ref
+                    or current_binding_ref is not binding_ref
+                    or _weakref_call(lease_ref) is not lease
+                    or _weakref_call(binding_ref) is not binding
+                    or _member_get(_lease_authority_slot, lease, _lease_type) is not authority
+                    or _member_get(_lease_binding_slot, lease, _lease_type) is not binding
+                    or type(entry_generation) is not int or isinstance(entry_generation, bool)
+                    or matched_entry is not entry):
+                return False
+
+            permit_keys: list[int] = []
+            exchange_keys: list[int] = []
+            completion_keys: list[int] = []
+            native_completion_keys: list[int] = []
+            for key, candidate in tuple(dict.items(permits)):
+                if type(key) is not int or type(candidate) is not _permit_row_type:
+                    return False
+                candidate_ref = _member_get(
+                    _permit_row_entry_ref_slot, candidate, _permit_row_type,
+                )
+                if type(candidate_ref) is not _weakref_type:
+                    return False
+                if _weakref_call(candidate_ref) is entry:
+                    permit_keys.append(key)
+            for key, candidate in tuple(dict.items(exchanges)):
+                if type(key) is not int or type(candidate) is not _exchange_row_type:
+                    return False
+                candidate_request_id = _member_get(
+                    _human_row_request_id_slot, candidate, _exchange_row_type,
+                )
+                if type(candidate_request_id) is not str:
+                    return False
+                if candidate_request_id == request_id:
+                    exchange_keys.append(key)
+            for key, candidate in tuple(dict.items(completions)):
+                if type(key) is not int or type(candidate) is not _completion_row_type:
+                    return False
+                candidate_ref = _member_get(
+                    _completion_row_entry_ref_slot, candidate, _completion_row_type,
+                )
+                if type(candidate_ref) is not _weakref_type:
+                    return False
+                if _weakref_call(candidate_ref) is entry:
+                    completion_keys.append(key)
+            for key, candidate in tuple(dict.items(native_completions)):
+                if type(key) is not int or type(candidate) is not _native_completion_row_type:
+                    return False
+                candidate_ref = _member_get(
+                    _native_completion_row_entry_ref_slot, candidate,
+                    _native_completion_row_type,
+                )
+                if type(candidate_ref) is not _weakref_type:
+                    return False
+                if _weakref_call(candidate_ref) is entry:
+                    native_completion_keys.append(key)
+
+            for key in permit_keys:
+                dict.pop(permits, key, None)
+            for key in exchange_keys:
+                dict.pop(exchanges, key, None)
+            for key in completion_keys:
+                dict.pop(completions, key, None)
+            for key in native_completion_keys:
+                dict.pop(native_completions, key, None)
+            for slot, value in _entry_scrub_slot_values:
+                _member_set(slot, entry, value)
+            _member_set(_entry_state_slot, entry, "expired")
+            _member_set(_entry_generation_slot, entry, entry_generation + 1)
+            if dict.get(entries, request_id) is entry:
+                dict.pop(entries, request_id, None)
+            return True
+    except BaseException:
+        return False
+
+
+_TRUSTED_PUBLICATION_CLEANUP_ANCHOR = _publication_cleanup_anchor
+_TRUSTED_TERMINATE_ANCHORED_PUBLICATION = _terminate_anchored_publication
 _TRUSTED_PLANNING_EXECUTOR = McpPrivateContextConfirmationService._execute_planning_page
 _TRUSTED_COMPLETION_CONSUMER = McpPrivateContextConfirmationService._consume_planning_completion
 _TRUSTED_NATIVE_EXECUTOR = McpPrivateContextConfirmationService._execute_native_page
 _TRUSTED_NATIVE_COMPLETION_CONSUMER = McpPrivateContextConfirmationService._consume_native_completion
 _TRUSTED_ASSERT_NATIVE_BODY_PINS = _assert_native_body_pins
+_TRUSTED_SELECTION_TYPES = _selection_types
+_TRUSTED_SERVICE_CANON = _canon
+_TRUSTED_DISCLOSURE_FENCE = McpPrivateContextConfirmationService._fence_disclosed_publication
+_TRUSTED_FENCE_CLOCK = McpPrivateContextConfirmationService._clock
+_TRUSTED_FENCE_GUARDS = McpPrivateContextConfirmationService._guards
+_TRUSTED_FENCE_CAPTURE_COOKIE = McpPrivateContextConfirmationService._capture_cookie
+_TRUSTED_FENCE_CAPTURE_MCP = McpPrivateContextConfirmationService._capture_mcp
+_TRUSTED_FENCE_APP_METHOD = McpPrivateContextConfirmationService._registered_app_method
+_TRUSTED_FENCE_VALID_ATTESTATION = McpPrivateContextConfirmationService._valid_attestation
+_TRUSTED_PAGE_REQUEST_DESCRIPTOR_SLOT = (
+    McpPrivateContextConfirmationService.__dict__["_page_request_descriptor"]
+)
+_TRUSTED_PAGE_REQUEST_DESCRIPTOR = McpPrivateContextConfirmationService._page_request_descriptor
+_TRUSTED_SERVICE_ASSERT_PINS = McpPrivateContextConfirmationService._assert_pins
+_TRUSTED_TERMINATE = McpPrivateContextConfirmationService._terminate
