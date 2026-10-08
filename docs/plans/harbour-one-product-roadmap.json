@@ -314,7 +314,14 @@
       ],
       "objective": "Unify documents, planning decisions, reviews, blockers and external source signals in one typed Inbox without merging their authorities.",
       "done_when": "One read model presents source, owner, required action, due state, authority and receipt links; mutations route to the owning subsystem and are idempotent.",
-      "evidence": []
+      "evidence": [
+        "src/harbour_inbox_service.py",
+        "src/upload_handler.py",
+        "plugins/mcp_server/plugin.py",
+        "docs/mcp-server-runbook.md",
+        "docs/plans/handoffs/abc-open-work-5h-run-20260905.json"
+      ],
+      "status_note": "Typed Inbox components are accepted at commits 81a22af3 (187 native cases) and 13d645b7 (three App cases). The current 17-input comparison finds 12 byte-identical files and five CRLF/LF-only files with identical ASTs. Whole H1R-09 acceptance remains pending a fresh independent parent review; the components and source comparison do not establish package/default/UI/live/temporal acceptance. New uploads use immutable SIDs; historical entries remain excluded. Existing parent status, dependencies and progress are retained until whole-parent evidence is independently accepted."
     },
     {
       "id": "H1R-10",

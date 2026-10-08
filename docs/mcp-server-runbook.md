@@ -113,14 +113,18 @@ graph. Its fixed lease lifetime is 300 seconds, with limits of 64 records
 globally and eight per owner.
 
 The corrected request-runtime source has passed independent static deep
-review. Its latest focused 11-case run collected all 11 cases, then reached
-its bounded execution deadline without a final JUnit result. The owned process
-job is empty; actual 11-case acceptance and the specific timeout cause remain
-unverified. The earlier genuine slotted-producer constructor failure and its
-correction remain recorded. A bounded causal diagnosis precedes another runtime
-attempt. The shared dependency lane passed all 108 cases and independent
-receipt review at commit `68146dc5`; its exact three-file commit also passed
-direct Git readback. Those results cover the dependency, not this new runtime.
+review. A separately reviewed isolated cancellation/encoder-failure case passed
+with exit zero, exact one-case JUnit and an empty owned job. The subsequent R4
+full lane collected all 11 cases but exhausted its 1,800-second runtime budget
+without a final JUnit result; its owned job is empty and the sealed sources and
+observer are unchanged. Its five redacted progress markers are not acceptance
+of five cases. Actual 11-case acceptance and the specific timeout cause remain
+unverified. The earlier R3 budget failure and genuine slotted-producer
+constructor failure/correction remain recorded. Another unchanged full run is
+not justified by these receipts; a bounded causal decision precedes recovery.
+The shared dependency lane passed all 108 cases and independent receipt review
+at commit `68146dc5`; its exact three-file commit also passed direct Git byte
+readback. Those results cover the dependency, not this new runtime.
 The new module has no App, dispatcher or plugin wiring. Default activation,
 live operation and Harbour One package acceptance remain separate gates.
 
