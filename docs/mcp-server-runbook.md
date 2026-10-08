@@ -96,6 +96,31 @@ current checks and acceptance. App/dispatcher wiring, default activation,
 live operation, temporal behavior and whole Harbour One package acceptance
 remain separate gates.
 
+### Inactive JSON-RPC request runtime
+
+`src/mcp_context_request_runtime.py` implements the inactive
+`McpContextRequestRuntime` boundary. Its constructor borrows one authority,
+confirmation service, producer, cursor authority and pack coordinator graph.
+`handle(raw, identity=..., bearer_proof=...)` accepts bounded raw JSON-RPC
+bytes and an authenticated identity. Only preparation accepts a bearer proof;
+manifest, content and cancellation reuse the owned request. Preparation
+returns a request ID and bounded confirmation metadata. Published pages retain
+the coordinator's original immutable bytes.
+
+The runtime owns its bindings, read leases and request records. Content EOF,
+cancellation and `close()` release those records without closing the borrowed
+graph. Its fixed lease lifetime is 300 seconds, with limits of 64 records
+globally and eight per owner.
+
+Independent static deep review has passed for the current candidate. The
+focused 11-case runtime lane is prepared and independently reviewed, but has
+not executed. Source review is not runtime acceptance. The shared dependency
+lane passed all 108 cases and independent receipt review at commit `68146dc5`;
+the exact three-file commit also passed direct Git readback. Those results
+cover the dependency, not this new runtime. The new module has no
+App, dispatcher or plugin wiring, and none of these records establish default
+activation, live operation or Harbour One package acceptance.
+
 The accepted native seams `read_native_forge_context_page` and
 `read_native_knowledge_context_page` require an already-held authenticated
 `DisclosureBinding` and corresponding immutable manifest; they grant no MCP
@@ -333,8 +358,10 @@ the trusted Inbox model until a separate data decision authorizes assignment.
 This follows the human decision to bind new uploads and initially exclude history.
 
 The subsequent opt-in typed upload projection is implemented but not yet
-accepted. Its independent review and runtime evidence remain pending. This
-prerequisite does not establish actual application/MCP transport acceptance,
+accepted. Its current independent source review has passed. A separate
+187-case runtime lane and its corrected ownership controller have independent
+static approval. Its final runtime evidence remains pending. This prerequisite
+does not establish actual application/MCP transport acceptance,
 activate the plugin, or satisfy live, cross-process recovery, UI or temporal
 gates. If removal of a newly created file is refused, the upload returns a fixed
 cleanup failure; physical cleanup and operational recovery are not claimed.
