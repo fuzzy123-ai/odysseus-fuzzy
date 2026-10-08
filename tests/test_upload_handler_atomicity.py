@@ -399,3 +399,301 @@ def test_smoke_info_lookup_after_bak_recovery(tmp_path):
     assert info is not None, "Info lookup must succeed after .bak recovery."
     assert info["id"] == first["id"]
     assert info["hash"] == first["hash"]
+
+
+def test_invalid_creator_subject_id_is_rejected_before_upload_work(tmp_path, monkeypatch):
+    handler = _make_handler(tmp_path)
+    handler.upload_rate_limit = 100
+    monkeypatch.setattr(
+        handler,
+        "get_upload_dir",
+        lambda: (_ for _ in ()).throw(AssertionError("filesystem work must not start")),
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        handler.save_upload(
+            SimpleNamespace(filename="invalid.txt", file=io.BytesIO(b"content")),
+            "127.0.0.1",
+            "alice",
+            creator_subject_id="owner_invalid",
+        )
+
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.detail == "Invalid upload owner identity"
+    assert handler.upload_rate_log == {}
+
+
+def test_sid_bound_dedupe_separates_other_sid_and_legacy_rows(tmp_path):
+    handler = _make_handler(tmp_path)
+    handler.upload_rate_limit = 100
+    content = b"same bytes across immutable identities"
+    sid_a = "owner_" + "a" * 32
+    sid_b = "owner_" + "b" * 32
+
+    def upload(*, sid):
+        return handler.save_upload(
+            SimpleNamespace(filename="same.txt", file=io.BytesIO(content)),
+            "127.0.0.1",
+            "alice",
+            creator_subject_id=sid,
+        )
+
+    first = upload(sid=sid_a)
+    duplicate = upload(sid=sid_a)
+    other_subject = upload(sid=sid_b)
+    legacy = upload(sid=None)
+
+    assert duplicate["is_duplicate"] is True
+    assert duplicate["id"] == first["id"]
+    assert other_subject["id"] != first["id"]
+    assert legacy["id"] not in {first["id"], other_subject["id"]}
+    assert all(
+        "creator_subject_id" not in result
+        for result in (first, duplicate, other_subject, legacy)
+    )
+
+    index = json.loads(Path(_db_path(handler)).read_text(encoding="utf-8"))
+    file_hash = first["hash"]
+    assert set(index) == {
+        f"alice:{sid_a}:{file_hash}",
+        f"alice:{sid_b}:{file_hash}",
+        f"alice:{file_hash}",
+    }
+    assert index[f"alice:{sid_a}:{file_hash}"]["creator_subject_id"] == sid_a
+    assert index[f"alice:{sid_b}:{file_hash}"]["creator_subject_id"] == sid_b
+    assert index[f"alice:{file_hash}"]["creator_subject_id"] is None
+
+
+def test_sid_bound_owner_rename_keeps_immutable_subject_in_key_and_metadata(tmp_path):
+    handler = _make_handler(tmp_path)
+    handler.upload_rate_limit = 100
+    sid = "owner_" + "c" * 32
+    result = handler.save_upload(
+        SimpleNamespace(filename="rename.txt", file=io.BytesIO(b"rename-bound")),
+        "127.0.0.1",
+        "alice",
+        creator_subject_id=sid,
+    )
+
+    assert handler.rename_owner("alice", "alice2") == 1
+
+    index = json.loads(Path(_db_path(handler)).read_text(encoding="utf-8"))
+    assert set(index) == {f"alice2:{sid}:{result['hash']}"}
+    stored = next(iter(index.values()))
+    assert stored["owner"] == "alice2"
+    assert stored["creator_subject_id"] == sid
+
+
+def test_sid_bound_index_failure_removes_only_new_unindexed_file(tmp_path, monkeypatch, caplog):
+    handler = _make_handler(tmp_path)
+    handler.upload_rate_limit = 100
+    sid = "owner_" + "d" * 32
+    secret_failure = "provider-secret-must-not-escape"
+
+    def fail_index(*args, **kwargs):
+        raise RuntimeError(secret_failure)
+
+    monkeypatch.setattr(handler, "_atomic_write_json", fail_index)
+    with pytest.raises(HTTPException) as exc_info:
+        handler.save_upload(
+            SimpleNamespace(filename="rollback.txt", file=io.BytesIO(b"rollback")),
+            "127.0.0.1",
+            "alice",
+            creator_subject_id=sid,
+        )
+
+    assert exc_info.value.status_code == 500
+    assert exc_info.value.detail == "Failed to save upload"
+    assert secret_failure not in str(exc_info.value.detail)
+    assert secret_failure not in caplog.text
+    assert not [path for path in Path(handler.upload_dir).rglob("*") if path.is_file()]
+
+
+def test_sid_bound_duplicate_index_failure_does_not_remove_existing_file(tmp_path, monkeypatch):
+    handler = _make_handler(tmp_path)
+    handler.upload_rate_limit = 100
+    sid = "owner_" + "e" * 32
+    content = b"existing-bound-file"
+    first = handler.save_upload(
+        SimpleNamespace(filename="existing.txt", file=io.BytesIO(content)),
+        "127.0.0.1",
+        "alice",
+        creator_subject_id=sid,
+    )
+    original_path = Path(first["path"])
+
+    monkeypatch.setattr(
+        handler,
+        "_atomic_write_json",
+        lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("hidden")),
+    )
+    with pytest.raises(HTTPException) as exc_info:
+        handler.save_upload(
+            SimpleNamespace(filename="existing.txt", file=io.BytesIO(content)),
+            "127.0.0.1",
+            "alice",
+            creator_subject_id=sid,
+        )
+
+    assert exc_info.value.status_code == 500
+    assert exc_info.value.detail == "Failed to save upload"
+    assert original_path.is_file()
+
+
+def test_concurrent_identical_sid_uploads_leave_one_indexed_file(tmp_path, monkeypatch):
+    import threading
+
+    handler = _make_handler(tmp_path)
+    handler.upload_rate_limit = 100
+    sid = "owner_" + "f" * 32
+    content = b"concurrent-identical-bound-content"
+    upload_dir = handler.get_upload_dir()
+    both_passed_initial_dedupe = threading.Barrier(2)
+
+    def synchronized_upload_dir():
+        both_passed_initial_dedupe.wait(timeout=5)
+        return upload_dir
+
+    monkeypatch.setattr(handler, "get_upload_dir", synchronized_upload_dir)
+
+    def upload_one(_index):
+        return handler.save_upload(
+            SimpleNamespace(filename="same.txt", file=io.BytesIO(content)),
+            "127.0.0.1",
+            "alice",
+            creator_subject_id=sid,
+        )
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(upload_one, range(2)))
+
+    assert {result["id"] for result in results} == {results[0]["id"]}
+    assert sum(result.get("is_duplicate") is True for result in results) == 1
+    index = json.loads(Path(_db_path(handler)).read_text(encoding="utf-8"))
+    assert len(index) == 1
+    stored = next(iter(index.values()))
+    assert stored["creator_subject_id"] == sid
+    data_files = {
+        path
+        for path in Path(handler.upload_dir).rglob("*")
+        if path.is_file() and path.name not in {"uploads.json", "uploads.json.bak"}
+    }
+    assert data_files == {Path(stored["path"])}
+
+
+def test_valid_looking_str_subclass_sid_is_rejected_before_format_or_upload_work(tmp_path, monkeypatch):
+    handler = _make_handler(tmp_path)
+    handler.upload_rate_limit = 100
+
+    class HostileSid(str):
+        def __format__(self, format_spec):
+            raise AssertionError("hostile SID formatting must not execute")
+
+    monkeypatch.setattr(
+        handler,
+        "get_upload_dir",
+        lambda: (_ for _ in ()).throw(AssertionError("filesystem work must not start")),
+    )
+    with pytest.raises(HTTPException) as exc_info:
+        handler.save_upload(
+            SimpleNamespace(filename="hostile.txt", file=io.BytesIO(b"content")),
+            "127.0.0.1",
+            "alice",
+            creator_subject_id=HostileSid("owner_" + "a" * 32),
+        )
+
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.detail == "Invalid upload owner identity"
+    assert handler.upload_rate_log == {}
+
+
+def test_bound_index_and_unlink_failure_is_classified_without_touching_other_files(
+    tmp_path, monkeypatch, caplog
+):
+    handler = _make_handler(tmp_path)
+    handler.upload_rate_limit = 100
+    upload_dir = Path(handler.get_upload_dir())
+    unrelated = upload_dir / "preexisting.txt"
+    unrelated.write_bytes(b"preserve me")
+    before = {path for path in Path(handler.upload_dir).rglob("*") if path.is_file()}
+
+    monkeypatch.setattr(
+        handler,
+        "_atomic_write_json",
+        lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("hidden-index-detail")),
+    )
+    real_remove = os.remove
+
+    def refuse_owned_cleanup(path):
+        if Path(path) != unrelated:
+            raise PermissionError("hidden-cleanup-detail")
+        return real_remove(path)
+
+    monkeypatch.setattr(os, "remove", refuse_owned_cleanup)
+    with pytest.raises(HTTPException) as exc_info:
+        handler.save_upload(
+            SimpleNamespace(filename="cleanup.txt", file=io.BytesIO(b"cleanup-refused")),
+            "127.0.0.1",
+            "alice",
+            creator_subject_id="owner_" + "b" * 32,
+        )
+
+    assert exc_info.value.status_code == 500
+    assert exc_info.value.detail == "Upload cleanup failed"
+    assert unrelated.read_bytes() == b"preserve me"
+    after = {path for path in Path(handler.upload_dir).rglob("*") if path.is_file()}
+    assert before <= after
+    assert len(after - before) == 1
+    assert "hidden-index-detail" not in caplog.text
+    assert "hidden-cleanup-detail" not in caplog.text
+
+
+def test_bound_partial_file_write_failure_removes_own_partial_file(tmp_path):
+    handler = _make_handler(tmp_path)
+    handler.upload_rate_limit = 100
+
+    class PartialWriteSource(io.BytesIO):
+        def __init__(self, value):
+            super().__init__(value)
+            self.upload_reads = 0
+
+        def read(self, size=-1):
+            if size == 8192:
+                self.upload_reads += 1
+                if self.upload_reads == 2:
+                    raise OSError("hidden-partial-write-detail")
+            return super().read(size)
+
+    with pytest.raises(HTTPException) as exc_info:
+        handler.save_upload(
+            SimpleNamespace(filename="partial.txt", file=PartialWriteSource(b"partial-content")),
+            "127.0.0.1",
+            "alice",
+            creator_subject_id="owner_" + "c" * 32,
+        )
+
+    assert exc_info.value.status_code == 500
+    assert exc_info.value.detail == "Failed to save file"
+    assert not [path for path in Path(handler.upload_dir).rglob("*") if path.is_file()]
+
+
+def test_bound_create_collision_does_not_delete_preexisting_file(tmp_path, monkeypatch):
+    handler = _make_handler(tmp_path)
+    handler.upload_rate_limit = 100
+    upload_dir = Path(handler.get_upload_dir())
+    collision_id = "1" * 32 + ".txt"
+    collision = upload_dir / collision_id
+    collision.write_bytes(b"preexisting collision")
+    monkeypatch.setattr("src.upload_handler._build_upload_id", lambda safe_name: collision_id)
+
+    with pytest.raises(HTTPException) as exc_info:
+        handler.save_upload(
+            SimpleNamespace(filename="collision.txt", file=io.BytesIO(b"new content")),
+            "127.0.0.1",
+            "alice",
+            creator_subject_id="owner_" + "d" * 32,
+        )
+
+    assert exc_info.value.status_code == 500
+    assert exc_info.value.detail == "Failed to save file"
+    assert collision.read_bytes() == b"preexisting collision"

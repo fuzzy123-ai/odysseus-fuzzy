@@ -14,6 +14,7 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
 from fastapi import HTTPException, UploadFile
 
+from core.auth import SUBJECT_ID_PATTERN
 from src.upload_limits import format_byte_limit, get_chat_upload_max_bytes
 
 
@@ -297,6 +298,16 @@ class UploadHandler:
         except Exception:
             return False
 
+    @staticmethod
+    def _remove_new_upload_file(path: str) -> None:
+        """Remove only a file created by the current upload call."""
+        try:
+            os.remove(path)
+        except FileNotFoundError:
+            return
+        except OSError:
+            raise HTTPException(status_code=500, detail="Upload cleanup failed") from None
+
     def _atomic_write_json(self, path: str, data: dict) -> None:
         """Write `data` to `path` atomically: write to a temp file in the
         same directory, then `os.replace` onto the target. The kernel
@@ -361,6 +372,9 @@ class UploadHandler:
                 return f"{new_owner}:{rest}"
         file_hash = info.get("hash")
         if file_hash:
+            creator_subject_id = info.get("creator_subject_id")
+            if isinstance(creator_subject_id, str) and SUBJECT_ID_PATTERN.fullmatch(creator_subject_id):
+                return f"{new_owner}:{creator_subject_id}:{file_hash}"
             return f"{new_owner}:{file_hash}"
         return key
 
@@ -715,8 +729,21 @@ class UploadHandler:
         except OSError as exc:
             raise ValueError("generated artifact registration failed") from exc
     
-    def save_upload(self, u: UploadFile, client_ip: str, owner: str = None) -> dict:
+    def save_upload(
+        self,
+        u: UploadFile,
+        client_ip: str,
+        owner: str = None,
+        *,
+        creator_subject_id: Optional[str] = None,
+    ) -> dict:
         """Save uploaded file with enhanced security and organization."""
+        if creator_subject_id is not None and (
+            type(creator_subject_id) is not str
+            or SUBJECT_ID_PATTERN.fullmatch(creator_subject_id) is None
+        ):
+            raise HTTPException(status_code=400, detail="Invalid upload owner identity")
+
         # Rate limiting
         now = time.time()
         with self._upload_rate_lock:
@@ -779,15 +806,17 @@ class UploadHandler:
         # the stale one read before the insert.
         uploads_db_path = os.path.join(self.upload_dir, "uploads.json")
         existing_file = None
-        existing_key = None
         with self._index_lock:
             existing_files = self._load_upload_index()
             stale_keys = []
             for key, info in existing_files.items():
-                if info.get("hash") == file_hash and info.get("owner") == owner:
+                if (
+                    info.get("hash") == file_hash
+                    and info.get("owner") == owner
+                    and info.get("creator_subject_id") == creator_subject_id
+                ):
                     stored_path = info.get("path")
                     if stored_path and os.path.exists(stored_path) and self._inside_upload_dir(stored_path):
-                        existing_key = key
                         existing_file = info
                         break
                     stale_keys.append(key)
@@ -797,24 +826,28 @@ class UploadHandler:
                 try:
                     self._atomic_write_json(uploads_db_path, existing_files)
                     logger.info("Removed %d stale upload index entries for missing duplicates", len(stale_keys))
-                except Exception as e:
-                    logger.warning(f"Failed to remove stale upload index entries: {e}")
+                except Exception:
+                    if creator_subject_id is not None:
+                        raise HTTPException(status_code=500, detail="Failed to save upload")
+                    logger.warning("Failed to remove stale upload index entries")
         if existing_file:
             logger.info(f"Duplicate file upload detected: {original_filename} -> {existing_file['id']}")
 
-            existing_file["last_accessed"] = datetime.now().isoformat()
             with self._index_lock:
                 try:
                     current = self._load_upload_index()
-                    # Re-resolve the key inside the lock: a concurrent
-                    # insert can have changed the dict's keys.
-                    live_key = existing_key
-                    if live_key not in current:
-                        for k, v in current.items():
-                            if v.get("hash") == file_hash and v.get("owner") == owner:
-                                live_key = k
-                                existing_file = v
-                                break
+                    # Always re-resolve from the locked live snapshot.  The
+                    # row at the previously observed key may have changed.
+                    live_key = None
+                    for k, v in current.items():
+                        if (
+                            v.get("hash") == file_hash
+                            and v.get("owner") == owner
+                            and v.get("creator_subject_id") == creator_subject_id
+                        ):
+                            live_key = k
+                            existing_file = dict(v)
+                            break
                     if live_key is None:
                         # No matching entry anymore (e.g. cleaned up between
                         # the outer read and the write). Fall through to the
@@ -825,8 +858,10 @@ class UploadHandler:
                     self._atomic_write_json(uploads_db_path, current)
                 except LookupError:
                     existing_file = None
-                except Exception as e:
-                    logger.warning(f"Failed to update uploads database: {e}")
+                except Exception:
+                    if creator_subject_id is not None:
+                        raise HTTPException(status_code=500, detail="Failed to save upload")
+                    logger.warning("Failed to update uploads database")
 
             if existing_file:
                 return {
@@ -851,12 +886,18 @@ class UploadHandler:
         file_path = os.path.join(upload_dir, file_id)
         
         # Save the file
+        file_created = False
         try:
-            with open(file_path, "wb") as f:
+            with open(file_path, "xb") as f:
+                file_created = True
                 while chunk := file_obj.read(8192):
                     f.write(chunk)
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
+        except HTTPException:
+            raise
+        except Exception:
+            if file_created and creator_subject_id is not None:
+                self._remove_new_upload_file(file_path)
+            raise HTTPException(status_code=500, detail="Failed to save file")
         
         # Create file metadata
         file_metadata = {
@@ -871,6 +912,7 @@ class UploadHandler:
             "last_accessed": datetime.now().isoformat(),
             "client_ip": client_ip,
             "owner": owner,
+            "creator_subject_id": creator_subject_id,
         }
         # Capture image dimensions (EXIF-rotated) so the chat thumbnail skeleton
         # can size itself to the right aspect ratio before the bytes arrive.
@@ -888,11 +930,61 @@ class UploadHandler:
         with self._index_lock:
             try:
                 current = self._load_upload_index() if os.path.exists(uploads_db_path) else {}
-                storage_key = f"{owner}:{file_hash}" if owner else file_hash
+                if creator_subject_id is not None:
+                    storage_key = f"{owner}:{creator_subject_id}:{file_hash}"
+                    live_duplicate = None
+                    stale_keys = []
+                    for key, info in current.items():
+                        if (
+                            info.get("hash") != file_hash
+                            or info.get("owner") != owner
+                            or info.get("creator_subject_id") != creator_subject_id
+                        ):
+                            continue
+                        stored_path = info.get("path")
+                        if stored_path and os.path.exists(stored_path) and self._inside_upload_dir(stored_path):
+                            live_duplicate = (key, dict(info))
+                            break
+                        stale_keys.append(key)
+
+                    if live_duplicate is not None:
+                        self._remove_new_upload_file(file_path)
+                        file_created = False
+                        live_key, existing = live_duplicate
+                        existing["last_accessed"] = datetime.now().isoformat()
+                        current[live_key] = existing
+                        self._atomic_write_json(uploads_db_path, current)
+                        return {
+                            "id": existing["id"],
+                            "path": existing["path"],
+                            "mime": existing["mime"],
+                            "size": existing["size"],
+                            "name": existing["original_name"],
+                            "hash": file_hash,
+                            "uploaded_at": existing["uploaded_at"],
+                            "owner": existing.get("owner"),
+                            "width": existing.get("width"),
+                            "height": existing.get("height"),
+                            "is_duplicate": True,
+                        }
+                    for key in stale_keys:
+                        current.pop(key, None)
+                    if storage_key in current:
+                        raise RuntimeError("upload index key conflict")
+                else:
+                    storage_key = f"{owner}:{file_hash}" if owner else file_hash
                 current[storage_key] = file_metadata
                 self._atomic_write_json(uploads_db_path, current)
-            except Exception as e:
-                logger.warning(f"Failed to update uploads database: {e}")
+            except HTTPException:
+                raise
+            except Exception:
+                if creator_subject_id is not None:
+                    if file_created:
+                        self._remove_new_upload_file(file_path)
+                    raise HTTPException(status_code=500, detail="Failed to save upload")
+                logger.warning("Failed to update uploads database")
         
         logger.info(f"File uploaded successfully: {original_filename} ({file_size} bytes)")
-        return file_metadata
+        public_metadata = dict(file_metadata)
+        public_metadata.pop("creator_subject_id", None)
+        return public_metadata

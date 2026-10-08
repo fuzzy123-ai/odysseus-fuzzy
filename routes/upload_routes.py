@@ -7,7 +7,11 @@ from fastapi import APIRouter, Request, File, UploadFile, HTTPException
 from typing import List
 import logging
 from core.middleware import require_admin
-from src.auth_helpers import effective_user
+from src.auth_helpers import (
+    effective_user,
+    guard_trusted_session_principal,
+    strict_session_principal,
+)
 from src.upload_handler import count_recent_uploads
 
 logger = logging.getLogger(__name__)
@@ -56,6 +60,12 @@ def setup_upload_routes(upload_handler):
         """Upload files with enhanced security and organization."""
         if not files:
             raise HTTPException(400, "No files uploaded")
+
+        cookies = getattr(request, "cookies", {}) or {}
+        cookie_upload = "odysseus_session" in cookies
+        principal = strict_session_principal(request) if cookie_upload else None
+        owner = principal.owner if principal is not None else effective_user(request)
+        creator_subject_id = principal.creator_subject_id if principal is not None else None
             
         client_ip = request.client.host if request.client else "unknown"
         out = []
@@ -76,25 +86,35 @@ def setup_upload_routes(upload_handler):
                 detail=f"Maximum concurrent uploads ({upload_handler.max_concurrent_uploads}) exceeded"
             )
         
-        for u in files:
-            try:
-                meta = upload_handler.save_upload(u, client_ip, owner=effective_user(request))
-                out.append({
-                    "id": meta["id"],
-                    "name": meta["name"],
-                    "mime": meta["mime"],
-                    "size": meta["size"],
-                    "hash": meta["hash"],
-                    "uploaded_at": meta["uploaded_at"],
-                    "width": meta.get("width"),
-                    "height": meta.get("height"),
-                    "is_duplicate": meta.get("is_duplicate", False)
-                })
-            except HTTPException:
-                raise
-            except Exception as e:
-                logger.error(f"Failed to process upload {u.filename}: {str(e)}")
-                continue
+        def save_files() -> None:
+            for u in files:
+                try:
+                    save_kwargs = {"owner": owner}
+                    if creator_subject_id is not None:
+                        save_kwargs["creator_subject_id"] = creator_subject_id
+                    meta = upload_handler.save_upload(u, client_ip, **save_kwargs)
+                    out.append({
+                        "id": meta["id"],
+                        "name": meta["name"],
+                        "mime": meta["mime"],
+                        "size": meta["size"],
+                        "hash": meta["hash"],
+                        "uploaded_at": meta["uploaded_at"],
+                        "width": meta.get("width"),
+                        "height": meta.get("height"),
+                        "is_duplicate": meta.get("is_duplicate", False)
+                    })
+                except HTTPException:
+                    raise
+                except Exception:
+                    logger.error("Failed to process upload")
+                    continue
+
+        if principal is not None:
+            with guard_trusted_session_principal(request, principal):
+                save_files()
+        else:
+            save_files()
         
         if not out:
             raise HTTPException(500, "All file uploads failed")

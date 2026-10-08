@@ -15,11 +15,13 @@ batch's file count. save_upload still enforces the per-minute rate limit.
 import io
 import re
 import types
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
 from fastapi import APIRouter
 
+from src.auth_helpers import SessionPrincipal
 from src.upload_handler import count_recent_uploads, UploadHandler
 import routes.upload_routes as up
 
@@ -40,10 +42,12 @@ def _fake_handler():
     h = types.SimpleNamespace()
     h.upload_rate_log = {}
     h.max_concurrent_uploads = 3
+    h.saved = []
 
-    def save_upload(u, client_ip, owner=None):
+    def save_upload(u, client_ip, owner=None, *, creator_subject_id=None):
         # Mimic the real handler: every saved file logs a timestamp.
         h.upload_rate_log.setdefault(client_ip, []).append(_NOW)
+        h.saved.append((owner, creator_subject_id))
         name = getattr(u, "filename", "f")
         return {
             "id": "0" * 32 + "." + "txt",
@@ -71,10 +75,13 @@ def _endpoint(router):
     raise AssertionError("upload endpoint not found")
 
 
-def _request(ip="1.2.3.4", user="tester"):
+def _request(ip="1.2.3.4", user="tester", *, cookie=None):
     return types.SimpleNamespace(
         client=types.SimpleNamespace(host=ip),
         state=types.SimpleNamespace(current_user=user),
+        cookies={} if cookie is None else {"odysseus_session": cookie},
+        headers={},
+        app=types.SimpleNamespace(state=types.SimpleNamespace(auth_manager=None)),
     )
 
 
@@ -124,6 +131,94 @@ async def test_genuine_recent_volume_still_throttled():
     with pytest.raises(HTTPException) as ei:
         await endpoint(_request(), _files(1))
     assert ei.value.status_code == 429
+
+
+async def test_cookie_upload_captures_sid_under_guard_and_redacts_response(monkeypatch):
+    h = _fake_handler()
+    principal = SessionPrincipal(
+        owner="alice",
+        creator_subject_id="owner_" + "a" * 32,
+        authority="browser_session",
+    )
+    guard_state = {"active": False, "entered": 0}
+
+    monkeypatch.setattr(up, "strict_session_principal", lambda request: principal)
+
+    @contextmanager
+    def guarded(request, expected):
+        assert expected is principal
+        guard_state["active"] = True
+        guard_state["entered"] += 1
+        try:
+            yield expected
+        finally:
+            guard_state["active"] = False
+
+    monkeypatch.setattr(up, "guard_trusted_session_principal", guarded)
+    original_save = h.save_upload
+
+    def save_while_guarded(*args, **kwargs):
+        assert guard_state["active"] is True
+        return original_save(*args, **kwargs)
+
+    h.save_upload = save_while_guarded
+    up.setup_upload_routes(h)
+
+    result = await _endpoint(up.router)(_request(user="stale-alias", cookie="cookie"), _files(2))
+
+    assert guard_state == {"active": False, "entered": 1}
+    assert h.saved == [("alice", principal.creator_subject_id)] * 2
+    assert all("creator_subject_id" not in item for item in result["files"])
+    assert principal.creator_subject_id not in repr(result)
+
+
+async def test_revoked_or_changed_cookie_subject_is_denied_before_save(monkeypatch):
+    from fastapi import HTTPException
+
+    h = _fake_handler()
+    principal = SessionPrincipal(
+        owner="alice",
+        creator_subject_id="owner_" + "b" * 32,
+        authority="browser_session",
+    )
+    monkeypatch.setattr(up, "strict_session_principal", lambda request: principal)
+
+    @contextmanager
+    def rejected_guard(request, expected):
+        raise HTTPException(401, "Not authenticated")
+        yield expected
+
+    monkeypatch.setattr(up, "guard_trusted_session_principal", rejected_guard)
+    up.setup_upload_routes(h)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await _endpoint(up.router)(_request(cookie="revoked-cookie"), _files(1))
+
+    assert exc_info.value.status_code == 401
+    assert h.saved == []
+
+
+async def test_invalid_cookie_is_not_downgraded_to_request_alias(monkeypatch):
+    from fastapi import HTTPException
+
+    h = _fake_handler()
+
+    def reject_cookie(request):
+        raise HTTPException(401, "Not authenticated")
+
+    monkeypatch.setattr(up, "strict_session_principal", reject_cookie)
+    monkeypatch.setattr(
+        up,
+        "effective_user",
+        lambda request: (_ for _ in ()).throw(AssertionError("alias fallback must not run")),
+    )
+    up.setup_upload_routes(h)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await _endpoint(up.router)(_request(user="forged-alias", cookie="invalid"), _files(1))
+
+    assert exc_info.value.status_code == 401
+    assert h.saved == []
 
 
 # ── #1346 follow-up: the per-minute rate limit must not reject a single
