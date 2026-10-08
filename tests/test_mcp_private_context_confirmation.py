@@ -295,3 +295,86 @@ def test_native_duplicate_lease_capacity_preserves_registered_intent(native_mcp_
     finally:
         service.close()
         fixture["authority"].release_read_lease(lease)
+
+@pytest.fixture
+def generated_id_app(tmp_path, monkeypatch, request):
+    from tests.test_app_mcp_private_context_confirmation import consent_app
+
+    return consent_app.__wrapped__(tmp_path, monkeypatch, request)
+
+
+@pytest.mark.parametrize("preparation", ["prepare", "prepare_intent"])
+@pytest.mark.parametrize("leading", ["-", "_"])
+def test_generated_request_id_preserves_nonce_and_native_identity(
+    generated_id_app, monkeypatch, preparation, leading,
+):
+    import src.mcp_private_context_confirmation as confirmation_module
+    from fastapi.testclient import TestClient
+    from src.mcp_context_cursor_authority import _safe_id
+    from tests.test_app_mcp_private_context_confirmation import SESSION_COOKIE, _headers
+
+    with TestClient(generated_id_app) as client:
+        fixture = client.app.state.fixture
+        service = client.app.state.service
+        nonce = leading + "A" * 42
+        requested_bytes = []
+
+        def forced_nonce(size):
+            requested_bytes.append(size)
+            assert size == 32
+            return nonce
+
+        def prepare_in_portal():
+            lease = _lease(fixture, "request-id-compatibility-" + preparation + leading)
+            client.app.state.lease = lease
+            with monkeypatch.context() as nonce_patch:
+                nonce_patch.setattr(confirmation_module.secrets, "token_urlsafe", forced_nonce)
+                if preparation == "prepare":
+                    prepared = service.prepare(lease, fixture["cookie"], fixture["selection"])
+                else:
+                    prepared = service.prepare_intent(lease, fixture["selection"])
+            request_id = "r." + nonce
+            client.app.state.request_id = request_id
+            assert requested_bytes == [32]
+            assert prepared.request_id == request_id
+            assert prepared.private_required is True
+            assert prepared.item_count == len(fixture["selection"].items)
+            assert _safe_id(prepared.request_id, failure="context_unavailable") == request_id
+            assert set(service._entries) == {request_id}
+            assert nonce not in service._entries
+            entry = service._entries[request_id]
+            client.app.state.generated_id_entry = entry
+            assert entry.request_id == request_id
+            assert entry.lease_ref() is lease
+            if preparation == "prepare":
+                return request_id, service.issue_challenge(request_id).token
+            return request_id, None
+
+        def revoke_in_portal(challenge_token):
+            request_id = client.app.state.request_id
+            entry = client.app.state.generated_id_entry
+            assert service._entries[request_id] is entry
+            assert entry.request_id == request_id
+            assert entry.challenge == challenge_token
+            before = _entry_snapshot(entry)
+            assert service.revoke(request_id) is None
+            assert _entry_fully_scrubbed(entry, before)
+
+        def release_in_portal():
+            lease = getattr(client.app.state, "lease", None)
+            if lease is not None:
+                fixture["authority"].release_read_lease(lease)
+
+        try:
+            request_id, challenge_token = client.portal.call(prepare_in_portal)
+            if preparation == "prepare_intent":
+                client.cookies.set(SESSION_COOKIE, fixture["cookie"])
+                response = client.post(
+                    "/api/context/mcp/challenge", headers=_headers(),
+                    json={"request_id": request_id},
+                )
+                assert response.status_code == 200
+                challenge_token = response.json()["token"]
+            client.portal.call(revoke_in_portal, challenge_token)
+        finally:
+            client.portal.call(release_in_portal)

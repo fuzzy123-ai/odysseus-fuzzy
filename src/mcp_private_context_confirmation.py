@@ -836,7 +836,7 @@ class McpPrivateContextConfirmationService:
             if (len(active) >= 64 or sum(1 for x in active if x.owner_sid == owner_sid) >= 8
                     or any(x.lease_ref() is lease for x in active)):
                 _fail("capacity")
-            request_id = secrets.token_urlsafe(32)
+            request_id = "r." + secrets.token_urlsafe(32)
             if request_id in self._entries: _fail("capacity")
             self._entries[request_id] = _Entry(request_id, weakref.ref(lease), weakref.ref(lease.binding),
                 owner_sid, selection, cookie, page_bytes, cookie_first, mcp_first,
@@ -877,7 +877,7 @@ class McpPrivateContextConfirmationService:
             if (len(active) >= 64 or sum(1 for x in active if x.owner_sid == owner_sid) >= 8
                     or any(x.lease_ref() is lease for x in active)):
                 _fail("capacity")
-            request_id = secrets.token_urlsafe(32)
+            request_id = "r." + secrets.token_urlsafe(32)
             if request_id in self._entries: _fail("capacity")
             entry = _Entry(request_id, weakref.ref(lease), weakref.ref(lease.binding), owner_sid,
                 selection, "", page_bytes, None, first, first.mcp_metadata_binding, wall,

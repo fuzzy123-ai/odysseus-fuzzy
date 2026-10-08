@@ -39,12 +39,28 @@ from tests.test_mcp_private_context_confirmation import (
 )
 
 
-def _install_mixed_fixture_inputs(monkeypatch) -> None:
+def _install_mixed_fixture_inputs(monkeypatch):
     """Extend the real persisted fixture to ten targets before native capture."""
     import tests.test_app_mcp_private_context_confirmation as consent_tests
+    import tests.test_mcp_context_metadata as metadata_tests
 
     original_fixture = consent_tests.native_mcp_fixture
     original_create = HarbourKnowledgeStore.create_object
+    original_authority = metadata_tests.McpContextAuthority
+    authority_clock = {"value": None}
+
+    def clock_value():
+        clock = authority_clock["value"]
+        assert type(clock) is dict and set(clock) == {"wall", "mono"}
+        return clock
+
+    def build_authority(*args, **kwargs):
+        assert "monotonic" not in kwargs and "wall_time" not in kwargs
+        return original_authority(
+            *args, **kwargs,
+            monotonic=lambda: clock_value()["mono"],
+            wall_time=lambda: clock_value()["wall"].timestamp(),
+        )
 
     def fixture_with_mixed_inputs(tmp_path, fixture_monkeypatch):
         fixture_body = None
@@ -63,6 +79,7 @@ def _install_mixed_fixture_inputs(monkeypatch) -> None:
                 return result
 
             input_patch.setattr(HarbourKnowledgeStore, "create_object", create_object)
+            input_patch.setattr(metadata_tests, "McpContextAuthority", build_authority)
             fixture_body = original_fixture.__wrapped__(tmp_path, fixture_monkeypatch)
             fixture = next(fixture_body)
         try:
@@ -113,16 +130,26 @@ def _install_mixed_fixture_inputs(monkeypatch) -> None:
         SimpleNamespace(__wrapped__=fixture_with_mixed_inputs),
     )
 
+    def bind_authority_clock(clock):
+        assert authority_clock["value"] is None
+        assert type(clock) is dict and set(clock) == {"wall", "mono"}
+        authority_clock["value"] = clock
 
-def _install_routes(app) -> None:
+    return bind_authority_clock
+
+
+def _install_routes(app, *, cursor_wall_time=None) -> None:
     @app.exception_handler(McpContextPackCoordinatorError)
     async def pack_error(_request, exc):
         return JSONResponse(status_code=403, content={"error": exc.code})
 
     def coordinator(request: Request) -> McpContextPackCoordinator:
         if not hasattr(request.app.state, "pack_cursor"):
-            request.app.state.pack_cursor = McpContextCursorAuthority(
-                request.app.state.fixture["authority"],
+            authority = request.app.state.fixture["authority"]
+            request.app.state.pack_cursor = (
+                McpContextCursorAuthority(authority)
+                if cursor_wall_time is None
+                else McpContextCursorAuthority(authority, wall_time=cursor_wall_time)
             )
             request.app.state.pack_coordinator = McpContextPackCoordinator(
                 request.app.state.service,
@@ -209,9 +236,13 @@ def test_real_persisted_mixed_pack_paginates_every_target_and_finally_revokes(
     monkeypatch.setattr(
         confirmation_module.McpContextAuthority, "issue_read_lease", issue_read_lease,
     )
-    _install_mixed_fixture_inputs(monkeypatch)
-    _install_routes(consent_app)
+    bind_authority_clock = _install_mixed_fixture_inputs(monkeypatch)
+    _install_routes(
+        consent_app,
+        cursor_wall_time=lambda: consent_app.state.clock["wall"].timestamp(),
+    )
     with TestClient(consent_app) as client:
+        bind_authority_clock(consent_app.state.clock)
         request_id = _authorize(client)
         fixture = consent_app.state.fixture
         service = consent_app.state.service
