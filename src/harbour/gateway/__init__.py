@@ -78,6 +78,17 @@ from src.headless_write_agent_state import (
     AdmissionLimits,
 )
 
+from src.harbour.gateway.coordinator import (
+    HarbourWorkerGatewayCoordinator,
+    WorkerLeaseTicket,
+    WorkerExecutionRequest,
+    WorkerExecutionResponse,
+    HarbourWorkerGatewayError,
+    WorkerGatewayIsolationError,
+    WorkerGatewayLeaseError,
+    WorkerGatewayQualityGateError,
+)
+
 WORKER_EXECUTION_POLICY: dict[str, Any] = {
     "schema": "odysseus.harbour.worker_execution_policy.v1",
     "isolation_mode": "git_worktree_sandbox_pod",
@@ -93,6 +104,15 @@ WORKER_EXECUTION_POLICY: dict[str, Any] = {
 }
 
 __all__ = [
+    # Coordinator & Lease DTOs
+    "HarbourWorkerGatewayCoordinator",
+    "WorkerLeaseTicket",
+    "WorkerExecutionRequest",
+    "WorkerExecutionResponse",
+    "HarbourWorkerGatewayError",
+    "WorkerGatewayIsolationError",
+    "WorkerGatewayLeaseError",
+    "WorkerGatewayQualityGateError",
     # Execution Policy
     "WORKER_EXECUTION_POLICY",
     # Coding Agent Backend

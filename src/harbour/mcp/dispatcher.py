@@ -46,10 +46,15 @@ def build_harbour_mcp_tool_contracts(scope: str | None = None) -> tuple[dict[str
 class HarbourMcpDispatcher:
     """Dispatches headless MCP-First tool calls across the 4 Harbour bounded contexts."""
 
-    __slots__ = ("repo_root",)
+    __slots__ = ("repo_root", "_gateway_coordinator")
 
-    def __init__(self, repo_root: str | Path | None = None) -> None:
+    def __init__(
+        self,
+        repo_root: str | Path | None = None,
+        gateway_coordinator: Any = None,
+    ) -> None:
         self.repo_root = Path(repo_root).resolve() if repo_root else Path.cwd().resolve()
+        self._gateway_coordinator = gateway_coordinator
 
     def dispatch(
         self,
@@ -261,9 +266,14 @@ class HarbourMcpDispatcher:
         """Lazy-loaded dispatch for harbour_gateway_* tools."""
         from src.harbour.gateway import (
             WORKER_EXECUTION_POLICY,
-            CodingRunnerStateStore,
-            evaluate_coding_quality_gate,
+            HarbourWorkerGatewayCoordinator,
+            WorkerGatewayIsolationError,
+            WorkerGatewayLeaseError,
         )
+
+        if self._gateway_coordinator is None:
+            self._gateway_coordinator = HarbourWorkerGatewayCoordinator(workspace_base=self.repo_root)
+        coordinator: HarbourWorkerGatewayCoordinator = self._gateway_coordinator
 
         if name == "harbour_gateway_dispatch_task":
             task_plan = arguments.get("task_plan")
@@ -287,12 +297,30 @@ class HarbourMcpDispatcher:
             if not lease_required:
                 raise HarbourMcpDispatchError("policy_violation", "lease_required must be True")
 
+            if "worktree_path" in task_plan:
+                try:
+                    coordinator.validate_worktree_isolation(task_plan["worktree_path"])
+                except WorkerGatewayIsolationError as exc:
+                    raise HarbourMcpDispatchError("policy_violation", str(exc)) from exc
+
+            owner_subject_id = getattr(identity, "owner_subject_id", None) or "subject:anonymous"
+            try:
+                ticket, _ = coordinator.plan_and_lease_task(
+                    task_plan,
+                    owner_principal_id=owner_subject_id,
+                )
+            except WorkerGatewayLeaseError as exc:
+                raise HarbourMcpDispatchError("lease_error", str(exc)) from exc
+            except WorkerGatewayIsolationError as exc:
+                raise HarbourMcpDispatchError("policy_violation", str(exc)) from exc
+
             raw_sig = json.dumps(task_plan, sort_keys=True).encode("utf-8")
             task_id = str(task_plan.get("task_id") or f"task_{hashlib.sha256(raw_sig).hexdigest()[:12]}")
 
             return {
                 "schema": "odysseus.harbour.gateway_dispatch_result.v1",
                 "task_id": task_id,
+                "lease_id": ticket.lease_id,
                 "status": "dispatched",
                 "isolation_mode": isolation_mode,
                 "lease_required": True,
@@ -306,8 +334,7 @@ class HarbourMcpDispatcher:
                 raise HarbourMcpDispatchError("invalid_params", "task_id is required")
             task_id = task_id.strip()
 
-            store = CodingRunnerStateStore()
-            state = store.read(task_id)
+            state = coordinator.get_runner_state(task_id)
             if state is None:
                 return {
                     "schema": "odysseus.harbour.runner_state.v1",
@@ -333,14 +360,18 @@ class HarbourMcpDispatcher:
                 raise HarbourMcpDispatchError("invalid_params", "task_id is required")
             task_id = task_id.strip()
 
-            report = evaluate_coding_quality_gate(
-                changed_paths=(),
-                check_results=(),
+            changed_paths = arguments.get("changed_paths") or ()
+            check_results = arguments.get("check_results") or ()
+
+            eval_res = coordinator.evaluate_task_quality_gate(
+                task_id=task_id,
+                changed_paths=changed_paths,
+                check_results=check_results,
             )
             return {
                 "schema": "odysseus.harbour.quality_gate_evaluation.v1",
                 "task_id": task_id,
-                "quality_gate": report.to_dict(),
+                "quality_gate": eval_res["quality_gate"],
             }
 
         raise HarbourMcpDispatchError("invalid_params", f"Unknown gateway tool: {name}")
