@@ -657,13 +657,29 @@ async def _dispatch_message(
             if params:
                 raise McpDispatchFailure("invalid_params")
             if identity.scope == MCP_HARBOUR_INBOX_SCOPE:
-                result = {"tools": list(runtime.tool_contracts())}
+                from src.harbour.mcp.dispatcher import build_harbour_mcp_tool_contracts
+                tools = list(runtime.tool_contracts()) if hasattr(runtime, "tool_contracts") else []
+                for t in build_harbour_mcp_tool_contracts(identity.scope):
+                    if not any(x.get("name") == t["name"] for x in tools):
+                        tools.append(t)
+                result = {"tools": tools}
             else:
                 if not planning_reads_enabled:
                     raise McpDispatchFailure("planning_unavailable")
                 from mcp_servers.planning_server import build_planning_tool_contracts
+                from src.harbour.mcp.dispatcher import build_harbour_mcp_tool_contracts
 
-                result = {"tools": list(build_planning_tool_contracts())}
+                tools = list(build_planning_tool_contracts())
+                for t in build_harbour_mcp_tool_contracts(identity.scope):
+                    if not any(x.get("name") == t["name"] for x in tools):
+                        tools.append(t)
+                if not any(x.get("name") == "harbour_planning_current_state" for x in tools):
+                    tools.append({
+                        "name": "harbour_planning_current_state",
+                        "description": "Inspect current Harbour planning state, active roadmaps, and accepted heads",
+                        "inputSchema": {"type": "object", "properties": {}},
+                    })
+                result = {"tools": tools}
         elif method == "tools/call":
             if set(params) != {"name", "arguments"}:
                 raise McpDispatchFailure("invalid_params")
@@ -671,8 +687,16 @@ async def _dispatch_message(
             if type(name) is not str or type(arguments) is not dict:
                 raise McpDispatchFailure("invalid_params")
             from src.harbour.mcp import HARBOUR_MCP_FIRST_TOOLS
+            from src.harbour.mcp.dispatcher import HARBOUR_MCP_TOOL_ALIASES
 
-            is_harbour_first = name in HARBOUR_MCP_FIRST_TOOLS
+            is_harbour_first = name in HARBOUR_MCP_FIRST_TOOLS or name in HARBOUR_MCP_TOOL_ALIASES
+            resolved_scope = (
+                HARBOUR_MCP_FIRST_TOOLS[HARBOUR_MCP_TOOL_ALIASES[name]].get("scope")
+                if name in HARBOUR_MCP_TOOL_ALIASES
+                else HARBOUR_MCP_FIRST_TOOLS[name].get("scope")
+                if name in HARBOUR_MCP_FIRST_TOOLS
+                else None
+            )
             inbox_outcome_type: type[Any] | None = None
             if identity.scope == MCP_HARBOUR_INBOX_SCOPE:
                 from src.harbour_inbox_service import HARBOUR_INBOX_TOOL_NAMES, HarbourInboxOutcome
@@ -684,7 +708,7 @@ async def _dispatch_message(
                 raise McpDispatchFailure("invalid_params")
             elif not planning_reads_enabled and (
                 name in PLANNING_TOOL_NAMES
-                or (is_harbour_first and HARBOUR_MCP_FIRST_TOOLS[name].get("scope") == MCP_PLANNING_SCOPE)
+                or (is_harbour_first and resolved_scope == MCP_PLANNING_SCOPE)
             ):
                 raise McpDispatchFailure("planning_unavailable")
             if len(_encode(arguments)) > MCP_ARGUMENTS_MAX_BYTES:

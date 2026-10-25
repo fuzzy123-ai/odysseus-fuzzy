@@ -15,6 +15,10 @@ from typing import Any, Mapping
 
 MAX_INBOX_DOCUMENT_BYTES = 256 * 1024
 
+HARBOUR_MCP_TOOL_ALIASES: dict[str, str] = {
+    "harbour_planning_current_state": "harbour_planning_get_projection",
+}
+
 
 class HarbourMcpDispatchError(Exception):
     """Raised when an MCP-first tool dispatch fails at policy, parameter, or execution boundary."""
@@ -67,10 +71,11 @@ class HarbourMcpDispatcher:
         """Dispatch a tool call to the appropriate domain handler with scope and parameter checks."""
         from src.harbour.mcp import HARBOUR_MCP_FIRST_TOOLS
 
-        if name not in HARBOUR_MCP_FIRST_TOOLS:
+        canonical_name = HARBOUR_MCP_TOOL_ALIASES.get(name, name)
+        if canonical_name not in HARBOUR_MCP_FIRST_TOOLS:
             raise HarbourMcpDispatchError("invalid_params", f"Unknown Harbour MCP tool: {name}")
 
-        tool_meta = HARBOUR_MCP_FIRST_TOOLS[name]
+        tool_meta = HARBOUR_MCP_FIRST_TOOLS[canonical_name]
         namespace = tool_meta.get("namespace")
         tool_scope = tool_meta.get("scope")
 
@@ -85,13 +90,13 @@ class HarbourMcpDispatcher:
                 )
 
         if namespace == "harbour_planning":
-            return self._dispatch_planning(name, arguments, identity)
+            return self._dispatch_planning(canonical_name, arguments, identity)
         if namespace == "harbour_memory":
-            return self._dispatch_memory(name, arguments, identity)
+            return self._dispatch_memory(canonical_name, arguments, identity)
         if namespace == "harbour_gateway":
-            return self._dispatch_gateway(name, arguments, identity)
+            return self._dispatch_gateway(canonical_name, arguments, identity)
         if namespace == "harbour_inbox":
-            return self._dispatch_inbox(name, arguments, identity)
+            return self._dispatch_inbox(canonical_name, arguments, identity)
 
         raise HarbourMcpDispatchError("invalid_params", f"Unsupported namespace: {namespace}")
 
@@ -413,6 +418,7 @@ class HarbourMcpDispatcher:
 
 __all__ = [
     "MAX_INBOX_DOCUMENT_BYTES",
+    "HARBOUR_MCP_TOOL_ALIASES",
     "HarbourMcpDispatchError",
     "HarbourMcpDispatcher",
     "build_harbour_mcp_tool_contracts",

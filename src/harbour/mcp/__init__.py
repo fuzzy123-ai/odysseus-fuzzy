@@ -23,6 +23,7 @@ from src.planning_mcp_service import (
     PlanningMcpService,
 )
 from src.harbour.mcp.dispatcher import (
+    HARBOUR_MCP_TOOL_ALIASES,
     HarbourMcpDispatchError,
     HarbourMcpDispatcher,
     build_harbour_mcp_tool_contracts,
@@ -236,6 +237,7 @@ __all__ = [
     "McpPrivateContextConfirmationService",
     "PlanningMcpService",
     # Dispatcher
+    "HARBOUR_MCP_TOOL_ALIASES",
     "HarbourMcpDispatcher",
     "HarbourMcpDispatchError",
     "build_harbour_mcp_tool_contracts",

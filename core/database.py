@@ -54,9 +54,15 @@ def _normalize_sqlite_url(url: str) -> str:
 DATABASE_URL = _normalize_sqlite_url(os.getenv("DATABASE_URL", _default_database_url()))
 
 # Create engine
+_connect_args = {"check_same_thread": False} if "sqlite" in DATABASE_URL else {}
+_engine_kwargs = {"connect_args": _connect_args}
+if DATABASE_URL == "sqlite:///:memory:":
+    from sqlalchemy.pool import StaticPool
+    _engine_kwargs["poolclass"] = StaticPool
+
 engine = create_engine(
     DATABASE_URL,
-    connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {}
+    **_engine_kwargs
 )
 
 # Create session factory

@@ -447,6 +447,7 @@ if AUTH_ENABLED:
                     ["mcp:planning:read"],
                     ["mcp:harbour:inbox"],
                     ["mcp:harbour:context:read"],
+                    ["mcp:harbour:gateway"],
                 ):
                     try:
                         active_identity = auth_manager.active_admin_subject_identity(subject_id=subject_id)
@@ -554,7 +555,7 @@ if AUTH_ENABLED:
                 return await call_next(request)
             if not auth_manager.is_configured:
                 # No users yet — redirect to login for first-time setup
-                if not path.startswith("/api/"):
+                if not path.startswith(("/api/", "/mcp")):
                     return RedirectResponse(url="/login", status_code=302)
                 return JSONResponse(status_code=401, content={"error": "Setup required"})
 
@@ -634,7 +635,7 @@ if AUTH_ENABLED:
             # --- Cookie-based session auth ---
             token = request.cookies.get(SESSION_COOKIE)
             if not auth_manager.validate_token(token):
-                if path.startswith("/api/"):
+                if path.startswith(("/api/", "/mcp")):
                     return JSONResponse(status_code=401, content={"error": "Not authenticated"})
                 return RedirectResponse(url="/login", status_code=302)
 
@@ -1903,6 +1904,10 @@ app.include_router(setup_webhook_routes(webhook_manager, auth_manager, session_m
 # API Tokens
 from routes.api_token_routes import setup_api_token_routes
 app.include_router(setup_api_token_routes())
+
+# Harbour MCP-First Primary Interface
+from routes.harbour_mcp_routes import setup_harbour_mcp_routes
+app.include_router(setup_harbour_mcp_routes())
 
 logger.info("Webhook & API token routes initialized")
 

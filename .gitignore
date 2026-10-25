@@ -92,6 +92,7 @@ output.txt.txt
 .pytest_cache/
 /.pytest-*/
 /.pytest_tmp*/
+/.pytest_temp*/
 /.abc-test*/
 /.pycache-*/
 /.root-test-tmp/
