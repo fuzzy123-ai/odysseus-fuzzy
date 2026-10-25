@@ -13,6 +13,9 @@ from src.prompt_security import untrusted_context_message
 TELEGRAM_CONTEXT_POLICY_SCHEMA = "odysseus.telegram_context_window.v1"
 DEFAULT_MAX_HISTORY_MESSAGES = 24
 DEFAULT_MAX_HISTORY_CHARACTERS = 12_000
+DEFAULT_MAX_ARCHIVED_TAIL_MESSAGES = 6
+DEFAULT_MAX_ARCHIVED_TAIL_CHARACTERS = 4_000
+TELEGRAM_ARCHIVED_TAIL_SOURCE = "telegram archived session tail"
 
 TELEGRAM_DOMAIN_POLICY = """## TELEGRAM TODO DOMAIN-STATE POLICY — RUNTIME ENFORCED
 Chat prose, assistant claims, persisted summaries, task state, Memory, and RAG
@@ -43,6 +46,7 @@ def build_telegram_turn_context(
     *,
     trusted_system_messages: Sequence[Mapping[str, Any]] | None = None,
     supplemental_messages: Sequence[Mapping[str, Any]] | None = None,
+    archived_session_tail: tuple[tuple[str, str], ...] | None = None,
     max_history_messages: int = DEFAULT_MAX_HISTORY_MESSAGES,
     max_history_characters: int = DEFAULT_MAX_HISTORY_CHARACTERS,
 ) -> TelegramContextWindow:
@@ -116,6 +120,7 @@ def build_telegram_turn_context(
         for copied in (_copy_supplemental_message(item),)
         if copied is not None
     ]
+    archived_tail = _copy_archived_session_tail(archived_session_tail)
     messages: list[dict[str, Any]] = [
         {
             "role": "system",
@@ -124,6 +129,7 @@ def build_telegram_turn_context(
         },
         *trusted_system,
         *retained,
+        *([archived_tail] if archived_tail is not None else []),
         *supplemental,
         # This stays an ordinary final user message. The downstream trimmer's
         # latest-dialog preservation retains it in final position; marking it
@@ -140,6 +146,8 @@ def build_telegram_turn_context(
         "omitted_system_message_count": omitted_system,
         "omitted_invalid_message_count": omitted_invalid,
         "supplemental_message_count": len(supplemental),
+        "archived_session_tail_count": int(archived_tail is not None),
+        "archived_session_tail_authoritative": False,
         "trusted_runtime_system_message_count": len(trusted_system),
         "history_message_limit": message_limit,
         "history_character_limit": character_limit,
@@ -156,6 +164,142 @@ def build_telegram_turn_context(
         "current_user_turn_final": True,
     }
     return TelegramContextWindow(messages=tuple(messages), evidence=evidence)
+
+
+def select_telegram_archived_session_tail(
+    history: Sequence[Mapping[str, Any]] | Iterable[Mapping[str, Any]],
+    *,
+    max_messages: int = DEFAULT_MAX_ARCHIVED_TAIL_MESSAGES,
+    max_characters: int = DEFAULT_MAX_ARCHIVED_TAIL_CHARACTERS,
+) -> tuple[tuple[str, str], ...] | None:
+    """Select one bounded detached tail in chronological order.
+
+    The returned exact tuple is not an LLM message and carries no metadata,
+    identifiers, or trust flags.  ``build_telegram_turn_context`` owns the
+    only formatting and envelope step.  Invalid records are ignored before the
+    newest-to-oldest budget walk; an eligible over-budget message stops the walk
+    instead of admitting older prose or truncating the message.
+    """
+
+    message_limit = _positive_int(
+        "max_messages", max_messages, DEFAULT_MAX_ARCHIVED_TAIL_MESSAGES
+    )
+    character_limit = _positive_int(
+        "max_characters", max_characters, DEFAULT_MAX_ARCHIVED_TAIL_CHARACTERS
+    )
+    try:
+        source = list(history)
+    except Exception:
+        return None
+
+    eligible: list[tuple[str, str]] = []
+    for raw in source:
+        normalized = _archived_tail_record(raw)
+        if normalized is not None:
+            eligible.append(normalized)
+
+    retained_reversed: list[tuple[str, str]] = []
+    retained_characters = 0
+    for role, content in reversed(eligible):
+        if len(retained_reversed) >= message_limit:
+            break
+        content_length = len(content)
+        if content_length > character_limit - retained_characters:
+            break
+        retained_reversed.append((role, content))
+        retained_characters += content_length
+    if not retained_reversed:
+        return None
+    return tuple(reversed(retained_reversed))
+
+
+def _archived_tail_record(raw: Any) -> tuple[str, str] | None:
+    """Strip one historical record to exact role/text or reject it."""
+
+    if not isinstance(raw, Mapping):
+        return None
+    try:
+        role = raw.get("role")
+        content = raw.get("content")
+        if type(role) is not str or type(content) is not str:
+            return None
+        role = role.strip().lower()
+        if role not in {"user", "assistant"} or not content.strip():
+            return None
+        if _record_contains_structural_authority(raw):
+            return None
+        return role, content
+    except Exception:
+        return None
+
+
+def _record_contains_structural_authority(record: Mapping[str, Any]) -> bool:
+    forbidden_keys = {
+        "function_call",
+        "summary",
+        "task_state",
+        "tool_call_id",
+        "tool_calls",
+        "tool_result",
+    }
+    try:
+        if any(key in record for key in forbidden_keys):
+            return True
+        metadata = record.get("metadata", record.get("meta_data"))
+    except Exception:
+        return True
+    if metadata in (None, ""):
+        return False
+    if type(metadata) is str:
+        try:
+            metadata = json.loads(metadata)
+        except Exception:
+            return True
+    if not isinstance(metadata, Mapping):
+        return True
+    try:
+        if any(key in metadata for key in forbidden_keys):
+            return True
+        source = metadata.get("source")
+    except Exception:
+        return True
+    if type(source) is not str:
+        return False
+    normalized_source = source.strip().lower().replace("-", "_")
+    return any(
+        marker in normalized_source
+        for marker in ("summary", "task_state", "tool", "slash")
+    )
+
+
+def _copy_archived_session_tail(content: Any) -> dict[str, Any] | None:
+    """Validate, format, and envelope one exact detached archived tail."""
+
+    if type(content) is not tuple:
+        return None
+    message_count = len(content)
+    if message_count < 1 or message_count > DEFAULT_MAX_ARCHIVED_TAIL_MESSAGES:
+        return None
+
+    detached: list[tuple[str, str]] = []
+    body_characters = 0
+    for item in content:
+        if type(item) is not tuple or len(item) != 2:
+            return None
+        role, body = item
+        if type(role) is not str or type(body) is not str:
+            return None
+        if role not in {"user", "assistant"} or not body.strip():
+            return None
+        body_characters += len(body)
+        if body_characters > DEFAULT_MAX_ARCHIVED_TAIL_CHARACTERS:
+            return None
+        detached.append((role, body))
+
+    projection = "\n\n".join(
+        f"Archived {role} message:\n{body}" for role, body in detached
+    )
+    return untrusted_context_message(TELEGRAM_ARCHIVED_TAIL_SOURCE, projection)
 
 
 def _copy_supplemental_message(message: Mapping[str, Any]) -> dict[str, Any] | None:

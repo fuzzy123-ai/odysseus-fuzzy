@@ -205,7 +205,12 @@ from plugins.telegram.project_intake import (
 from plugins.telegram.routes_admin import register_telegram_admin_routes
 from plugins.telegram.routes_outbound import register_telegram_outbound_routes
 from plugins.telegram.routes_polling import register_telegram_polling_routes
+from plugins.telegram.routes_pc_control import register_telegram_pc_control_routes
 from plugins.telegram.routes_webhook import register_telegram_webhook_routes
+from plugins.telegram.pc_control import (
+    TelegramPcControlService,
+    handle_telegram_pc_control_command,
+)
 from plugins.telegram.webhook_service import (
     TelegramWebhookIntakeError,
     build_webhook_control_command_summary,
@@ -458,6 +463,7 @@ def _handle_telegram_control_command(
     telegram_rollover_runtime: Any = None,
     rollover_session_creator: Any = None,
     rollover_security_validator: Any = None,
+    pc_control_service: TelegramPcControlService | None = None,
 ) -> dict[str, Any] | None:
     if not command:
         return None
@@ -469,6 +475,15 @@ def _handle_telegram_control_command(
             "reply_text": "",
             "reply": None,
         }
+    pc_control = handle_telegram_pc_control_command(
+        command,
+        message=message,
+        raw_chat_id=raw_chat_id,
+        reply_handler=reply_handler,
+        service=pc_control_service,
+    )
+    if pc_control is not None:
+        return pc_control
     incident_control = handle_security_incident_control_command(command)
     if incident_control is not None:
         return {
@@ -1221,16 +1236,22 @@ def run_telegram_polling_cycle(
     memory_owner: str | None = None,
     project_registry_path: str | Path | None = None,
     telegram_rollover_runtime: Any | None = None,
+    pc_control_service: TelegramPcControlService | None = None,
 ) -> dict[str, Any]:
     def _control_with_runtime(command: str, **kwargs: Any) -> dict[str, Any] | None:
         if telegram_rollover_runtime is None:
-            return _handle_telegram_control_command(command, **kwargs)
+            return _handle_telegram_control_command(
+                command,
+                **kwargs,
+                pc_control_service=pc_control_service,
+            )
         return _handle_telegram_control_command(
             command,
             **kwargs,
             telegram_rollover_runtime=telegram_rollover_runtime,
             rollover_session_creator=getattr(telegram_rollover_runtime, "rollover_session_creator", None),
             rollover_security_validator=getattr(telegram_rollover_runtime, "rollover_security_validator", None),
+            pc_control_service=pc_control_service,
         )
 
     return run_telegram_polling_cycle_impl(
@@ -1335,6 +1356,7 @@ def setup(ctx):
     store = TelegramInboxStore(ctx.data_dir)
     sessions = TelegramSessionBridgeStore(ctx.data_dir)
     privacy_pins = TelegramPrivacyPinStore(ctx.data_dir)
+    pc_control_service = TelegramPcControlService(ctx.data_dir)
 
     def _ctx_attr(name: str, default: Any = None) -> Any:
         value = getattr(ctx, name, None)
@@ -1809,6 +1831,7 @@ def setup(ctx):
         memory_owner=memory_owner,
         project_registry_path=Path(ctx.data_dir) / _PROJECT_REGISTRY_FILE,
         telegram_rollover_runtime=telegram_rollover_runtime,
+        pc_control_service=pc_control_service,
     )
 
     async def _handle_telegram_webhook(request: Request):
@@ -1910,7 +1933,11 @@ def setup(ctx):
             rollover_session_creator=rollover_session_creator,
             rollover_security_validator=rollover_security_validator,
             detect_control_command=_telegram_control_command,
-            handle_control_command=_handle_telegram_control_command,
+            handle_control_command=lambda command, **kwargs: _handle_telegram_control_command(
+                command,
+                **kwargs,
+                pc_control_service=pc_control_service,
+            ),
         )
         if control_result is not None:
             if control_result.get("retryable") is True:
@@ -2037,6 +2064,11 @@ def setup(ctx):
         router,
         require_admin=_require_admin,
         handle_webhook=_handle_telegram_webhook,
+    )
+
+    register_telegram_pc_control_routes(
+        router,
+        service=pc_control_service,
     )
 
     register_telegram_outbound_routes(

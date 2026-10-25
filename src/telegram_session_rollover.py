@@ -505,6 +505,18 @@ class AtomicRolloverResult:
 
 
 @dataclass(frozen=True)
+class _ArchivedSessionTailCapability:
+    """Process-local one-shot data fenced to one committed binding generation."""
+
+    binding_id: str
+    owner_ref: str
+    scope: str
+    generation: int
+    new_session_id: str
+    tail: tuple[tuple[str, str], ...] = field(repr=False)
+
+
+@dataclass(frozen=True)
 class TelegramTurnLease:
     """In-memory capability for one fenced Telegram turn lease.
 
@@ -2139,6 +2151,7 @@ class AtomicTelegramSessionRolloverService:
         self._database = database
         self._config = config
         self._now = now or (lambda: datetime.now(ZoneInfo("UTC")))
+        self._runtime_transaction_started = False
 
     def rotate_binding(
         self,
@@ -2158,7 +2171,13 @@ class AtomicTelegramSessionRolloverService:
         _require_aware(observed_now)
         observed_now = observed_now.astimezone(ZoneInfo("UTC"))
         ledger = TelegramRolloverLedger(self._database, self._config.reference_key)
-        ledger.begin_atomic_rollover_transaction()
+        runtime_transaction_started = self._runtime_transaction_started
+        self._runtime_transaction_started = False
+        if runtime_transaction_started:
+            if not self._database.in_transaction():
+                raise LedgerError("rollover_requires_clean_transaction")
+        else:
+            ledger.begin_atomic_rollover_transaction()
         ledger.verify_reference_key()
         tables = ledger._verified_tables()
         binding_row = _select_one(self._database, tables["binding"], tables["binding"].c.id == binding_id)
@@ -2454,6 +2473,7 @@ class TelegramRolloverRuntime:
         self._now = now or (lambda: datetime.now(ZoneInfo("UTC")))
         self._lock = lock
         self._max_bindings = max_bindings
+        self._archived_tail_holder: dict[str, _ArchivedSessionTailCapability] = {}
         # The two public coordinators deliberately receive the same exact lock
         # and factory instance.  A later transport adapter must reuse these
         # objects rather than construct route-local alternatives.
@@ -2547,11 +2567,200 @@ class TelegramRolloverRuntime:
     def _rotate_binding(
         self, binding_id: str, local_day: str, observed_now: datetime
     ) -> AtomicRolloverResult:
-        return self._operate(
-            lambda database: AtomicTelegramSessionRolloverService(
-                database=database, config=self._config, now=lambda: observed_now
-            ).rotate_binding(binding_id=binding_id, rollover_local_day=local_day)
+        pending_box: list[_ArchivedSessionTailCapability] = []
+
+        def operation(database: Any) -> AtomicRolloverResult:
+            ledger = TelegramRolloverLedger(database, self._config.reference_key)
+            ledger.begin_atomic_rollover_transaction()
+            ledger.verify_reference_key()
+            before = ledger.get_binding(binding_id)
+            if before is None:
+                raise LedgerError("binding_not_found")
+            service = AtomicTelegramSessionRolloverService(
+                database=database,
+                config=self._config,
+                now=lambda: observed_now,
+            )
+            # The runtime closure owns the exact pre-transition snapshot and
+            # transaction.  This private one-shot flag only prevents the public
+            # service method from opening a second transaction; no holder,
+            # callback, or publication data crosses into the Atomic service.
+            service._runtime_transaction_started = True
+            result = service.rotate_binding(
+                binding_id=binding_id,
+                rollover_local_day=local_day,
+            )
+            transition = (before, result)
+            if self._config.continuity_enabled:
+                try:
+                    pending = self._build_archived_tail_capability(
+                        database=database,
+                        local_day=local_day,
+                        transition=transition,
+                    )
+                except Exception:
+                    pending = None
+                if pending is not None:
+                    pending_box.append(pending)
+            return result
+
+        result = self._operate(operation)
+        # _operate returns only after commit succeeds and the factory Session is
+        # closed.  Rollback, commit failure, or a crash before this point leaves
+        # the process-local holder untouched.
+        if pending_box:
+            pending = pending_box.pop()
+            self._archived_tail_holder.setdefault(pending.new_session_id, pending)
+        return result
+
+    def _build_archived_tail_capability(
+        self,
+        *,
+        database: Any,
+        local_day: str,
+        transition: tuple[LedgerBinding, AtomicRolloverResult],
+    ) -> _ArchivedSessionTailCapability | None:
+        before, result = transition
+        if (
+            result.status != RolloverState.COMMITTED.value
+            or result.binding_id != before.id
+            or result.old_session_id != before.active_session_id
+            or result.new_session_id is None
+            or result.generation != before.generation + 1
+        ):
+            return None
+        ledger = TelegramRolloverLedger(database, self._config.reference_key)
+        tables = ledger._verified_tables()
+        current = ledger.get_binding(before.id)
+        if (
+            current is None
+            or current.owner_ref != before.owner_ref
+            or current.scope != before.scope
+            or current.generation != result.generation
+            or current.active_session_id != result.new_session_id
+        ):
+            return None
+        rollover_row = _select_one(
+            database,
+            tables["rollover"],
+            tables["rollover"].c.binding_id == before.id,
+            tables["rollover"].c.rollover_local_day == local_day,
         )
+        if rollover_row is None:
+            return None
+        rollover = ledger._rollover_view(tables, rollover_row)
+        if (
+            rollover.status is not RolloverState.COMMITTED
+            or rollover.old_session_id != before.active_session_id
+            or rollover.new_session_id != result.new_session_id
+        ):
+            return None
+        old_session = _select_one(
+            database,
+            tables["session"],
+            tables["session"].c.id == before.active_session_id,
+        )
+        new_session = _select_one(
+            database,
+            tables["session"],
+            tables["session"].c.id == result.new_session_id,
+        )
+        if (
+            old_session is None
+            or old_session.get("archived") is not True
+            or new_session is None
+            or new_session.get("archived") is not False
+        ):
+            return None
+
+        from core.database import ChatMessage
+        from src.telegram_context_policy import select_telegram_archived_session_tail
+
+        rows = database.execute(
+            select(ChatMessage.__table__)
+            .where(ChatMessage.__table__.c.session_id == before.active_session_id)
+            .order_by(
+                ChatMessage.__table__.c.timestamp.asc(),
+                ChatMessage.__table__.c.id.asc(),
+            )
+        ).mappings().all()
+        tail = select_telegram_archived_session_tail(tuple(dict(row) for row in rows))
+        if tail is None:
+            return None
+        return _ArchivedSessionTailCapability(
+            binding_id=before.id,
+            owner_ref=before.owner_ref,
+            scope=before.scope,
+            generation=result.generation,
+            new_session_id=result.new_session_id,
+            tail=tail,
+        )
+
+    def consume_archived_session_tail(
+        self, *, session_id: str
+    ) -> tuple[tuple[str, str], ...] | None:
+        """Consume one freshly fenced detached tail under the shared lock."""
+
+        if not self._config.continuity_enabled:
+            return None
+        try:
+            _validate_internal_id(session_id, "session_id")
+            expected_owner_ref = owner_ref(
+                self._config.reference_key,
+                self._owner,
+            )
+        except Exception:
+            return None
+        with self._lock:
+            binding: LedgerBinding | None = None
+            database = None
+            try:
+                database = self._session_factory()
+                if database is None:
+                    raise LedgerError("invalid_session_factory")
+                tables = _ledger_tables()
+                rows = database.execute(
+                    select(tables["binding"]).where(
+                        tables["binding"].c.active_session_id == session_id
+                    )
+                ).mappings().all()
+                if len(rows) == 1:
+                    row = dict(rows[0])
+                    ledger = TelegramRolloverLedger(
+                        database,
+                        self._config.reference_key,
+                    )
+                    binding = ledger.get_binding(str(row.get("id") or ""))
+            except Exception:
+                binding = None
+            finally:
+                if database is not None:
+                    try:
+                        database.rollback()
+                    except Exception:
+                        binding = None
+                    try:
+                        database.close()
+                    except Exception:
+                        binding = None
+
+            # The first holder access occurs only after the fresh read-only
+            # Session is closed.  Pop and fence comparison remain under the
+            # exact lock shared with binding mutations.
+            capability = self._archived_tail_holder.pop(session_id, None)
+            if capability is None or binding is None:
+                return None
+            if (
+                capability.binding_id != binding.id
+                or capability.owner_ref != expected_owner_ref
+                or capability.owner_ref != binding.owner_ref
+                or capability.scope != binding.scope
+                or capability.generation != binding.generation
+                or capability.new_session_id != binding.active_session_id
+                or binding.active_session_id != session_id
+            ):
+                return None
+            return capability.tail
 
     def _operate(self, operation: Any) -> Any:
         database = self._session_factory()

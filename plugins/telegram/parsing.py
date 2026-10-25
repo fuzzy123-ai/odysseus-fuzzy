@@ -280,6 +280,31 @@ def _telegram_control_command(message: dict[str, Any]) -> str:
         if first_arg in {"status", "state", "info", ""}:
             return "agent_task_status"
         return "agent_task_help"
+    if command in {"/pc", "/computer", "/windows"}:
+        args = parts[1].strip().lower().split() if len(parts) > 1 and parts[1].strip() else []
+        first_arg = args[0] if args else ""
+        confirmation = len(args) > 1 and args[1] in {
+            "ja",
+            "ok",
+            "confirm",
+            "bestaetigen",
+            "bestätigen",
+        }
+        if first_arg in {"", "status", "state", "info"}:
+            return "pc_status"
+        if first_arg in {"an", "wake", "start", "aufwecken"}:
+            return "pc_wake"
+        if first_arg in {"codex", "app"}:
+            return "pc_codex"
+        if first_arg in {"sperren", "lock"}:
+            return "pc_lock"
+        if first_arg in {"abbrechen", "cancel"}:
+            return "pc_cancel"
+        if first_arg in {"aus", "shutdown", "herunterfahren"}:
+            return "pc_shutdown_confirm" if confirmation else "pc_shutdown_request"
+        if first_arg in {"ruhezustand", "hibernate", "schlafen"}:
+            return "pc_hibernate_confirm" if confirmation else "pc_hibernate_request"
+        return "pc_help"
     if command in {"/calendar", "/kalender"}:
         if arg in {"agenda", "today", "heute", "morgen"}:
             return "calendar_agenda"

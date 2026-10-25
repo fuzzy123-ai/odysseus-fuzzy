@@ -3124,3 +3124,221 @@ def test_runtime_due_evaluation_failure_is_reserialized_without_exception(tmp_pa
         assert result == TelegramRolloverSweepResult("sweep_blocked", imported_count=0)
     finally:
         engine.dispose()
+
+
+def test_a6_tail_requires_exact_committed_archived_to_active_binding_fence(tmp_path):
+    engine, factory, alice, _bob, runtime, now = _runtime_sweep_fixture(tmp_path)
+    runtime._config = RolloverConfig(
+        enabled=True,
+        reference_key=KEY,
+        continuity_enabled=True,
+    )
+    database = factory()
+    try:
+        database.add_all(
+            [
+                ChatMessage(
+                    id="a6-old-user",
+                    session_id=alice.active_session_id,
+                    role="user",
+                    content="the earlier request",
+                    meta_data=json.dumps({"source": "telegram"}),
+                ),
+                ChatMessage(
+                    id="a6-old-assistant",
+                    session_id=alice.active_session_id,
+                    role="assistant",
+                    content="the earlier answer",
+                    meta_data=json.dumps({"source": "telegram"}),
+                ),
+            ]
+        )
+        database.commit()
+
+        direct = AtomicTelegramSessionRolloverService(
+            database=database,
+            config=runtime._config,
+            now=lambda: now,
+        )
+        direct_result = direct.rotate_binding(
+            binding_id=alice.id,
+            rollover_local_day="2026-07-25",
+            replacement_session_id="a6-direct-rollback",
+        )
+        assert direct_result.status == "committed"
+        assert tuple(direct_result.__dataclass_fields__) == (
+            "status",
+            "binding_id",
+            "old_session_id",
+            "new_session_id",
+            "generation",
+        )
+        assert not hasattr(direct, "tail_holder")
+        database.rollback()
+    finally:
+        database.close()
+    assert runtime.consume_archived_session_tail(session_id="a6-direct-rollback") is None
+
+    raw_factory = runtime._session_factory
+
+    class CommitFailingSession:
+        def __init__(self, wrapped):
+            self._wrapped = wrapped
+
+        def __getattr__(self, name):
+            return getattr(self._wrapped, name)
+
+        def commit(self):
+            raise RuntimeError("synthetic commit failure")
+
+    runtime._session_factory = lambda: CommitFailingSession(raw_factory())
+    try:
+        with runtime._lock:
+            with pytest.raises(RuntimeError, match="synthetic commit failure"):
+                runtime._rotate_binding(alice.id, "2026-07-25", now)
+    finally:
+        runtime._session_factory = raw_factory
+    database = factory()
+    try:
+        binding_after_failure = TelegramRolloverLedger(database, KEY).get_binding(alice.id)
+        assert binding_after_failure is not None
+        assert binding_after_failure.generation == 0
+        assert binding_after_failure.active_session_id == alice.active_session_id
+        assert database.get(Session, alice.active_session_id).archived is False
+    finally:
+        database.close()
+
+    assert runtime.sweep_due_bindings().committed_count == 1
+    database = factory()
+    try:
+        committed = TelegramRolloverLedger(database, KEY).get_binding(alice.id)
+        assert committed is not None
+        assert committed.generation == 1
+        assert committed.active_session_id != alice.active_session_id
+        assert database.get(Session, alice.active_session_id).archived is True
+        rollover = database.execute(
+            database_module.TelegramSessionRollover.__table__.select().where(
+                database_module.TelegramSessionRollover.binding_id == alice.id
+            )
+        ).mappings().one()
+        assert rollover["status"] == "committed"
+        assert rollover["old_session_id"] == alice.active_session_id
+        assert rollover["new_session_id"] == committed.active_session_id
+        new_session_id = committed.active_session_id
+    finally:
+        database.close()
+
+    capability = runtime._archived_tail_holder[new_session_id]
+    assert type(capability.tail) is tuple
+    assert "the earlier request" not in repr(capability)
+    assert "the earlier answer" not in repr(capability)
+    tail = runtime.consume_archived_session_tail(session_id=new_session_id)
+    assert tail is capability.tail
+    assert tail == (
+        ("user", "the earlier request"),
+        ("assistant", "the earlier answer"),
+    )
+    assert runtime.consume_archived_session_tail(session_id=new_session_id) is None
+    with runtime._lock:
+        replay = runtime._rotate_binding(alice.id, "2026-07-25", now)
+    assert replay.status == "committed"
+    assert runtime.consume_archived_session_tail(session_id=new_session_id) is None
+    engine.dispose()
+
+
+def test_a6_tail_refuses_stale_replayed_or_invalid_config_without_mutation(tmp_path):
+    engine, factory, alice, _bob, runtime, _now = _runtime_sweep_fixture(tmp_path)
+    runtime._config = RolloverConfig(
+        enabled=True,
+        reference_key=KEY,
+        continuity_enabled=True,
+    )
+    database = factory()
+    try:
+        database.add(
+            ChatMessage(
+                id="a6-generation-user",
+                session_id=alice.active_session_id,
+                role="user",
+                content="generation seven private tail",
+                meta_data=json.dumps({"source": "telegram"}),
+            )
+        )
+        database.execute(
+            update(database_module.TelegramSessionBinding.__table__)
+            .where(database_module.TelegramSessionBinding.id == alice.id)
+            .values(generation=6, projection_generation=6)
+        )
+        database.commit()
+    finally:
+        database.close()
+
+    assert runtime.sweep_due_bindings().committed_count == 1
+    database = factory()
+    try:
+        generation_seven = TelegramRolloverLedger(database, KEY).get_binding(alice.id)
+        assert generation_seven is not None and generation_seven.generation == 7
+        generation_seven_session = generation_seven.active_session_id
+        message_count_before = len(
+            database.execute(ChatMessage.__table__.select()).mappings().all()
+        )
+    finally:
+        database.close()
+    replacement_ids = []
+
+    def create_generation_eight(*, database, owner, session_id, **_kwargs):
+        replacement_ids.append(session_id)
+        database.add(
+            Session(
+                id=session_id,
+                name="Generation eight",
+                endpoint_url="http://synthetic.invalid",
+                model="synthetic",
+                owner=owner,
+            )
+        )
+        return session_id
+
+    rebound = runtime.binding_mutation_coordinator.rebind(
+        telegram_owner="alice",
+        stable_chat_handle="chat_a1b2c3d4",
+        scope="normal",
+        rollover_local_day="2026-07-26",
+        create_replacement=create_generation_eight,
+    )
+    assert rebound.status == "rebound"
+    assert rebound.binding is not None and rebound.binding.generation == 8
+    assert runtime.consume_archived_session_tail(
+        session_id=generation_seven_session
+    ) is None
+    database = factory()
+    try:
+        current = TelegramRolloverLedger(database, KEY).get_binding(alice.id)
+        assert current is not None
+        assert current.generation == 8
+        assert current.active_session_id == replacement_ids[0]
+        assert database.get(Session, generation_seven_session).archived is True
+        assert len(database.execute(ChatMessage.__table__.select()).mappings().all()) == message_count_before
+    finally:
+        database.close()
+    with runtime._lock:
+        replay = runtime._rotate_binding(alice.id, "2026-07-25", runtime._observed_now())
+    assert replay.status == "committed"
+    assert runtime.consume_archived_session_tail(
+        session_id=generation_seven_session
+    ) is None
+
+    opened = []
+
+    def forbidden_factory():
+        opened.append(True)
+        raise AssertionError("invalid config must not open a database")
+
+    assert build_db_authoritative_rollover_runtime(
+        session_factory=forbidden_factory,
+        config=RolloverConfig(enabled=False, continuity_enabled=True),
+        telegram_owner="alice",
+        legacy_path=tmp_path / "not-used.json",
+    ) is None
+    assert opened == []
+    engine.dispose()
