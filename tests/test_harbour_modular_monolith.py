@@ -257,3 +257,121 @@ def test_contrib_quarantine_controls():
     manifest_mcp = get_quarantine_manifest({"ODYSSEUS_MCP_FIRST_MODE": "1"})
     assert manifest_mcp["mcp_first_mode_enforced"] is True
     assert manifest_mcp["contrib_enabled"] is False
+
+
+@pytest.mark.asyncio
+async def test_lifecycle_supervision_contract():
+    """Lifecycle supervision module provides task supervision, bounded cancellation, and re-exports on app."""
+    import asyncio
+    from pathlib import Path
+    import ast
+    import src.harbour.lifecycle_supervision as supervision
+
+    assert supervision._STARTUP_TASK_SHUTDOWN_TIMEOUT_SECONDS == 2.0
+
+    # Verify app.py re-exports all lifecycle supervision functions
+    app_source = (Path(__file__).resolve().parents[1] / "app.py").read_text(encoding="utf-8")
+    app_ast = ast.parse(app_source)
+    imported_names = set()
+    for node in ast.walk(app_ast):
+        if isinstance(node, ast.ImportFrom) and node.module == "src.harbour.lifecycle_supervision":
+            for alias in node.names:
+                imported_names.add(alias.asname or alias.name)
+
+    expected_reexports = {
+        "_shutdown_registered_startup_tasks",
+        "_stop_dedicated_startup_task",
+        "_await_recent_changes_snapshot_shutdown",
+        "_observe_finished_startup_tasks",
+        "_retain_registered_startup_task",
+    }
+    assert expected_reexports.issubset(imported_names)
+
+    # Test observe_finished_startup_tasks
+    async def ok_task():
+        return 42
+
+    async def fail_task():
+        raise ValueError("simulated_failure")
+
+    t_ok = asyncio.create_task(ok_task())
+    t_fail = asyncio.create_task(fail_task())
+    await asyncio.gather(t_ok, return_exceptions=True)
+    await asyncio.gather(t_fail, return_exceptions=True)
+
+    assert supervision.observe_finished_startup_tasks((t_ok,)) == 0
+    assert supervision.observe_finished_startup_tasks((t_fail,)) == 1
+    assert supervision.observe_finished_startup_tasks((t_ok, t_fail)) == 1
+
+    # Test retain_registered_startup_task on dummy state
+    class DummyState:
+        def __init__(self):
+            self._startup_tasks = []
+
+    state = DummyState()
+    supervision.retain_registered_startup_task(t_ok, app_state=state)
+    assert state._startup_tasks == [t_ok]
+    supervision.retain_registered_startup_task(t_ok, app_state=state)
+    assert len(state._startup_tasks) == 1
+
+    # Test stop_dedicated_startup_task
+    async def lingering_task():
+        try:
+            await asyncio.sleep(3600)
+        except asyncio.CancelledError:
+            pass
+
+    t_lingering = asyncio.create_task(lingering_task())
+    state._startup_tasks.append(t_lingering)
+    stopped = await supervision.stop_dedicated_startup_task(t_lingering, label="test-task", app_state=state)
+    assert stopped is True
+    assert t_lingering.done()
+    assert t_lingering not in state._startup_tasks
+
+
+@pytest.mark.asyncio
+async def test_maintenance_tasks_contract():
+    """Maintenance tasks module exports required warm-up procedures and background loops."""
+    import asyncio
+    from src.harbour import maintenance_tasks
+
+    expected_symbols = [
+        "warmup_tool_index",
+        "warmup_endpoints",
+        "keepalive_loop",
+        "ensure_default_tasks",
+        "backfill_legacy_skill_owners",
+        "null_owner_sweep_loop",
+        "skill_audit_nightly_loop",
+        "vault_trash_purge_loop",
+        "schedule_background_maintenance_tasks",
+    ]
+    for sym in expected_symbols:
+        assert hasattr(maintenance_tasks, sym), f"Missing symbol {sym}"
+
+    # Test scheduling background maintenance tasks offline
+    tasks_offline: list[asyncio.Task] = []
+    maintenance_tasks.schedule_background_maintenance_tasks(
+        tasks_offline,
+        startup_offline=True,
+    )
+    # Offline should only schedule 3 tasks: null_owner_sweep, skill_audit, vault_trash_purge
+    assert len(tasks_offline) == 3
+    for t in tasks_offline:
+        t.cancel()
+    await asyncio.gather(*tasks_offline, return_exceptions=True)
+
+    # Test scheduling background maintenance tasks online
+    tasks_online: list[asyncio.Task] = []
+    maintenance_tasks.schedule_background_maintenance_tasks(
+        tasks_online,
+        startup_offline=False,
+    )
+    # Online should schedule 6 tasks (3 warmup/keepalive + 3 periodic loops)
+    assert len(tasks_online) == 6
+    for t in tasks_online:
+        t.cancel()
+    await asyncio.gather(*tasks_online, return_exceptions=True)
+
+    # Test backfill with None skills_manager
+    maintenance_tasks.backfill_legacy_skill_owners(None)

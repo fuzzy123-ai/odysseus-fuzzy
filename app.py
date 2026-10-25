@@ -926,6 +926,7 @@ from src.webhook_manager import WebhookManager
 webhook_manager = WebhookManager(api_key_manager=api_key_manager)
 
 # ========= INCLUDE ROUTERS =========
+from src.contrib import is_contrib_enabled
 
 # Auth
 auth_router = setup_auth_routes(auth_manager)
@@ -1130,11 +1131,12 @@ app.include_router(setup_tts_routes(tts_service))
 from routes.transcription_routes import setup_transcription_routes
 app.include_router(setup_transcription_routes(transcription_runtime))
 if legacy_stt_enabled:
-    from services.stt import get_stt_service
-    stt_service = get_stt_service()
-    from routes.stt_routes import setup_stt_routes
-    app.include_router(setup_stt_routes(stt_service))
-    logger.info("Legacy STT service initialized")
+    if is_contrib_enabled():
+        from services.stt import get_stt_service
+        stt_service = get_stt_service()
+        from routes.stt_routes import setup_stt_routes
+        app.include_router(setup_stt_routes(stt_service))
+        logger.info("Legacy STT service initialized")
 
 # Documents (artifacts/canvas)
 from routes.document_routes import setup_document_routes
@@ -1179,8 +1181,9 @@ from routes.shell_routes import setup_shell_routes
 app.include_router(setup_shell_routes())
 
 # Cookbook (model download/serve/cache, cookbook state sync)
-from routes.cookbook_routes import setup_cookbook_routes
-app.include_router(setup_cookbook_routes())
+if is_contrib_enabled():
+    from routes.cookbook_routes import setup_cookbook_routes
+    app.include_router(setup_cookbook_routes())
 
 from routes.workspace_routes import setup_workspace_routes
 app.include_router(setup_workspace_routes())
@@ -2062,6 +2065,12 @@ async def _lifespan(app):
 
 app.router.lifespan_context = _lifespan
 
+from src.harbour.maintenance_tasks import (
+    schedule_background_maintenance_tasks,
+    ensure_default_tasks,
+    backfill_legacy_skill_owners,
+)
+
 
 async def _startup_event():
     global upload_cleanup_task
@@ -2162,129 +2171,15 @@ async def _startup_event():
 
     _startup_tasks.append(asyncio.create_task(_startup_mcp_connections()))
 
-    # Pre-warm the RAG tool index off the request path. Loading the local
-    # embedding model + opening ChromaDB + indexing the built-in tools is a
-    # one-time ~1-3s cost that otherwise lands on the user's FIRST message
-    # (showing up as a big `tool_selection` time). Doing it here makes the
-    # first turn as fast as subsequent ones (warm embed ≈ a few ms).
-    async def _warmup_tool_index():
-        try:
-            from src.tool_index import get_tool_index
-            idx = await asyncio.to_thread(get_tool_index)
-            if idx:
-                await asyncio.to_thread(idx.get_tools_for_query, "warmup", 8)
-                logger.info("[startup] Tool index pre-warmed")
-        except Exception as e:
-            logger.warning(f"Tool index warmup failed (non-critical): {type(e).__name__}: {e}")
+    schedule_background_maintenance_tasks(
+        _startup_tasks,
+        startup_offline=STARTUP_OFFLINE,
+        model_discovery=model_discovery,
+        skills_manager=skills_manager,
+    )
 
-    if not STARTUP_OFFLINE:
-        _startup_tasks.append(asyncio.create_task(_warmup_tool_index()))
-    # Warmup: ping all known LLM endpoints to prime connections
-    async def _warmup_endpoints():
-        try:
-            import httpx
-            # model_discovery has no get_endpoints(); that call raised
-            # AttributeError every run and silently disabled warmup/keepalive.
-            # Resolve the /models probe URLs via the real discovery API, off the
-            # event loop since discovery does a blocking port scan.
-            urls = (
-                await asyncio.to_thread(model_discovery.warmup_ping_urls)
-                if model_discovery else []
-            )
-            for url in urls:
-                try:
-                    async with httpx.AsyncClient(timeout=5.0) as client:
-                        await client.get(url)
-                    logger.info(f"Warmup ping OK: {url}")
-                except Exception as e:
-                    logger.debug(f"Warmup ping failed for endpoint: {e}")
-        except Exception as e:
-            logger.debug(f"Warmup ping skipped: {e}")
-
-    if not STARTUP_OFFLINE:
-        _startup_tasks.append(asyncio.create_task(_warmup_endpoints()))
-
-    # Keep-alive: ping endpoints every 60 seconds to prevent cold starts
-    async def _keepalive_loop():
-        while True:
-            try:
-                await asyncio.sleep(60)
-                await _warmup_endpoints()
-            except Exception as e:
-                logger.warning(f"Keepalive loop error: {e}")
-                await asyncio.sleep(300)  # Back off on error
-
-    if not STARTUP_OFFLINE:
-        _startup_tasks.append(asyncio.create_task(_keepalive_loop()))
-
-    async def _ensure_default_tasks():
-        # Create/reconcile default automation tasks + personal assistant for every user.
-        owners = set()
-        try:
-            import json as _json
-            auth_path = AUTH_FILE
-            with open(auth_path, encoding="utf-8") as f:
-                users = _json.load(f).get("users", {})
-            owners.update(users.keys())
-        except Exception as e:
-            logger.debug(f"Default task auth-owner scan: {e}")
-
-        # Also reconcile owners already present in scheduled_tasks. This cleans
-        # up stale/demo/deleted-user built-ins that are no longer in auth.json;
-        # otherwise their old scheduled rows can keep firing forever.
-        try:
-            from core.database import SessionLocal, ScheduledTask
-            from src.task_scheduler import HOUSEKEEPING_DEFAULTS
-            builtin_names = []
-            for defs in HOUSEKEEPING_DEFAULTS.values():
-                builtin_names.append(defs["name"])
-                builtin_names.extend(defs.get("legacy_names") or [])
-            db_seed = SessionLocal()
-            try:
-                rows = db_seed.query(ScheduledTask.owner).filter(
-                    (ScheduledTask.action.in_(list(HOUSEKEEPING_DEFAULTS.keys())))
-                    | (ScheduledTask.name.in_(builtin_names))
-                ).distinct().all()
-                owners.update(row[0] for row in rows if row[0])
-            finally:
-                db_seed.close()
-        except Exception as e:
-            logger.debug(f"Default task existing-owner scan: {e}")
-
-        try:
-            for uname in sorted(owners):
-                try:
-                    await task_scheduler.ensure_defaults(uname)
-                except Exception as e:
-                    logger.debug(f"ensure_defaults({uname}): {e}")
-        except Exception as e:
-            logger.debug(f"Default tasks: {e}")
-
-    # Reconcile built-in tasks before the runner starts. Otherwise legacy
-    # scheduled built-ins can fire once before being converted to event tasks.
-    await _ensure_default_tasks()
-
-    # Disk-backed skills are not covered by the DB legacy-owner sweep. Repair
-    # ownerless or deleted/test-owner SKILL.md files so strict owner filtering
-    # does not make an existing library look empty after auth/account changes.
-    try:
-        import json as _json
-        auth_path = AUTH_FILE
-        with open(auth_path, encoding="utf-8") as f:
-            users = _json.load(f).get("users", {})
-        primary_owner = None
-        for uname, udata in users.items():
-            if udata.get("is_admin") is True:
-                primary_owner = uname
-                break
-        if not primary_owner and users:
-            primary_owner = next(iter(users))
-        if primary_owner:
-            changed = skills_manager.backfill_owner(primary_owner, set(users.keys()))
-            if changed:
-                logger.info("Assigned %s legacy skill file(s) to %s", changed, primary_owner)
-    except Exception as e:
-        logger.debug(f"Skill owner backfill skipped: {e}")
+    await ensure_default_tasks(task_scheduler, auth_file=AUTH_FILE)
+    backfill_legacy_skill_owners(skills_manager, auth_file=AUTH_FILE)
 
     # Start scheduled task runner — skip when running under a cron-driven
     # deployment where an external worker drives task firing. Mirrors
@@ -2297,77 +2192,10 @@ async def _startup_event():
             "In-process task scheduler disabled (ODYSSEUS_INPROCESS_TASKS=0); "
             "drive task firing externally (e.g. cron)."
         )
-    # Periodic null-owner sweep — re-runs the legacy-owner assignment hourly
-    # so any data created while auth was disabled / localhost-bypassed gets
-    # claimed by the admin instead of staying world-visible (M19).
-    async def _null_owner_sweep_loop():
-        while True:
-            try:
-                await asyncio.sleep(3600)
-                from core.database import _migrate_assign_legacy_owner
-                await asyncio.to_thread(_migrate_assign_legacy_owner)
-            except Exception as e:
-                logger.debug(f"Null-owner sweep skipped: {e}")
-                await asyncio.sleep(3600)
 
-    _startup_tasks.append(asyncio.create_task(_null_owner_sweep_loop()))
-
-    # Nightly skill audit — at ~02:00 local, test + judge a batch of the
-    # least-recently-checked skills, auto-fixing/escalating weak ones (never
-    # deletes). Rotates through the library so each night covers different
-    # skills. Gated by the `skill_audit_nightly` setting (default on); hour via
-    # `skill_audit_hour` (default 2), batch size via `skill_audit_batch` (8).
-    async def _skill_audit_nightly_loop():
-        from datetime import timedelta
-        while True:
-            try:
-                from src.settings import get_setting
-                hour = int(get_setting("skill_audit_hour", 2) or 2)
-            except Exception:
-                hour = 2
-            now = datetime.now()
-            nxt = now.replace(hour=hour % 24, minute=0, second=0, microsecond=0)
-            if nxt <= now:
-                nxt += timedelta(days=1)
-            await asyncio.sleep(max(60, (nxt - now).total_seconds()))
-            try:
-                from src.settings import get_setting
-                if not get_setting("skill_audit_nightly", True):
-                    continue
-                batch = int(get_setting("skill_audit_batch", 8) or 8)
-                from routes.skills_routes import run_scheduled_skill_audit
-                await run_scheduled_skill_audit(skills_manager, owner=None, max_skills=batch)
-            except Exception as e:
-                logger.warning(f"Nightly skill audit failed: {e}")
-
-    _startup_tasks.append(asyncio.create_task(_skill_audit_nightly_loop()))
-
-    # Daily vault trash purge — deletes .trash/ entries older than TRASH_RETENTION_DAYS.
-    async def _vault_trash_purge_loop():
-        while True:
-            await asyncio.sleep(86400)  # 24 hours
-            try:
-                from plugins.obsidian.backend.vault_service import purge_all_vault_trash, TRASH_RETENTION_DAYS
-                result = await asyncio.to_thread(purge_all_vault_trash)
-                if result["purged"] > 0:
-                    logger.info(
-                        f"Vault trash purge: {result['purged']} date-dirs removed "
-                        f"({result['errors']} errors) across {result['vaults']} vaults "
-                        f"(retention={TRASH_RETENTION_DAYS}d)."
-                    )
-            except Exception as e:
-                logger.debug(f"Vault trash purge skipped: {e}")
-
-    _startup_tasks.append(asyncio.create_task(_vault_trash_purge_loop()))
-
-    # Cookbook serve lifecycle — kills scheduler-launched serves whose
-    # window-end has passed. Paired with the cookbook_serve builtin
-    # action; both are no-ops unless a scheduled task actually launches
-    # something with end_after_min set. Removing this line + the
-    # cookbook_serve entry in BUILTIN_ACTIONS + src/cookbook_serve_lifecycle.py
-    # removes the feature.
-    from src.cookbook_serve_lifecycle import cookbook_serve_lifecycle_loop
-    _startup_tasks.append(asyncio.create_task(cookbook_serve_lifecycle_loop()))
+    if is_contrib_enabled():
+        from src.cookbook_serve_lifecycle import cookbook_serve_lifecycle_loop
+        _startup_tasks.append(asyncio.create_task(cookbook_serve_lifecycle_loop()))
 
     try:
         set_query_knowledge_owner_resolver(auth_manager.subject_id_for_username)
@@ -2377,123 +2205,22 @@ async def _startup_event():
     logger.info("Application startup complete")
 
 
-_STARTUP_TASK_SHUTDOWN_TIMEOUT_SECONDS = 2.0
+from src.harbour.lifecycle_supervision import (
+    _STARTUP_TASK_SHUTDOWN_TIMEOUT_SECONDS,
+    set_default_app_state,
+    observe_finished_startup_tasks as _observe_finished_startup_tasks,
+    retain_registered_startup_task as _retain_registered_startup_task,
+    await_recent_changes_snapshot_shutdown as _await_recent_changes_snapshot_shutdown,
+    shutdown_registered_startup_tasks as _shutdown_registered_startup_tasks,
+    stop_dedicated_startup_task as _stop_dedicated_startup_task,
+    observe_finished_startup_tasks,
+    retain_registered_startup_task,
+    await_recent_changes_snapshot_shutdown,
+    shutdown_registered_startup_tasks,
+    stop_dedicated_startup_task,
+)
 
-
-def _observe_finished_startup_tasks(tasks: tuple[asyncio.Task, ...]) -> int:
-    """Consume completed task exceptions without exposing task details."""
-    failed = 0
-    for task in tasks:
-        try:
-            if task.exception() is not None:
-                failed += 1
-        except asyncio.CancelledError:
-            pass
-        except BaseException:
-            failed += 1
-    return failed
-
-
-def _retain_registered_startup_task(task: asyncio.Task) -> None:
-    if not any(registered is task for registered in app.state._startup_tasks):
-        app.state._startup_tasks.append(task)
-
-
-async def _await_recent_changes_snapshot_shutdown(
-    stop_event: threading.Event | None,
-    task: asyncio.Task | None,
-    *, timeout_seconds: float = _STARTUP_TASK_SHUTDOWN_TIMEOUT_SECONDS,
-) -> bool:
-    """Signal the cooperative snapshot and retain ownership if it outlives shutdown."""
-    if stop_event is not None:
-        stop_event.set()
-    if task is None:
-        return True
-    done, pending = await asyncio.wait((task,), timeout=timeout_seconds)
-    if pending or task.cancelled():
-        _retain_registered_startup_task(task)
-        if pending:
-            def clear_if_completed(completed: asyncio.Task) -> None:
-                if completed.cancelled():
-                    logger.warning("Recent-change snapshot retained incomplete task")
-                    return
-                failures = _observe_finished_startup_tasks((completed,))
-                if failures:
-                    logger.warning("Recent-change snapshot observed %d failed task(s)", failures)
-                if app.state._startup_recent_changes_task is completed:
-                    app.state._startup_recent_changes_task = None
-                    if app.state._startup_recent_changes_stop_event is stop_event:
-                        app.state._startup_recent_changes_stop_event = None
-                app.state._startup_tasks = [registered for registered in app.state._startup_tasks if registered is not completed]
-
-            task.add_done_callback(clear_if_completed)
-            logger.warning("Recent-change snapshot shutdown retained %d pending task(s)", len(pending))
-        else:
-            logger.warning("Recent-change snapshot retained incomplete task")
-        return False
-    failures = _observe_finished_startup_tasks(tuple(done))
-    if failures:
-        logger.warning("Recent-change snapshot observed %d failed task(s)", failures)
-    return True
-
-
-async def _shutdown_registered_startup_tasks(
-    *, excluded: tuple[asyncio.Task | None, ...] = (), timeout_seconds: float = _STARTUP_TASK_SHUTDOWN_TIMEOUT_SECONDS,
-) -> None:
-    """Cancel only registered tasks we own and retain any noncooperative task."""
-    current = asyncio.current_task()
-    excluded_ids = {id(task) for task in excluded if task is not None}
-    seen: set[int] = set()
-    retained: list[asyncio.Task] = []
-    cancelling: list[asyncio.Task] = []
-    finished: list[asyncio.Task] = []
-    unsupported = 0
-    for task in tuple(getattr(app.state, "_startup_tasks", ())):
-        if not isinstance(task, asyncio.Task):
-            unsupported += 1
-            continue
-        task_id = id(task)
-        if task_id in seen:
-            continue
-        seen.add(task_id)
-        if task is current or task_id in excluded_ids:
-            retained.append(task)
-        elif task.done():
-            finished.append(task)
-        else:
-            task.cancel()
-            cancelling.append(task)
-    pending: tuple[asyncio.Task, ...] = ()
-    if cancelling:
-        done, pending_set = await asyncio.wait(cancelling, timeout=timeout_seconds)
-        finished.extend(done)
-        pending = tuple(pending_set)
-        retained.extend(pending)
-    app.state._startup_tasks = retained
-    failed = _observe_finished_startup_tasks(tuple(finished))
-    if pending:
-        logger.warning("Startup task shutdown retained %d pending task(s)", len(pending))
-    if failed:
-        logger.warning("Startup task shutdown observed %d failed task(s)", failed)
-    if unsupported:
-        logger.warning("Startup task shutdown observed %d unsupported reference(s)", unsupported)
-
-
-async def _stop_dedicated_startup_task(task: asyncio.Task, *, label: str) -> bool:
-    """Bound a dedicated task's existing shutdown slot without losing its ref."""
-    if not task.done():
-        task.cancel()
-        done, pending = await asyncio.wait((task,), timeout=_STARTUP_TASK_SHUTDOWN_TIMEOUT_SECONDS)
-        if pending:
-            if task not in app.state._startup_tasks:
-                app.state._startup_tasks.append(task)
-            logger.warning("%s shutdown retained %d pending task(s)", label, len(pending))
-            return False
-        _observe_finished_startup_tasks(tuple(done))
-    else:
-        _observe_finished_startup_tasks((task,))
-    app.state._startup_tasks = [registered for registered in app.state._startup_tasks if registered is not task]
-    return True
+set_default_app_state(app.state)
 
 
 async def _shutdown_event():
