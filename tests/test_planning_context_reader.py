@@ -571,3 +571,162 @@ def test_native_reader_constructor_rejects_dual_or_mismatched_backends(durable_p
     ):
         with pytest.raises(PlanningContextReaderError, match="invalid_context"):
             PlanningContextManifestProducer(runtime, manager, service, project, durable_source=candidate)
+
+
+def test_dual_metadata_adapter_projects_one_explicit_source_sample(
+    native_reader_context, monkeypatch,
+):
+    import src.planning_context_reader as reader_module
+    from src.context_metadata_binding import McpContextMetadataBinding
+
+    context = native_reader_context
+    source = context["source"]
+    binding = context["binding"]
+    selection = context["selection"]
+    descriptors = source.resolve(binding, selection)
+    metadata_binding = McpContextMetadataBinding(
+        "odysseus.context.mcp_metadata_binding.v1",
+        "authenticated_mcp_context_read",
+        binding.owner_sid,
+        binding.chat_session_id,
+        "dual-reader-token",
+        "mcp:harbour:context:read",
+        1,
+        binding.security_revision,
+        "dual-reader-epoch",
+    )
+    admission = object()
+    calls = []
+
+    def resolve_dual(self, actual_binding, actual_admission, actual_metadata, actual_selection):
+        assert self is source
+        calls.append((actual_binding, actual_admission, actual_metadata, actual_selection))
+        return descriptors, descriptors
+
+    monkeypatch.setattr(
+        reader_module, "_require_mcp_metadata_admission",
+        lambda actual_admission, actual_metadata: object(),
+    )
+    with monkeypatch.context() as adapter:
+        adapter.setattr(type(source), "resolve_dual", resolve_dual)
+        producer = PlanningContextManifestProducer(
+            source._runtime,
+            context["auth"],
+            None,
+            "harbour-one",
+            durable_source=source,
+        )
+        cookie, mcp, target = producer.capture_metadata_dual(
+            binding, admission, metadata_binding, selection,
+        )
+
+    assert calls == [(binding, admission, metadata_binding, selection)]
+    assert tuple(item.selection for item in cookie) == selection.items
+    assert tuple(item.selection for item in mcp) == selection.items
+    assert cookie == mcp
+    assert type(target) is str and len(target) == 64
+
+    fake_calls = []
+
+    def hostile_resolve(*_args, **_kwargs):
+        fake_calls.append("resolve_dual")
+        raise AssertionError("hostile durable adapter executed")
+
+    with monkeypatch.context() as hostile:
+        hostile.setattr(type(source), "resolve_dual", hostile_resolve)
+        with pytest.raises(PlanningContextReaderError) as substituted:
+            context["producer"].capture_metadata_dual(
+                binding, admission, metadata_binding, selection,
+            )
+        assert substituted.value.code == "invalid_context"
+        assert fake_calls == []
+
+
+def test_dual_content_adapter_carries_only_selected_verified_bytes(
+    native_reader_context, monkeypatch,
+):
+    from src.context_metadata_binding import McpContextMetadataBinding
+
+    context = native_reader_context
+    source = context["source"]
+    binding = context["binding"]
+    selection = context["selection"]
+    target = selection.items[0]
+    descriptors = source.resolve(binding, selection)
+    expected = source.read_document(binding, target)
+    metadata_binding = McpContextMetadataBinding(
+        "odysseus.context.mcp_metadata_binding.v1",
+        "authenticated_mcp_context_read",
+        binding.owner_sid,
+        binding.chat_session_id,
+        "dual-reader-content-token",
+        "mcp:harbour:context:read",
+        1,
+        binding.security_revision,
+        "dual-reader-content-epoch",
+    )
+    admission = object()
+    calls = []
+
+    def resolve_dual(
+        self, actual_binding, actual_admission, actual_metadata,
+        actual_selection, *, _content_target=None,
+    ):
+        assert self is source
+        calls.append((
+            actual_binding, actual_admission, actual_metadata,
+            actual_selection, _content_target,
+        ))
+        return descriptors, descriptors, expected, expected
+
+    monkeypatch.setattr(
+        planning_reader, "_require_mcp_metadata_admission",
+        lambda actual_admission, actual_metadata: object(),
+    )
+    with monkeypatch.context() as adapter:
+        adapter.setattr(type(source), "resolve_dual", resolve_dual)
+        producer = PlanningContextManifestProducer(
+            source._runtime,
+            context["auth"],
+            None,
+            "harbour-one",
+            durable_source=source,
+        )
+        cookie, mcp, manifest_target, cookie_payload, mcp_payload = (
+            producer.capture_metadata_dual_content(
+                binding, admission, metadata_binding, selection, target,
+            )
+        )
+        assert calls == [(
+            binding, admission, metadata_binding, selection, target,
+        )]
+        assert tuple(item.selection for item in cookie) == selection.items
+        assert tuple(item.selection for item in mcp) == selection.items
+        assert cookie_payload == mcp_payload == expected
+        assert type(manifest_target) is str and len(manifest_target) == 64
+        assert planning_reader.PlanningMetadata.__slots__ == (
+            "selection", "project_id", "roadmap_id", "approved_revision",
+            "durable_revision_id", "durable_content_sha256",
+            "durable_payload_sha256", "canonical_projection_sha256",
+            "provenance_ref", "boundary_sha256", "record_sha256",
+        )
+        assert all(
+            type(getattr(item, name)) is not bytes
+            for item in (*cookie, *mcp)
+            for name in planning_reader.PlanningMetadata.__slots__
+        )
+
+        fake_calls = []
+
+        def hostile_resolve(*_args, **_kwargs):
+            fake_calls.append("resolve_dual")
+            raise AssertionError("substituted content resolver executed")
+
+        with monkeypatch.context() as hostile:
+            hostile.setattr(type(source), "resolve_dual", hostile_resolve)
+            with pytest.raises(PlanningContextReaderError) as rejected:
+                producer.capture_metadata_dual_content(
+                    binding, admission, metadata_binding, selection, target,
+                )
+        assert rejected.value.code == "invalid_context"
+        assert fake_calls == []

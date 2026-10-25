@@ -289,8 +289,12 @@ def test_cancelled_exchange_stops_child_and_propagates_cancellation(tmp_path: Pa
         task.cancel()
         with pytest.raises(asyncio.CancelledError):
             await task
-        assert process.snapshot().state is ProcessState.STOPPED
+        assert process.snapshot().state in {
+            ProcessState.RETIREMENT_PENDING,
+            ProcessState.STOPPED,
+        }
         assert process.snapshot().stop_reason == "request_cancelled"
+        await _wait_until_stopped(process)
 
     asyncio.run(scenario())
 
@@ -392,3 +396,329 @@ def test_paths_must_be_absolute_and_state_directories_stay_outside_source_root(t
             allowed_root=repository,
         )
     assert error.value.code == "unsafe_path_layout"
+
+
+class _RetirementWriter:
+    def __init__(self) -> None:
+        self.close_count = 0
+
+    def write(self, data: bytes) -> None:
+        pass
+
+    async def drain(self) -> None:
+        pass
+
+    def close(self) -> None:
+        self.close_count += 1
+
+
+class _BarrierReader:
+    def __init__(self, response: bytes = b'{"ok":true}\n') -> None:
+        self.response = response
+        self.started = asyncio.Event()
+        self.release = asyncio.Event()
+
+    async def readline(self) -> bytes:
+        self.started.set()
+        await self.release.wait()
+        return self.response
+
+
+class _RetirementProcess:
+    def __init__(
+        self,
+        wait_result: object = 0,
+        *,
+        wait_error: BaseException | None = None,
+        reader: object | None = None,
+    ) -> None:
+        self.stdin = _RetirementWriter()
+        self.stdout = asyncio.StreamReader() if reader is None else reader
+        self.stderr = asyncio.StreamReader()
+        self.pid = 43
+        self.returncode = None
+        self.wait_result = wait_result
+        self.wait_error = wait_error
+        self.wait_started = asyncio.Event()
+        self.wait_release = asyncio.Event()
+        self.wait_calls = 0
+        self.terminate_calls = 0
+        self.kill_calls = 0
+
+    def terminate(self) -> None:
+        self.terminate_calls += 1
+
+    def kill(self) -> None:
+        self.kill_calls += 1
+
+    async def wait(self) -> int:
+        self.wait_calls += 1
+        self.wait_started.set()
+        await self.wait_release.wait()
+        if self.wait_error is not None:
+            raise self.wait_error
+        self.returncode = self.wait_result
+        return self.wait_result
+
+
+async def _wait_until_stopped(process: CodebaseMemoryProcess) -> None:
+    for _ in range(100):
+        if process.snapshot().state is ProcessState.STOPPED:
+            return
+        await asyncio.sleep(0.005)
+    raise AssertionError("retirement did not finalize")
+
+
+@pytest.mark.parametrize("exit_code", [0, -9, 7])
+def test_stop_retains_one_wait_and_reuses_one_deadline_until_exact_exit(exit_code, tmp_path: Path):
+    script = _script(tmp_path, ECHO_SCRIPT)
+
+    async def scenario():
+        fake = _RetirementProcess(exit_code)
+
+        async def launcher(*args, **kwargs):
+            return fake
+
+        process = CodebaseMemoryProcess(
+            _settings(tmp_path, script, shutdown_timeout_s=0.02),
+            launcher=launcher,
+        )
+        await process.start()
+        try:
+            pending = await process.stop(reason="bounded_retirement")
+            assert pending.state is ProcessState.RETIREMENT_PENDING
+            assert process.process is fake
+            again = await process.stop(reason="ignored_new_reason")
+            assert again.state is ProcessState.RETIREMENT_PENDING
+            assert fake.wait_calls == 1
+            assert fake.terminate_calls <= 1
+            assert fake.kill_calls <= 1
+        finally:
+            fake.wait_release.set()
+        await _wait_until_stopped(process)
+        assert process.snapshot().return_code is None
+        assert fake.wait_calls == 1
+        assert fake.stdin.close_count == 1
+
+    asyncio.run(scenario())
+
+
+def test_terminal_returncode_cannot_finalize_while_owned_wait_is_pending(tmp_path: Path):
+    script = _script(tmp_path, ECHO_SCRIPT)
+
+    async def scenario():
+        fake = _RetirementProcess(0)
+
+        async def launcher(*args, **kwargs):
+            return fake
+
+        process = CodebaseMemoryProcess(
+            _settings(tmp_path, script, shutdown_timeout_s=0.02),
+            launcher=launcher,
+        )
+        await process.start()
+        fake.returncode = 0
+        try:
+            pending = await process.stop(reason="wait_still_pending")
+            assert pending.state is ProcessState.RETIREMENT_PENDING
+            assert fake.wait_calls == 1
+            assert process.process is fake
+        finally:
+            fake.wait_release.set()
+        await _wait_until_stopped(process)
+
+    asyncio.run(scenario())
+
+
+def test_bool_exit_status_is_not_process_exit_proof(tmp_path: Path):
+    script = _script(tmp_path, ECHO_SCRIPT)
+
+    async def scenario():
+        fake = _RetirementProcess(False)
+
+        async def launcher(*args, **kwargs):
+            return fake
+
+        process = CodebaseMemoryProcess(
+            _settings(tmp_path, script, shutdown_timeout_s=0.02),
+            launcher=launcher,
+        )
+        await process.start()
+        try:
+            pending = await process.stop(reason="invalid_exit_status")
+            assert pending.state is ProcessState.RETIREMENT_PENDING
+        finally:
+            fake.wait_release.set()
+        await asyncio.sleep(0)
+        await asyncio.sleep(0)
+        assert process.snapshot().state is ProcessState.RETIREMENT_PENDING
+        assert process.process is fake
+        fake.returncode = 3
+        await process.stop(reason="same_retirement")
+        await _wait_until_stopped(process)
+
+    asyncio.run(scenario())
+
+
+def test_stop_during_launch_quarantines_late_child_and_blocks_relaunch(tmp_path: Path):
+    script = _script(tmp_path, ECHO_SCRIPT)
+
+    async def scenario():
+        fake = _RetirementProcess(0)
+        launcher_started = asyncio.Event()
+        launcher_release = asyncio.Event()
+
+        async def launcher(*args, **kwargs):
+            launcher_started.set()
+            await launcher_release.wait()
+            return fake
+
+        process = CodebaseMemoryProcess(
+            _settings(tmp_path, script, shutdown_timeout_s=0.02),
+            launcher=launcher,
+        )
+        start_task = asyncio.create_task(process.start())
+        await launcher_started.wait()
+        try:
+            pending = await process.stop(reason="launch_in_flight")
+            assert pending.state is ProcessState.RETIREMENT_PENDING
+            assert process.process is None
+            with pytest.raises(CodebaseMemoryProcessError) as restart_error:
+                await process.start()
+            assert restart_error.value.code == "process_already_active"
+        finally:
+            launcher_release.set()
+            fake.wait_release.set()
+        with pytest.raises(CodebaseMemoryProcessError) as start_error:
+            await start_task
+        assert start_error.value.code == "process_retiring"
+        await _wait_until_stopped(process)
+        assert process.snapshot().start_count == 0
+        assert process.process is None
+        assert fake.wait_calls == 1
+        assert fake.terminate_calls <= 1
+        assert fake.kill_calls <= 1
+
+    asyncio.run(scenario())
+
+
+def test_process_exit_cannot_finalize_until_late_io_is_consumed_and_discarded(tmp_path: Path):
+    script = _script(tmp_path, ECHO_SCRIPT)
+
+    async def scenario():
+        reader = _BarrierReader(b'{"late":"private"}\n')
+        fake = _RetirementProcess(0, reader=reader)
+        fake.wait_release.set()
+
+        async def launcher(*args, **kwargs):
+            return fake
+
+        process = CodebaseMemoryProcess(
+            _settings(tmp_path, script, shutdown_timeout_s=0.02),
+            launcher=launcher,
+        )
+        await process.start()
+        exchange_task = asyncio.create_task(process.exchange(b'{"id":1}'))
+        await reader.started.wait()
+        try:
+            pending = await process.stop(reason="io_in_flight")
+            assert pending.state is ProcessState.RETIREMENT_PENDING
+            assert process.process is fake
+            assert fake.wait_calls == 1
+        finally:
+            reader.release.set()
+        with pytest.raises(CodebaseMemoryProcessError) as exchange_error:
+            await exchange_task
+        assert exchange_error.value.code == "process_retiring"
+        assert "private" not in str(exchange_error.value)
+        await _wait_until_stopped(process)
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize(
+    "wait_error",
+    [RuntimeError("private wait detail"), asyncio.CancelledError()],
+)
+def test_exceptional_or_cancelled_wait_needs_same_process_returncode_proof(
+    wait_error: BaseException, tmp_path: Path
+):
+    script = _script(tmp_path, ECHO_SCRIPT)
+
+    async def scenario():
+        fake = _RetirementProcess(wait_error=wait_error)
+        fake.wait_release.set()
+
+        async def launcher(*args, **kwargs):
+            return fake
+
+        process = CodebaseMemoryProcess(
+            _settings(tmp_path, script, shutdown_timeout_s=0.02),
+            launcher=launcher,
+        )
+        await process.start()
+        pending = await process.stop(reason="exceptional_wait")
+        assert pending.state is ProcessState.RETIREMENT_PENDING
+        assert process.process is fake
+        assert fake.wait_calls == 1
+        fake.returncode = -7
+        await _wait_until_stopped(process)
+
+    asyncio.run(scenario())
+
+
+def test_cancelling_stop_keeps_the_same_owned_retirement_operation(tmp_path: Path):
+    script = _script(tmp_path, ECHO_SCRIPT)
+
+    async def scenario():
+        fake = _RetirementProcess(0)
+
+        async def launcher(*args, **kwargs):
+            return fake
+
+        process = CodebaseMemoryProcess(
+            _settings(tmp_path, script, shutdown_timeout_s=0.2),
+            launcher=launcher,
+        )
+        await process.start()
+        stop_task = asyncio.create_task(process.stop(reason="cancelled_caller"))
+        await fake.wait_started.wait()
+        retirement_task = process._retirement_task
+        stop_task.cancel()
+        try:
+            with pytest.raises(asyncio.CancelledError):
+                await stop_task
+            assert process.snapshot().state is ProcessState.RETIREMENT_PENDING
+            assert process._retirement_task is retirement_task
+        finally:
+            fake.wait_release.set()
+        await _wait_until_stopped(process)
+        assert fake.wait_calls == 1
+
+    asyncio.run(scenario())
+
+
+def test_failed_retirement_orchestrator_remains_owned_and_pending(tmp_path: Path):
+    script = _script(tmp_path, ECHO_SCRIPT)
+
+    class FailingOwner(CodebaseMemoryProcess):
+        async def _retire_owned_resources(self):
+            raise RuntimeError("private orchestrator detail")
+
+    async def scenario():
+        fake = _RetirementProcess(0)
+
+        async def launcher(*args, **kwargs):
+            return fake
+
+        process = FailingOwner(_settings(tmp_path, script), launcher=launcher)
+        await process.start()
+        pending = await process.stop(reason="orchestrator_failed")
+        task = process._retirement_task
+        assert pending.state is ProcessState.RETIREMENT_PENDING
+        assert task is not None and task.done()
+        assert process._retirement_task is task
+        assert (await process.stop(reason="cannot_reset")).state is ProcessState.RETIREMENT_PENDING
+        assert process._retirement_task is task
+
+    asyncio.run(scenario())

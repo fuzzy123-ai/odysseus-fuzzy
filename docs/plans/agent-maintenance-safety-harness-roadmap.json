@@ -4,8 +4,8 @@
   "roadmap_id": "AMH",
   "title": "Agent Maintenance Safety Harness Roadmap",
   "created_at": "2026-07-18T16:16:30+02:00",
-  "updated_at": "2026-07-18T16:25:50+02:00",
-  "status": "roadmap_authored_open_work_registered_implementation_not_started",
+  "updated_at": "2026-08-22T21:29:48+02:00",
+  "status": "roadmap_authored_open_work_registered_deferred_until_after_release",
   "abc_mode": "Standard ABC",
   "master_roadmap": "docs/plans/open-work-completion-master-roadmap.json",
   "canonical_open_work_queue": "docs/plans/open-work-completion-master-roadmap.json",
@@ -828,15 +828,15 @@
   "gate_queue": [
     {
       "gate_id": "AMH-GATE-EXPLICIT-GOAL-OR-REPRIORITIZATION",
-      "state": "not_requested",
+      "state": "deferred_until_after_release_by_operator_2026_08_22",
       "blocks": [
         "AMH-01-root-policy-and-runbook",
         "AMH-02-secret-safe-diagnostics",
         "AMH-03-shared-verification-entrypoint",
         "AMH-05-canonical-handoff-and-owner-projection"
       ],
-      "decision_needed": "Start OWM-23 explicitly or reprioritize Open Work after the active queue reaches a safe handoff.",
-      "safe_default": "Keep AMH registered and implementation not started; do not preempt active TAX, TUA or other claimed work."
+      "decision_needed": "No AMH implementation decision before release. After release, the operator may explicitly reprioritize OWM-23; a fresh architecture, claim, collision check and evidence route remain required.",
+      "safe_default": "Keep AMH registered, unclaimed and implementation-not-started until after release. This deferral grants no commit, push, deployment or live action."
     },
     {
       "gate_id": "AMH-GATE-SHARED-HOTFILE-HANDOFF",
@@ -905,5 +905,5 @@
       "No commit, push, deploy, live mutation, provider call or external write was performed."
     ]
   },
-  "recommended_next_step": "Keep OWM-23 dormant until an explicit goal or Open Work reprioritization. Then claim AMH-01, AMH-02 and AMH-03 only on disjoint handed-off paths, keep AMH-04 onward dependency-blocked, and preserve every unrelated worktree change."
+  "recommended_next_step": "Keep OWM-23 dormant until after release. Then, and only after an explicit post-release reprioritization, create fresh AMH architecture/claim evidence on disjoint handed-off paths; keep AMH-04 onward dependency-blocked and preserve every unrelated worktree change."
 }

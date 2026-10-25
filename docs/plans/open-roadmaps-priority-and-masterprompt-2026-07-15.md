@@ -1,8 +1,17 @@
 # Offene Roadmaps: Prioritaeten und ABC-Masterprompt
 
+Aktueller Verweis (2026-09-05): Die untenstehenden Auftraege und
+Worktree-Hinweise sind historische Entscheidungen. Akzeptierte
+UIX-ABC13 bis UIX-ABC24 werden nicht neu gestartet. Fuer aktuelle
+Prioritaeten gilt `docs/plans/open-work-completion-master-roadmap.json`;
+fuer lange Worker-Laeufe gilt die neuere Entscheidung
+`docs/plans/harbour-one-user-decision-agent-data-isolation-2026-08-31.json`
+(frischer temporaerer Worktree). Die aktuelle Nutzerfreigabe betrifft
+ausschliesslich die Planbereinigung aus Schritt 1.
+
 Stand: 2026-07-15
 
-Status: Ausfuehrungsreihenfolge festgelegt; keine Implementierung durch dieses Dokument
+Status: historical priority/masterprompt evidence; current execution order is Open Work $.execution_priority_policy
 
 Ausfuehrungshinweis 2026-08-02: Die damalige Empfehlung eines separaten
 Integrationsworktrees ist durch die neuere Nutzerentscheidung

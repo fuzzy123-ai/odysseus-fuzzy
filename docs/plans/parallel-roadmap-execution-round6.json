@@ -1248,7 +1248,7 @@
           "H1R-04 current-boundary reconciliation is pending independent review; infer no H1R-05 writer or implementation authority."
         ]
       },
-      "source_evidence": "Harbour One product authority H1R-04 is pending independent review after currentness refresh; H1R-02 and H1R-03 are accepted and must not restart."
+      "source_evidence": "H1R-04 remains product-pending. The 2026-09-05 product reconciliation preserves accepted H1R-02 route work but does not claim full parent acceptance; H1R-03 migration remains unaccepted. Do not restart accepted sub-slices. This text correction does not register a writer or alter the retained H1R-04 frontier."
     },
     {
       "roadmap_path": "docs/plans/planning-definition-editor-roadmap.json",

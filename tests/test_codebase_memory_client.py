@@ -313,3 +313,266 @@ def test_runtime_controls_require_every_disabled_surface_and_egress_proof():
     with pytest.raises(CodebaseMemoryClientError) as egress_error:
         RuntimeControls.from_dict(unenforced)
     assert egress_error.value.code == "unsafe_runtime_controls"
+
+
+class _ClientBarrierReader:
+    def __init__(self, response: bytes = b"{}\n") -> None:
+        self.response = response
+        self.started = asyncio.Event()
+        self.release = asyncio.Event()
+
+    async def readline(self) -> bytes:
+        self.started.set()
+        await self.release.wait()
+        return self.response
+
+
+class _ClientRetirementProcess:
+    def __init__(self, reader: object | None = None) -> None:
+        self.stdin = _ClientRetirementWriter()
+        self.stdout = asyncio.StreamReader() if reader is None else reader
+        self.stderr = asyncio.StreamReader()
+        self.pid = 44
+        self.returncode = None
+        self.wait_started = asyncio.Event()
+        self.wait_release = asyncio.Event()
+        self.wait_calls = 0
+        self.terminate_calls = 0
+        self.kill_calls = 0
+
+    def terminate(self) -> None:
+        self.terminate_calls += 1
+
+    def kill(self) -> None:
+        self.kill_calls += 1
+
+    async def wait(self) -> int:
+        self.wait_calls += 1
+        self.wait_started.set()
+        await self.wait_release.wait()
+        self.returncode = 0
+        return 0
+
+
+class _ClientRetirementWriter:
+    def write(self, data: bytes) -> None:
+        pass
+
+    async def drain(self) -> None:
+        pass
+
+    def close(self) -> None:
+        pass
+
+
+def test_close_reports_retirement_pending_and_later_returns_none(tmp_path: Path):
+    async def scenario():
+        script = tmp_path / "fake_cbm_server.py"
+        script.write_text(FAKE_SERVER, encoding="utf-8")
+        fake = _ClientRetirementProcess()
+
+        async def launcher(*args, **kwargs):
+            return fake
+
+        settings = CodebaseMemoryProcessSettings(
+            executable_path=Path(sys.executable),
+            config_dir=tmp_path / "config",
+            data_dir=tmp_path / "data",
+            allowed_root=tmp_path / "repository",
+            enabled=True,
+            shutdown_timeout_s=0.02,
+            egress_receipt=EgressEnforcementReceipt(True, "test_sandbox", "client_retirement", 0),
+        )
+        for path in (settings.config_dir, settings.data_dir, settings.allowed_root):
+            path.mkdir(exist_ok=True)
+        process = CodebaseMemoryProcess(settings, launcher=launcher)
+        client = CodebaseMemoryClient(process)
+        await process.start()
+        try:
+            with pytest.raises(CodebaseMemoryClientError) as error:
+                await client.close()
+            assert error.value.code == "retirement_pending"
+            assert client.handshake is None
+            assert client.last_health is None
+        finally:
+            fake.wait_release.set()
+        for _ in range(100):
+            if process.snapshot().state is ProcessState.STOPPED:
+                break
+            await asyncio.sleep(0)
+        assert await client.close() is None
+
+    asyncio.run(scenario())
+
+
+def _controlled_client(tmp_path: Path, launcher):
+    config = tmp_path / "config"
+    data = tmp_path / "data"
+    root = tmp_path / "repository"
+    for path in (config, data, root):
+        path.mkdir(exist_ok=True)
+    settings = CodebaseMemoryProcessSettings(
+        executable_path=Path(sys.executable),
+        config_dir=config,
+        data_dir=data,
+        allowed_root=root,
+        enabled=True,
+        startup_timeout_s=0.2,
+        request_timeout_s=0.2,
+        shutdown_timeout_s=0.02,
+        egress_receipt=EgressEnforcementReceipt(
+            True, "test_sandbox", "client_cancellation", 0
+        ),
+    )
+    process = CodebaseMemoryProcess(settings, launcher=launcher)
+    return process, CodebaseMemoryClient(process)
+
+
+async def _wait_for_client_process_stop(process: CodebaseMemoryProcess) -> None:
+    for _ in range(100):
+        if process.snapshot().state is ProcessState.STOPPED:
+            return
+        await asyncio.sleep(0.005)
+    raise AssertionError("client-owned retirement did not finalize")
+
+
+def test_cancelled_close_keeps_owned_retirement_and_invalidates_ready_cache(tmp_path: Path):
+    async def scenario():
+        fake = _ClientRetirementProcess()
+
+        async def launcher(*args, **kwargs):
+            return fake
+
+        process, client = _controlled_client(tmp_path, launcher)
+        await process.start()
+        client._health = object()
+        close_task = asyncio.create_task(client.close())
+        await fake.wait_started.wait()
+        retirement_task = process._retirement_task
+        close_task.cancel()
+        try:
+            with pytest.raises(asyncio.CancelledError):
+                await close_task
+            assert client.handshake is None
+            assert client.last_health is None
+            assert process.snapshot().state is ProcessState.RETIREMENT_PENDING
+            assert process._retirement_task is retirement_task
+        finally:
+            fake.wait_release.set()
+        await _wait_for_client_process_stop(process)
+
+    asyncio.run(scenario())
+
+
+def test_cancelled_health_invalidates_ready_cache_and_discards_late_response(tmp_path: Path):
+    async def scenario():
+        reader = _ClientBarrierReader(b'{"late":"private"}\n')
+        fake = _ClientRetirementProcess(reader)
+
+        async def launcher(*args, **kwargs):
+            return fake
+
+        process, client = _controlled_client(tmp_path, launcher)
+        await process.start()
+        client._handshake = object()
+        client._health = object()
+        health_task = asyncio.create_task(client.health())
+        await reader.started.wait()
+        health_task.cancel()
+        try:
+            with pytest.raises(asyncio.CancelledError):
+                await health_task
+            assert client.handshake is None
+            assert client.last_health is None
+            assert process.snapshot().state is ProcessState.RETIREMENT_PENDING
+        finally:
+            reader.release.set()
+            fake.wait_release.set()
+        await _wait_for_client_process_stop(process)
+
+    asyncio.run(scenario())
+
+
+def test_cancelled_open_quarantines_late_launcher_and_keeps_cache_invalid(tmp_path: Path):
+    async def scenario():
+        fake = _ClientRetirementProcess()
+        launcher_started = asyncio.Event()
+        launcher_release = asyncio.Event()
+
+        async def launcher(*args, **kwargs):
+            launcher_started.set()
+            await launcher_release.wait()
+            return fake
+
+        process, client = _controlled_client(tmp_path, launcher)
+        open_task = asyncio.create_task(client.open())
+        await launcher_started.wait()
+        open_task.cancel()
+        try:
+            with pytest.raises(asyncio.CancelledError):
+                await open_task
+            assert client.handshake is None
+            assert client.last_health is None
+            assert process.snapshot().state is ProcessState.RETIREMENT_PENDING
+        finally:
+            launcher_release.set()
+            fake.wait_release.set()
+        await _wait_for_client_process_stop(process)
+        assert process.snapshot().start_count == 0
+        assert process.process is None
+
+    asyncio.run(scenario())
+
+
+def test_close_starts_one_bounded_retirement_without_new_shutdown_io(tmp_path: Path):
+    async def scenario():
+        reader = _ClientBarrierReader(b'{"late":"private"}\n')
+        fake = _ClientRetirementProcess(reader)
+
+        async def launcher(*args, **kwargs):
+            return fake
+
+        process, client = _controlled_client(tmp_path, launcher)
+        await process.start()
+        client._handshake = object()
+        client._health = object()
+        try:
+            with pytest.raises(CodebaseMemoryClientError) as error:
+                await client.close()
+            assert error.value.code == "retirement_pending"
+            assert reader.started.is_set() is False
+            assert process.snapshot().state is ProcessState.RETIREMENT_PENDING
+            assert client.handshake is None
+            assert client.last_health is None
+        finally:
+            reader.release.set()
+            fake.wait_release.set()
+        await _wait_for_client_process_stop(process)
+        assert await client.close() is None
+
+    asyncio.run(scenario())
+
+
+def test_process_owned_retirement_invalidates_client_ready_before_wait(tmp_path: Path):
+    async def scenario():
+        fake = _ClientRetirementProcess()
+
+        async def launcher(*args, **kwargs):
+            return fake
+
+        process, client = _controlled_client(tmp_path, launcher)
+        await process.start()
+        client._handshake = object()
+        client._health = object()
+        try:
+            pending = await process.stop(reason="owner_direct_stop")
+            assert pending.state is ProcessState.RETIREMENT_PENDING
+            assert client.handshake is None
+            assert client.last_health is None
+        finally:
+            fake.wait_release.set()
+        await _wait_for_client_process_stop(process)
+        assert client.handshake is None
+        assert client.last_health is None
+
+    asyncio.run(scenario())

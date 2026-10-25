@@ -1,8 +1,17 @@
 # Unified Source Index Runtime And Consumer Integration Roadmap
 
-Updated: 2026-08-01
+Status reconciliation (2026-09-05): retain accepted UIR-03A Go-A R2 and
+UIR-03B R2, plus UIR-04A/B/C and UIR-05A/B from the existing Round-7
+`long_run_state.completed_slices` ledger and guidance. Generic UIR-03 is
+only a superseded historical aggregate; its current dependency meaning is
+both UIR-03A and UIR-03B. UIR-04/05 sections below retain broader original
+requirements; accepted sub-slices do not certify unimplemented optional
+health aggregation or productive activation. Start only still-open work
+after a fresh scope/dependency check. Evidence: `docs/plans/evidence/harbour-one-plan-reconciliation-20260905.json`.
 
-Status: `UIR-00/01/02 accepted / UIR-03 dependency-ready pending hotfile handoff`; runtime and productive query path default-off
+Updated: 2026-08-10
+
+Status: `UIR-00/01/02 accepted / UIR-03A Go A R2 accepted-released / UIR-03B R2 accepted-released`; the generic `UIR-03` aggregate is superseded by these two exact units, while runtime and productive query paths remain default-off
 
 ## Native Runtime Amendment 2026-08-01
 
@@ -78,7 +87,9 @@ The complete code inventory is frozen in
 | Tool identity | TAX/USI-09 | bind runtime provider to `query_knowledge` | edit descriptors before TAX handoff |
 | Usage telemetry | TUA | one external invocation plus internal spans | create another invocation ledger |
 | Runtime metrics | GRO | emit accepted low-cardinality samples | create exporter or dashboard stack |
-| Code provider | CBM | register an optional structural provider | expose upstream MCP/tools/config |
+| Code snapshot and exact read | Forge / canonical `read_file` | consume only a revision-bound locator after query planning | serve projection text, add a public tool, read current HEAD or accept a substituted path/revision |
+| Code coverage and locator truth | FCA/USI | consume accepted coverage state and locator capability | infer completeness from CBM/embedding health |
+| Code provider | CBM | register an optional structural/semantic projection | expose upstream MCP/tools/config or claim an exact-read authority |
 | Owner/data lifecycle | ULO | call accepted lifecycle hooks | implement rename/delete/backup logic |
 
 ## 4. Target Runtime Architecture
@@ -97,6 +108,11 @@ read-only consumers
   -> ContextItem / AnswerProvenance
   -> existing Context Orchestrator
   -> Chat / Agent / query_knowledge
+
+code direct/exact follow-up (only for an accepted, covered Forge revision)
+  -> query_knowledge returns one Forge-bound locator, no source text
+  -> existing read_file in Forge-locator mode consumes that locator and revision
+  -> authoritative bytes/lines with explicit coverage/stale/partial state
 
 fallback
   -> current first-party Personal Docs/RAG search or exact native domain reader
@@ -346,41 +362,66 @@ shared parent gate.
   no configuration can silently widen owner/source scope.
 - Acceptance:
   `offline_go_default_off_single_confined_sqlite_path_strict_independent_provider_flags_bounded_scope_and_budgets_zero_runtime_side_effects`
-- Next frontier: `UIR-03` is dependency-ready after its required active-file
-  collision/hotfile handoff; runtime, workers, providers and productive query
-  paths remain disabled.
+- Next frontier: the former generic `UIR-03` aggregate is superseded. Exact
+  `UIR-03A` Go-A R2 and `UIR-03B` R2 are accepted; continue only with a later
+  dependency-ready UIR unit while runtime, workers, providers and productive
+  query paths remain disabled.
 
-### UIR-03 - Composition Root And Dependency Injection
+### UIR-03A - Default-Off Knowledge Runtime Composition Boundary
 
 - Class: `repo_only`
-- Owner: Charlie
-- Dependencies: `UIR-02`, USI-03, USI-04 and active-file handoff
+- Owner: Bob/Terra implementation; Root/Sol review
+- Dependencies: `UIR-02`, USI-03, USI-04 and accepted caller inventory blob
+  `9e87609d00691f1e4b0ca1a5c7b7c2ed2bcca244`
 - Allowed paths:
   - `src/unified_source_index_runtime.py`
+  - `tests/test_unified_source_index_runtime_composition.py`
+- Work:
+  - implement one default-off `KnowledgeRuntime` composition value around the
+    accepted runtime config and query planner boundary;
+  - disabled mode binds `None`; read-only mode may bind one already supplied,
+    frozen planner proxy without executing it;
+  - missing planners and uncomposed productive modes degrade with fixed,
+    content-free status codes;
+  - build, bind, snapshot and close are serialized, bounded and idempotent;
+  - imports and all public operations perform no App, Obsidian, SQLite,
+    provider, worker, network, filesystem or environment access.
+- Tests:
+  - `python -m pytest -q tests/test_unified_source_index_runtime_composition.py`
+- Done when: the nine frozen `UIR-03A-SOL-ARCH-v1` regression families pass,
+  independent QA and Deep-Sol accept one blob-bound candidate, and no live
+  activation authority exists.
+- Scope decision: this slice guarantees that the new Knowledge runtime itself
+  has no Obsidian dependency. Removing existing App-level Obsidian imports is
+  owned by `UIR-12`, not silently absorbed here.
+
+### UIR-03B - Application State And Shutdown Wiring
+
+- Class: `repo_only`
+- Owner: Bob/Terra implementation; Root/Sol review
+- Dependencies: accepted `UIR-03A` and a fresh exact active-file handoff
+- Acceptance lineage: the initial Rev149 claim was blocked, then the explicit
+  R2 transfer `ABC-UIR03B-R2-REV158` was released accepted. Later accepted
+  `UIR-04C` and `UIR-05B` claims legitimately advanced `app.py` and
+  `src/app_initializer.py`; the old claim-origin blocker is historical only.
+- Allowed paths:
   - `src/app_initializer.py`
   - `app.py`
-  - `tests/test_unified_source_index_runtime_wiring.py`
-  - `tests/test_app_router_initialization_order.py`
+  - focused existing App initialization tests selected by the frozen claim
 - Work:
-  - build one runtime object from accepted store/query/adapter dependencies;
-  - place it on application state and inject it into consumers/routes;
-  - opening the app in disabled mode creates no scan, job or engine process;
-  - startup failure is controlled and leaves the prior native runtime available;
-  - import order and optional dependencies remain safe.
-- Tests:
-  - `python -m pytest -q tests/test_unified_source_index_runtime_wiring.py tests/test_app_router_initialization_order.py`
-- Done when: disabled and read-only startup are deterministic, dependency
-  failures do not break application import and exactly one runtime exists.
-- Native acceptance: the composition root binds the canonical
-  `query_knowledge` planner explicitly; disabled/native startup does not require
-  importing or initializing the Obsidian plugin; plugin discovery cannot become
-  a required Knowledge/Memory dependency.
+  - construct exactly one accepted `KnowledgeRuntime` through the initializer;
+  - place the same instance on `app.state`, bind the canonical
+    `query_knowledge` planner seam and close/unbind it once at shutdown;
+  - preserve existing App behavior and leave complete Obsidian retirement to
+    `UIR-12`.
+- Done when: disabled and read-only startup wiring is deterministic, import
+  failure is controlled and exactly one runtime instance is app-owned.
 
 ### UIR-04 - Bounded Index Job Worker Lifecycle
 
 - Class: `repo_only`
 - Owner: Bob
-- Dependencies: `UIR-03`, USI-04
+- Dependencies: accepted `UIR-03A` and `UIR-03B`, USI-04
 - Allowed paths:
   - `src/unified_source_index_job_runner.py`
   - `tests/test_unified_source_index_job_runner.py`
@@ -399,7 +440,7 @@ shared parent gate.
 
 - Class: `repo_only`
 - Owner: Bob with route-owner handoff
-- Dependencies: `UIR-03`, USI-12/GRO metric contract where available
+- Dependencies: accepted `UIR-03A` and `UIR-03B`, USI-12/GRO metric contract where available
 - Allowed paths:
   - `src/unified_source_index_runtime_status.py`
   - `routes/unified_source_index_routes.py`
@@ -498,6 +539,9 @@ shared parent gate.
   - bind Agent retrieval to the same runtime facade and budgets;
   - replace global RAG indexing/query assumptions with injected capabilities;
   - code discovery can request structural mode but exact reads remain separate;
+  - reserve the direct/exact two-call code path, public-call accounting and
+    coverage certification for `UIR-09A`; this slice must not introduce a
+    direct Forge/CBM/provider tool or source read;
   - Context Transparency receives include/exclude/clip/stale/source refs;
   - no autonomous Memory write or code mutation is added.
 - Tests:
@@ -523,6 +567,83 @@ shared parent gate.
 - Tests: `python -m pytest -q tests/test_knowledge_query_tool_provider.py`
 - Done when: tool dispatch is provider-neutral and changing an internal engine
   cannot change public tool identity or security class.
+
+### UIR-09A - Forge-Bound Two-Call Code Retrieval Certification
+
+- Class: `repo_only`
+- Owner: Bob with Forge/USI contract-owner handoff and Charlie test review
+- Dependencies: `UIR-09`, `UIR-10`, `FCA-00`, `FCA-01`, `FCA-02`, `FCA-05`,
+  `FCA-06` and `FCA-06A`; TAX descriptor/security readiness; accepted
+  `code-intelligence-evaluation-protocol.md` two-call certification contract.
+  `FCA-06A` is the final precondition: it bridges the accepted locator to the
+  existing public `read_file` identity in Forge-locator mode. It is upstream
+  capability work and must not depend on `UIR-09A`, avoiding a dependency
+  cycle; this slice must not guess or recreate the bridge.
+- Queue position: intentionally after `UIR-10` despite the suffix. The public
+  `query_knowledge` identity and its default-off binding must exist before the
+  two-call assertion can be meaningful.
+- Allowed paths:
+  - `src/knowledge_query_tool_provider.py` only after the released `UIR-10`
+    hotfile claim;
+  - `src/knowledge_query_runtime.py` only after a released `UIR-06` contract
+    handoff;
+  - `src/agent_tools/knowledge_tools.py` only after its current canonical
+    `query_knowledge` tool-owner handoff;
+  - `tests/test_knowledge_query_two_call_code_retrieval.py`;
+  - `tests/test_knowledge_query_tool_provider.py` only within a serialized
+    `UIR-10` follow-up claim;
+  - `tests/test_query_knowledge_tool.py` only with the paired
+    `knowledge_tools.py` owner claim when serializer/request coverage is
+    required;
+  - `src/code_retrieval_certification.py` only after a separate exact-path
+    claim;
+  - `tests/test_code_retrieval_certification.py` only with its paired source
+    claim.
+- Forbidden:
+  - Forge adapter, repository snapshot, coverage-manifest or `read_file`
+    Forge-locator bridge
+    implementation paths owned by FCA;
+  - direct CBM/embedding/graph/MCP public dispatches, filesystem reads, source
+    scans, productive indexing, prompt cutover, source text logging or any
+    default-on code provider.
+- Work:
+  - expose a direct/exact code request mode through the one canonical
+    `query_knowledge` dispatch; it may return one revision-bound Forge locator
+    plus coverage/generation/retrieval-mode evidence, never source text;
+  - require a caller's optional second public dispatch to be the existing
+    canonical `read_file` identity in Forge-locator mode, using precisely that
+    returned locator and revision; record one `query_knowledge` plus one
+    `read_file` as the maximum public-tool budget, with no new public tool;
+    internal USI/lexical/CBM/embedding spans are separately observable but do
+    not count as public tools;
+  - permit positive certification only for FCA-declared `complete` coverage.
+    Propagate `partial`, `stale`, `failed`, `not_indexed` and `out_of_scope`
+    without substituting HEAD, a legacy reader, a semantic hit or a current
+    projection generation;
+  - reject a forged/substituted locator, path, range, manifest digest or Forge
+    revision before a read; stop after call 1 for every honest non-success
+    state; and make retries/extra dispatches visible and certification-failing;
+  - bind synthetic positive and negative cases to the protocol-derived
+    coverage corpus. Prove locator range coverage, Forge revision equality and
+    content-free exact-read digest equality without persisting source/query
+    text;
+  - keep the runtime, the direct/exact mode and all code projections disabled
+    by default. This provides fixture evidence only and does not authorize a
+    productive index, provider, tool cutover or `USI-LIVE-ACTIVATION`.
+- Tests:
+  - `python -m pytest -q tests/test_knowledge_query_two_call_code_retrieval.py tests/test_knowledge_query_tool_provider.py tests/test_query_knowledge_tool.py`
+  - fixture-only certification verifier over a complete synthetic manifest,
+    a partial/stale manifest and the protocol's negative corpus; no Forge
+    repository, source file, model, engine, provider process or network call.
+- Done when: every eligible fixture line derived from a coverage-complete
+  manifest reaches a Forge locator in call 1 and exactly reads from the same
+  Forge revision through the existing `read_file` identity in Forge-locator
+  mode in call 2; every positive receipt has exactly two public tool dispatches
+  and introduces no public tool identity, and every negative/partial/stale case
+  fails honestly with no unauthorized reader call. Semantic/structural ranking
+  may remain available but cannot issue a line certificate.
+- Acceptance:
+  `offline_go_full_manifest_line_denominator_zero_false_certificates_one_query_knowledge_plus_one_existing_read_file_forge_locator_mode_max_no_new_or_hidden_public_tools_revision_locator_digest_bound_honest_partial_stale_and_negative_outcomes_default_off`
 
 ### UIR-11 - Generation Pinning, Circuit Breaker And Rollback
 
@@ -589,7 +710,7 @@ shared parent gate.
 
 - Class: `repo_only`
 - Owner: Charlie
-- Dependencies: `UIR-03` through `UIR-12`, `UIR-12A`, native observability contract
+- Dependencies: `UIR-03A`, `UIR-03B`, `UIR-04` through `UIR-12`, `UIR-12A`, native observability contract
 - Allowed paths:
   - `tests/test_unified_source_index_runtime_concurrency.py`
   - `tests/test_unified_source_index_runtime_failure_matrix.py`
@@ -611,7 +732,7 @@ shared parent gate.
 
 - Class: `repo_only`
 - Owner: Charlie
-- Dependencies: `UIR-00` through `UIR-13`, including `UIR-12A`; ULO closure and at least one green
+- Dependencies: `UIR-00`, `UIR-01`, `UIR-02`, `UIR-03A`, `UIR-03B`, `UIR-04` through `UIR-13`, including `UIR-12A`; ULO closure and at least one green
   UDA source wave for any proposed activation scope
 - Allowed paths:
   - `docs/plans/unified-source-index-runtime-closure-packet.md`
@@ -648,6 +769,13 @@ shared parent gate.
 - shadow results never enter prompts or tool outputs;
 - one Chat/Agent request has one authoritative knowledge context pack;
 - every USI result has source/version/locator/generation evidence;
+- a certified code line is reachable only through one `query_knowledge` call
+  followed by the existing `read_file` identity in Forge-locator mode against
+  the same immutable revision; no semantic/structural projection is treated as
+  source authority and no new public tool is added;
+- complete/partial/stale/failed/not-indexed/out-of-scope code coverage remains
+  visible to the caller and a partial result never claims exhaustive line
+  retrieval;
 - legacy fallback is explicit, bounded and owner/policy equivalent;
 - Obsidian is absent from the selected runtime, fallback and activation scope;
 - optional provider failure never hides an exact/lexical result;
@@ -672,6 +800,10 @@ environment, source wave and generation named in that phrase.
 - health/status/routes are bounded, authorized and content-free.
 - Personal Docs, Chat and Agent consumers use one feature-flagged runtime facade.
 - `query_knowledge` binds to that same facade after TAX handoff.
+- direct/exact code retrieval, when enabled by a later scope-specific decision,
+  preserves the certified maximum of one `query_knowledge` dispatch plus one
+  existing `read_file` dispatch in Forge-locator mode and remains
+  revision/coverage bound.
 - shadow/canary/fallback/rollback behavior is test-proven.
 - direct legacy consumers have explicit keep/retire decisions.
 - all Obsidian-backed callers are retired/excluded and no new dependency points

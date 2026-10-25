@@ -1,4 +1,47 @@
 {
+  "source_reconciliation": {
+    "record_kind": "odysseus.source_reconciliation",
+    "source_path": "docs/plans/temporal-light-agent-execution-roadmap.json",
+    "baseline_blob": "d342bc042aad8f699ab4d6b125a95910052fe34c",
+    "current_unit_ids": [
+      "TLR-00-pinned-runtime-contract",
+      "TLR-01-temporal-light-local-runtime",
+      "TLR-02-abc-manifest-and-run-start",
+      "TLR-03-deterministic-workflow",
+      "TLR-04-activities-claims-heartbeats",
+      "TLR-05-signals-updates-idempotency",
+      "TLR-06-history-agent-projection-api",
+      "TLR-07-agent-screen-runtime-ui",
+      "TLR-08-replay-restart-recovery",
+      "TLR-09-24h-time-skipping-acceptance",
+      "TLR-10-12h-wall-clock-soak",
+      "TLR-11-production-activation"
+    ],
+    "accepted_unit_ids": [
+      "TLR-00-pinned-runtime-contract",
+      "TLR-01-temporal-light-local-runtime",
+      "TLR-02-abc-manifest-and-run-start",
+      "TLR-03-deterministic-workflow",
+      "TLR-04-activities-claims-heartbeats",
+      "TLR-05-signals-updates-idempotency",
+      "TLR-06-history-agent-projection-api",
+      "TLR-07-agent-screen-runtime-ui",
+      "TLR-08-replay-restart-recovery",
+      "TLR-09-24h-time-skipping-acceptance"
+    ],
+    "current_unaccepted_ids": [
+      "TLR-10-12h-wall-clock-soak",
+      "TLR-11-production-activation"
+    ],
+    "historical_or_excluded_ids": [
+      "TLR-08D-worker-shutdown-diagnostic",
+      "TLR-LOCAL-SERVICE-GO",
+      "TEMPORAL-LIGHT-RUNTIME-CONTRACT-READY",
+      "TLR-08-WORKER-RECOVERY-TEST-HARNESS",
+      "TLR-08-STICKY-RECOVERY-CONFIG",
+      "TLR-08-STICKY-CACHE-STRATEGY"
+    ]
+  },
   "schema_version": 1,
   "kind": "odysseus.temporal_light_agent_execution_roadmap",
   "roadmap_id": "temporal-light-agent-execution",

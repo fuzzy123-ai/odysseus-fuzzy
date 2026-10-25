@@ -17,7 +17,7 @@ import re
 from typing import Any, ClassVar, Iterable, Mapping
 
 from src.project_version_store import ProjectVersionStoreError, validate_commit_sha, validate_repo_id
-from src.unified_source_index_contract import EvidenceRef, RecordKind, canonical_json
+from src.unified_source_index_contract import CodeRangeLocator, EvidenceRef, RecordKind, SourceVersionRecord, canonical_json
 
 
 CODE_LINEAGE_CONTRACT_SCHEMA = "odysseus.code_lineage.contract.v1"
@@ -28,7 +28,8 @@ MAX_UNCERTAINTIES = 100_000
 MAX_LINKS = 100_000
 MAX_REFS_PER_RECORD = 256
 
-_CLT_ID_RE = re.compile(r"^clt_(commit|occurrence|file_event|uncertainty|link|bundle)_[0-9a-f]{64}$")
+_CLT_ID_RE = re.compile(r"^clt_(commit|occurrence|file_event|uncertainty|link|bundle|git_blob|source_binding)_[0-9a-f]{64}$")
+_BLOB_RE = re.compile(r"^[0-9a-f]{40}$")
 _TOKEN_RE = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
 _PATH_RE = re.compile(r"^(?!/|~|[A-Za-z]:)(?!.*(?:^|/)\.{1,2}(?:/|$))(?!.*//)[^\x00-\x1f\x7f\\]{1,1024}$")
 
@@ -229,6 +230,14 @@ def _stable_id(kind: str, key: Mapping[str, Any]) -> str:
     return f"clt_{kind}_{digest}"
 
 
+def _canonical_record_digest(record: Any) -> str:
+    """Hash the complete canonical payload of a nested immutable record."""
+
+    if not hasattr(record, "to_dict"):
+        raise CodeLineageContractError("nested record must provide a canonical payload")
+    return hashlib.sha256(canonical_json(record.to_dict()).encode("utf-8")).hexdigest()
+
+
 def _set_id(instance: Any, field_name: str, expected: str) -> None:
     supplied = getattr(instance, field_name)
     if supplied and supplied != expected:
@@ -406,6 +415,115 @@ class CodeOccurrenceRef(_CanonicalRecord):
 
 
 @dataclass(frozen=True, slots=True)
+class GitBlobEvidenceRef(_CanonicalRecord):
+    """Canonical Git object identity for one after-image occurrence.
+
+    This record deliberately receives its commit, path and blob only from the
+    bounded Git history adapter.  It makes the Git fact citable independently
+    of the USI record that describes the source occurrence.
+    """
+
+    repo_id: str
+    commit_ref: str
+    commit_id: str
+    relative_path: str
+    blob_id: str
+    git_blob_ref: str = ""
+    SCHEMA: ClassVar[str] = f"{CODE_LINEAGE_CONTRACT_SCHEMA}.git_blob_evidence"
+
+    def __post_init__(self) -> None:
+        repo = _repo_id(self.repo_id)
+        commit = _commit_sha(self.commit_id)
+        commit_ref = _record_ref(self.commit_ref, "commit", "commit_ref")
+        path = _path(self.relative_path)
+        if not isinstance(self.blob_id, str) or not _BLOB_RE.fullmatch(self.blob_id):
+            raise CodeLineageContractError("blob_id must be a lowercase Git blob SHA")
+        object.__setattr__(self, "repo_id", repo)
+        object.__setattr__(self, "commit_id", commit)
+        object.__setattr__(self, "commit_ref", commit_ref)
+        object.__setattr__(self, "relative_path", path)
+        _set_id(self, "git_blob_ref", _stable_id("git_blob", {"repo_id": repo, "commit_ref": commit_ref, "commit_id": commit, "relative_path": path, "blob_id": self.blob_id}))
+
+    @classmethod
+    def from_dict(cls, value: Mapping[str, Any]) -> "GitBlobEvidenceRef":
+        names = {item.name for item in fields(cls)}
+        data = _payload(value, schema=cls.SCHEMA, allowed=names, required=names - {"git_blob_ref"})
+        return cls(**data)
+
+
+@dataclass(frozen=True, slots=True)
+class SourceVersionEvidenceBinding(_CanonicalRecord):
+    """One-to-one binding between a Git after-image and exact USI evidence."""
+
+    repo_id: str
+    commit_ref: str
+    commit_id: str
+    relative_path: str
+    blob_id: str
+    git_blob_ref: str
+    occurrence_ref: str
+    source_id: str
+    source_version_id: str
+    source_version: SourceVersionRecord
+    evidence: EvidenceRef
+    binding_ref: str = ""
+    SCHEMA: ClassVar[str] = f"{CODE_LINEAGE_CONTRACT_SCHEMA}.source_version_binding"
+
+    def __post_init__(self) -> None:
+        repo = _repo_id(self.repo_id)
+        commit = _commit_sha(self.commit_id)
+        commit_ref = _record_ref(self.commit_ref, "commit", "commit_ref")
+        path = _path(self.relative_path)
+        if not isinstance(self.blob_id, str) or not _BLOB_RE.fullmatch(self.blob_id):
+            raise CodeLineageContractError("blob_id must be a lowercase Git blob SHA")
+        git_blob_ref = _record_ref(self.git_blob_ref, "git_blob", "git_blob_ref")
+        occurrence_ref = _record_ref(self.occurrence_ref, "occurrence", "occurrence_ref")
+        if not isinstance(self.source_version, SourceVersionRecord):
+            raise CodeLineageContractError("binding source_version must be a SourceVersionRecord")
+        if (self.source_id, self.source_version_id) != (self.source_version.source_id, self.source_version.source_version_id):
+            raise CodeLineageContractError("binding source identity must match source version")
+        if self.source_version.revision_ref != f"git:{commit}":
+            raise CodeLineageContractError("binding source version revision must exactly match Git commit")
+        if not isinstance(self.evidence, EvidenceRef):
+            raise CodeLineageContractError("binding evidence must be a USI EvidenceRef")
+        if self.evidence.record_kind not in {RecordKind.CHUNK, RecordKind.ENTITY} or not isinstance(self.evidence.locator, CodeRangeLocator):
+            raise CodeLineageContractError("binding evidence must be chunk/entity CodeRange evidence")
+        if self.evidence.locator.path != path:
+            raise CodeLineageContractError("binding evidence locator path must match Git path")
+        if self.evidence.source_id != self.source_id or self.evidence.source_version_id != self.source_version_id:
+            raise CodeLineageContractError("binding source identity must match evidence")
+        object.__setattr__(self, "repo_id", repo)
+        object.__setattr__(self, "commit_id", commit)
+        object.__setattr__(self, "commit_ref", commit_ref)
+        object.__setattr__(self, "relative_path", path)
+        object.__setattr__(self, "git_blob_ref", git_blob_ref)
+        object.__setattr__(self, "occurrence_ref", occurrence_ref)
+        _set_id(
+            self,
+            "binding_ref",
+            _stable_id(
+                "source_binding",
+                {
+                    "git_blob_ref": git_blob_ref,
+                    "occurrence_ref": occurrence_ref,
+                    "source_id": self.source_id,
+                    "source_version_id": self.source_version_id,
+                    "source_version_payload_sha256": _canonical_record_digest(self.source_version),
+                    "evidence_payload_sha256": _canonical_record_digest(self.evidence),
+                },
+            ),
+        )
+
+    @classmethod
+    def from_dict(cls, value: Mapping[str, Any]) -> "SourceVersionEvidenceBinding":
+        names = {item.name for item in fields(cls)}
+        data = _payload(value, schema=cls.SCHEMA, allowed=names, required=names - {"binding_ref"})
+        data["source_version"] = SourceVersionRecord.from_dict(data["source_version"])
+        data["evidence"] = EvidenceRef.from_dict(data["evidence"])
+        return cls(**data)
+
+
+@dataclass(frozen=True, slots=True)
 class FileEvent(_CanonicalRecord):
     event_kind: FileEventKind
     commit_ref: str
@@ -536,6 +654,8 @@ class LineageBundle(_CanonicalRecord):
     file_events: tuple[FileEvent, ...]
     uncertainties: tuple[UncertaintyRecord, ...]
     links: tuple[LineageLink, ...]
+    git_blob_evidence: tuple[GitBlobEvidenceRef, ...] = ()
+    source_version_bindings: tuple[SourceVersionEvidenceBinding, ...] = ()
     bundle_ref: str = ""
     SCHEMA: ClassVar[str] = f"{CODE_LINEAGE_CONTRACT_SCHEMA}.bundle"
 
@@ -546,8 +666,11 @@ class LineageBundle(_CanonicalRecord):
         events = _sorted_records(self.file_events, "event_ref", FileEvent, MAX_FILE_EVENTS)
         uncertainties = _sorted_records(self.uncertainties, "uncertainty_ref", UncertaintyRecord, MAX_UNCERTAINTIES)
         links = _sorted_records(self.links, "link_ref", LineageLink, MAX_LINKS)
+        blobs = _sorted_records(self.git_blob_evidence, "git_blob_ref", GitBlobEvidenceRef, MAX_OCCURRENCES)
+        bindings = _sorted_records(self.source_version_bindings, "binding_ref", SourceVersionEvidenceBinding, MAX_OCCURRENCES)
         commit_map = {item.commit_ref: item for item in commits}
         occurrence_map = {item.occurrence_ref: item for item in occurrences}
+        blob_map = {item.git_blob_ref: item for item in blobs}
         event_refs = {item.event_ref for item in events}
         uncertainty_map = {item.uncertainty_ref: item for item in uncertainties}
         for commit in commits:
@@ -556,6 +679,33 @@ class LineageBundle(_CanonicalRecord):
             _same_repo(occurrence.repo_id, repo, "occurrence")
             if occurrence.commit_ref not in commit_map:
                 raise CodeLineageContractError("occurrence references unknown commit")
+        if blobs or bindings:
+            if len(blobs) != len(occurrences) or len(bindings) != len(occurrences):
+                raise CodeLineageContractError("Git blob evidence and source bindings must cover every occurrence exactly once")
+            bound_occurrences = set()
+            bound_blobs = set()
+            for blob in blobs:
+                _same_repo(blob.repo_id, repo, "Git blob evidence")
+                commit = commit_map.get(blob.commit_ref)
+                if commit is None or commit.commit_id != blob.commit_id:
+                    raise CodeLineageContractError("Git blob evidence must match an exact bundle commit")
+            for binding in bindings:
+                _same_repo(binding.repo_id, repo, "source binding")
+                blob = blob_map.get(binding.git_blob_ref)
+                occurrence = occurrence_map.get(binding.occurrence_ref)
+                commit = commit_map.get(binding.commit_ref)
+                if blob is None or occurrence is None or commit is None:
+                    raise CodeLineageContractError("source binding references unknown bundle evidence")
+                if commit.commit_id != binding.commit_id:
+                    raise CodeLineageContractError("source binding must match an exact bundle commit")
+                if (blob.repo_id, blob.commit_ref, blob.commit_id, blob.relative_path, blob.blob_id) != (binding.repo_id, binding.commit_ref, binding.commit_id, binding.relative_path, binding.blob_id):
+                    raise CodeLineageContractError("source binding must exactly match its Git blob evidence")
+                if (occurrence.repo_id, occurrence.commit_ref, occurrence.relative_path, occurrence.evidence) != (binding.repo_id, binding.commit_ref, binding.relative_path, binding.evidence):
+                    raise CodeLineageContractError("source binding must exactly match its occurrence")
+                bound_occurrences.add(binding.occurrence_ref)
+                bound_blobs.add(binding.git_blob_ref)
+            if bound_occurrences != set(occurrence_map) or bound_blobs != set(blob_map):
+                raise CodeLineageContractError("Git blob evidence and source bindings must be bijective")
         for event in events:
             if event.commit_ref not in commit_map:
                 raise CodeLineageContractError("file event references unknown commit")
@@ -592,18 +742,22 @@ class LineageBundle(_CanonicalRecord):
         object.__setattr__(self, "file_events", events)
         object.__setattr__(self, "uncertainties", uncertainties)
         object.__setattr__(self, "links", links)
-        _set_id(self, "bundle_ref", _stable_id("bundle", {"repo_id": repo, "links": tuple(item.link_ref for item in links), "events": tuple(item.event_ref for item in events)}))
+        object.__setattr__(self, "git_blob_evidence", blobs)
+        object.__setattr__(self, "source_version_bindings", bindings)
+        _set_id(self, "bundle_ref", _stable_id("bundle", {"repo_id": repo, "links": tuple(item.link_ref for item in links), "events": tuple(item.event_ref for item in events), "git_blobs": tuple(item.git_blob_ref for item in blobs), "source_bindings": tuple(item.binding_ref for item in bindings)}))
 
     @classmethod
     def from_dict(cls, value: Mapping[str, Any]) -> "LineageBundle":
         names = {item.name for item in fields(cls)}
-        required = names - {"bundle_ref"}
+        required = names - {"bundle_ref", "git_blob_evidence", "source_version_bindings"}
         data = _payload(value, schema=cls.SCHEMA, allowed=names, required=required)
         data["commits"] = tuple(CommitEvidenceRef.from_dict(item) for item in data["commits"])
         data["occurrences"] = tuple(CodeOccurrenceRef.from_dict(item) for item in data["occurrences"])
         data["file_events"] = tuple(FileEvent.from_dict(item) for item in data["file_events"])
         data["uncertainties"] = tuple(UncertaintyRecord.from_dict(item) for item in data["uncertainties"])
         data["links"] = tuple(LineageLink.from_dict(item) for item in data["links"])
+        data["git_blob_evidence"] = tuple(GitBlobEvidenceRef.from_dict(item) for item in data.get("git_blob_evidence", ()))
+        data["source_version_bindings"] = tuple(SourceVersionEvidenceBinding.from_dict(item) for item in data.get("source_version_bindings", ()))
         return cls(**data)
 
 
@@ -629,6 +783,8 @@ _RECORD_BY_SCHEMA = {
     for cls in (
         CommitEvidenceRef,
         CodeOccurrenceRef,
+        GitBlobEvidenceRef,
+        SourceVersionEvidenceBinding,
         FileEvent,
         UncertaintyRecord,
         LineageLink,

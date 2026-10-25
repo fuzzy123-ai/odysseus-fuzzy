@@ -8,6 +8,7 @@ from src.memory_runtime_metrics import (
 )
 from src.observability_metrics import render_process_runtime_metrics
 from src.unified_source_index_diagnostics import (
+    USI_FORGE_ERROR_CODES,
     UnifiedSourceIndexDiagnostics,
     get_unified_source_index_diagnostics,
 )
@@ -202,3 +203,25 @@ def test_singleton_binds_the_existing_process_registry():
         get_unified_source_index_diagnostics()._registry
         is get_memory_runtime_metrics_registry()
     )
+
+
+def test_forge_storage_error_records_only_bounded_error_outcome():
+    registry = MemoryRuntimeMetricsRegistry.for_tests()
+    diagnostics = UnifiedSourceIndexDiagnostics(registry)
+
+    accepted = diagnostics.record_forge_storage_error("selected_scope_mismatch")
+    rejected = diagnostics.record_forge_storage_error("private-repo-secret")
+    payload = json.dumps(diagnostics.snapshot().to_dict(), sort_keys=True)
+
+    assert accepted.accepted is True
+    assert rejected.reason == "error_code_rejected"
+    assert "selected_scope_mismatch" not in payload
+    assert "private-repo-secret" not in payload
+    assert "repo_id" not in payload
+    assert len(USI_FORGE_ERROR_CODES) == 14
+    assert _sample(
+        diagnostics.snapshot().to_dict(),
+        "odysseus_usi_operations_total",
+        operation="index",
+        outcome="error",
+    )["value"] == 1

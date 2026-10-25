@@ -3,12 +3,14 @@ from types import SimpleNamespace
 import pytest
 
 from src.agent_sandbox_worker_api import SandboxWorkerStatus
+from src.coding_agent_backend import CodingTaskPlan, build_coding_worktree_transaction_receipt
 from src.coding_agent_runner_state import (
     CodingRunnerState,
     CodingRunnerStateError,
     CodingRunnerStateStore,
     transition_from_clarification_run,
     record_advisory_memory_checkpoint,
+    record_transactional_worktree_receipt,
     transition_from_sandbox_dispatch,
     transition_from_task_control_event,
 )
@@ -102,6 +104,45 @@ def test_runner_state_blocks_invalid_transition():
 
     with pytest.raises(CodingRunnerStateError, match="invalid runner transition"):
         state.transition(phase="planned")
+
+
+def test_runner_state_persists_planning_bound_transaction_receipt_as_evidence(tmp_path):
+    store = CodingRunnerStateStore(tmp_path / "runner-state")
+    state = store.write(
+        CodingRunnerState.create(
+            task_id="task-transaction",
+            repo_id="demo",
+            phase="scoped",
+            planning_binding=_planning_binding(),
+        )
+    )
+    plan = CodingTaskPlan(
+        repo_id="demo",
+        task_id="task-transaction",
+        objective="Record a safe transaction receipt",
+        base_ref="main",
+        source_ref="repos/demo",
+        worktree_ref="coding-worktrees/demo/task-transaction",
+        allowed_paths=("src", "tests"),
+        blocked_paths=(".git",),
+        checks=(),
+        operator_decision="go",
+        live_enabled=True,
+        decision="plan_ready",
+        blockers=(),
+        next_human_decision="Review transaction evidence.",
+    )
+    receipt = build_coding_worktree_transaction_receipt(
+        plan=plan, base_revision="a" * 40, source_status="", implementer_id="bob"
+    )
+
+    recorded = record_transactional_worktree_receipt(
+        store=store, task_id=state.task_id, receipt=receipt.to_dict()
+    )
+
+    assert recorded.phase == "scoped"
+    assert recorded.worktree_transaction_receipt_ids == (receipt.receipt_id,)
+    assert recorded.to_dict()["raw_content_visible"] is False
 
 
 def test_runner_state_rejects_secrets_and_host_paths():

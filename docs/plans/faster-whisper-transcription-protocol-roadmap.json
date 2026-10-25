@@ -3,8 +3,8 @@
   "kind": "odysseus.faster_whisper_transcription_protocol_roadmap",
   "id": "TRP",
   "title": "Local Faster-Whisper Transcription And Evidence-Backed Protocols",
-  "updated_at": "2026-08-02T18:54:06+02:00",
-  "status": "trp01_through_trp06_accepted_trp07_dependency_ready_unclaimed_round5_handoff_trp08_live_gated",
+  "updated_at": "2026-08-02T23:53:00+02:00",
+  "status": "trp01_through_trp06_accepted_trp07r3_architecture_draft_paused_before_sol_review_nonclaimable_trp08_live_gated",
   "goal": "Deliver a backend-first, local-only transcription pipeline that cannot acknowledge an audio upload before durable primary storage, preserves immutable source evidence, uses faster-whisper for timestamped ASR, constrains Gemma to review and protocol synthesis, and reaches one bounded consent-safe Debian live test with backup and rollback evidence.",
   "scope": {
     "included": [
@@ -353,44 +353,57 @@
       "id": "TRP-07-offline-integration-backup-and-live-packet",
       "class": "repo_only",
       "owner": "Charlie/Terra; root/Sol deep review",
-      "status": "dependency_ready_unclaimed_round5_handoff",
+      "status": "recovery_generation3_architecture_draft_paused_before_sol_review_nonclaimable_implementation_not_started",
       "claimable": false,
-      "claim_blocker": "Deliberately unclaimed for the post-Round-5 normalization task; no new claim may start in this round.",
+      "claim_blocker": "This turn authorizes roadmap authoring only. A future explicit implementation goal must re-run current dependency, collision and rejected-draft audits, then register only TRP-07R3-01 as a fresh exact claim. The prior rejected claims may not be resumed.",
+      "latest_recovery_claim": {
+        "claim_id": "ABC-R6C-R-TRP07-20260802T221518+0200",
+        "owner": "/root/trp07_recovery_impl",
+        "claimed_at": "2026-08-02T22:15:18+02:00",
+        "released_at": "2026-08-02T23:03:34+02:00",
+        "state": "released_rejected_after_final_qa_and_sol_review",
+        "architecture_review": "fresh read-only Terra handoff and explicit Sol deep-review PASS",
+        "supersedes_rejected_claim": "ABC-R6C-TRP07-20260802T211217+0200"
+      },
       "depends_on": [
         "TRP-06-owner-scoped-backend-api"
       ],
       "allowed_paths": [
+        "app.py",
+        "docker-compose.yml",
+        "src/transcription_backup_receipts.py",
+        "src/transcription_runtime.py",
+        "src/transcription_store.py",
         "services/transcription/faster_whisper_adapter.py",
         "services/transcription/faster_whisper_model_manifest.json",
-        "src/transcription_backup_receipts.py",
-        "src/transcription_store.py",
-        "src/transcription_runtime.py",
         "scripts/preload_faster_whisper_model.py",
         "scripts/transcription_backup_control.py",
         "scripts/transcription_live_smoke.py",
-        "ops/homeserver/transcription-live-test-readback.py",
-        "ops/homeserver/run-transcription-live-canary.sh",
-        "ops/homeserver/restore-transcription-audio-proof.sh",
-        "ops/homeserver/backup-homeserver.sh",
-        "ops/homeserver/run-backup-gate-evidence.sh",
-        "ops/homeserver/restore-backup-smoke.sh",
         "ops/homeserver/transcription-live-activation/activation-plan.json",
         "ops/homeserver/transcription-live-activation/preflight.py",
         "ops/homeserver/transcription-live-activation/validate_packet.py",
         "ops/homeserver/transcription-live-activation/templates/live-evidence.template.json",
-        "docker-compose.yml",
+        "ops/homeserver/transcription-live-activation/execute_packet.py",
+        "ops/homeserver/transcription-live-activation/host_receipt.py",
+        "ops/homeserver/transcription-live-activation/packet_contract.py",
+        "ops/homeserver/run-transcription-live-canary.sh",
+        "ops/homeserver/restore-transcription-audio-proof.sh",
+        "ops/homeserver/transcription-live-test-readback.py",
+        "ops/homeserver/backup-homeserver.sh",
+        "ops/homeserver/run-backup-gate-evidence.sh",
+        "ops/homeserver/restore-backup-smoke.sh",
         "docs/backup-restore.md",
+        "tests/test_app_transcription_wiring.py",
+        "tests/test_transcription_backup_receipts.py",
+        "tests/test_transcription_runtime.py",
+        "tests/test_transcription_store.py",
         "tests/test_transcription_integration.py",
         "tests/test_faster_whisper_transcription_adapter.py",
         "tests/test_faster_whisper_model_preloader.py",
-        "tests/test_transcription_backup_receipts.py",
         "tests/test_transcription_backup_control.py",
-        "tests/test_transcription_store.py",
-        "tests/test_transcription_runtime.py",
         "tests/test_transcription_live_smoke_contract.py",
         "tests/test_homeserver_backup_contract.py",
-        "docs/plans/faster-whisper-transcription-protocol-roadmap.json",
-        "docs/plans/open-work-completion-master-roadmap.json"
+        "tests/test_transcription_recovery_packet.py"
       ],
       "acceptance": [
         "synthetic restart and recovery integration",
@@ -404,7 +417,270 @@
         "preloader resolves the exact model revision, bounds-checks cache targets, materializes exactly the four runtime files into an atomic dedicated directory and emits the strict receipt expected by runtime",
         "exact live-go and rollback packet"
       ],
-      "done_when": "Offline integration is green and one exact commit-bound Debian deploy, model preparation, backup and live-test packet is ready for operator GO."
+      "recovery_architecture": "The corrected 35-path recovery owns productive default-off app startup, a read-only signed host-receipt inbox with configured Ed25519 trust anchor and exact replay persistence, strict bounded manifest/preloader behavior, and a default-refusing packet bound to exact commit, manifest, trust anchor, model receipt, snapshot and synthetic-audio readback. Its implementation is retained as rejected evidence after final QA and Sol review found remaining signed-store and same-object IO gaps.",
+      "next_recovery_architecture": {
+        "id": "TRP-07R3",
+        "authored_at": "2026-08-02T23:33:08+02:00",
+        "run_id": "ABC-TRP07-R3-ARCH-20260802T233308+0200",
+        "state": "architecture_draft_paused_before_sol_review_nonclaimable_implementation_not_started",
+        "paused_at": "2026-08-02T23:43:00+02:00",
+        "resume_condition": "User resumes TRP-07R3 roadmap authoring; first re-run collision and structured-state checks, then restart only the interrupted explicit Sol deep review. Do not start implementation.",
+        "supersedes_strategy_only": [
+          "ABC-R6C-TRP07-20260802T211217+0200",
+          "ABC-R6C-R-TRP07-20260802T221518+0200"
+        ],
+        "preserves_prior_rejections_as_evidence": true,
+        "target_environment": "local synthetic fixtures plus required Linux/POSIX CI; later Debian rootless-Podman only behind exact live gates",
+        "mutation_authority": "future repo-only implementation slices; this authoring claim changes roadmap files only",
+        "preclaim_baseline_gate": "Before TRP-07R3-01, Root records the current rejected-draft path set and dirty-diff digest, verifies that no foreign writer owns any selected path, and declares per slice which rejected hunks are retained as input. No reset, cleanup, silent absorption or inference of acceptance is allowed; each retained hunk must pass the new slice invariants and tests.",
+        "frozen_invariants": [
+          "backup_protected is reachable only in the same SQLite transaction that persists a store-verified Ed25519 envelope proof bound to receipt, key, job, owner, artifact, source SHA-256, snapshot, verification time, schema and host-originated truth",
+          "the store accepts no semantic BackupReceipt authority, truth callback, boolean verification result or caller-supplied optional envelope digest",
+          "critical file semantics and SHA-256 always derive from one retained safely opened object; no parse-then-reopen or lstat-then-path-open authority exists",
+          "POSIX critical reads require anchored directory descriptors, O_DIRECTORY, O_NOFOLLOW and O_CLOEXEC with regular-file, link-count, size and before/after identity checks; unavailable primitives fail closed",
+          "copies use complete write loops, fsync, close, descriptor-relative reopen and full rehash before atomic no-replace publication plus parent-directory fsync",
+          "the productive model is mounted read-only to the application identity; the adapter retains the verified directory descriptor and passes a pinned /proc/self/fd directory to Faster-Whisper on Debian",
+          "Windows may run parser and fake-operation tests but productive preload, model activation and packet binding refuse until a separately reviewed handle-relative no-reparse backend exists",
+          "legacy backup_protected rows without mandatory proof never authorize deletion or retention success; productive activation refuses with only a bounded content-free count until a separate migration/reconciliation gate is granted",
+          "all model, trust-anchor, backup, restore, host, deploy, private-audio and live operations remain closed"
+        ],
+        "execution_dag": {
+          "first": "TRP-07R3-01-safe-file-evidence-core",
+          "parallel_after_first": [
+            "TRP-07R3-02-store-owned-signed-backup-proof",
+            "TRP-07R3-03-verified-model-materialization-and-load",
+            "TRP-07R3-04-same-object-activation-packet"
+          ],
+          "serialized_integration": "TRP-07R3-05-runtime-compose-and-backup-readiness",
+          "static_acceptance": "TRP-07R3-06-integrity-boundary-audit",
+          "final_read_only_gate": "TRP-07R3-07-independent-qa-and-sol-deep-review"
+        },
+        "slices": [
+          {
+            "id": "TRP-07R3-01-safe-file-evidence-core",
+            "class": "repo_only",
+            "status": "planned_nonclaimable",
+            "claimable": false,
+            "depends_on": ["TRP-06-owner-scoped-backend-api"],
+            "owner": "Bob/Terra high; Root/Sol deep review",
+            "allowed_paths": [
+              "src/transcription_safe_file_io.py",
+              "tests/test_transcription_safe_file_io.py"
+            ],
+            "hotfiles": [],
+            "acceptance": [
+              "one minimal dependency-free safe-root and opened-file capability supplies same-object bounded bytes, SHA-256 and stable fstat identity",
+              "POSIX traversal opens every absolute-root component and every relative leaf descriptor-first with no symlink, hardlink, non-regular, dot, separator, NUL or root escape",
+              "write_all handles arbitrary short writes and zero-write failure; staged files and receipts are reopened and rehashed before no-replace publication",
+              "missing O_NOFOLLOW, O_DIRECTORY, O_CLOEXEC, renameat2 no-replace or required fsync support refuses instead of degrading",
+              "Windows production operations return an explicit unsupported/refused result"
+            ],
+            "automatic_gates": [
+              "pytest -q tests/test_transcription_safe_file_io.py",
+              "required Linux/POSIX CI covers ancestor/leaf swaps, hardlinks, FIFOs, mutation during read, partial and zero writes, stage tamper, existing target, fsync failure and cleanup",
+              "Root/Sol deep review confirms no path-based fallback in the primitive"
+            ]
+          },
+          {
+            "id": "TRP-07R3-02-store-owned-signed-backup-proof",
+            "class": "repo_only",
+            "status": "planned_blocked_by_dependency",
+            "claimable": false,
+            "depends_on": ["TRP-07R3-01-safe-file-evidence-core"],
+            "owner": "Bob/Terra high; Root/Sol deep review",
+            "allowed_paths": [
+              "src/transcription_backup_receipts.py",
+              "src/transcription_store.py",
+              "tests/test_transcription_backup_receipts.py",
+              "tests/test_transcription_store.py"
+            ],
+            "hotfiles": ["src/transcription_store.py"],
+            "acceptance": [
+              "TranscriptionStore owns the immutable Ed25519 verifier and accepts only bounded raw signed envelope bytes for reconciliation",
+              "one atomic transaction persists the semantic receipt, mandatory proof row and backup_protected transition",
+              "proof binds receipt_id, key_id, job_id, owner_id, artifact_id, source_sha256, snapshot_ref, verified_at, schema_version and host_originated=true",
+              "exact replay is idempotent only when persisted proof and every semantic field match; reuse or conflict fails closed",
+              "generic callback, direct BackupReceipt promotion, optional digest and public semantic bypass are removed or permanently rejecting",
+              "proofless legacy rows are detected and excluded from every deletion/protection query; no productive migration is performed automatically"
+            ],
+            "automatic_gates": [
+              "pytest -q tests/test_transcription_backup_receipts.py tests/test_transcription_store.py",
+              "negative tests cover unsigned/altered/duplicate-key/wrong-key/wrong-owner/wrong-job/wrong-artifact/wrong-source/wrong-snapshot/wrong-time envelopes, arbitrary digests, replay conflicts and restart convergence",
+              "static call-site audit finds exactly one proof-writing backup_protected transition and no Callable receipt verifier"
+            ]
+          },
+          {
+            "id": "TRP-07R3-03-verified-model-materialization-and-load",
+            "class": "repo_only",
+            "status": "planned_blocked_by_dependency",
+            "claimable": false,
+            "depends_on": ["TRP-07R3-01-safe-file-evidence-core"],
+            "owner": "Bob/Terra high; Root/Sol deep review",
+            "allowed_paths": [
+              "services/transcription/faster_whisper_adapter.py",
+              "services/transcription/faster_whisper_model_manifest.json",
+              "scripts/preload_faster_whisper_model.py",
+              "tests/test_faster_whisper_transcription_adapter.py",
+              "tests/test_faster_whisper_model_preloader.py"
+            ],
+            "hotfiles": ["services/transcription/faster_whisper_adapter.py"],
+            "acceptance": [
+              "manifest, source files, staged files and receipt are verified through the safe-file core without path reopen authority",
+              "every source copy is short-write-safe and every staged output is reopened, rehashed and size-checked before atomic no-replace publish",
+              "adapter validates the published tree descriptor-first, keeps its directory descriptor alive and uses the Debian /proc/self/fd capability for model initialization",
+              "application identity receives a read-only model mount and no preload/cache write capability",
+              "unfinalized productive model metadata remains refusing and does not become self-attested"
+            ],
+            "automatic_gates": [
+              "pytest -q tests/test_faster_whisper_transcription_adapter.py tests/test_faster_whisper_model_preloader.py",
+              "required Linux/POSIX adversarial tests cover source/stage replacement, short writes, duplicate manifest keys, extra tree members, hardlinks, missing /proc capability and receipt/tree mismatch",
+              "adapter/preloader contract tests declare the required read-only deployment boundary; docker-compose proof is deferred to TRP-07R3-05"
+            ]
+          },
+          {
+            "id": "TRP-07R3-04-same-object-activation-packet",
+            "class": "repo_only",
+            "status": "planned_blocked_by_dependency",
+            "claimable": false,
+            "depends_on": ["TRP-07R3-01-safe-file-evidence-core"],
+            "owner": "Charlie/Terra high; Root/Sol deep review",
+            "allowed_paths": [
+              "ops/homeserver/transcription-live-activation/activation-plan.json",
+              "ops/homeserver/transcription-live-activation/preflight.py",
+              "ops/homeserver/transcription-live-activation/validate_packet.py",
+              "ops/homeserver/transcription-live-activation/templates/live-evidence.template.json",
+              "ops/homeserver/transcription-live-activation/execute_packet.py",
+              "ops/homeserver/transcription-live-activation/host_receipt.py",
+              "ops/homeserver/transcription-live-activation/packet_contract.py",
+              "ops/homeserver/run-transcription-live-canary.sh",
+              "ops/homeserver/restore-transcription-audio-proof.sh",
+              "scripts/transcription_live_smoke.py",
+              "tests/test_transcription_recovery_packet.py",
+              "tests/test_transcription_live_smoke_contract.py"
+            ],
+            "hotfiles": ["ops/homeserver/transcription-live-activation/execute_packet.py"],
+            "acceptance": [
+              "packet, activation plan and snapshot receipt are each opened exactly once into bounded objects whose raw digest and strict JSON semantics share the same bytes",
+              "snapshot receipt has one exact schema binding snapshot reference, verification time, tested commit, manifest digest and synthetic-audio digest to the packet",
+              "every CLI leaf is fixed beneath an explicit retained safe-root capability; arbitrary absolute path authority is rejected",
+              "no wrapper or future action reopens the validated synthetic input or other evidence pathname",
+              "the resulting artifact remains preflight-only and performs no host, model, backup, restore or live action"
+            ],
+            "automatic_gates": [
+              "pytest -q tests/test_transcription_recovery_packet.py tests/test_transcription_live_smoke_contract.py",
+              "negative tests replace plan/snapshot paths between operations, inject duplicate keys or hardlinks, mismatch commit/manifest/audio/time/ref, escape roots and assert zero downstream action",
+              "Git Bash syntax checks for both wrapper scripts"
+            ]
+          },
+          {
+            "id": "TRP-07R3-05-runtime-compose-and-backup-readiness",
+            "class": "repo_only",
+            "status": "planned_blocked_by_dependencies",
+            "claimable": false,
+            "depends_on": [
+              "TRP-07R3-02-store-owned-signed-backup-proof",
+              "TRP-07R3-03-verified-model-materialization-and-load",
+              "TRP-07R3-04-same-object-activation-packet"
+            ],
+            "owner": "Charlie/Terra high; Root/Sol deep review; serialized hotfiles",
+            "allowed_paths": [
+              "app.py",
+              "docker-compose.yml",
+              "src/transcription_runtime.py",
+              "scripts/transcription_backup_control.py",
+              "ops/homeserver/transcription-live-test-readback.py",
+              "ops/homeserver/backup-homeserver.sh",
+              "ops/homeserver/run-backup-gate-evidence.sh",
+              "ops/homeserver/restore-backup-smoke.sh",
+              "docs/backup-restore.md",
+              "tests/test_app_transcription_wiring.py",
+              "tests/test_transcription_runtime.py",
+              "tests/test_transcription_backup_control.py",
+              "tests/test_transcription_integration.py",
+              "tests/test_homeserver_backup_contract.py"
+            ],
+            "hotfiles": [
+              "app.py",
+              "docker-compose.yml",
+              "src/transcription_runtime.py",
+              "ops/homeserver/backup-homeserver.sh",
+              "ops/homeserver/restore-backup-smoke.sh"
+            ],
+            "acceptance": [
+              "app passes trust-anchor path and key id into the store and contains no semantic receipt lambda or public reconciliation route",
+              "runtime forwards raw bounded read-only inbox envelopes to the store without parse-and-downgrade",
+              "disabled mode opens neither model, trust anchor nor inbox; enabled mode without complete proof configuration fails closed",
+              "compose keeps inbox, trust anchor and model materialization separated and read-only for the productive application",
+              "legacy proofless-state preflight reports only a bounded aggregate count and blocks activation without mutating productive data",
+              "backup/restore scripts remain truthful preflight/readback helpers and perform no action without their later exact live gate"
+            ],
+            "automatic_gates": [
+              "pytest -q tests/test_app_transcription_wiring.py tests/test_transcription_runtime.py tests/test_transcription_backup_control.py tests/test_transcription_integration.py tests/test_homeserver_backup_contract.py",
+              "compose YAML parse, Python AST parse and Git Bash syntax checks",
+              "negative startup, restart, proofless-legacy, read-only mount and no-live fixtures"
+            ]
+          },
+          {
+            "id": "TRP-07R3-06-integrity-boundary-audit",
+            "class": "repo_only",
+            "status": "planned_blocked_by_dependency",
+            "claimable": false,
+            "depends_on": ["TRP-07R3-05-runtime-compose-and-backup-readiness"],
+            "owner": "Alice/Terra contract and audit; Root/Sol deep review",
+            "allowed_paths": [
+              "scripts/audit_transcription_integrity_boundary.py",
+              "tests/test_audit_transcription_integrity_boundary.py"
+            ],
+            "hotfiles": [],
+            "acceptance": [
+              "repository-owned audit rejects forbidden semantic receipt promotion, optional proof digest, generic verifier callback and unapproved backup_protected writes",
+              "audit rejects critical Path.read_bytes, Path.open, is_file, lstat-then-open and digest-by-reopen patterns outside an explicit non-authoritative allowlist",
+              "audit verifies all planned critical callsites use the safe-file capability and that default-off/live-gate markers remain intact"
+            ],
+            "automatic_gates": [
+              "python scripts/audit_transcription_integrity_boundary.py --check",
+              "pytest -q tests/test_audit_transcription_integrity_boundary.py",
+              "full TRP-07R3 focused corridor plus adjacent TRP-01 through TRP-06 regression"
+            ]
+          },
+          {
+            "id": "TRP-07R3-07-independent-qa-and-sol-deep-review",
+            "class": "analysis_only",
+            "status": "planned_blocked_by_dependency",
+            "claimable": false,
+            "depends_on": ["TRP-07R3-06-integrity-boundary-audit"],
+            "owner": "fresh-context Terra read-only QA plus explicit Sol deep review",
+            "allowed_paths": [],
+            "hotfiles": [],
+            "acceptance": [
+              "fresh QA independently reproduces every positive and adversarial corridor on the final dirty-diff digest or tested revision",
+              "required Linux/POSIX lane passes with no safety-property skip counted as evidence",
+              "Sol re-derives proof exclusivity, same-object binding, publish atomicity, default-off behavior and no-live truth",
+              "both reviewers pass before Root may accept TRP-07 or expose TRP-08"
+            ],
+            "automatic_gates": [
+              "independent read-only QA",
+              "explicit Sol deep review",
+              "git diff --check and exact changed-path/readback audit"
+            ]
+          }
+        ],
+        "correction_policy": "Each future implementation slice receives at most two material correction cycles. A second failed strategy, invariant break or material claim expansion releases the claim rejected and requires another architecture generation; no opportunistic third repair.",
+        "remaining_user_live_gates": [
+          "TRP-MODEL-MANIFEST-METADATA for authoritative four-file metadata read only",
+          "TRP-LEGACY-BACKUP-PROOF-RECONCILIATION for any productive database reconciliation or demotion when proofless protected rows exist",
+          "TRP-LIVE-DEPLOY-MODEL-BACKUP-SMOKE for Debian deploy, model materialization, host snapshot, restore proof and bounded synthetic canary",
+          "TRP-PRODUCTIVE-PRIVATE-AUDIO for any productive or private recording"
+        ],
+        "not_verified": [
+          "implementation of any TRP-07R3 slice",
+          "Linux/POSIX adversarial CI for the new primitive",
+          "finalized real model metadata or model load",
+          "productive database legacy-row inventory or migration",
+          "Debian/Podman, trust-anchor provisioning, host receipt, Restic snapshot/restore, canary or private audio"
+        ]
+      },
+      "done_when": "TRP-07R3-01 through TRP-07R3-06 pass their exact automatic gates, TRP-07R3-07 independent QA and explicit Sol deep review both pass, proofless legacy state and all critical file inputs fail closed, and one exact commit-bound Debian packet is ready but inert behind the remaining action-specific live gates."
     },
     {
       "id": "TRP-08-debian-live-test",
@@ -455,6 +731,20 @@
         "create one manual Restic snapshot and verify a fixed-schema backup receipt"
       ],
       "safe_default": "stop after the verified live packet; do not mutate Debian"
+    },
+    {
+      "id": "TRP-LEGACY-BACKUP-PROOF-RECONCILIATION",
+      "class": "needs_live_go",
+      "status": "gated",
+      "blocks": [
+        "productive activation when any legacy backup_protected row lacks the mandatory signed-envelope proof"
+      ],
+      "required_live_go_entries": [
+        "read one content-free bounded aggregate count of proofless protected rows from the exact productive database",
+        "choose and authorize one exact reconciliation action: supply independently verified signed host receipts, or atomically demote the bounded affected rows to backup_pending without deleting artifacts",
+        "capture rollback snapshot and post-change aggregate readback"
+      ],
+      "safe_default": "do not inspect row content and do not mutate the database; refuse productive transcription activation and treat proofless rows as non-authoritative for deletion or backup success"
     },
     {
       "id": "TRP-PRODUCTIVE-PRIVATE-AUDIO",
@@ -751,6 +1041,36 @@
         "static": "AST, YAML, imports and git diff --check passed",
         "known_limit": "full app lifecycle and all model/provider/host/audio/live behavior not verified"
       }
+    },
+    {
+      "run_id": "ABC-TRP07-R3-ARCH-20260802T233308+0200",
+      "thread_id": "019fbe7a-5f08-7b22-8ba8-fcf0b02a3ac6",
+      "slice_id": "TRP-07R3-00-new-architecture-and-claim-freeze",
+      "owner": "root/Sol roadmap integrator",
+      "allowed_paths": [
+        "docs/plans/faster-whisper-transcription-protocol-roadmap.json",
+        "docs/plans/open-work-completion-master-roadmap.json",
+        "docs/plans/multi-agent-execution-guidance.json"
+      ],
+      "hotfiles": [
+        "docs/plans/open-work-completion-master-roadmap.json",
+        "docs/plans/multi-agent-execution-guidance.json"
+      ],
+      "state": "released_paused_draft_not_registered",
+      "paused_at": "2026-08-02T23:43:00+02:00",
+      "acquired_at": "2026-08-02T23:33:08+02:00",
+      "lease_expires_at": "2026-08-03T01:33:08+02:00",
+      "handoff_required": true,
+      "runtime_scope": "repository-only recovery architecture and exact future claims; no implementation or live action",
+      "collision_check": "pass: one canonical worktree; no other active Odysseus task owns the three exact roadmap paths; rejected TRP implementation drafts remain preserved and untouched",
+      "forbidden": [
+        "any source, test, runtime, model, host, backup, restore or live-system mutation",
+        "stage, commit, push, deploy, provider access or private-audio access",
+        "claiming any implementation slice from the roadmap-authoring authority"
+      ],
+      "live_actions": false,
+      "released_at": "2026-08-02T23:53:00+02:00",
+      "release_reason": "User requested the broader Harbor One integration-roadmap correction. The TRP-07R3 architecture remains paused, nonclaimable and unregistered; its central Open Work and guidance hotfiles are released for the new Root-owned integration-spine authoring claim."
     }
   ],
   "route": {
@@ -839,9 +1159,9 @@
     "positive_path_required": true
   },
   "completion": {
-    "implemented": "trp01_through_trp06_repo_only",
-    "tested": "trp01_through_trp06_focused_and_integration_green_trp06_root_206_passed_2_skipped",
-    "sol_reviewed": "trp01_through_trp06_deep",
+    "implemented": "trp01_through_trp06_repo_only_trp07_rejected_draft_retained",
+    "tested": "trp01_through_trp06_green_trp07_74_passed_2_skipped_but_final_independent_qa_failed_acceptance",
+    "sol_reviewed": "trp01_through_trp06_deep_trp07_not_accepted",
     "committed": "local_through_trp06",
     "pushed": "no",
     "deployed": "no",
@@ -893,5 +1213,39 @@
     ],
     "next_action": "Leave TRP-07 dependency-ready but unclaimed for the post-Round-5 normalization task; TRP-08 and all live gates remain closed."
   },
-  "next_frontier": "TRP-07 is dependency-ready but deliberately unclaimed for the post-Round-5 normalization task; stop at TRP-08 live gates"
+  "latest_trp07_rejection": {
+    "closed_at": "2026-08-02T21:53:41+02:00",
+    "claim_id": "ABC-R6C-TRP07-20260802T211217+0200",
+    "implementation_owner": "/root/charlie_round6c_trp07",
+    "independent_qa_owner": "/root/trp07_cycle2_qa",
+    "state": "released_rejected_after_two_correction_cycles",
+    "tests": "74 passed, 2 expected skips; strict static/JSON/YAML and scoped diff checks passed",
+    "material_findings": [
+      "app.py does not pass the three receipt-inbox configuration values and constructs the productive store without a backup receipt verifier",
+      "validate_packet accepts semantic tampering of live gate, forbidden actions, required inputs and rollback",
+      "preloader lacks canonical allowed-root containment, strict duplicate-key manifest parsing and complete exact-revision/TOCTOU binding",
+      "canary and backup/restore scripts do not compare commit, manifest and snapshot facts to independent readback before claiming binding"
+    ],
+    "required_recovery": "Fresh read-only architecture handoff, expanded exact claim including app.py, productive read-only inbox mount/verifier wiring, strict packet semantics, bounded preload root, and exact commit/manifest/snapshot readback.",
+    "not_verified": ["real model metadata or materialization", "Debian/Podman deployment", "Restic snapshot or restore", "productive app lifecycle", "live canary", "private audio"],
+    "live_actions": false
+  },
+  "latest_trp07_recovery_rejection": {
+    "closed_at": "2026-08-02T23:03:34+02:00",
+    "claim_id": "ABC-R6C-R-TRP07-20260802T221518+0200",
+    "implementation_owner": "/root/trp07_recovery_impl",
+    "independent_qa_owner": "/root/trp07_recovery_final_qa",
+    "sol_review_owner": "/root/trp07_recovery_final_sol using explicit gpt-5.6-sol",
+    "state": "released_rejected_after_fresh_architecture_and_two_correction_cycles",
+    "tests": "Root and final reviewers reproduced 82 passed, 2 expected skips; static JSON/YAML/AST, Bash syntax and scoped diff checks passed",
+    "material_findings": [
+      "mark_backup_protected and reconcile_host_backup_receipt can still reach backup_protected without mandatory cryptographic envelope proof",
+      "adapter and preloader model IO is not fully anchored, short-write-safe and staging-rehashed before publication",
+      "activation-plan and snapshot semantics plus hashes are not guaranteed to use the same safely opened file objects"
+    ],
+    "required_recovery": "No third repair. Require a new read-only architecture generation and new exact claim that makes signed-envelope proof a store-level capability, centralizes same-object bounded file reads, and proves short-write/reopen/rehash behavior under adversarial POSIX tests.",
+    "not_verified": ["real finalized model metadata or materialization", "Debian/Podman", "host receipt generation", "Restic snapshot or restore", "productive/private audio", "live canary"],
+    "live_actions": false
+  },
+  "next_frontier": "Paused by user before final Sol review. TRP-07R3 architecture draft exists but is not accepted, centrally registered or claimable. On resume, revalidate current collisions and structured state, then restart only the interrupted Sol deep review; do not start implementation. TRP-08 and all model, backup, restore, host, trust-anchor provisioning, private-audio and live gates remain closed."
 }

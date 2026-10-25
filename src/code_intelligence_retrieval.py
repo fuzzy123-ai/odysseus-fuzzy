@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from enum import StrEnum
 import hashlib
+import inspect
 import json
 import re
 from typing import Protocol, runtime_checkable
@@ -345,6 +346,7 @@ class _BoundStructuralUSIProvider:
         resolver: StructuralEvidenceResolver,
         request: CodeIntelligenceRetrievalRequest,
         plan: HybridRetrievalPlan,
+        product_registerable: bool,
     ) -> None:
         if plan.structural_operation is None:
             raise CodeIntelligenceRetrievalError("structural adapter requires an operation")
@@ -353,6 +355,7 @@ class _BoundStructuralUSIProvider:
         self._request = request
         self._plan = plan
         self._kind = plan.primary_modes[0]
+        self.product_registerable = product_registerable
 
     @property
     def provider_id(self) -> str:
@@ -522,15 +525,44 @@ class CodeIntelligenceRetriever:
             raise CodeIntelligenceRetrievalError("base registrations violate the USI planner contract") from exc
         if (structural_provider is None) != (evidence_resolver is None):
             raise CodeIntelligenceRetrievalError("structural provider and resolver must be supplied together")
-        if structural_provider is not None and not callable(
-            getattr(structural_provider, "query", None)
-        ):
-            raise CodeIntelligenceRetrievalError("structural_provider must expose a query method")
+        structural_product_registerable = False
+        if structural_provider is not None:
+            if isinstance(structural_provider, StructuralQueryProvider):
+                raise CodeIntelligenceRetrievalError(
+                    "legacy structural provider cannot be product registered"
+                )
+            marker_absent = object()
+            try:
+                declared_marker = inspect.getattr_static(
+                    structural_provider, "product_registerable", marker_absent
+                )
+            except Exception:
+                raise CodeIntelligenceRetrievalError(
+                    "structural provider product registration marker is invalid"
+                ) from None
+            if declared_marker is marker_absent:
+                raise CodeIntelligenceRetrievalError(
+                    "structural provider must explicitly allow product registration"
+                )
+            try:
+                marker = getattr(structural_provider, "product_registerable")
+            except Exception:
+                raise CodeIntelligenceRetrievalError(
+                    "structural provider product registration marker is invalid"
+                ) from None
+            if type(marker) is not bool or marker is not True:
+                raise CodeIntelligenceRetrievalError(
+                    "structural provider cannot be product registered"
+                )
+            structural_product_registerable = marker
+            if not callable(getattr(structural_provider, "query", None)):
+                raise CodeIntelligenceRetrievalError("structural_provider must expose a query method")
         if evidence_resolver is not None and not isinstance(evidence_resolver, StructuralEvidenceResolver):
             raise CodeIntelligenceRetrievalError("evidence_resolver does not implement its protocol")
         self._registrations = registrations
         self._structural_provider = structural_provider
         self._evidence_resolver = evidence_resolver
+        self._structural_product_registerable = structural_product_registerable
         self._planner = planner or HybridCodeQueryPlanner()
 
     def plan(self, request: CodeIntelligenceRetrievalRequest) -> HybridRetrievalPlan:
@@ -554,6 +586,7 @@ class CodeIntelligenceRetriever:
                         self._evidence_resolver,
                         request,
                         plan,
+                        self._structural_product_registerable,
                     ),
                     weight=1.25,
                 ),

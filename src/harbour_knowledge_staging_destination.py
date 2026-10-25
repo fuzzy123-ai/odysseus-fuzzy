@@ -20,7 +20,7 @@ import os
 import stat
 import threading
 from contextlib import ExitStack, contextmanager
-from typing import Any, Callable, Iterable, Mapping, Sequence
+from typing import Any, Callable, Iterable, Iterator, Mapping, Sequence
 
 from src import harbour_knowledge_store as _knowledge_store
 from src.harbour_authority import (
@@ -394,6 +394,7 @@ class HarbourKnowledgeStagingDestinationService:
             raise ValueError("trusted_issuers must contain exact issuer objects")
         self._clock = clock or (lambda: datetime.now(timezone.utc))
         self._lock = threading.RLock()
+        self._retained_runtime = threading.local()
         self._root.mkdir(parents=True, exist_ok=True)
         self._connection = sqlite3.connect(self._root / "staging-reservations.sqlite", check_same_thread=False, isolation_level=None)
         self._connection.row_factory = sqlite3.Row
@@ -476,6 +477,7 @@ class HarbourKnowledgeStagingDestinationService:
             instance._issuers = issuers
             instance._clock = clock or (lambda: datetime.now(timezone.utc))
             instance._lock = threading.RLock()
+            instance._retained_runtime = threading.local()
             instance._stores = {}
             instance._connection = None
             admission = sqlite3.connect(ledger.as_uri() + "?mode=ro", uri=True, isolation_level=None,
@@ -579,7 +581,12 @@ class HarbourKnowledgeStagingDestinationService:
     def _key(self) -> bytes:
         return bytes.fromhex(self._connection.execute("SELECT value FROM staging_meta WHERE name='attestation_key'").fetchone()[0])
 
+    def _deny_if_runtime_retained(self) -> None:
+        if getattr(self._retained_runtime, "owner_id", None) is not None:
+            _fail("staging_destination_denied")
+
     def close(self) -> None:
+        self._deny_if_runtime_retained()
         with self._lock:
             stores, self._stores = tuple(self._stores.values()), {}
             for store in stores:
@@ -857,6 +864,7 @@ class HarbourKnowledgeStagingDestinationService:
         return sequence, prior, current
 
     def current_selection(self) -> tuple[StagingMigrationCompletionReference, str, str] | None:
+        self._deny_if_runtime_retained()
         with self._lock:
             if self._connection is None:
                 _fail("staging_destination_denied")
@@ -880,6 +888,7 @@ class HarbourKnowledgeStagingDestinationService:
         StagingMigrationCompletionReference, tuple[str, ...], str, str, HarbourKnowledgeStore,
     ] | None:
         """Capture one verified selection and its current Store under the ledger lock."""
+        self._deny_if_runtime_retained()
         owner = _identifier(owner_id)
         with self._lock:
             if self._connection is None:
@@ -903,12 +912,133 @@ class HarbourKnowledgeStagingDestinationService:
                 return None
             return reference, owners, row["generation_id"], selection_digest, self._store(row)
 
-    def _selection_anchor_present(self, reservation: sqlite3.Row, anchor: str) -> bool:
+    @contextmanager
+    def guard_selected_runtime(self, owner_id: str) -> Iterator[tuple[
+        StagingMigrationCompletionReference, tuple[str, ...], str, str, HarbourKnowledgeStore,
+    ] | None]:
+        """Retain one verified selected Store until the caller's operation finishes."""
+        owner = _identifier(owner_id)
+        staging_lock = self._lock
+        staging_lock.acquire()
+        marker_set = False
+        store: HarbourKnowledgeStore | None = None
+        store_lock_held = False
+        staging_connection: sqlite3.Connection | None = None
+        store_connection: sqlite3.Connection | None = None
+        store_transaction_owned = False
+        entered = False
         try:
-            store = self._store(reservation)
-            with store._lock:
-                connection = store._conn()
-                store._verify(connection)
+            self._deny_if_runtime_retained()
+            self._retained_runtime.owner_id = owner
+            marker_set = True
+            staging_connection = self._connection
+            if staging_connection is None:
+                _fail("staging_destination_denied")
+            staging_connection.execute("BEGIN IMMEDIATE")
+            _sequence, selection_digest, selection = self._verify_selection_chain()
+            selected: tuple[
+                StagingMigrationCompletionReference, tuple[str, ...], str, str, HarbourKnowledgeStore,
+            ] | None = None
+            if selection is not None:
+                reservation = staging_connection.execute(
+                    "SELECT * FROM staging_reservations WHERE generation_id=? AND state='sealed'",
+                    (selection["generation_id"],),
+                ).fetchone()
+                if reservation is None or reservation["owner_set_digest"] != selection["owner_set_digest"]:
+                    _fail("staging_destination_denied")
+                raw_owners = json.loads(reservation["owner_set_json"])
+                if type(raw_owners) is not list:
+                    _fail("staging_destination_denied")
+                owners = tuple(raw_owners)
+                if (_closed_owner_set(owners) != owners
+                        or _sha({"schema": _SCHEMA, "owners": owners}) != reservation["owner_set_digest"]):
+                    _fail("staging_destination_denied")
+                if owner in owners:
+                    reference = StagingMigrationCompletionReference(
+                        selection["completion_record_id"], selection["completion_attestation"],
+                    )
+                    store = self._store(reservation)
+                    expected_path = self._root / "generations" / reservation["generation_id"] / "knowledge.sqlite"
+                    if (type(store) is not HarbourKnowledgeStore or not store.available
+                            or type(store.database_path) is not type(Path())
+                            or store.database_path != expected_path
+                            or self._stores.get(reservation["generation_id"]) is not store):
+                        _fail("staging_destination_denied")
+                    store._lock.acquire()
+                    store_lock_held = True
+                    store_connection = store._conn()
+                    if store_connection.in_transaction:
+                        _fail("staging_destination_denied")
+                    store_connection.execute("BEGIN IMMEDIATE")
+                    store_transaction_owned = True
+                    store._verify(store_connection)
+                    verified, _fresh = self._verify_completion_snapshot(reference, store)
+                    if (verified.owner_set_digest != reservation["owner_set_digest"]
+                            or not self._selection_anchor_present(
+                                reservation, selection["store_event_anchor"], store=store,
+                            )):
+                        _fail("staging_destination_denied")
+                    try:
+                        self._rollback_store_transaction(store, store_connection)
+                    finally:
+                        store_transaction_owned = False
+                    store_connection = None
+                    selected = (
+                        reference, owners, reservation["generation_id"], selection_digest, store,
+                    )
+            entered = True
+            try:
+                yield selected
+            finally:
+                try:
+                    staging_connection.execute("ROLLBACK")
+                except BaseException:
+                    if self._connection is staging_connection:
+                        self._connection = None
+                    try:
+                        staging_connection.close()
+                    except BaseException:
+                        pass
+        except BaseException:
+            if not entered:
+                if store is not None and store_connection is not None and store_transaction_owned:
+                    try:
+                        self._rollback_store_transaction(store, store_connection)
+                    except BaseException:
+                        pass
+                    finally:
+                        store_transaction_owned = False
+                if staging_connection is not None:
+                    try:
+                        if staging_connection.in_transaction:
+                            staging_connection.execute("ROLLBACK")
+                    except BaseException:
+                        if self._connection is staging_connection:
+                            self._connection = None
+                        try:
+                            staging_connection.close()
+                        except BaseException:
+                            pass
+                _fail("staging_destination_denied")
+            raise
+        finally:
+            if store_lock_held and store is not None:
+                store._lock.release()
+            if marker_set:
+                try:
+                    del self._retained_runtime.owner_id
+                except AttributeError:
+                    pass
+            staging_lock.release()
+
+    def _selection_anchor_present(
+        self, reservation: sqlite3.Row, anchor: str, *, store: HarbourKnowledgeStore | None = None,
+    ) -> bool:
+        try:
+            actual_store = store or self._store(reservation)
+            with actual_store._lock:
+                connection = actual_store._conn()
+                actual_store._verify(connection)
                 tail = {"event_seq": 0, "event_digest": "sha256:" + "0" * 64}
                 if _sha(tail) == anchor:
                     return True
@@ -927,6 +1057,7 @@ class HarbourKnowledgeStagingDestinationService:
         *,
         expected_selection_digest: str,
     ) -> str:
+        self._deny_if_runtime_retained()
         _digest(expected_selection_digest)
         with self._lock:
             self._connection.execute("BEGIN IMMEDIATE")
@@ -1040,6 +1171,7 @@ class HarbourKnowledgeStagingDestinationService:
         target_selection_digest: str,
         principals: Mapping[str, TrustedPrincipal],
     ) -> StagingSelectionRollbackReceipt:
+        self._deny_if_runtime_retained()
         expected = _digest(expected_selection_digest)
         target_digest = _digest(target_selection_digest)
         if type(reference) is not StagingMigrationCompletionReference:
@@ -1230,6 +1362,7 @@ class HarbourKnowledgeStagingDestinationService:
                 _fail("staging_destination_denied")
 
     def reserve(self, migration_id: str, authorized_owner_ids: Sequence[str], snapshot_manifest_digest: str, ttl_seconds: int) -> tuple[StagingDestinationSession, StagingDestinationLease]:
+        self._deny_if_runtime_retained()
         migration = _identifier(migration_id)
         owners = _closed_owner_set(authorized_owner_ids)
         snapshot = _digest(snapshot_manifest_digest)
@@ -1270,6 +1403,7 @@ class HarbourKnowledgeStagingDestinationService:
         snapshot_manifest_digest: str, ttl_seconds: int,
     ) -> tuple[StagingDestinationSession, StagingDestinationLease] | StagingMigrationCompletionReference:
         """Rotate a lease on the exact unsealed generation or reserve a fresh one."""
+        self._deny_if_runtime_retained()
         migration = _identifier(migration_id)
         owners = _closed_owner_set(authorized_owner_ids)
         snapshot = _digest(snapshot_manifest_digest)
@@ -1326,6 +1460,7 @@ class HarbourKnowledgeStagingDestinationService:
         return self.reserve(migration, owners, snapshot, ttl_seconds)
 
     def revoke(self, lease: StagingDestinationLease) -> None:
+        self._deny_if_runtime_retained()
         with self._lock:
             self._connection.execute("BEGIN IMMEDIATE")
             failed = False
@@ -1346,6 +1481,7 @@ class HarbourKnowledgeStagingDestinationService:
         expected_operations: Sequence[Mapping[str, Any]],
     ) -> StagingMigrationCompletionReference:
         """Verify the persisted operation set and Store state before sealing."""
+        self._deny_if_runtime_retained()
         if type(principals) is not dict or type(expected_operations) not in (list, tuple):
             _fail("staging_destination_denied")
         expected = self._normalize_expected_operations(expected_operations)
@@ -1383,6 +1519,7 @@ class HarbourKnowledgeStagingDestinationService:
         return reference
 
     def verify_completion(self, reference: StagingMigrationCompletionReference) -> StagingVerifiedCompletion:
+        self._deny_if_runtime_retained()
         try:
             return self._verify_completion(reference)
         except StagingDestinationError:
@@ -1658,6 +1795,7 @@ class HarbourKnowledgeStagingDestinationService:
             "expected_operations": list(expected)}
 
     def seal(self, lease: StagingDestinationLease, *, completion_digest: str) -> StagingDestinationReceipt:
+        self._deny_if_runtime_retained()
         completion = _digest(completion_digest)
         with self._lock:
             self._connection.execute("BEGIN IMMEDIATE")
@@ -1674,6 +1812,7 @@ class HarbourKnowledgeStagingDestinationService:
                 raise
 
     def _call(self, destination_id: str, lease: StagingDestinationLease, method: str, principal: TrustedPrincipal, owner_id: str, kwargs: Mapping[str, Any]) -> Any:
+        self._deny_if_runtime_retained()
         owner = _identifier(owner_id)
         if method not in {"validate_principal_binding", "create_object", "append_revision", "get_head", "get_receipt", "read_revision", "read_payload", "changes_since"} | _LIFECYCLE_METHODS:
             _fail("staging_destination_denied")

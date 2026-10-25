@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import os
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Callable, Mapping
 
 from fastapi import APIRouter, Request
@@ -53,7 +55,7 @@ def setup_workspace_snapshot_routes(
                     principal=principal,
                 ),
             ),
-            planning_status=_safe_provider(planning_provider, fallback=_default_unavailable("planning", "planning snapshot adapter not connected")),
+            planning_status=_safe_provider(planning_provider, fallback=_default_planning_status),
             coding_status=_safe_provider(coding_provider, fallback=_default_unavailable("coding", "coding runner snapshot adapter not connected")),
             sandbox_status=_safe_provider(sandbox_provider, fallback=_default_sandbox_status),
             knowledge_status=_safe_provider(knowledge_provider, fallback=_default_unavailable("knowledge", "knowledge snapshot adapter not connected")),
@@ -141,3 +143,146 @@ def _default_local_model_status() -> Mapping[str, Any]:
 def _default_release_status() -> Mapping[str, Any]:
     payload = load_version_one_readiness()
     return payload if isinstance(payload, Mapping) else {}
+
+
+class PlanningSnapshotResult(dict):
+    """Mapping compatible with odysseus.workspace_section.v1 and callable as a provider."""
+
+    def __call__(self) -> "PlanningSnapshotResult":
+        return self
+
+
+def build_default_planning_snapshot_provider(
+    project_root: Path | None = None,
+) -> PlanningSnapshotResult:
+    """Build a default odysseus.workspace_section.v1 planning snapshot."""
+    root = Path(project_root).resolve() if project_root is not None else Path(__file__).resolve().parents[1]
+
+    if project_root is not None:
+        definitions_root = root / "data" / "planning" / "definitions"
+    else:
+        try:
+            from src.constants import DATA_DIR
+            definitions_root = Path(DATA_DIR) / "planning" / "definitions"
+        except Exception:
+            definitions_root = root / "data" / "planning" / "definitions"
+
+    if definitions_root.is_dir():
+        try:
+            from src.planning_revision_store import PlanningRevisionStore
+
+            local_owner = str(os.getenv("ODYSSEUS_SINGLE_USER_OWNER") or "local-user").strip()
+            store = PlanningRevisionStore.from_directory(definitions_root, owner=local_owner)
+            if getattr(store, "_origin_state", "") == "live":
+                projects_page = store.list_projects(local_owner)
+                roadmap_ids: list[str] = []
+                total_gates = 0
+                for p in projects_page.get("items", []):
+                    pid = p.get("project_id")
+                    if pid:
+                        roadmaps_page = store.list_roadmaps(local_owner, pid)
+                        for r in roadmaps_page.get("items", []):
+                            rid = r.get("roadmap_id")
+                            if rid:
+                                roadmap_ids.append(rid)
+                                total_gates += len(r.get("gates", []))
+                if roadmap_ids:
+                    return PlanningSnapshotResult({
+                        "schema": "odysseus.workspace_section.v1",
+                        "state": "live",
+                        "status": "ok",
+                        "summary": f"{len(roadmap_ids)} planning roadmap(s) loaded from definitions",
+                        "roadmaps": {
+                            "count": len(roadmap_ids),
+                            "ids": sorted(set(roadmap_ids)),
+                        },
+                        "gates": {
+                            "count": total_gates,
+                            "open_count": 0,
+                        },
+                        "proposals": {
+                            "count": 0,
+                            "status": "none",
+                        },
+                        "context_pack": {
+                            "available": True,
+                            "source_ref": "planning:definitions",
+                        },
+                        "apply_gate": {
+                            "status": "policy_gated",
+                        },
+                        "source_ref": f"planning:definitions:{len(roadmap_ids)}",
+                    })
+        except Exception:
+            pass
+
+    try:
+        from src.planning_roadmap_migration import (
+            build_h1r03_structural_census,
+            FROZEN_MEMBERS,
+        )
+
+        primary_by_path = {path: roadmap_id for path, _adapter, roadmap_id, _blob, _sha in FROZEN_MEMBERS}
+        rows, observation = build_h1r03_structural_census(root)
+        roadmap_rows = [r for r in rows if r.get("kind") == "roadmap_json"]
+        roadmap_ids = sorted(set(primary_by_path.get(r["path"]) or Path(r["path"]).stem for r in roadmap_rows))
+        count = observation.get("count", len(roadmap_ids)) if isinstance(observation, dict) else len(roadmap_ids)
+        return PlanningSnapshotResult({
+            "schema": "odysseus.workspace_section.v1",
+            "state": "live",
+            "status": "ok",
+            "summary": f"{len(roadmap_ids)} planning roadmap(s) indexed via structural census",
+            "roadmaps": {
+                "count": len(roadmap_ids),
+                "ids": roadmap_ids,
+            },
+            "gates": {
+                "count": 0,
+                "open_count": 0,
+            },
+            "proposals": {
+                "count": 0,
+                "status": "none",
+            },
+            "context_pack": {
+                "available": True,
+                "source_ref": "planning:census",
+            },
+            "apply_gate": {
+                "status": "policy_gated",
+            },
+            "source_ref": f"planning:census:{count}",
+        })
+    except Exception:
+        pass
+
+    return PlanningSnapshotResult({
+        "schema": "odysseus.workspace_section.v1",
+        "state": "partial",
+        "status": "pending",
+        "summary": "planning snapshot fallback; structural census unavailable",
+        "roadmaps": {
+            "count": 0,
+            "ids": [],
+        },
+        "gates": {
+            "count": 0,
+            "open_count": 0,
+        },
+        "proposals": {
+            "count": 0,
+            "status": "none",
+        },
+        "context_pack": {
+            "available": False,
+            "source_ref": "planning:unavailable",
+        },
+        "apply_gate": {
+            "status": "policy_gated",
+        },
+        "source_ref": "planning:fallback",
+    })
+
+
+def _default_planning_status() -> Mapping[str, Any]:
+    return build_default_planning_snapshot_provider()

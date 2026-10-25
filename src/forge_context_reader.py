@@ -76,9 +76,6 @@ class ImmutableForgeContextReader:
         commit = self._git(("cat-file", "-t", self._retained.commit_sha)).strip()
         if commit != b"commit":
             self._fail("immutable_commit_invalid")
-        tree = self._git(("rev-parse", f"{self._retained.commit_sha}^{{tree}}"), max_output=128).strip()
-        if not _HEX.fullmatch(tree):
-            self._fail("immutable_tree_invalid")
         raw = self._git(("ls-tree", "-r", "-z", "-l", self._retained.commit_sha), max_output=32 * 1024 * 1024)
         if raw:
             if not raw.endswith(b"\0"):

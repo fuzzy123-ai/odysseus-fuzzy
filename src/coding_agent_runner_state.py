@@ -70,6 +70,7 @@ class CodingRunnerState:
     planning_binding_digest: str = ""
     planning_gate_requirements: tuple[str, ...] = ()
     memory_checkpoint_receipt_ids: tuple[str, ...] = ()
+    worktree_transaction_receipt_ids: tuple[str, ...] = ()
 
     @classmethod
     def create(
@@ -85,6 +86,7 @@ class CodingRunnerState:
         event_count: Any = 1,
         planning_binding: CodingPlanningBinding | Mapping[str, Any] | None = None,
         memory_checkpoint_receipt_ids: Iterable[Any] = (),
+        worktree_transaction_receipt_ids: Iterable[Any] = (),
     ) -> "CodingRunnerState":
         normalized_phase = _phase(phase)
         binding = _coerce_planning_binding(planning_binding)
@@ -106,6 +108,7 @@ class CodingRunnerState:
             planning_binding_digest=binding.binding_digest if binding is not None else "",
             planning_gate_requirements=binding.gate_requirements if binding is not None else (),
             memory_checkpoint_receipt_ids=receipt_ids,
+            worktree_transaction_receipt_ids=_transaction_receipt_ids(worktree_transaction_receipt_ids),
         )
 
     @property
@@ -169,6 +172,7 @@ class CodingRunnerState:
             event_count=self.event_count + 1,
             planning_binding=self.planning_binding_dict(),
             memory_checkpoint_receipt_ids=self.memory_checkpoint_receipt_ids,
+            worktree_transaction_receipt_ids=self.worktree_transaction_receipt_ids,
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -194,6 +198,7 @@ class CodingRunnerState:
                 "authoritative": False,
             },
             "memory_checkpoint_receipt_ids": list(self.memory_checkpoint_receipt_ids),
+            "worktree_transaction_receipt_ids": list(self.worktree_transaction_receipt_ids),
             "raw_content_visible": False,
         }
         _reject_unsafe_payload(payload)
@@ -237,6 +242,7 @@ class CodingRunnerStateStore:
             event_count=payload.get("event_count", 1),
             planning_binding=planning_binding,
             memory_checkpoint_receipt_ids=payload.get("memory_checkpoint_receipt_ids") or (),
+            worktree_transaction_receipt_ids=payload.get("worktree_transaction_receipt_ids") or (),
         )
         if planning and planning.get("bound") and planning.get("binding_digest") != state.planning_binding_digest:
             raise CodingRunnerStateError("persisted Planning binding digest does not match its canonical facts")
@@ -570,6 +576,67 @@ def record_advisory_memory_checkpoint(
             event_count=current.event_count + 1,
             planning_binding=current.planning_binding_dict(),
             memory_checkpoint_receipt_ids=receipt_ids,
+            worktree_transaction_receipt_ids=current.worktree_transaction_receipt_ids,
+        )
+    )
+
+
+def record_transactional_worktree_receipt(
+    *,
+    store: CodingRunnerStateStore,
+    task_id: Any,
+    receipt: Mapping[str, Any] | Any,
+) -> CodingRunnerState:
+    """Persist only a validated ACPR-12 worktree receipt identifier.
+
+    The durable runner continues to source Planning authority from its current
+    binding.  This function records evidence only; it cannot grant edit,
+    dispatch, network, secret, or live authority and does not advance a gate.
+    """
+
+    from src.coding_agent_backend import CodingWorktreeTransactionReceipt
+
+    current = store.read(task_id)
+    if current is None:
+        raise CodingRunnerStateError("runner state not found")
+    if not current.planning_bound:
+        raise CodingRunnerStateError("runner state is missing validated Planning binding")
+    if isinstance(receipt, CodingWorktreeTransactionReceipt):
+        transaction = receipt
+    elif isinstance(receipt, Mapping):
+        payload = dict(receipt)
+        if payload.pop("schema", None) != "odysseus.coding_agent.worktree_transaction_receipt.v1":
+            raise CodingRunnerStateError("worktree transaction receipt schema is invalid")
+        if payload.pop("rollback_ready", None) is not True:
+            raise CodingRunnerStateError("worktree transaction receipt rollback boundary is unavailable")
+        try:
+            transaction = CodingWorktreeTransactionReceipt(**payload)
+        except (TypeError, ValueError) as exc:
+            raise CodingRunnerStateError("worktree transaction receipt is invalid") from exc
+    else:
+        raise CodingRunnerStateError("worktree transaction receipt must be an object")
+    if transaction.task_id != current.task_id or transaction.repo_id != current.repo_id:
+        raise CodingRunnerStateError("worktree transaction receipt does not match runner task")
+    if transaction.allowed_paths_digest != stable_payload_hash(current.planning_allowed_paths):
+        raise CodingRunnerStateError("worktree transaction receipt allowed paths do not match Planning")
+    receipt_ids = _transaction_receipt_ids(
+        (*current.worktree_transaction_receipt_ids, transaction.receipt_id)
+    )
+    if receipt_ids == current.worktree_transaction_receipt_ids:
+        return current
+    return store.write(
+        CodingRunnerState.create(
+            task_id=current.task_id,
+            repo_id=current.repo_id,
+            phase=current.phase,
+            progress_percent=current.progress_percent,
+            gates_waiting=current.gates_waiting,
+            blockers=current.blockers,
+            next_human_decision=current.next_human_decision,
+            event_count=current.event_count + 1,
+            planning_binding=current.planning_binding_dict(),
+            memory_checkpoint_receipt_ids=current.memory_checkpoint_receipt_ids,
+            worktree_transaction_receipt_ids=receipt_ids,
         )
     )
 
@@ -636,6 +703,15 @@ def _checkpoint_receipt_ids(values: Iterable[Any]) -> tuple[str, ...]:
     ids = tuple(dict.fromkeys(_safe_label(value, "memory_checkpoint_receipt_id") for value in values))
     if len(ids) > 32:
         raise CodingRunnerStateError("memory checkpoint receipt count exceeds 32")
+    return ids
+
+
+def _transaction_receipt_ids(values: Iterable[Any]) -> tuple[str, ...]:
+    ids = tuple(dict.fromkeys(_safe_label(value, "worktree_transaction_receipt_id") for value in values))
+    if len(ids) > 16:
+        raise CodingRunnerStateError("worktree transaction receipt count exceeds 16")
+    for receipt_id in ids:
+        _canonical_sha256(receipt_id, field="worktree_transaction_receipt_id")
     return ids
 
 

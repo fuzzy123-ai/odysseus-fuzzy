@@ -2,7 +2,7 @@
 
 Updated: 2026-08-01
 
-Status: planned child track; productive lifecycle actions default-off
+Status: ULO-00 and ULO-01 accepted/released; later lifecycle slices remain dependency-gated and productive actions default-off
 
 ## Native Lifecycle Amendment 2026-08-01
 
@@ -143,7 +143,9 @@ authorized operational actions occur.
 
 - Class: `safe_offline`
 - Owner: Charlie
-- Status: `ready_after_goal_start`
+- Status: `accepted_released_wave5r`
+- Evidence: canonical Open Work OWM-21 and its ULO-00 Wave-5R acceptance;
+  do not reopen the two rejected predecessor attempts.
 - Dependencies: explicit goal; USI integration impact map accepted
 - Allowed paths:
   - `docs/plans/unified-source-index-data-lifecycle-operations-roadmap.md`
@@ -167,6 +169,9 @@ authorized operational actions occur.
 
 - Class: `repo_only`
 - Owner: Bob
+- Status: `accepted_released_round6`
+- Evidence: canonical Open Work OWM-21 and the accepted Round-6 owner-scope
+  contract. Current operational integration remains outside this acceptance.
 - Dependencies: `ULO-00`, USI-01 and USI-02
 - Allowed paths:
   - `src/unified_source_index_owner_scope.py`

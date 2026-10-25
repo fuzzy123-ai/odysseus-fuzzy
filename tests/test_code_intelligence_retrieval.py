@@ -28,6 +28,7 @@ from src.codebase_memory_query import (
     StructuralEdge,
     StructuralNode,
     StructuralOperation,
+    StructuralQueryProvider,
     StructuralQueryResult,
     UnresolvedStructuralEdge,
 )
@@ -81,6 +82,8 @@ class FakeUSIProvider:
 
 
 class FakeStructuralProvider:
+    product_registerable = True
+
     def __init__(self, factory):
         self.factory = factory
         self.requests = []
@@ -617,6 +620,24 @@ def test_retriever_rejects_foreign_structural_registration_and_unpaired_adapter(
     duplicate = ProviderRegistration(FakeUSIProvider("duplicate.lexical.two", QueryMode.LEXICAL))
     with pytest.raises(CodeIntelligenceRetrievalError, match="USI planner contract"):
         CodeIntelligenceRetriever((lexical, duplicate))
+
+
+def test_retriever_rejects_every_legacy_structural_provider_even_marker_override():
+    fixtures = _fixtures()
+
+    class MarkerOverride(StructuralQueryProvider):
+        product_registerable = True
+
+    for legacy in (
+        object.__new__(StructuralQueryProvider),
+        object.__new__(MarkerOverride),
+    ):
+        with pytest.raises(CodeIntelligenceRetrievalError, match="legacy structural provider"):
+            CodeIntelligenceRetriever(
+                (),
+                structural_provider=legacy,
+                evidence_resolver=fixtures["resolver"],
+            )
 
 
 def test_empty_result_does_not_recommend_an_exact_read():

@@ -1,8 +1,22 @@
 # Unified Source Index Domain Adapter Rollout Roadmap
 
-Updated: 2026-08-01
+Updated: 2026-09-07
 
-Status: planned child track; productive domain indexing default-off
+Status: UDA-00 through UDA-03 and MEM-ELIG-00 accepted/released repo-only.
+UDA-03 acceptance (2026-09-05) is bound to the new composite/occurrence
+candidate and independent deep QA in
+`docs/plans/evidence/abc-uda03-composite-acceptance-20260905.json`.
+PDS-READ-00 is accepted repo-only (2026-09-07); exact candidate and independent
+review evidence are in `handoffs/abc-open-work-5h-run-20260905.json`,
+`pds_read00_acceptance`. This accepts the bounded owner-reader prerequisite only.
+Productive domain indexing and private Memory reads remain gated.
+PLN-SOURCE-00/01/02/03/04 and USI-EXACT-CHAR-CHUNK-00 are accepted/released repo-only;
+see their prerequisite sections and canonical run acceptance records below.
+Full UDA-06 and productive adapter activation remain unaccepted/default-off.
+
+Historical status reconciliation (2026-09-05, before this run): Guidance and
+Open Work retained the UDA-03 failure. Round-7 completed_slices contains no accepted UDA-03; the
+registered Rev-89 R2 recovery has no frozen candidate and is not acceptance.
 
 ## Native Source Amendment 2026-08-01
 
@@ -52,6 +66,7 @@ provider bypass or second domain store.
 | Todos/Reminders | task/note domain and scheduler | task routes, note routes/reminders |
 | Contacts | contacts store and vCard boundary | contacts routes/helpers |
 | Sessions/Chats | SessionManager and session ownership | session routes/manager APIs |
+| Forge Code | Local Forge / registered repository and immutable revision | Forge snapshot inventory and exact-reader contract; dedicated FCA roadmap |
 
 No adapter may call a write route to discover data. Provider-backed domains use
 their local accepted cache/ledger or an explicitly gated read adapter.
@@ -71,6 +86,12 @@ their local accepted cache/ledger or an explicitly gated read adapter.
 | Change signals | domain commit plus best-effort notifier | enqueue bounded rediscovery | make domain writes depend on index health |
 | Deletion | domain truth plus ULO | emit unavailable/deleted observation | hard-delete audit evidence unsafely |
 | Query | USI planner/UIR | provide source capabilities/read_exact | expose one tool per domain |
+
+Forge Code is deliberately not a UDA Wave A/B/C domain. It has a distinct
+revision, no-gap eligible-line and two-call exact-read contract in
+`forge-usi-code-source-adapter-roadmap.md`. UDA must not register a generic
+filesystem/Git crawler as a substitute, treat a branch/worktree as an immutable
+source version, or let CBM/embeddings become the Forge exact reader.
 
 ## 4. Common Adapter Contract
 
@@ -141,7 +162,10 @@ Planning mode is `Standard ABC`. New adapters and synthetic fixtures are
 `repo_only`; private source reads and productive scans remain behind the parent
 gate.
 
-1. Only `UDA-00` is claimable after a future explicit goal.
+1. `UDA-03` is accepted repo-only against the fresh 2026-09-05 composite
+   acceptance evidence. Historical rejected claims and correction budgets
+   remain preserved. Select the next dependency-ready scoped packet under
+   current authority/path checks; productive behavior stays off.
 2. Adapter contract/fixtures may run in parallel on disjoint new files after
    `UDA-01`.
 3. Existing domain hotfiles are touched only by UDA-14/15/16 after adapter
@@ -156,7 +180,10 @@ gate.
 
 - Class: `safe_offline`
 - Owner: Charlie
-- Status: `ready_after_goal_start`
+- Status: `accepted_released_wave5r`
+- Evidence: commit `35026ae7ced88fda4cacd159c1dbd2d48d8050f0`;
+  canonical audits and the 251-test USI regression passed; independent Wave-5R
+  QA and Root deep review passed.
 - Dependencies: explicit goal; USI runtime impact map accepted
 - Allowed paths:
   - `docs/plans/unified-source-index-domain-adapter-rollout-roadmap.md`
@@ -178,6 +205,9 @@ gate.
 
 - Class: `repo_only`
 - Owner: Bob
+- Status: `accepted_released_round6_b`
+- Evidence: claim `ABC-R6B-UDA01-20260802T204823+0200` released after 77 Root
+  integration tests and 91 independent broader USI tests passed.
 - Dependencies: `UDA-00`, USI-01, USI-02 and USI-04
 - Allowed paths:
   - `src/unified_source_index_sources/__init__.py`
@@ -198,6 +228,10 @@ gate.
 
 - Class: `repo_only`
 - Owner: Bob
+- Status: `accepted_released_round7`
+- Evidence: claim `ABC-UDA02-R3-20260803T120700+0200` released after 48 focused
+  tests, independent QA and Deep-Sol review passed; compile, diff, concurrent
+  lease and safe-v1 migration checks passed.
 - Dependencies: `UDA-01`, USI-04
 - Allowed paths:
   - `src/unified_source_index_change_signal.py`
@@ -213,16 +247,51 @@ gate.
 - Done when: duplicate/lost/delayed signals converge through discovery and no
   domain write depends on USI availability.
 
+### MEM-ELIG-00 - Canonical Owner Eligibility Snapshot
+
+- Class: `repo_only`
+- Owner: Charlie
+- Status: `accepted_released_round7`
+- Evidence: claim `ABC-MEM-ELIG00-20260803T150700+0200` released with blobs
+  `65fe9627` and `6c944734`; 88 focused and 111 compatibility tests,
+  independent re-QA and Root Deep-Sol passed with 9/9 pins.
+- Dependencies: accepted `UDA-00`
+- Allowed paths:
+  - `src/memory_owner_eligibility.py`
+  - `tests/test_memory_owner_eligibility.py`
+- Work:
+  - read exactly one explicitly supplied synthetic `memory.json` byte snapshot
+    without constructing `MemoryManager`, importing a provider or triggering
+    migration, save, recall, vector or network behavior;
+  - accept only closed `odysseus.memory_eligibility.v1` stamps that prove exact
+    owner, active source, accepted content, non-incognito state, go policy and
+    accepted/not-required review with content-free evidence references;
+  - exclude legacy, unstamped, deleted, rejected, incognito, review-pending,
+    policy-blocked, unknown, coerced or contradictory records without fallback;
+  - emit immutable detached eligible records plus content-free bounded counts,
+    reason counts and digests; never emit text, owner, host path or raw errors;
+  - reject symlinks, duplicate keys/ids, non-finite JSON, oversized/deep inputs
+    and file-replacement ambiguity without creating or changing a file.
+- Tests: `python -m pytest -q tests/test_memory_owner_eligibility.py`
+- Done when: synthetic owner fixtures prove deterministic eligibility and
+  exclusion while static and runtime checks prove zero Memory/provider/write or
+  productive-data side effects.
+- User gates: productive/private Memory scan, eligibility migration/backfill,
+  writer adoption, provider/runtime/host activation, push and deploy.
+
 ### UDA-03 - Personal Memory Source Adapter
 
 - Class: `repo_only`
 - Owner: Bob
-- Dependencies: `UDA-01`, Memory owner handoff
+- Status: `accepted_repo_only_2026-09-05`
+- Evidence: `docs/plans/evidence/abc-uda03-composite-acceptance-20260905.json`
+- Dependencies: `UDA-01`, accepted `MEM-ELIG-00`
 - Allowed paths:
   - `src/unified_source_index_sources/memory.py`
   - `tests/test_unified_source_index_memory_source.py`
 - Work:
-  - read accepted owner-scoped Memory records through canonical APIs;
+  - read accepted owner-scoped Memory records through the canonical
+    `MEM-ELIG-00` snapshot contract;
   - stable source/version refs and record-field locators;
   - preserve source/category/lifecycle/review evidence;
   - exclude rejected, deleted, incognito or policy-blocked records;
@@ -231,11 +300,47 @@ gate.
 - Done when: synthetic Memory changes yield deterministic versions and all
   retrieval evidence maps back to the accepted domain record.
 
+### PDS-READ-00 - Bounded Personal Docs Owner Reader Prerequisite
+
+- Class: `repo_only`
+- Owner: Bob under an exact two-file claim; Root owns planning integration
+- Status: `accepted_repo_only_2026-09-07`
+- Evidence: `handoffs/abc-open-work-5h-run-20260905.json`,
+  `pds_read00_acceptance`; exact candidate hashes, independent deep PASS,
+  32 focused tests passed (2 platform skips), 22 compatibility tests passed,
+  and guidance/round6/integration-spine validators passed. Prior rejected
+  candidates and correction budgets remain recorded in the same run.
+- Dependencies: accepted `UDA-00`, `UDA-01`, and the existing
+  `native-knowledge-personal-docs-boundary-contract.md` exact-reader seam
+- Allowed paths (new files only):
+  - `src/personal_docs_owner_reader.py`
+  - `tests/test_personal_docs_owner_reader.py`
+- Frozen contract: `handoffs/abc-open-work-5h-run-20260905.json`,
+  `pds_read00_contract` version `v1`; independently reviewed before dispatch.
+- Work: implement a default-unwired, bounded, read-only domain companion for
+  one explicit owner/root binding and strict UTF-8 TXT/Markdown/JSON files.
+  Capture immutable descriptors, repeat confined byte-version exact reads,
+  and expose only bounded unavailable observations. Constructor performs no
+  filesystem work. Latest-snapshot capabilities are process-local; recapture
+  replaces them and failed capture revokes them. No persistence or history.
+- Existing `PersonalDocsManager` remains the sole truth/write/registry owner;
+  this prerequisite does not alter the existing-domain hotfile rule in §7.
+- Tests: `python -m pytest -q tests/test_personal_docs_owner_reader.py`,
+  existing Personal Docs compatibility and confirmed-route/removal suites,
+  hostile filesystem/descriptor lifecycle tests, independent deep QA.
+- Done when: synthetic fixtures prove deterministic bounded discovery,
+  confinement/replacement rejection, same-byte exact reads, content-free errors
+  and zero manager/provider/index/runtime writes or automatic scans.
+- Remaining UDA-04 limits: productive owner authorization, registry exclusions,
+  extra-root ownership, PDF/Office extraction and legacy Chroma parity remain
+  unproven. This prerequisite cannot accept UDA-04 or activate private reads.
+
 ### UDA-04 - Personal Docs And Current RAG Source Adapter
 
 - Class: `repo_only`
 - Owner: Bob
-- Dependencies: `UDA-01`, USI generic chunk profile, Personal Docs handoff
+- Dependencies: `UDA-01`, accepted `PDS-READ-00`, USI generic chunk profile,
+  Personal Docs handoff including the remaining format/registry parity scope
 - Allowed paths:
   - `src/unified_source_index_sources/personal_docs.py`
   - `tests/test_unified_source_index_personal_docs_source.py`
@@ -267,11 +372,180 @@ gate.
 - Done when: synthetic native Knowledge records have deterministic
   owner/policy/version/locator parity without a plugin or vault dependency.
 
+### PLN-SOURCE-00 - Approved Planning Projection Reader (Accepted Prerequisite)
+
+- Status: accepted/released repo-only on 2026-09-07; full UDA-06 remains open.
+- Allowed paths: `src/planning_revision_store.py`,
+  `tests/test_planning_definition_projection.py`, `src/planning_mcp_service.py`,
+  `tests/test_planning_mcp_service.py`.
+- Public boundary: `snapshot_owner_sources`, `capture_owner_source_snapshot`,
+  and `read_owner_source_projection`; select the exact latest approved revision.
+  Draft-only rows are explicitly ineligible and cause no source-file read.
+- Bounded owner enumeration, selected JSON reads, strict projection validation,
+  and Windows-safe path validation preserve PRIVATE/INLINE_LOCAL policy.
+  Markdown references carry no Markdown-body read authority.
+- Evidence: `handoffs/abc-open-work-5h-run-20260905.json`,
+  `pln_source00_acceptance`: independent deep PASS, 675 tests passed and one
+  existing Windows skip; central planning checks passed. Historical rejected
+  candidates and consumed correction budgets remain preserved.
+
+### USI-EXACT-CHAR-CHUNK-00 - Shared Exact Character Ranges (Accepted Prerequisite)
+
+- Status: accepted/released repo-only on 2026-09-07.
+- Allowed paths: `src/rag_text_chunking.py`, `tests/test_rag_text_chunking.py`.
+- `split_text_into_exact_character_ranges` supplies bounded contiguous ranges
+  without normalizing source text. Existing chunking behavior remains unchanged.
+- Evidence: `handoffs/abc-open-work-5h-run-20260905.json`,
+  `exact_char_chunk_acceptance`: independent standard PASS, 45 tests passed,
+  707 additional boundary checks, and exact reassembly of a 750,079-character
+  canonical JSON projection.
+- Consumer: accepted PLN-SOURCE-01 uses both prerequisites for the synthetic,
+  default-off approved-JSON adapter. Full UDA-06, Markdown adapter consumption, productive
+  owner mapping and activation remain open.
+
+### PLN-SOURCE-01 - Approved Planning JSON Adapter (Accepted Prerequisite)
+
+- Status: accepted/released repo-only on 2026-09-07; full UDA-06 remains open.
+- Allowed paths: `src/unified_source_index_sources/planning.py` and
+  `tests/test_unified_source_index_planning_source.py`.
+- Reads only the public approved Planning projection boundary with explicit
+  owner/snapshot binding, exact character ranges and deterministic graph records.
+- Exported DTOs bind source/version evidence, exact text and the complete
+  projection-derived graph; invalid requests fail before unnecessary reads.
+- The manifest-only registration is default-off and has no productive factory.
+- Evidence: `handoffs/abc-open-work-5h-run-20260905.json`,
+  `pln_source01_acceptance`: 577 tests passed and one existing Windows skip,
+  central-three PASS, fresh independent whole-candidate Sol/high PASS, and
+  exact candidate/pin readback. Prior rejected candidates and budgets remain.
+- Remaining UDA-06 scope: composite/runtime integration, productive owner mapping and activation.
+
+### PLN-SOURCE-02 - Explicit Planning Markdown Body Reader (Accepted Prerequisite)
+
+- Status: accepted repo-only prerequisite after G1 corrections and independent deep PASS.
+- Target runtime: Debian 13 / Python 3.11. Original Windows acceptance: 612
+  passing tests and one symlink skip. Supplementary Ubuntu 24.04.1 / Python 3.12.3
+  verification: 613 passing tests, no skips, real symlinks and an independent
+  unprivileged POSIX permission-denial probe. Evidence: canonical run
+  `pln_source02_linux_verification`. Debian runtime verification remains open.
+- Dependencies: accepted `PLN-SOURCE-00`, `PLN-SOURCE-01` and
+  `USI-EXACT-CHAR-CHUNK-00`.
+- Planning owner scope: `src/planning_mcp_service.py` and
+  `tests/test_planning_mcp_service.py`; exact current baselines under own claim.
+- Provides a default-empty, explicitly selected Markdown body reader through public
+  Planning service methods. Every selected owner/project/roadmap/ref must also
+  match the current latest-approved JSON supporting ref and expected raw-byte hash.
+- Preserve strict UTF-8 bytes, fixed bounded errors, immutable selection binding,
+  exact source versions and existing JSON/stable-filesystem behavior.
+- Acceptance: 612 passing tests, one existing Windows symlink skip, central-three
+  PASS and independent whole-boundary deep PASS on the corrected frozen candidate.
+  Exact hashes and Root/independent evidence: canonical run `pln_source02_acceptance`.
+  The initial rejected candidate and all G1 correction counts remain preserved.
+- Frozen contract and claim: `handoffs/abc-open-work-5h-run-20260905.json`,
+  `pln_source02_contract`; no productive selection, adapter/registry write,
+  Markdown truth promotion, deletion inference or full UDA-06 acceptance.
+
+### PLN-SOURCE-03 - Explicit Planning Markdown Adapter (Accepted Prerequisite)
+
+- Status: accepted repo-only internal prerequisite after independent deep PASS.
+- Dependencies: accepted `PLN-SOURCE-00`, `PLN-SOURCE-01`, `PLN-SOURCE-02`
+  and `USI-EXACT-CHAR-CHUNK-00`.
+- Implemented in `src/unified_source_index_sources/planning_markdown.py` and
+  `tests/test_unified_source_index_planning_markdown_source.py`.
+- Uses only public explicit Markdown capture/read APIs. Detached immutable evidence
+  binds owner/project/roadmap/exact ref, approved metadata, raw UTF-8 hash and all
+  selection/version/snapshot digests. Exact character ranges and empty bodies
+  (zero chunks) are preserved; no inferred graph records or registry entry.
+- Acceptance: 50 focused tests; Root 17 and independent review 6 hostile probes;
+  required eight-file Windows lane 662 PASS / one symlink skip; central-three PASS;
+  independent whole-candidate deep PASS. Same frozen candidate on Ubuntu 24.04.1 /
+  Python 3.12.3: 663 PASS / zero skips. Python 3.11 syntax check passed; actual
+  Debian 13 / Python 3.11 execution remains unverified.
+- Exact hashes, rejected-candidate history, retained correction budgets and the
+  unrelated OpenWork pin handoff are recorded in canonical run
+  `pln_source03_acceptance`, `pln_source03_candidate` and `pln_source03_final_deep_qa`.
+- Productive selections, owner mapping and full UDA-06 remain open/default-off.
+
+### PLN-SOURCE-04 - Single Planning Domain Composite (Accepted Prerequisite)
+
+- Status: accepted/released repo-only on 2026-09-07 after fresh independent deep PASS.
+- Dependencies: accepted `UDA-01`, `USI-01`, `USI-03`, `USI-04`, `USI-05`,
+  `PLN-SOURCE-00/01/02/03` and `USI-EXACT-CHAR-CHUNK-00`.
+- Implemented only in `src/unified_source_index_sources/planning_composite.py`
+  and `tests/test_unified_source_index_planning_composite_source.py`.
+- One default-off `planning.approved_sources/v1` manifest with `factory=None`
+  combines accepted public child APIs and preserves child DTO/source/version/
+  provider identities. It replaces the legacy Planning registration; selecting
+  both fails the existing duplicate-domain guard.
+- Detached bindings and both-child discovery fences reject selected/nonselected
+  source drift before and after routed operations. Child bindings are validated
+  before comparison. No registry/core/package changes or productive activation.
+- The public DTO discovery envelope is 100 JSON plus 24 Markdown sources. The
+  real service separately limits metadata to 65,536 bytes; not every 100+24
+  selection fits. Existing child graph/text budgets remain unchanged.
+- Synthetic per-child jobs share the composite profile and one temporary SQLite
+  store; direct lexical retrieval preserves exact refs and routed reads. This
+  proves small-fixture compatibility, not the productive job bridge.
+- Acceptance: focused23, Root7, central-three and fresh whole-candidate deep PASS.
+  Required15 Windows: 743 PASS, one symlink skip, two unchanged ULO02 baseline
+  failures. Same candidate Ubuntu24.04.1/Python3.12.3: 744 PASS, zero skips, the
+  same two failures. Neither required lane is globally green. Python3.11 syntax
+  passed; Debian13/Python3.11 runtime remains unverified.
+- Canonical run `pln_source04_acceptance` links exact hashes, rejected first
+  candidate, G1 correction and all evidence. The incomplete57-file Linux snapshot
+  was repaired to a verified65-file import closure; prior failures are retained.
+- Full UDA-06, productive owner mapping and activation remain open/default-off.
+
+### USI-PAGED-EXTRACTION-00 - Complete Graph Extraction Pages (Registered Prerequisite)
+
+- Status: registered repo-only prerequisite for `PLN-SOURCE-05`; requires a fresh
+  critical contract and four-file writer claim after Source04 read-pin release.
+- Dependencies: accepted generic `USI-04` JobStore/store contracts and Source04.
+- Modify only `src/unified_source_index_adapters.py`,
+  `src/unified_source_index_jobs.py`, `tests/test_unified_source_index_adapters.py`
+  and `tests/test_unified_source_index_jobs.py`; no store/SQLite/schema changes.
+- Add opt-in pages of at most100 records, at most12,296 aggregate records and
+  123 pages; retain legacy extraction/projection and separate discovered-source,
+  page and aggregate budgets. Validate detached exact typed data before behavior,
+  stable source/version, sequence, bounded unique cursors, unique record kind/ID,
+  and terminal count/canonical digest. Initial terminal empty pages are valid;
+  empty advancing pages are rejected. Bind paged jobs to the exact adapter profile.
+- Gather the complete source graph under one deadline with lease/cancellation
+  checks between pages and immediately precommit. Publish graph and lease CAS
+  in one existing transaction; failure preserves prior indexed truth. Use existing
+  TRUTH_COMMIT checkpoint recovery for idempotent postcommit finalization without
+  source rereads or a self-referential snapshot. No schema expansion.
+- Reject paged plus legacy projection before source I/O with fixed
+  `paged_projection_unsupported`; no graph truncation or hidden activation.
+- Acceptance: full12,296-record memory/SQLite roundtrip, empty graph, excessive
+  page/aggregate/character limits, malformed/duplicate/loop/drift/digest inputs,
+  timeout/cancellation/lease race, atomic failure, postcommit crash/retry,
+  profile mismatch before I/O, legacy regressions, central-three and fresh deep
+  PASS. Retain the unrelated two ULO02 baseline failures without reopening them.
+
+### PLN-SOURCE-05 - Planning Job Bridge (Registered Dependent Prerequisite)
+
+- Status: dependency-blocked repo-only prerequisite; no implementation claim yet.
+- Dependencies: accepted Source04 and `USI-PAGED-EXTRACTION-00`.
+- Create only `src/unified_source_index_sources/planning_job_bridge.py` and
+  `tests/test_unified_source_index_planning_job_bridge.py` under a later claim.
+- Two internal per-child generic adapters preserve child provider/source/version
+  IDs, share the composite-binding-derived required profile and page the entire
+  validated graph. Resolve generic evidence through the exact chunk and typed
+  child-bound request for composite routed reads; never truncate or widen generic
+  exact-read DTOs to bypass child snapshot/locator authority.
+- Acceptance requires both-child full indexing and exact-read evidence. UIR
+  generation-aware query/read routing remains a separate integration gate; this
+  bridge alone does not accept full UDA-06 or activate productive indexing.
+
 ### UDA-06 - Planning And Roadmap Source Adapter
 
 - Class: `repo_only`
 - Owner: Bob with Planning owner handoff
-- Dependencies: `UDA-01`, Planning storage contract
+- Dependencies: `UDA-01`, Planning storage contract, accepted `PLN-SOURCE-00`
+  and `USI-EXACT-CHAR-CHUNK-00` prerequisites, plus accepted `PLN-SOURCE-01`,
+  `PLN-SOURCE-02`, `PLN-SOURCE-03` and `PLN-SOURCE-04`; registered
+  `USI-PAGED-EXTRACTION-00` and `PLN-SOURCE-05` remain prerequisites for direct
+  search, followed by UIR generation-aware query/read integration.
 - Allowed paths:
   - `src/unified_source_index_sources/planning.py`
   - `tests/test_unified_source_index_planning_source.py`

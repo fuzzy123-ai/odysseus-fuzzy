@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.multi_agent_execution_guidance",
-  "updated_at": "2026-08-31T00:00:00+02:00",
+  "updated_at": "2026-09-07",
   "purpose": "Give an AI orchestrator an explicit execution policy for every roadmap-like artifact without rewriting historical evidence files; preserve completed evidence and route current Harbour One product work through its canonical product roadmap.",
   "inventory": {
     "docs_plans_discovery": "Files directly under docs/plans with extension .md or .json and a name containing roadmap, masterplan, execution, build-plan, implementation, priority-process, or workplan.",
@@ -34,10 +34,18 @@
     "hostile_acceptance": "Before implementation freeze exact-type and hostile Mapping/Sequence/__class__/property/iterator, TOCTOU, mutation-after-validation, raw-exception, Unicode/path-alias and budget rows.",
     "qa_freeze": "Bind independent QA to exact candidate blobs, authority/router revision, read-only pins and dirty-diff digest; any drift is stale and requires a new candidate.",
     "router_transaction": "Root performs central router claim transfer and compare-before-update as one logical transaction; no overlapping router writer is permitted.",
-    "inventory_modes": ["frozen_snapshot", "rolling_projection"],
+    "inventory_modes": [
+      "frozen_snapshot",
+      "rolling_projection"
+    ],
     "claim_transfer": "A worker or channel replacement may write only after an explicit durable transfer of the exact path claim.",
     "windows_pytest": "Use a deterministic claim-scoped .abc-test-tmp descendant, no ACL manipulation, and verify exact cleanup.",
-    "verification_order": ["focused", "dependency", "central", "expensive_or_live_user_gated"]
+    "verification_order": [
+      "focused",
+      "dependency",
+      "central",
+      "expensive_or_live_user_gated"
+    ]
   },
   "analysis_summary": {
     "profile_counts": {
@@ -106,7 +114,7 @@
         "baseline_round6_blob": "e5f4e1a93c358874203cba3b00b9b9afc74e5b1f",
         "baseline_round6_total_frontier_count": 28,
         "baseline_round6_untyped_frontier_digest": "sha256:d0dcab6ce61b0e0ab1d39696b647a8f20c205b8172d43fbe0fbaabc33aee9d3d",
-        "corrected_round6_blob": "2bda63a2725fd59e2842f0ba8320387315995b09",
+        "corrected_round6_blob": "69a2f6d21e1c68863203e7bd5a3625c94ea7694d",
         "corrected_guidance_active_count": 26,
         "corrected_guidance_active_digest": "sha256:d93cce6832fcfe54f1fb28adfe19dc8c7e22ed1415511965765128bda803a83b",
         "corrected_round6_active_frontier_count": 26,
@@ -671,13 +679,13 @@
       "path": "docs/plans/harbour-one-roadmap-realignment-2026-08-29.md",
       "profile": "canonical_router",
       "state": "canonical_product_direction_checkpoint_2026_08_29",
-      "ai_hint": "Use this concise checkpoint to orient work, then use docs/plans/harbour-one-product-roadmap.json for the machine-readable queue. It grants no live or deployment authority."
+      "ai_hint": "This is the dated product-direction checkpoint. Its verified-position table is historical. Use harbour-one-product-roadmap.json and its 2026-09-05 reconciliation for current status; preserve the original product decision and its evidence."
     },
     {
       "path": "docs/plans/harbour-one-product-roadmap.json",
       "profile": "active_serial",
-      "state": "active_product_authority_5_of_17_priority_governed_by_open_work_20260831",
-      "ai_hint": "This is the current Harbour One product authority. First apply docs/plans/open-work-completion-master-roadmap.json $.execution_priority_policy: Harbour is rank 9, so do not preempt higher-ranked dependency-ready work. When selected, read next_frontier, preserve accepted H1R slices and choose only its first still-open dependency-ready H1R item; do not restart H1R-02 or H1R-04. Harbour owns job/capability/policy/receipt truth; temporary isolated workers own their loops and sessions. Goose is the first adapter, DeepSeek Harness is a developer-preview comparison spike, and Codex/OpenHands/OpenCode are registry candidates. No live or deployment authority is implied."
+      "state": "active_product_authority_6_of_17_h1r02_parent_repo_accepted_20260905",
+      "ai_hint": "Use the canonical Harbour product roadmap for current parent status. The current five-hour ABC run independently verified H1R-02 parent repository acceptance; six of 17 parent units are accepted. Preserve the historical planning-only reconciliation and accepted children. H1R-03 migration and H1R-04 product acceptance remain pending; H1R-05 has accepted preparation only. The permanent Open Work priority order remains unchanged. New work requires a dependency-ready scoped claim. Goose remains first and all live effects retain their own gates."
     },
     {
       "path": "docs/plans/odysseus-harbor-one-autonomous-workspace-roadmap.md",
@@ -874,8 +882,8 @@
     {
       "path": "docs/plans/telegram-todo-domain-truth-roadmap.md",
       "profile": "active_serial",
-      "state": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a5_accepted_fd2340a6_ttd07a6_dependency_ready_unselected_live_default_off",
-      "ai_hint": "TTD-04 through TTD-07 plus TTD-08A, TTD-08B and TTD-07A0 through TTD-07A5 are accepted. After two rejected A5 attempts, the R0 architecture and A5A through A5C3 child releases completed the single canonical TTD-07A5 unit at fd2340a6; do not count the child slices separately. TTD-07A6 is dependency-ready but unselected and default-off. Preserve continuity, provider, productive enablement and all live gates."
+      "state": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a5_accepted_ttd07a6_v2_released_blocked_circuit_breaker_live_default_off",
+      "ai_hint": "TTD-04 through TTD-07 plus TTD-08A, TTD-08B and TTD-07A0 through TTD-07A5 are accepted. After two rejected A5 attempts, the R0 architecture and A5A through A5C3 child releases completed the single canonical TTD-07A5 unit at fd2340a6; do not count the child slices separately. TTD-07A6 v2 is released_blocked after independent deep QA found int-subclass selector limit bypass. Candidate, passing 67+161 tests and exhausted routine/G2 history are preserved in handoffs/abc-open-work-5h-run-20260905.json ttd07a6_v2_deep_qa and ttd07a6_v2_circuit_breaker; no ordinary retry or acceptance. Preserve continuity, provider, productive enablement and all live gates."
     },
     {
       "path": "docs/plans/telegram-dual-session-router-hotfix-roadmap.md",
@@ -952,8 +960,8 @@
     {
       "path": "docs/plans/codebase-memory-integration-roadmap.md",
       "profile": "active_serial",
-      "state": "preferred_engine_planned_after_usi_identity_live_default_off",
-      "ai_hint": "On a future explicit goal claim CBM-00 only. Treat CBM as a pinned rebuildable codegraph provider, never as repo/source/version/lineage/tool/planning truth. CBM-01 may prepare a disjoint benchmark harness, but persistent mapping waits for USI identity; serialize process, projection and query files, keep installer/hooks/auto-config/network/direct upstream tools disabled, and stop before CBM-LIVE-ACTIVATION."
+      "state": "cbm08_accepted_usi07a_pre1a_v2_rejected_join_circuit_breaker_engine_default_off",
+      "ai_hint": "Preserve existing CBM acceptances in the detail roadmap; do not re-claim completed foundations. USI-07A-PRE1A v2 is rejected after independent deep QA: an exited child can be replaced before wait/close. The candidate remains frozen and claim released_blocked; its confirmed-join gate has exhausted ordinary retries. Consult the canonical ABC Open Work run for exact candidate and gate evidence. PRE1B, full USI-07A, consumer cutover and CBM-LIVE-ACTIVATION retain their separate dependencies and gates."
     },
     {
       "path": "docs/plans/code-lineage-timeline-roadmap.md",
@@ -970,8 +978,8 @@
     {
       "path": "docs/plans/unified-source-index-implementation-roadmap.md",
       "profile": "active_serial",
-      "state": "planned_after_current_queue_productive_sources_default_off",
-      "ai_hint": "On a future explicit goal claim USI-00 only and keep successors blocked_by_dependency. Implement the existing Source/Chunk/Graph/Job Store boundaries rather than inventing parallel stores; preserve domain truth, TAX/TUA tool/telemetry ownership, GMI/GRO runtime ownership and Project Versioning history. USI-15 waits for UIR-14, ULO-14 and UDA-18 for every selected source scope. Serialize schema/query integration and stop before productive source scans, legacy cutover or USI-LIVE-ACTIVATION."
+      "state": "usi00_through_usi14_accepted_pre1a_v2_rejected_join_circuit_breaker_usi15_child_closure_pending",
+      "ai_hint": "Preserve accepted USI-00 through USI-14 and UIR foundations. USI-07A-PRE1A v2 is rejected and its claim released_blocked after independently reproduced restart-before-join; passing 148+47 tests is not acceptance. Keep the frozen candidate and exhausted confirmed-join gate history in the canonical ABC Open Work run. PRE1B and full USI-07A remain blocked. USI-15 still waits for UIR-14, ULO-14 and UDA-18 for selected scopes; productive reads, cutover and live activation retain separate gates."
     },
     {
       "path": "docs/plans/unified-source-index-runtime-integration-roadmap.md",
@@ -982,14 +990,14 @@
     {
       "path": "docs/plans/unified-source-index-domain-adapter-rollout-roadmap.md",
       "profile": "active_parallel",
-      "state": "uda00_through_uda02_and_mem_elig00_accepted_released_uda03_released_blocked_one_bounded_constructor_boundary_correction_allowed",
-      "ai_hint": "UDA-00 through UDA-02 and MEM-ELIG-00 are accepted/released. UDA-03 is released_blocked after 28 focused and 165 dependency PASS because independent hostile QA found two raw AssertionError leaks in exported Value-Object constructors. One bounded detached-constructor and content-free error-boundary correction may be claimed after the central process claim closes, followed by fresh independent QA. Keep every productive/private source read, migration, writer adoption and activation gated/default-off."
+      "state": "uda00_through_uda03_mem_elig00_pds_read00_pln_source00_through_source04_and_exact_char_chunk00_accepted_productive_adapters_default_off",
+      "ai_hint": "UDA-00 through UDA-03 and MEM-ELIG-00 are accepted/released repo-only; UDA-03 evidence is docs/plans/evidence/abc-uda03-composite-acceptance-20260905.json. PDS-READ-00, USI-EXACT-CHAR-CHUNK-00 and PLN-SOURCE-00/01/02/03 are accepted repo-only with exact identities and independent deep evidence in docs/plans/handoffs/abc-open-work-5h-run-20260905.json (*_acceptance fields). Rejected candidates and correction budgets remain preserved. Source02 supplementary Ubuntu lane: 613 PASS, zero skips, real symlinks and unprivileged permission-denial evidence. Source03: 50 focused, Root17 and independent6 probes; Windows required8 662 PASS/one symlink skip; same candidate Ubuntu 663 PASS/zero skips; central3 and independent whole-candidate deep PASS. Python3.11 syntax passed, but Debian13/Python3.11 runtime remains unverified. PLN-SOURCE-04 is accepted/released repo-only: focused23, Root7, central3 and fresh whole-candidate deep PASS; Windows required15 743PASS/1skip/2 unchanged ULO02 baseline failures; same candidate Ubuntu744PASS/0skip/same2 failures. Exact hashes and rejected/G1 history are linked in pln_source04_acceptance. Discovery124 is a public DTO envelope; real service metadata has a separate65536-byte cap. USI-PAGED-EXTRACTION-00 is registered for exactly adapters.py/jobs.py and their two tests: opt-in100records/page,12296aggregate,123pages, exact profile, complete graph plus leaseCAS atomicity, existing TRUTH_COMMIT recovery, bounded digest/cursor validation, empty terminal page, legacy compatibility and pre-IO paged projection denial. No store/schema edits or ULO02 reopening. PLN-SOURCE-05 is a separately claimed two-file dependent bridge preserving child IDs/full graph/generation-bound exact reads; UIR routing remains a later gate. No activation or full UDA06 acceptance. Productive owner mappings/private reads remain gated. UDA-04 legacy owner assignment is waiting_on_user; remaining registry/format parity requires an exact handoff. UDA-05 remains source-scope and Knowledge-contract gated; detached H1R-05B does not activate it. Obsidian remains excluded."
     },
     {
       "path": "docs/plans/unified-source-index-data-lifecycle-operations-roadmap.md",
       "profile": "active_serial",
-      "state": "ulo00_wave5r_accepted_released",
-      "ai_hint": "ULO-00 is accepted and released at 397f0c6d after Root deep review, fresh independent read-only QA and the integrated 251-test USI regression. The older lifecycle-inventory filenames remain stale and forbidden. Perform no lifecycle, destructive, backup, restore, provider or live action."
+      "state": "ulo00_wave5r_and_ulo01_round6_accepted_released",
+      "ai_hint": "ULO-00 Wave-5R and ULO-01 Round-6 owner-scope contract are accepted/released in canonical Open Work OWM-21. Preserve both and the earlier rejected attempts as history; do not reopen accepted scopes. Select only a still-open dependency-ready successor after current scope and path checks. The older lifecycle-inventory filenames remain stale and forbidden. Productive lifecycle, destructive, backup, restore, provider and live actions remain separately gated."
     },
     {
       "path": "docs/plans/unified-feature-completion-roadmap.md",

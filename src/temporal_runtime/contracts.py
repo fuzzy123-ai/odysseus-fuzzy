@@ -11,6 +11,7 @@ from typing import Any, Mapping, Sequence, TypeAlias
 
 EXECUTION_MANIFEST_SCHEMA_ID = "odysseus.abc.execution_manifest.v1"
 RUN_START_RECEIPT_SCHEMA_ID = "odysseus.abc.run_start_receipt.v1"
+DEFINITION_SNAPSHOT_REFERENCE_SCHEMA_ID = "odysseus.definition_authority_snapshot_ref.v1"
 MAX_MANIFEST_BYTES = 262_144
 _ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 _HASH_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
@@ -203,6 +204,52 @@ class NormalizedDag:
 
 
 @dataclass(frozen=True)
+class DefinitionSnapshotReference:
+    """Compact immutable pointer to one DefinitionAuthoritySnapshot."""
+
+    project_id: str
+    roadmap_id: str
+    planning_revision: int
+    planning_content_hash: str
+    snapshot_hash: str
+
+    @classmethod
+    def create(cls, value: Mapping[str, Any]) -> "DefinitionSnapshotReference":
+        required = {
+            "schema_id",
+            "project_id",
+            "roadmap_id",
+            "planning_revision",
+            "planning_content_hash",
+            "snapshot_hash",
+        }
+        if set(value) != required or value.get("schema_id") != DEFINITION_SNAPSHOT_REFERENCE_SCHEMA_ID:
+            _fail("invalid_definition_snapshot_ref", "$.definition_snapshot_ref", "reference fields are invalid")
+        revision = value["planning_revision"]
+        if isinstance(revision, bool) or not isinstance(revision, int) or revision < 1:
+            _fail("invalid_definition_snapshot_ref", "$.definition_snapshot_ref.planning_revision", "revision must be positive")
+        return cls(
+            project_id=validate_identifier(value["project_id"], "$.definition_snapshot_ref.project_id"),
+            roadmap_id=validate_identifier(value["roadmap_id"], "$.definition_snapshot_ref.roadmap_id"),
+            planning_revision=revision,
+            planning_content_hash=validate_hash(
+                value["planning_content_hash"], "$.definition_snapshot_ref.planning_content_hash"
+            ),
+            snapshot_hash=validate_hash(value["snapshot_hash"], "$.definition_snapshot_ref.snapshot_hash"),
+        )
+
+    def to_payload(self) -> dict[str, Any]:
+        return {
+            "schema_id": DEFINITION_SNAPSHOT_REFERENCE_SCHEMA_ID,
+            "project_id": self.project_id,
+            "roadmap_id": self.roadmap_id,
+            "planning_revision": self.planning_revision,
+            "planning_content_hash": self.planning_content_hash,
+            "snapshot_hash": self.snapshot_hash,
+        }
+
+
+@dataclass(frozen=True)
 class ExecutionManifest:
     agent_run_id: str
     owner_scope_ref: str
@@ -210,6 +257,7 @@ class ExecutionManifest:
     roadmap_id: str
     planning_revision: int
     planning_content_hash: str
+    definition_snapshot_ref: DefinitionSnapshotReference
     normalized_dag: NormalizedDag
     done_contract: FrozenObject
     queue_scope: str
@@ -234,6 +282,7 @@ class ExecutionManifest:
             "roadmap_id": self.roadmap_id,
             "planning_revision": self.planning_revision,
             "planning_content_hash": self.planning_content_hash,
+            "definition_snapshot_ref": self.definition_snapshot_ref.to_payload(),
             "normalized_dag": self.normalized_dag.to_payload(),
             "done_contract": self.done_contract.to_value(),
             "queue_scope": self.queue_scope,

@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kind": "harbour_one.product_master_roadmap",
   "title": "Harbour One Product Roadmap",
-  "updated_at": "2026-10-03",
+  "updated_at": "2026-10-09T10:08:58.288003+00:00",
   "status": "active_product_authority",
   "authority": {
     "product_name": "Harbour One",
@@ -65,9 +65,9 @@
     }
   },
   "progress": {
-    "completed": 9,
+    "completed": 10,
     "total": 17,
-    "percent": 53,
+    "percent": 59,
     "counting_rule": "Count only the 17 mandatory slices and only parent statuses beginning accepted. Architecture acceptance, implemented sub-slices and documentation reconciliation do not complete a parent. Accepted units are repository-only foundations and behavior, not a released product; completed, total, percent and accepted_slice_ids must agree with slices.",
     "accepted_slice_ids": [
       "H1R-00",
@@ -78,7 +78,8 @@
       "H1R-08",
       "H1R-10",
       "H1R-04",
-      "H1R-05"
+      "H1R-05",
+      "H1R-09"
     ]
   },
   "foundation_evidence_binding": {
@@ -304,7 +305,7 @@
     {
       "id": "H1R-09",
       "name": "Unified typed Inbox",
-      "status": "planned_needs_architecture",
+      "status": "accepted_repo_only_2026-10-09",
       "class": "needs_design",
       "claimable": false,
       "depends_on": [
@@ -319,9 +320,10 @@
         "src/upload_handler.py",
         "plugins/mcp_server/plugin.py",
         "docs/mcp-server-runbook.md",
-        "docs/plans/handoffs/abc-open-work-5h-run-20260905.json"
+        "docs/plans/handoffs/abc-open-work-5h-run-20260905.json",
+        "docs/plans/handoffs/abc-open-work-5h-run-20260905.json#completion_campaign_20261001.h1r09_parent_acceptance_reconciliation_20261009.takeover_review"
       ],
-      "status_note": "Typed Inbox components are accepted at commits 81a22af3 (187 native cases) and 13d645b7 (three App cases). The current 17-input comparison finds 12 byte-identical files and five CRLF/LF-only files with identical ASTs. Whole H1R-09 acceptance remains pending a fresh independent parent review; the components and source comparison do not establish package/default/UI/live/temporal acceptance. New uploads use immutable SIDs; historical entries remain excluded. Existing parent status, dependencies and progress are retained until whole-parent evidence is independently accepted."
+      "status_note": "H1R-09 repository-only parent acceptance passed fresh independent deep review on 2026-10-09 against all 17 current frozen input hashes. Typed Inbox components at commits 81a22af3 (187 native cases) and 13d645b7 (three actual-App cases) satisfy the parent read-model and owning-subsystem idempotent-mutation contract. The App evidence has 12 byte-identical inputs and five CRLF/LF-only inputs with identical ASTs; the original controller failure and reconciled runtime evidence are preserved. Package/default activation, UI, live/provider behavior, temporal/golden flow, physical cleanup after OS unlink refusal and the exhausted transport gate remain unverified. New uploads use immutable SIDs; historical entries remain excluded."
     },
     {
       "id": "H1R-10",
@@ -350,7 +352,9 @@
       ],
       "objective": "Implement deterministic extraction, dedupe and durable knowledge writes offline, then run one bounded read-only or reversible pilot after explicit approval.",
       "done_when": "Fixtures prove idempotency, provenance, owner isolation and rollback; a separately authorized pilot has redacted readback evidence.",
-      "evidence": []
+      "evidence": [
+        "docs/plans/handoffs/abc-open-work-5h-run-20260905.json $.completion_campaign_20261001.h1r11_offline_ingestion_preparation_20261009.offline_component_acceptance — inactive synthetic adapter accepted with platform limits: adapter34PASS, reader33PASS/2SKIP, store257PASS; no parent/live/activation acceptance; receipt .abc-test-tmp/nc11q3/receipt.json sha256:51af41875db8d84ecf6409a83d6d489a608e83e04fce083490fff2eb1fc327f4"
+      ]
     },
     {
       "id": "H1R-12",
@@ -456,7 +460,66 @@
       "H1R-15",
       "H1R-16"
     ],
-    "rule": "Freeze and independently review exact architecture and path claims before implementation. Do not infer live authority from dependency readiness."
+    "rule": "Freeze and independently review exact architecture and path claims before implementation. Do not infer live authority from dependency readiness.",
+    "remaining_work_plan": {
+      "as_of": "2026-10-09",
+      "scope": "Harbour One: verbleibende Produktarbeit, gegen aktuellen Code und vorhandene geschlossene Nachweise geprüft; Planungsauftrag ohne Implementierungs- oder Live-Autorisierung.",
+      "evidence_ref": "docs/plans/handoffs/abc-open-work-5h-run-20260905.json $.completion_campaign_20261001.remaining_work_plan_codebase_audit_20261009",
+      "accepted_parent_count": 10,
+      "mandatory_parent_count": 17,
+      "readiness_preflight": {
+        "slice_id": "H1R-03",
+        "finding": "Aktuelle Roadmap driftet vom eingefrorenen Migration-Pin; geprüften Authority-Nachfolger vor Gesamtintegration herstellen."
+      },
+      "mcp_first_order": [
+        "H1R-07",
+        "H1R-12",
+        "H1R-13",
+        "H1R-11",
+        "H1R-15",
+        "H1R-16"
+      ],
+      "deferred_ui_slice": "H1R-14",
+      "dependency_rule": "Bestehende Parent-Abhängigkeiten bleiben erhalten. Für MCP-first gelten ausschließlich die bereits autorisierten UI-Ausnahmen für H1R-15/16; H1R-11 ist nach Owner-Entscheidung unabhängig von H1R-07 vorbereitbar. H1R-14 bleibt für vollständige Produktabnahme erforderlich.",
+      "items": [
+        {
+          "slice_id": "H1R-07",
+          "remaining": "Kontextanfragen kausal absichern und in den bestehenden authentifizierten MCP-Server integrieren.",
+          "blocker": "Runtime-G3 endet im Timeout; Transport-Review FAIL wegen transitiver globaler Response-Helfer. G3-Budget erschöpft."
+        },
+        {
+          "slice_id": "H1R-12",
+          "remaining": "Worker Gateway mit authentischen Planning-/Pack-/Capability-/Budget-Bindungen und dauerhaften Zustandsübergängen bauen.",
+          "blocker": "H1R-07 nicht abgenommen; bestehende Architektur muss an aktuelle Authority-Pins gebunden und erneut unabhängig geprüft werden. H1R-09 ist inzwischen repo-only abgenommen."
+        },
+        {
+          "slice_id": "H1R-13",
+          "remaining": "Vorhandenen Broker an den Worker Gateway anbinden und Goose als ersten austauschbaren Worker integrieren.",
+          "blocker": "H1R-12; externe Executor-Aktivierung benötigt den bestehenden separaten Live-GO."
+        },
+        {
+          "slice_id": "H1R-11",
+          "remaining": "Owner-gebundenen Nextcloud-Pilot in die reale Knowledge-Authority integrieren und separat live abnehmen.",
+          "blocker": "Owner-Entscheidungen zu Root/Subset/Safe-Area/Retention und action-spezifischer Nextcloud-Pilot-GO fehlen."
+        },
+        {
+          "slice_id": "H1R-15",
+          "remaining": "Effektive Worker-Isolation und dauerhaften Betrieb über 10–15 Stunden nachweisen.",
+          "blocker": "Gateway/Worker und aktuelle MCP-End-to-End-Readiness; reale Host-/Runner-Probes benötigen ihre eigene Autorisierung. UI ist für MCP-first keine Voraussetzung."
+        },
+        {
+          "slice_id": "H1R-16",
+          "remaining": "MCP-first-Meilenstein mit vollständigem Backend-Umfang und nachvollziehbarer Start-/Verbindungs-/Toolfolge abnehmen.",
+          "blocker": "Offene Backend-Parents, temporaler Nachweis und gegebenenfalls deren Live-Gates; Benutzerabnahme ausstehend."
+        },
+        {
+          "slice_id": "H1R-14",
+          "remaining": "Nach MCP-first die vom Benutzer freigegebene UI an echte Owner-Readmodels anbinden.",
+          "blocker": "Design-GO und H1R-07/11/13 gemäß bestehenden Parent-Abhängigkeiten. Für MCP-first ausdrücklich verschoben."
+        }
+      ],
+      "execution_boundary": "Kein Claim für Source-Implementierung, Budget-Reset, Live-GO, Commit, Push oder Deployment entsteht durch diesen Plan."
+    }
   },
   "gate_queue": [
     {

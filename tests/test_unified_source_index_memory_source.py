@@ -118,6 +118,34 @@ def _first_descriptor(adapter, expected):
     return page.items[0]
 
 
+def _locator_with(locator, **changes):
+    values = {
+        "record_ref": locator.record_ref,
+        "record_digest": locator.record_digest,
+        "snapshot_digest": locator.snapshot_digest,
+        "binding_digest": locator.binding_digest,
+        "text_range": locator.text_range,
+    }
+    values.update(changes)
+    return MemoryRecordFieldLocator(**values)
+
+
+def _evidence_with(evidence, **changes):
+    values = {
+        "record_ref": evidence.record_ref,
+        "record_digest": evidence.record_digest,
+        "source_digest": evidence.source_digest,
+        "snapshot_digest": evidence.snapshot_digest,
+        "binding_digest": evidence.binding_digest,
+        "policy_evidence_ref": evidence.policy_evidence_ref,
+        "review_evidence_ref": evidence.review_evidence_ref,
+        "source_id": evidence.source_id,
+        "source_version_id": evidence.source_version_id,
+    }
+    values.update(changes)
+    return MemoryRecordEvidence(**values)
+
+
 def _freeze(value):
     if type(value) is dict:
         return MappingProxyType({key: _freeze(item) for key, item in value.items()})
@@ -215,15 +243,195 @@ def test_observe_extract_and_exact_read_use_canonical_usi_records(tmp_path):
     assert occurrence.source.content_policy is ContentPolicy.INLINE_LOCAL
     assert occurrence.chunk.classification is Classification.SENSITIVE
     assert occurrence.chunk.content_policy is ContentPolicy.INLINE_LOCAL
+    assert type(occurrence.chunk.content) is str
     assert occurrence.chunk.content == text
     assert occurrence.chunk.content_hash == content_hash(text)
     assert occurrence.locator.text_range == TextRangeLocator(0, len(text))
+    assert occurrence.locator.text_range.end_char == len(occurrence.chunk.content)
     assert occurrence.evidence.policy_evidence_ref == POLICY_REF
     assert occurrence.evidence.review_evidence_ref == REVIEW_REF
     assert exact.content == text
     assert exact.content_hash == content_hash(text)
     assert text not in repr(occurrence)
     assert text not in repr(exact)
+
+
+@pytest.mark.parametrize(
+    "mismatch",
+    (
+        "canonical_record_ref",
+        "record_revision",
+        "snapshot_digest",
+        "binding_digest",
+        "source_version_authority",
+    ),
+)
+def test_descriptor_constructor_rejects_mixed_semantic_authority(tmp_path, mismatch):
+    adapter, _, _, expected = _adapter(tmp_path)
+    descriptor = _first_descriptor(adapter, expected)
+    source = descriptor.source
+    source_version = descriptor.source_version
+    locator = descriptor.locator
+    evidence = descriptor.evidence
+
+    if mismatch == "canonical_record_ref":
+        record_ref = "memory:record:" + "c" * 64
+        locator = _locator_with(locator, record_ref=record_ref)
+        evidence = _evidence_with(evidence, record_ref=record_ref)
+    elif mismatch == "record_revision":
+        record_digest = "sha256:" + "d" * 64
+        locator = _locator_with(locator, record_digest=record_digest)
+        evidence = _evidence_with(evidence, record_digest=record_digest)
+    elif mismatch == "snapshot_digest":
+        locator = _locator_with(locator, snapshot_digest="sha256:" + "e" * 64)
+    elif mismatch == "binding_digest":
+        locator = _locator_with(locator, binding_digest="sha256:" + "f" * 64)
+    else:
+        source_version = SourceVersionRecord.create(
+            source,
+            revision_ref=source_version.revision_ref,
+            content_hash=source_version.content_hash,
+            version_observed_at=source_version.version_observed_at,
+            provider_ref="memory.foreign",
+            classification=Classification.SECRET,
+            content_policy=ContentPolicy.METADATA_ONLY,
+        )
+        evidence = _evidence_with(
+            evidence,
+            source_version_id=source_version.source_version_id,
+        )
+
+    with pytest.raises(MemorySourceAdapterError, match="^invalid_snapshot$"):
+        MemorySourceDescriptor(source, source_version, locator, evidence)
+
+
+@pytest.mark.parametrize("envelope", ("snapshot_digest", "binding_digest"))
+def test_discovery_page_rejects_items_from_foreign_envelope(tmp_path, envelope):
+    adapter, _, _, expected = _adapter(tmp_path)
+    descriptor = _first_descriptor(adapter, expected)
+    page_values = {
+        "snapshot_digest": expected["expected_snapshot_digest"],
+        "binding_digest": expected["expected_binding_digest"],
+    }
+    page_values[envelope] = "sha256:" + "9" * 64
+
+    with pytest.raises(MemorySourceAdapterError, match="^invalid_snapshot$"):
+        MemoryDiscoveryPage((descriptor,), None, **page_values)
+
+
+@pytest.mark.parametrize("mismatch", ("extractor_profile", "content_hash"))
+def test_occurrence_constructor_rejects_chunk_outside_descriptor_version(
+    tmp_path,
+    mismatch,
+):
+    text = "synthetic accepted body"
+    adapter, _, _, expected = _adapter(tmp_path, [_record(text=text)])
+    descriptor = _first_descriptor(adapter, expected)
+    chunk_text = text if mismatch == "extractor_profile" else "x" * len(text)
+    profile = (
+        "memory.foreign.profile"
+        if mismatch == "extractor_profile"
+        else memory_source_module.MEMORY_SOURCE_EXTRACTOR_PROFILE
+    )
+    chunk = ChunkRecord.create(
+        descriptor.source_version,
+        locator=descriptor.locator.text_range,
+        extractor_profile_ref=profile,
+        content_hash=content_hash(chunk_text),
+        content=chunk_text,
+        classification=Classification.SENSITIVE,
+        content_policy=ContentPolicy.INLINE_LOCAL,
+    )
+
+    with pytest.raises(MemorySourceAdapterError, match="^invalid_snapshot$"):
+        MemorySourceOccurrence(
+            descriptor.source,
+            descriptor.source_version,
+            chunk,
+            descriptor.locator,
+            descriptor.evidence,
+        )
+
+
+@pytest.mark.parametrize(
+    "mismatch",
+    ("missing_content", "short_range", "overshoot_range"),
+)
+def test_occurrence_constructor_rejects_non_exact_inline_content(tmp_path, mismatch):
+    text = "synthetic accepted body"
+    adapter, _, _, expected = _adapter(tmp_path, [_record(text=text)])
+    descriptor = _first_descriptor(adapter, expected)
+    chunk_content = None if mismatch == "missing_content" else text
+    if mismatch == "short_range":
+        text_range = TextRangeLocator(0, len(text) - 1)
+    elif mismatch == "overshoot_range":
+        text_range = TextRangeLocator(0, len(text) + 1)
+    else:
+        text_range = descriptor.locator.text_range
+    locator = _locator_with(descriptor.locator, text_range=text_range)
+    chunk = ChunkRecord.create(
+        descriptor.source_version,
+        locator=text_range,
+        extractor_profile_ref=memory_source_module.MEMORY_SOURCE_EXTRACTOR_PROFILE,
+        content_hash=content_hash(text),
+        content=chunk_content,
+        classification=Classification.SENSITIVE,
+        content_policy=ContentPolicy.INLINE_LOCAL,
+    )
+
+    with pytest.raises(MemorySourceAdapterError, match="^invalid_snapshot$"):
+        MemorySourceOccurrence(
+            descriptor.source,
+            descriptor.source_version,
+            chunk,
+            locator,
+            descriptor.evidence,
+        )
+
+
+@pytest.mark.parametrize(
+    "mismatch",
+    (
+        "record_digest",
+        "snapshot_digest",
+        "binding_digest",
+        "source_version_identity",
+        "full_content_range",
+    ),
+)
+def test_exact_read_constructor_rejects_cross_authority_content(
+    tmp_path,
+    mismatch,
+):
+    text = "synthetic accepted body"
+    adapter, _, _, expected = _adapter(tmp_path, [_record(text=text)])
+    descriptor = _first_descriptor(adapter, expected)
+    locator = descriptor.locator
+    evidence = descriptor.evidence
+    exact_content = text
+
+    if mismatch == "record_digest":
+        locator = _locator_with(locator, record_digest="sha256:" + "6" * 64)
+    elif mismatch == "snapshot_digest":
+        locator = _locator_with(locator, snapshot_digest="sha256:" + "7" * 64)
+    elif mismatch == "binding_digest":
+        locator = _locator_with(locator, binding_digest="sha256:" + "8" * 64)
+    elif mismatch == "source_version_identity":
+        exact_content = "x" * len(text)
+    else:
+        locator = _locator_with(
+            locator,
+            text_range=TextRangeLocator(0, len(text) - 1),
+        )
+
+    with pytest.raises(MemorySourceAdapterError, match="^invalid_snapshot$"):
+        MemoryExactRead(
+            descriptor.evidence.record_ref,
+            exact_content,
+            content_hash(exact_content),
+            locator,
+            evidence,
+        )
 
 
 def test_observe_unavailable_is_content_free_and_rejects_available_record(tmp_path):

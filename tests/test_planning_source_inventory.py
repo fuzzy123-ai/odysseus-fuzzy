@@ -20,6 +20,8 @@ from src.planning_roadmap_migration import (
     DOCS_ONLY_AUTHORITY_PINS,
     REPO_ONLY_AUTHORITY_MAP_ID,
     REPO_ONLY_AUTHORITY_PINS,
+    PRODUCT_READINESS_AUTHORITY_MAP_ID,
+    PRODUCT_READINESS_AUTHORITY_PINS,
     HISTORICAL_AUTHORITY_MAP_ID,
     HISTORICAL_AUTHORITY_PINS,
     MIGRATION_MANIFEST_SCHEMA_V1,
@@ -322,6 +324,18 @@ def test_migration_inventory_resolves_exact_historical_and_successor_identities(
     assert projected_v4["migration_projection"]["migrated_read_only_count"] == 1
     assert batch == before
 
+    product_readiness = {
+        **historical,
+        "schema": MIGRATION_MANIFEST_SCHEMA_V2,
+        "authority_map_id": PRODUCT_READINESS_AUTHORITY_MAP_ID,
+        "authority_pins": PRODUCT_READINESS_AUTHORITY_PINS,
+    }
+    batch["manifest_identity"] = product_readiness
+    before = deepcopy(batch)
+    projected_v5 = project_planning_migration_inventory(inventory, batch)
+    assert projected_v5["migration_projection"]["migrated_read_only_count"] == 1
+    assert batch == before
+
 
 @pytest.mark.parametrize("mutation", [
     "v1_extra_map_id", "v1_successor_pins", "v2_missing_map_id", "v2_historical_pins",
@@ -379,12 +393,16 @@ def test_migration_inventory_rejects_hybrid_or_unknown_identity_before_mutating_
 
 
 @pytest.mark.parametrize("map_id,pins", [
+    (PRODUCT_READINESS_AUTHORITY_MAP_ID, REPO_ONLY_AUTHORITY_PINS),
+    (REPO_ONLY_AUTHORITY_MAP_ID, PRODUCT_READINESS_AUTHORITY_PINS),
+    (PRODUCT_READINESS_AUTHORITY_MAP_ID, {key: value for key, value in PRODUCT_READINESS_AUTHORITY_PINS.items() if key != "docs/plans/harbour-one-product-roadmap.json"}),
+    (PRODUCT_READINESS_AUTHORITY_MAP_ID, {**PRODUCT_READINESS_AUTHORITY_PINS, "unknown/product-readiness": "0" * 40}),
     (REPO_ONLY_AUTHORITY_MAP_ID, DOCS_ONLY_AUTHORITY_PINS),
     (DOCS_ONLY_AUTHORITY_MAP_ID, REPO_ONLY_AUTHORITY_PINS),
     (REPO_ONLY_AUTHORITY_MAP_ID, {key: value for key, value in REPO_ONLY_AUTHORITY_PINS.items() if key != "docs/plans/evidence/harbour-one-h1r05-repo-acceptance-20261003.receipt"}),
     (REPO_ONLY_AUTHORITY_MAP_ID, {**REPO_ONLY_AUTHORITY_PINS, "unknown/receipt": "0" * 40}),
 ])
-def test_inventory_v4_identity_negatives_leave_inputs_unchanged(map_id, pins):
+def test_inventory_v5_and_historical_identity_negatives_leave_inputs_unchanged(map_id, pins):
     inventory = {"sources": [{"path": "specs/roadmaps/primary.v1.json", "source_hash": "sha256:" + "a" * 64, "authority_disposition": "current_source_of_truth"}]}
     batch = {
         "batch_id": "planning-migration-batch:" + "a" * 64, "manifest_digest": "sha256:" + "b" * 64,

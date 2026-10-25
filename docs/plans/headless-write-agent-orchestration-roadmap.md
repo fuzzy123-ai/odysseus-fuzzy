@@ -2,7 +2,23 @@
 
 Date: 2026-07-13
 
-Status: **active under Standard ABC; HWA0-HWA1 complete, durable state/fencing is next; Temporal Light is the sole durable execution coordinator; all real worker, provider, merge and deploy actions remain separately gated**
+Status: **active under Standard ABC; HWA0-HWA1 and HWA3A-HWA3B are accepted, committed and released; HWA2 is normalization-blocked pending a typed authority-reconstruction predecessor; Temporal Light is the sole durable execution coordinator; all real worker, provider, merge and deploy actions remain separately gated**
+
+## 2026-08-12 Authority Reconciliation
+
+- `HWA3A-durable-capability-evidence-fence-store` is accepted at commit
+  `fd1cd4cd73eba022fec4af6a039b4a9d4dc87663`; the current focused state-store
+  suite passes `17/17`.
+- `HWA3B-durable-scaling-admission-integration` is accepted at commit
+  `31ad94088831904f0b8fae82e3d36458d2274900`; its durable run-state receipt
+  records `44` focused and `60` compatibility tests.
+- HWA2's dependency IDs are therefore satisfied. HWA2 is not yet a writer
+  claim: the accepted state store does not expose a typed reconstruction of
+  the complete `ApprovalCapability` and `HeadlessCommitEvidence` objects used
+  by `prepare_commit_project_call`.
+- The next repo-only step is a fresh Root/Sol HWA2A accessor/bridge architecture
+  that closes that authority boundary without trusting caller-supplied fields,
+  reading private SQLite payloads, or duplicating the canonical store.
 
 ## Master Integration
 
@@ -241,8 +257,9 @@ Evidence:
 
 ### HWA2 Canonical Subagent Commit Bridge
 
-Status: `pending` after HWA3A and HWA3B establish durable grants, evidence,
-fencing and admission control.
+Status: `normalization_blocked`; HWA3A and HWA3B are accepted, but a fresh
+HWA2A typed authority-reconstruction architecture must close the store-to-
+bridge boundary before a writer claim.
 
 Owner: Bob.
 
@@ -272,7 +289,8 @@ Gate: repo-only. Any actual commit outside an isolated fake/test repository is
 
 ### HWA3A-HWA3B Persistent Authority Store And Scaling Governor
 
-Status: `HWA3A pending after HWA1`; `HWA3B pending after HWA3A`.
+Status: `HWA3A accepted/released at fd1cd4cd73eba022fec4af6a039b4a9d4dc87663`;
+`HWA3B accepted/released at 31ad94088831904f0b8fae82e3d36458d2274900`.
 
 Owner: Bob.
 
@@ -548,9 +566,10 @@ evidence.
 
 ## Current Decision
 
-Result: HWA0/HWA1 are repo-complete. `Go` for the next isolated durable
-state/fencing slice HWA3A only; HWA3B follows after HWA3A evidence is accepted.
-After HWA3A/HWA3B, execution work follows the TLR dependency order; no custom
+Result: HWA0/HWA1/HWA3A/HWA3B are repo-complete. HWA2 dependencies are
+satisfied, but HWA2 remains normalization-blocked until a fresh Root/Sol HWA2A
+typed authority-reconstruction architecture is registered and accepted. After
+that predecessor, execution work follows the TLR dependency order; no custom
 scheduler/effect queue is authorized. `No-Go` for a real
 commit bridge, localhost Temporal service/Worker, provider delivery, merge,
 deploy or external headless execution until its exact prerequisite evidence
@@ -558,3 +577,59 @@ and bounded gate are satisfied.
 
 Continuation handoff:
 `docs/plans/headless-write-agent-orchestration-handoff.md`.
+
+```json
+{
+  "source_reconciliation": {
+    "record_kind": "odysseus.source_reconciliation",
+    "source_path": "docs/plans/headless-write-agent-orchestration-roadmap.md",
+    "baseline_blob": "7f11c549d5aba93048316ec5c95b10d0a797dd15",
+    "current_unit_ids": [
+      "HWA-0-reconciliation-and-master-routing",
+      "HWA-1-verified-headless-mutation-contract",
+      "HWA-2-canonical-subagent-commit-bridge",
+      "HWA-3A-durable-capability-evidence-fence-store",
+      "HWA-3B-durable-scaling-admission-integration",
+      "HWA-4-temporal-activity-execution-backend",
+      "HWA-5A-temporal-workflow-coordinator",
+      "HWA-5B-temporal-worker-coordinator",
+      "HWA-6-provider-delivery-worker",
+      "HWA-7-merge-promotion-queue",
+      "HWA-8-deploy-promotion-queue",
+      "HWA-9A-agent-status-projection",
+      "HWA-9B-delivery-merge-deploy-projection",
+      "HWA-10-end-to-end-fake-pipeline"
+    ],
+    "accepted_unit_ids": [
+      "HWA-0-reconciliation-and-master-routing",
+      "HWA-1-verified-headless-mutation-contract",
+      "HWA-3A-durable-capability-evidence-fence-store",
+      "HWA-3B-durable-scaling-admission-integration",
+      "HWA-4-temporal-activity-execution-backend",
+      "HWA-5A-temporal-workflow-coordinator",
+      "HWA-5B-temporal-worker-coordinator",
+      "HWA-9A-agent-status-projection"
+    ],
+    "historical_or_excluded_ids": [
+      "HWA-11-provider-delivery-live-smoke",
+      "HWA-12-merge-live-smoke",
+      "HWA-13-deploy-live-smoke",
+      "HWA2A rejected and terminal SQLite reconstruction candidates"
+    ],
+    "aliases_to_temporal": {
+      "HWA-4-temporal-activity-execution-backend": "TLR-04-activities-claims-heartbeats",
+      "HWA-5A-temporal-workflow-coordinator": "TLR-03-deterministic-workflow",
+      "HWA-5B-temporal-worker-coordinator": "TLR-05-signals-updates-idempotency",
+      "HWA-9A-agent-status-projection": "TLR-06-history-agent-projection-api"
+    },
+    "not_aliases": {
+      "HWA-2-canonical-subagent-commit-bridge": "Still normalization_blocked; no TLR completion supplies its typed commit-authority bridge.",
+      "HWA-10-end-to-end-fake-pipeline": "TLR-08 and TLR-09 satisfy only its runtime-resilience portion. The required fake commit, Local Forge, provider, merge, deploy, and projection chain is still open.",
+      "HWA-6-provider-delivery-worker": "No TLR runtime slice grants provider-delivery implementation or live authority.",
+      "HWA-7-merge-promotion-queue": "No TLR runtime slice grants merge implementation or live authority.",
+      "HWA-8-deploy-promotion-queue": "No TLR runtime slice grants deployment implementation or live authority.",
+      "HWA-9B-delivery-merge-deploy-projection": "No TLR-06 read-only projection evidence covers later delivery, merge, deploy, and rollback stages."
+    }
+  }
+}
+```

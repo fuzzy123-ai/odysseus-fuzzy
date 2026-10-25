@@ -92,6 +92,7 @@ class ProcessState(StrEnum):
     STOPPED = "stopped"
     STARTING = "starting"
     RUNNING = "running"
+    RETIREMENT_PENDING = "retirement_pending"
     STOPPING = "stopping"
     FAILED = "failed"
 
@@ -270,10 +271,32 @@ class CodebaseMemoryProcess:
         self._start_count = 0
         self._stop_reason = "not_started"
         self._exchange_lock = asyncio.Lock()
+        self._launcher_task: asyncio.Task[AsyncProcess] | None = None
+        self._request_task: asyncio.Task[bytes] | None = None
+        self._wait_task: asyncio.Task[int] | None = None
+        self._retirement_task: asyncio.Task[None] | None = None
+        self._retirement_deadline: float | None = None
+        self._launcher_outcome_consumed = False
+        self._request_outcome_consumed = False
+        self._wait_outcome_consumed = False
+        self._retirement_outcome_consumed = False
+        self._retirement_succeeded = False
+        self._exit_proven = False
+        self._terminate_sent = False
+        self._kill_sent = False
+        self._publication_open = False
+        self._retirement_observer: Callable[[], None] | None = None
 
     @property
     def process(self) -> AsyncProcess | None:
         return self._process
+
+    def _bind_retirement_observer(self, observer: Callable[[], None]) -> None:
+        if not callable(observer) or self._retirement_observer is not None:
+            raise CodebaseMemoryProcessError(
+                "invalid_retirement_observer", "process retirement observer is invalid"
+            )
+        self._retirement_observer = observer
 
     def snapshot(self) -> ProcessSnapshot:
         process = self._process
@@ -282,7 +305,7 @@ class CodebaseMemoryProcess:
             state=self._state,
             start_count=self._start_count,
             pid_present=bool(process and getattr(process, "pid", 0)),
-            return_code=None if process is None else process.returncode,
+            return_code=self._exact_returncode(process),
             stop_reason=self._stop_reason,
             transport=CBM_TRANSPORT,
         )
@@ -290,7 +313,12 @@ class CodebaseMemoryProcess:
     async def start(self) -> ProcessSnapshot:
         if not self.settings.enabled:
             raise CodebaseMemoryProcessError("process_disabled", "Codebase Memory process is disabled")
-        if self._state in {ProcessState.STARTING, ProcessState.RUNNING, ProcessState.STOPPING}:
+        if self._state in {
+            ProcessState.STARTING,
+            ProcessState.RUNNING,
+            ProcessState.STOPPING,
+            ProcessState.RETIREMENT_PENDING,
+        } or self._retirement_task is not None:
             raise CodebaseMemoryProcessError("process_already_active", "process is already active")
         receipt = self.settings.egress_receipt
         if receipt is None or not receipt.ready:
@@ -300,38 +328,70 @@ class CodebaseMemoryProcess:
         self._verify_paths()
         self._state = ProcessState.STARTING
         self._stop_reason = ""
-        try:
-            process = await asyncio.wait_for(
-                self._launcher(
-                    *self.settings.command,
-                    stdin=asyncio.subprocess.PIPE,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                    cwd=str(self.settings.data_dir),
-                    env=build_scrubbed_environment(
-                        self._inherited_environment, self.settings
-                    ),
-                    limit=self.settings.max_message_bytes + 1,
+        self._publication_open = True
+        self._launcher_outcome_consumed = False
+        self._wait_outcome_consumed = False
+        self._exit_proven = False
+        self._terminate_sent = False
+        self._kill_sent = False
+        self._launcher_task = asyncio.create_task(
+            self._launcher(
+                *self.settings.command,
+                stdin=asyncio.subprocess.PIPE,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=str(self.settings.data_dir),
+                env=build_scrubbed_environment(
+                    self._inherited_environment, self.settings
                 ),
+                limit=self.settings.max_message_bytes + 1,
+            )
+        )
+        launcher_task = self._launcher_task
+        try:
+            done, _ = await asyncio.wait(
+                {launcher_task},
                 timeout=self.settings.startup_timeout_s,
             )
-        except asyncio.TimeoutError as exc:
+        except asyncio.CancelledError:
+            self._begin_retirement("startup_cancelled")
+            raise
+        if not done:
+            self._begin_retirement("startup_timeout")
+            await self._await_retirement_deadline()
+            raise CodebaseMemoryProcessError("startup_timeout", "process launch timed out")
+        if (
+            self._state is not ProcessState.STARTING
+            or not self._publication_open
+            or self._launcher_task is not launcher_task
+        ):
+            await self._await_retirement_deadline()
+            raise CodebaseMemoryProcessError("process_retiring", "process launch was retired")
+        try:
+            process = launcher_task.result()
+            self._launcher_outcome_consumed = True
+        except asyncio.CancelledError as exc:
             self._state = ProcessState.FAILED
-            self._stop_reason = "startup_timeout"
-            raise CodebaseMemoryProcessError("startup_timeout", "process launch timed out") from exc
+            self._stop_reason = "startup_failed"
+            self._publication_open = False
+            self._launcher_outcome_consumed = True
+            raise CodebaseMemoryProcessError("startup_failed", "process launch failed") from exc
         except Exception as exc:
             self._state = ProcessState.FAILED
             self._stop_reason = "startup_failed"
+            self._publication_open = False
+            self._launcher_outcome_consumed = True
             raise CodebaseMemoryProcessError("startup_failed", "process launch failed") from exc
+        self._launcher_task = None
         if process.stdin is None or process.stdout is None:
             self._process = process
-            self._state = ProcessState.FAILED
-            self._stop_reason = "stdio_unavailable"
-            await self.stop(reason="stdio_unavailable")
+            self._begin_retirement("stdio_unavailable")
+            await self._await_retirement_deadline()
             raise CodebaseMemoryProcessError("stdio_unavailable", "child stdio is unavailable")
         self._process = process
         self._state = ProcessState.RUNNING
         self._start_count += 1
+        self._publication_open = True
         return self.snapshot()
 
     async def exchange(self, request: bytes, *, timeout_s: float | None = None) -> bytes:
@@ -345,29 +405,40 @@ class CodebaseMemoryProcess:
         async with self._exchange_lock:
             process = self._running_process()
             assert process.stdin is not None and process.stdout is not None
+            self._request_outcome_consumed = False
+            self._request_task = asyncio.create_task(
+                self._exchange_once(process, request)
+            )
             try:
-                process.stdin.write(request + b"\n")
-                await asyncio.wait_for(process.stdin.drain(), timeout=timeout)
-                response = await asyncio.wait_for(process.stdout.readline(), timeout=timeout)
-            except asyncio.TimeoutError as exc:
+                done, _ = await asyncio.wait({self._request_task}, timeout=timeout)
+            except asyncio.CancelledError:
+                self._begin_retirement("request_cancelled")
+                raise
+            if not done:
                 await self.stop(reason="request_timeout")
-                raise CodebaseMemoryProcessError("request_timeout", "child response timed out") from exc
+                raise CodebaseMemoryProcessError("request_timeout", "child response timed out")
+            if self._state is ProcessState.RETIREMENT_PENDING or not self._publication_open:
+                raise CodebaseMemoryProcessError(
+                    "process_retiring", "child response arrived after retirement"
+                )
+            try:
+                response = self._request_task.result()
+                self._request_outcome_consumed = True
             except (ValueError, asyncio.LimitOverrunError) as exc:
+                self._request_outcome_consumed = True
                 await self.stop(reason="response_too_large")
                 raise CodebaseMemoryProcessError(
                     "response_too_large", "child response exceeds the message limit"
                 ) from exc
-            except asyncio.CancelledError:
-                await asyncio.shield(self.stop(reason="request_cancelled"))
-                raise
             except Exception as exc:
+                self._request_outcome_consumed = True
                 await self.stop(reason="stdio_failure")
                 raise CodebaseMemoryProcessError("stdio_failure", "child stdio exchange failed") from exc
+            self._request_task = None
             if not response:
-                return_code = process.returncode
                 await self.stop(reason="child_exited")
                 raise CodebaseMemoryProcessError(
-                    "child_exited", f"child exited before response (code={return_code})"
+                    "child_exited", "child exited before response"
                 )
             if len(response) > self.settings.max_message_bytes:
                 await self.stop(reason="response_too_large")
@@ -376,59 +447,221 @@ class CodebaseMemoryProcess:
                 )
             return response.rstrip(b"\r\n")
 
+    async def _exchange_once(
+        self, process: AsyncProcess, request: bytes
+    ) -> bytes:
+        assert process.stdin is not None and process.stdout is not None
+        process.stdin.write(request + b"\n")
+        await process.stdin.drain()
+        return await process.stdout.readline()
+
     async def stop(self, *, reason: str = "requested") -> ProcessSnapshot:
         safe_reason = _token(reason, "stop reason")
-        process = self._process
-        if process is None:
+        if (
+            self._process is None
+            and self._launcher_task is None
+            and self._request_task is None
+            and self._retirement_task is None
+        ):
             self._state = ProcessState.STOPPED
             self._stop_reason = safe_reason
+            self._publication_open = False
             return self.snapshot()
-        self._state = ProcessState.STOPPING
-        release_handle = True
-        try:
-            if process.returncode is None:
-                process.terminate()
-                try:
-                    await asyncio.wait_for(
-                        process.wait(), timeout=self.settings.shutdown_timeout_s
-                    )
-                except asyncio.TimeoutError:
-                    process.kill()
-                    await asyncio.wait_for(
-                        process.wait(), timeout=self.settings.shutdown_timeout_s
-                    )
-        except (ProcessLookupError, RuntimeError):
-            pass
-        except asyncio.TimeoutError as exc:
-            self._state = ProcessState.FAILED
-            self._stop_reason = "kill_timeout"
-            release_handle = False
-            raise CodebaseMemoryProcessError("kill_timeout", "child did not stop after kill") from exc
-        finally:
-            if release_handle:
-                stdin = getattr(process, "stdin", None)
-                if stdin is not None:
-                    try:
-                        stdin.close()
-                    except Exception:
-                        pass
-                self._process = None
-        self._state = ProcessState.STOPPED
-        self._stop_reason = safe_reason
+        self._begin_retirement(safe_reason)
+        await self._await_retirement_deadline()
         return self.snapshot()
 
     async def cancel(self) -> ProcessSnapshot:
         return await self.stop(reason="cancelled")
 
+    def _begin_retirement(self, reason: str) -> None:
+        if self._retirement_task is not None:
+            return
+        loop = asyncio.get_running_loop()
+        self._state = ProcessState.RETIREMENT_PENDING
+        self._stop_reason = reason
+        self._publication_open = False
+        observer = self._retirement_observer
+        if observer is not None:
+            try:
+                observer()
+            except Exception:
+                pass
+        self._retirement_deadline = loop.time() + min(
+            self.settings.shutdown_timeout_s, 1.0
+        )
+        self._retirement_outcome_consumed = False
+        self._retirement_succeeded = False
+        self._retirement_task = asyncio.create_task(self._retire_owned_resources())
+        self._retirement_task.add_done_callback(self._retirement_done)
+
+    async def _await_retirement_deadline(self) -> None:
+        task = self._retirement_task
+        deadline = self._retirement_deadline
+        if task is None or deadline is None:
+            return
+        remaining = max(0.0, deadline - asyncio.get_running_loop().time())
+        try:
+            if remaining:
+                await asyncio.wait({task}, timeout=remaining)
+        except asyncio.CancelledError:
+            raise
+        self._consume_retirement_completion(task)
+
+    async def _retire_owned_resources(self) -> None:
+        launcher = self._launcher_task
+        if launcher is not None and not self._launcher_outcome_consumed:
+            await asyncio.wait({launcher})
+            try:
+                process = launcher.result()
+            except BaseException:
+                process = None
+            self._launcher_outcome_consumed = True
+            if process is not None:
+                self._process = process
+
+        process = self._process
+        if process is not None and self._wait_task is None:
+            self._wait_outcome_consumed = False
+            self._wait_task = asyncio.create_task(self._wait_for_process(process))
+            if self._exact_returncode(process) is None and not self._terminate_sent:
+                self._terminate_sent = True
+                try:
+                    process.terminate()
+                except (ProcessLookupError, RuntimeError):
+                    pass
+
+        wait_task = self._wait_task
+        deadline = self._retirement_deadline
+        if wait_task is not None and not wait_task.done() and deadline is not None:
+            remaining = max(0.0, deadline - asyncio.get_running_loop().time())
+            if remaining:
+                await asyncio.sleep(0)
+            if not wait_task.done() and not self._kill_sent:
+                self._kill_sent = True
+                try:
+                    assert process is not None
+                    process.kill()
+                except (ProcessLookupError, RuntimeError):
+                    pass
+
+        while True:
+            pending: set[asyncio.Task[Any]] = set()
+            if self._request_task is not None and not self._request_task.done():
+                pending.add(self._request_task)
+            if self._wait_task is not None and not self._wait_task.done():
+                pending.add(self._wait_task)
+            if pending:
+                await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
+            self._consume_request_outcome()
+            self._consume_wait_outcome()
+            if self._retirement_resources_ready():
+                return
+            await asyncio.sleep(0.001)
+
+    @staticmethod
+    async def _wait_for_process(process: AsyncProcess) -> int:
+        return await process.wait()
+
+    def _consume_request_outcome(self) -> None:
+        task = self._request_task
+        if task is None or not task.done() or self._request_outcome_consumed:
+            return
+        try:
+            task.result()
+        except BaseException:
+            pass
+        self._request_outcome_consumed = True
+
+    def _consume_wait_outcome(self) -> None:
+        task = self._wait_task
+        if task is None or not task.done() or self._wait_outcome_consumed:
+            return
+        try:
+            result = task.result()
+        except BaseException:
+            result = None
+        self._wait_outcome_consumed = True
+        if self._is_exact_exit_code(result):
+            self._exit_proven = True
+        process = self._process
+        if process is not None and self._exact_returncode(process) is not None:
+            self._exit_proven = True
+
+    def _retirement_resources_ready(self) -> bool:
+        if self._launcher_task is not None and (
+            not self._launcher_task.done() or not self._launcher_outcome_consumed
+        ):
+            return False
+        if self._request_task is not None and (
+            not self._request_task.done() or not self._request_outcome_consumed
+        ):
+            return False
+        if self._process is None:
+            return True
+        if self._wait_task is None or not self._wait_task.done() or not self._wait_outcome_consumed:
+            return False
+        if not self._exit_proven and self._exact_returncode(self._process) is not None:
+            self._exit_proven = True
+        return self._exit_proven
+
+    def _retirement_done(self, task: asyncio.Task[None]) -> None:
+        self._consume_retirement_completion(task)
+
+    def _consume_retirement_completion(self, task: asyncio.Task[None]) -> None:
+        if task is not self._retirement_task or not task.done() or self._retirement_outcome_consumed:
+            return
+        try:
+            task.result()
+        except BaseException:
+            self._retirement_succeeded = False
+        else:
+            self._retirement_succeeded = True
+        self._retirement_outcome_consumed = True
+        if self._retirement_succeeded and self._retirement_resources_ready():
+            self._publish_stopped()
+
+    def _publish_stopped(self) -> None:
+        process = self._process
+        if process is not None:
+            stdin = getattr(process, "stdin", None)
+            if stdin is not None:
+                try:
+                    stdin.close()
+                except Exception:
+                    pass
+        self._process = None
+        self._launcher_task = None
+        self._request_task = None
+        self._wait_task = None
+        self._retirement_task = None
+        self._retirement_deadline = None
+        self._state = ProcessState.STOPPED
+        self._publication_open = False
+
+    @staticmethod
+    def _is_exact_exit_code(value: object) -> bool:
+        return type(value) is int
+
+    @classmethod
+    def _exact_returncode(cls, process: AsyncProcess | None) -> int | None:
+        if process is None:
+            return None
+        try:
+            value = process.returncode
+        except Exception:
+            return None
+        return value if cls._is_exact_exit_code(value) else None
+
     def _running_process(self) -> AsyncProcess:
         process = self._process
         if self._state is not ProcessState.RUNNING or process is None:
             raise CodebaseMemoryProcessError("process_not_running", "process is not running")
-        if process.returncode is not None:
+        if self._exact_returncode(process) is not None:
             self._state = ProcessState.FAILED
             self._stop_reason = "child_exited"
             raise CodebaseMemoryProcessError(
-                "child_exited", f"child is not running (code={process.returncode})"
+                "child_exited", "child is not running"
             )
         return process
 

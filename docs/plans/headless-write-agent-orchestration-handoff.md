@@ -4,7 +4,22 @@ Date: 2026-07-13
 
 Mode: Standard ABC
 
-Status: `handoff_ready`
+Status: `hwa3a_hwa3b_accepted_hwa2a_architecture_next`
+
+## 2026-08-12 Authority Reconciliation
+
+- HWA3A is accepted/released at
+  `fd1cd4cd73eba022fec4af6a039b4a9d4dc87663`; its current focused suite passes
+  `17/17`.
+- HWA3B is accepted/released at
+  `31ad94088831904f0b8fae82e3d36458d2274900`; the durable run-state receipt
+  records `44` focused and `60` compatibility tests.
+- The older HWA3A next-slice language below is retained as historical contract
+  detail and is superseded by this reconciliation.
+- HWA2 is not writer-claimable yet: the accepted store does not reconstruct the
+  complete typed capability/evidence objects required by the commit-call
+  preparer. The next repo-only step is a fresh Root/Sol HWA2A accessor/bridge
+  architecture; no user phrase gate is required for that architecture work.
 
 ## Objective
 
@@ -156,7 +171,7 @@ Commit: `not committed: broad shared worktree and unrelated changes prevent a sa
 
 Push: `not pushed: no safe HWA-only commit exists; branch is also behind fuzzy/dev`
 
-## Next Claimable Slice
+## Historical HWA3A Contract (Accepted And Released)
 
 ### HWA3A Durable Capability, Evidence And Fence Store
 
@@ -250,10 +265,9 @@ HWA3A done definition:
 - roadmap records exact evidence;
 - a fresh handoff names HWA3B integration into scaling/claim planning.
 
-## Ordered Continuation After HWA3A
+## Ordered Continuation After Accepted HWA3A And HWA3B
 
-1. `HWA3B`: integrate durable store with scaling/admission control, prefix and
-   hot-file collision checks, quotas, backpressure and fairness.
+1. `HWA2A`: freeze the typed store-to-bridge authority reconstruction contract.
 2. `HWA2`: trusted Subagent-to-`commit_project` bridge consuming persisted
    capability/evidence and exact task worktree; fake/test repository only.
 3. `TLR-02`: authenticated `/abc` manifest and idempotent run-start contract;
@@ -286,7 +300,7 @@ Blocks: any commit outside an isolated fake/test repository
 Decision needed: exact owner, repo, run, paths and commit metadata
 Safe preparation done: HWA1 call contract
 Risk if bypassed: unreviewed or cross-scope local mutation
-Next safe slice: HWA3A
+Next safe slice: HWA2A typed authority-reconstruction architecture
 
 Gate: `HWA-HEADLESS-RUNNER-GO`
 Class: `needs_live_go`
@@ -294,7 +308,7 @@ Blocks: external or real headless execution backend
 Decision needed: backend, workspace, tools, resources and stop controls
 Safe preparation done: architecture and capability boundary
 Risk if bypassed: unbounded write/process/network authority
-Next safe slice: HWA3A
+Next safe slice: HWA2A typed authority-reconstruction architecture
 
 Gate: `TLR-LOCAL-SERVICE-GO`
 Class: `needs_live_go`
@@ -308,7 +322,7 @@ cleanup owner
 Safe preparation done: SDK test-environment and fake-client contracts only
 Risk if bypassed: unmanaged development service, zombie Workers, duplicate
 effects or uncontrolled retries
-Next safe slice: HWA3A
+Next safe slice: HWA2A typed authority-reconstruction architecture
 
 Gate: `HWA-GITHUB-PUSH-LIVE-GO`
 Class: `needs_live_go`
@@ -316,7 +330,7 @@ Blocks: real GitHub delivery
 Decision needed: exact owner/repo/policy/remote/branch and credential reference
 Safe preparation done: durable Forge outbox and offline GitHub adapter exist
 Risk if bypassed: wrong remote/branch or unauthorized provider mutation
-Next safe slice: HWA3A
+Next safe slice: HWA2A typed authority-reconstruction architecture
 
 Gate: `HWA-NEXTCLOUD-DELIVERY-LIVE-GO`
 Class: `needs_live_go`
@@ -324,7 +338,7 @@ Blocks: real Nextcloud project delivery
 Decision needed: exact readable create-only target and credential reference
 Safe preparation done: offline readable Nextcloud adapter exists
 Risk if bypassed: overwrite, privacy or wrong-target write
-Next safe slice: HWA3A
+Next safe slice: HWA2A typed authority-reconstruction architecture
 
 Gate: `HWA-MERGE-LIVE-GO`
 Class: `needs_live_go`
@@ -333,7 +347,7 @@ Decision needed: exact repo, immutable source, protected target, strategy,
 reviewer and checks
 Safe preparation done: stage separation is frozen
 Risk if bypassed: protected-branch drift or unreviewed integration
-Next safe slice: HWA3A
+Next safe slice: HWA2A typed authority-reconstruction architecture
 
 Gate: `HWA-DEPLOY-LIVE-GO`
 Class: `needs_live_go`
@@ -342,7 +356,7 @@ Decision needed: immutable artifact, exact environment, adapter, health checks
 and rollback target
 Safe preparation done: stage separation is frozen
 Risk if bypassed: wrong artifact/environment or unrecoverable rollout
-Next safe slice: HWA3A
+Next safe slice: HWA2A typed authority-reconstruction architecture
 
 ## Path Handoff Card
 
@@ -359,7 +373,7 @@ Windows Pytest temp ACL after `62 passed`
 Evidence: HWA0/HWA1 roadmap sections and focused test output
 Risks: durable multi-instance state, fencing, one-shot consumption, worktree
 evidence persistence and all live stages remain open
-Next path: `HWA3A-durable-capability-evidence-fence-store`
+Next path: `HWA2A-typed-authority-reconstruction-architecture`
 
 ## Required Next-Agent Handoff Fields
 

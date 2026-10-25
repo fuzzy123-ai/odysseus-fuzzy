@@ -52,6 +52,12 @@ Nextcloud-Dual-Backup synchronisiert.
     Provider-Divergenz landet in einem `incoming/<provider>/...`-Review-Pfad.
 12. Automatische Sandbox-Checkpoints bleiben standardmaessig lokal. Benannte
     Versionen, Releases und Artefakte koennen nach Policy gespiegelt werden.
+13. Code-Indexierung ist keine Forge-Projektion und keine Provider-Sync-
+    Faehigkeit. Forge liefert nur den autorisierten Repository-/Revision-
+    Snapshot und den exakten Read; USI besitzt Chunk-, Coverage- und Job-
+    Wahrheit. Der verbindliche Folgevertrag steht in
+    `forge-usi-code-source-adapter-roadmap.md`; CBM/Embeddings bleiben daraus
+    rebuildbare, nichtautoritative Suchprojektionen.
 
 ## User Workflow
 
@@ -197,6 +203,22 @@ Overwrite, Delete und direkte Konfliktaufloesung bleiben getrennte Gates.
 - `src/sandbox_job_ledger.py` und `src/sandbox_artifact_policy.py` liefern
   redaktierte Run-/Artefakt-Evidence, speichern aber noch keine universelle
   Projektversion.
+
+## Forge-To-USI Code Index Boundary
+
+Die lokale Forge bleibt fuer Code die alleinige Quelle fuer zugelassene
+Repository-Identitaet, Commit/Revision, Snapshot-Inventar und den exakten,
+autorisierten Line-Read. Weder `commit_project` noch ein Provider-Sync starten
+stillschweigend einen Indexjob oder warten auf dessen Erfolg. Ein künftiger
+USI-Codeadapter darf einen explizit angeforderten, unveränderlichen Forge-
+Snapshot lesen, muss aber Fehler/Partialitaet als eigene abgeleitete Evidenz
+behandeln; ein Forge-Commit wird nie wegen einer Indexierung zurückgerollt.
+
+Das konkrete Coverage-, Delta-, Locator- und Aktivierungsmodell gehört nicht
+in PVF und wird ausschließlich durch
+`docs/plans/forge-usi-code-source-adapter-roadmap.md` geplant. PVF setzt keine
+Vollständigkeit, Embedding-, CBM- oder Search-Generation voraus und bleibt
+alleiniger Owner für Versionierung und den Original-Read.
 
 ## Non-Goals
 

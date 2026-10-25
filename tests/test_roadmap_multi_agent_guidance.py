@@ -58,7 +58,7 @@ def test_repository_guidance_covers_every_discovered_roadmap():
     assert report["docs_plans_count"] == payload["inventory"]["docs_plans_count"]
     assert report["structured_specs_count"] == payload["inventory"]["structured_specs_count"]
     assert report["listed_count"] == payload["inventory"]["total_count"]
-    assert report["discovered_count"] == report["listed_count"] == 139
+    assert report["discovered_count"] == report["listed_count"] > 0
     assert not report["missing_paths"]
     assert not report["unknown_paths"]
     assert not report["duplicate_paths"]

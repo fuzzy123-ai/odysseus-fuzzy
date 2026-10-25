@@ -7,6 +7,9 @@ from enum import StrEnum
 import re
 from typing import Any
 
+from src.harbour_knowledge_store import KnowledgeHeadMetadata, KnowledgeMigrationSnapshot
+from src.unified_source_index_sources.knowledge import project_harbour_knowledge_metadata
+
 
 _MAX_ID = 80
 _MAX_TEXT = 160
@@ -311,3 +314,137 @@ class MigrationProof:
             "has_restore_ref": bool(self.restore_ref),
             "has_rollback_plan": bool(self.rollback_plan),
         }
+
+
+HARBOUR_MIGRATION_COMPARISON_SCHEMA = "odysseus.harbour.snapshot_comparison.v1"
+_HARBOUR_COMPARISON_MAX_HEADS = 10_000
+_HARBOUR_COMPARISON_HEAD_FIELDS = (
+    "knowledge_id_digest", "revision_id_digest", "revision", "generation", "state",
+    "knowledge_kind", "payload_sha256", "classification_digest", "retention_digest",
+    "provenance_digest", "source_revisions_digest", "references_digest",
+    "revision_metadata_digest", "head_metadata_digest", "record_digest",
+)
+
+
+class HarbourMigrationComparisonError(ValueError):
+    """Bounded failure without caller content or exception context."""
+
+    __slots__ = ("code",)
+
+    def __init__(self, code: str = "invalid_comparison") -> None:
+        self.code = "invalid_comparison"
+        super().__init__(self.code)
+
+    def __repr__(self) -> str:
+        return "HarbourMigrationComparisonError(code='invalid_comparison')"
+
+
+@dataclass(frozen=True, slots=True, repr=False)
+class HarbourMigrationDelta:
+    label: str
+    missing_knowledge_ids: tuple[str, ...]
+    extra_knowledge_ids: tuple[str, ...]
+    changed_knowledge_ids: tuple[str, ...]
+
+    def __repr__(self) -> str:
+        return "HarbourMigrationDelta(<metadata-only>)"
+
+
+@dataclass(frozen=True, slots=True, repr=False)
+class HarbourMigrationComparison:
+    """Synthetic consistency evidence; never migration readiness or authority."""
+
+    schema_id: str
+    owner_ref_digest: str
+    source_snapshot_digest: str
+    target_snapshot_digest: str
+    post_snapshot_digest: str
+    source_to_target: HarbourMigrationDelta
+    target_to_post: HarbourMigrationDelta
+
+    def __repr__(self) -> str:
+        return "HarbourMigrationComparison(<metadata-only>)"
+
+
+def _harbour_comparison_text(value: object) -> str:
+    if type(value) is not str or len(value) > 128:
+        raise ValueError
+    return value.encode("ascii").decode("ascii")
+
+
+def _harbour_comparison_clone(snapshot: object) -> KnowledgeMigrationSnapshot:
+    if type(snapshot) is not KnowledgeMigrationSnapshot:
+        raise ValueError
+    schema, owner, boundary, heads, digest = (
+        snapshot.schema_id, snapshot.owner_ref_digest, snapshot.captured_head_boundary,
+        snapshot.heads, snapshot.snapshot_digest,
+    )
+    if type(heads) is not tuple or len(heads) > _HARBOUR_COMPARISON_MAX_HEADS:
+        raise ValueError
+    schema, owner, boundary, digest = (
+        _harbour_comparison_text(value) for value in (schema, owner, boundary, digest)
+    )
+    detached_heads = []
+    for head in heads:
+        if type(head) is not KnowledgeHeadMetadata:
+            raise ValueError
+        values = {name: getattr(head, name) for name in _HARBOUR_COMPARISON_HEAD_FIELDS}
+        for name, value in values.items():
+            if name in ("revision", "generation"):
+                if type(value) is not int or not 1 <= value <= 2**63 - 1:
+                    raise ValueError
+            else:
+                values[name] = _harbour_comparison_text(value)
+        detached_heads.append(KnowledgeHeadMetadata(**values))
+    return KnowledgeMigrationSnapshot(schema, owner, boundary, tuple(detached_heads), digest)
+
+
+def _harbour_comparison_delta(label: str, left: dict[str, str], right: dict[str, str]) -> HarbourMigrationDelta:
+    return HarbourMigrationDelta(
+        label=label,
+        missing_knowledge_ids=tuple(sorted(left.keys() - right.keys())),
+        extra_knowledge_ids=tuple(sorted(right.keys() - left.keys())),
+        changed_knowledge_ids=tuple(sorted(key for key in left.keys() & right.keys() if left[key] != right[key])),
+    )
+
+
+def _harbour_comparison_frame(source: object, target: object, post: object) -> HarbourMigrationComparison | None:
+    try:
+        # Detach all three inputs before any validation/hashing can observe them.
+        snapshots = tuple(_harbour_comparison_clone(item) for item in (source, target, post))
+        projected = tuple(project_harbour_knowledge_metadata(item) for item in snapshots)
+        first, second, third = snapshots
+        if any((item.schema_id, item.owner_ref_digest) != (first.schema_id, first.owner_ref_digest)
+               for item in snapshots[1:]):
+            return None
+        records = tuple({item.knowledge_id_digest: item.record_digest for item in items} for items in projected)
+        return HarbourMigrationComparison(
+            HARBOUR_MIGRATION_COMPARISON_SCHEMA, first.owner_ref_digest,
+            first.snapshot_digest, second.snapshot_digest, third.snapshot_digest,
+            _harbour_comparison_delta("source_to_target", records[0], records[1]),
+            _harbour_comparison_delta("target_to_post", records[1], records[2]),
+        )
+    except Exception:
+        return None
+
+
+def compare_harbour_migration_snapshots(
+    source: KnowledgeMigrationSnapshot,
+    target: KnowledgeMigrationSnapshot,
+    post: KnowledgeMigrationSnapshot,
+) -> HarbourMigrationComparison:
+    """Compare detached snapshot metadata, with no capture, migration or I/O.
+
+    Every input must pass the Harbour metadata projection. Matching digests do
+    not authenticate origin, freshness or permission to perform any action.
+    """
+    result = _harbour_comparison_frame(source, target, post)
+    if result is None:
+        try:
+            raise HarbourMigrationComparisonError()
+        except HarbourMigrationComparisonError as caught:
+            BaseException.__context__.__set__(caught, None)
+            BaseException.__cause__.__set__(caught, None)
+            caught.__suppress_context__ = False
+            raise
+    return result

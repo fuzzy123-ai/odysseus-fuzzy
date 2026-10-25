@@ -1,10 +1,15 @@
 # Lens Code Graph Roadmap
 
-Stand: 2026-07-17
+Stand: 2026-08-22
 
-Status: `planned_after_code_graph_api / ui_default_off`
+Status: `LCG-03A_planned_dependency_blocked / ui_default_off`
 
 Master-Track: `0.31.x`, `OWM-18`, `L24`
+
+Operator decision (2026-08-22): **Code Graph is an approved product feature.**
+This resolves the former product-goal question only. It does not select the
+Frontpage/Lens UI owner, route, implementation claim, real project graph, CBM/
+USI activation, or `LCG-UI-LIVE` cutover.
 
 ## 1. Goal
 
@@ -111,7 +116,8 @@ left rail (collapsible)   full-bleed graph canvas   inspector (collapsible)
   repository tree           selection/path focus       confidence + timeline
 
 bottom status strip
-  generation | freshness | visible/total | clipped | layout | WebGL/fallback
+  Forge revision | USI coverage/exclusions | CBM generation/freshness |
+  visible/total | clipped | layout | WebGL/fallback
 ```
 
 Mobile/tablet structure:
@@ -132,6 +138,11 @@ Controls:
 - search supports symbols, paths and semantic concepts;
 - keyboard command palette actions mirror visible controls;
 - all unfamiliar icon buttons have tooltips and accessible names.
+
+Index status is a truth display, not an engine dashboard.  It shows the selected
+Forge revision, USI coverage state and exclusions, CBM projection generation and
+freshness, plus a precise disabled/degraded/blocked reason.  It never turns a
+partial or stale projection into a green "indexed" claim.
 
 ## 6. Visual And Motion Rules
 
@@ -159,13 +170,19 @@ Roadmap planning and backend contracts use `Standard ABC`. Implementation is a
 UI-owned track and does not run as unattended backend work unless a selected
 slice is explicitly backend-only.
 
-- Only `LCG-00` is claimable after explicit goal start.
+- `LCG-00` is product-approved, but remains non-claimable until the bounded CBM
+  graph API and one Frontpage/Lens UI-hotfile owner are both confirmed.
 - Backend API, fixture, accessibility contract and deterministic render harness
   require no user gate.
 - The existing Frontpage v3/Knowledge workspace is an active UI hot area and
   permits one writer at a time.
 - No productive engine process, real private project graph or new UI route is
   enabled before the final gate.
+- A future explicit index action is status-first and submits only a confirmed,
+  bounded job intent to an injected Forge--USI lifecycle service.  It is not an
+  automatic refresh, watcher, project-registration, raw engine configuration or
+  source-truth control, and it does not bypass CBM or source-adapter activation
+  gates.
 - Exactly one gate, `LCG-UI-LIVE`, controls placement/cutover with a real
   project. It does not activate CBM or USI by itself.
 
@@ -175,8 +192,8 @@ slice is explicitly backend-only.
 
 - Class: `safe_offline`
 - Owner: Alice
-- Status: `ready_after_goal_start`
-- Dependencies: explicit goal; Frontpage/Lens owner identified
+- Status: `product_approved_waiting_on_bounded_graph_api_and_ui_owner`
+- Dependencies: product goal accepted; bounded CBM graph API; Frontpage/Lens owner identified
 - Allowed paths:
   - `docs/plans/lens-code-graph-roadmap.md`
   - `docs/plans/lens-code-graph-ux-contract.md`
@@ -252,10 +269,77 @@ slice is explicitly backend-only.
   - ETag/generation/cursor, max budgets and cancellation;
   - fixture route disabled in production by default;
   - consume the injected USI/CBM query service, never a raw engine singleton;
-  - no write, reindex, project registration or engine-control endpoint.
+  - no write, reindex, project registration or engine-control endpoint; a later
+    `LCG-03A` may add only an injected, confirmation-gated bounded job-intent
+    route after its lifecycle dependencies are accepted.
 - Tests: `python -m pytest -q tests/test_lens_code_graph_routes.py`
 - Done when: route tests prove bounded/policy-safe payloads and engine absence
   returns an actionable degraded state.
+
+### LCG-03A - Source Index Status And Explicit Bounded Job Intent
+
+- Class: `repo_only`
+- Owner: Alice plus one UI worker after an explicit Frontpage/Lens hotfile
+  claim; Bob owns the injected route/service contract only after the route-owner
+  handoff.
+- Status: `planned_dependency_blocked / productive_indexing_and_ui_default_off`
+- Dependencies: `LCG-03`; `LCG-04`; accepted `FCA-05`; accepted `CBM-07A`;
+  accepted `UIR-04` and `UIR-05` lifecycle/status composition; route-owner
+  handoff.  This slice is not claimable merely because a graph fixture exists.
+- Allowed paths:
+  - `src/lens_code_index_control_contract.py`
+  - `src/lens_code_index_control_service.py`
+  - `routes/lens_code_graph_routes.py`
+  - `static/frontpage-v3/code-graph/index-controls.js` only after the UI
+    hotfile/path audit and exact writer handoff
+  - `static/frontpage-v3/code-graph/index-controls.css` only after the UI
+    hotfile/path audit and exact writer handoff
+  - `tests/test_lens_code_index_control_contract.py`
+  - `tests/test_lens_code_index_control_service.py`
+  - `tests/test_lens_code_graph_routes.py`
+  - `tests/ui/lens_code_index_controls.spec.js`
+- Work:
+  - render an injected read-only status model before any action: selected Forge
+    revision, USI coverage state and explicit exclusions, CBM generation and
+    freshness, last bounded job result, and the exact reason for `disabled`,
+    `degraded`, `blocked`, `partial`, `stale`, `failed` or `unavailable`;
+  - expose **Index/Update** only where owner/policy/capability status permits.
+    The action opens a confirmation review that identifies one project, one
+    Forge revision or approved revision-selection policy, a bounded scope and
+    the user-visible consequences.  Confirmation creates an opaque job intent,
+    never a raw engine command;
+  - present running progress, terminal result and reason as status.  Allow
+    cancel only for the caller-authorized bounded job ID; allow retry only as a
+    new explicit confirmation.  If the selected revision or coverage changes,
+    invalidate the old retry and require a newly scoped intent;
+  - make opening the workspace, refresh, polling, graph queries, route reloads
+    and engine events read-only.  They must not create a job, register a
+    project, change a source scope, reconfigure an engine or silently retry;
+  - use the injected Forge--USI lifecycle service and CBM/USI status receipts
+    only.  Do not expose paths, parsers, ports, databases, hooks, providers,
+    artifact versions or any direct engine configuration.  Forge remains source
+    truth and its exact reader remains the source-jump authority;
+  - retain truthful disabled/degraded UI when lifecycle services are absent or
+    productive indexing is gated.  Productive job execution, real project
+    indexing and UI cutover remain blocked by their separate source-adapter,
+    CBM and `LCG-UI-LIVE` gates.
+- Tests:
+  - `python -m pytest -q tests/test_lens_code_index_control_contract.py tests/test_lens_code_index_control_service.py tests/test_lens_code_graph_routes.py`
+  - deterministic browser/fixture coverage for full/partial/stale/excluded,
+    disabled/degraded/blocked, confirmation/cancel/retry, revision-change
+    invalidation, authorization denial and zero-job-on-open/reload/poll/query.
+- Evidence:
+  - content-free fixture receipts with opaque project/job identifiers and
+    bounded progress/count fields only;
+  - route and UI assertions proving no raw engine field, source content or
+    automatic indexing control is rendered or accepted;
+  - scoped diff check and focused local test readback.  No engine process,
+    productive source, project registration, indexing run, network, deploy or
+    live UI evidence is collected by this slice.
+- Done when: a permitted user can understand index truth before requesting a
+  bounded, confirmed job intent and can safely observe/cancel/retry it, while
+  every unavailable or incomplete state stays explicit and no UI behavior can
+  initiate or configure indexing implicitly.
 
 ### LCG-04 - Native Knowledge Workspace Shell
 
@@ -462,6 +546,16 @@ slice is explicitly backend-only.
 - Go phrase:
   `GO LCG-UI-LIVE: enable Lens > Code <version> in <shell/route> for <project scope>, default to <view>, observe <window>, and roll back to <prior Knowledge surface> on No-Go.`
 
+### LCG-UI-OWNER - Remaining Ownership Gate
+
+- Class: `needs_design`
+- Status: `not_selected`
+- Blocks: `LCG-00` and every renderer/UI slice
+- Decision needed: name one Frontpage/Lens owner and the bounded UI hotfile
+  surface before any LCG claim.
+- Safe default: preserve Code Graph as an approved product feature, but leave
+  all LCG writer claims, placement, and real-project graph display disabled.
+
 ## 9. Parallelism And Hotfiles
 
 - `LCG-00` and `LCG-01` are disjoint contract/audit work after ownership check.
@@ -484,6 +578,9 @@ Product gates:
 - every structural edge exposes type, method and confidence;
 - no truth-label confusion in usability review fixtures;
 - clipped/partial/stale state always visible;
+- index status names Forge revision, USI coverage/exclusions and CBM freshness;
+  it requires confirmation for every bounded job intent and never starts work
+  from open, reload, poll or query;
 - keyboard-only search, inspect and source jump pass;
 - no text/control overlap at 360x800, 768x1024, 1440x900 and 1920x1080;
 - nonblank first graph frame and stable viewport after data load;

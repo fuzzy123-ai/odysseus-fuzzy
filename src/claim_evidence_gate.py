@@ -195,6 +195,58 @@ _TODO_DIGEST_TIMING_RE = re.compile(
     re.IGNORECASE,
 )
 _TODO_DIGEST_NEXT_RE = re.compile(r"\b(?:next\s+(?:todo\s+)?digest|n[\u00e4]chst(?:e|en|er)?\s+(?:todo\s+)?(?:digest|zusammenfassung))\b", re.IGNORECASE)
+_GITHUB_DUPLICATE_RECEIPT_FIELD = "github_issue_duplicate_search_receipt"
+_GITHUB_DUPLICATE_RECEIPT_FIELDS = (
+    "schema",
+    "action",
+    "status",
+    "persisted",
+    "candidate_count",
+    "blocks_auto_create",
+    "exit_code",
+)
+_GITHUB_QUOTED_TEXT_RE = re.compile(
+    r'"[^"\n]*"|“[^”\n]*”|„[^“\n]*“|(?<!\w)\'[^\'\n]*\'(?!\w)|`[^`\n]*`'
+)
+_GITHUB_CLAUSE_SPLIT_RE = re.compile(
+    r"[.!?;\n]+|,\s*(?:but|however|yet|although)\s+|\s+(?:but|however|yet|although)\s+",
+    re.IGNORECASE,
+)
+_GITHUB_DUPLICATE_POSITIVE_RE = re.compile(
+    r"(?:I checked GitHub issue duplicates locally|"
+    r"I searched GitHub issues for duplicates locally|"
+    r"We checked GitHub issue duplicates locally|"
+    r"We searched GitHub issues for duplicates locally)",
+    re.IGNORECASE,
+)
+_GITHUB_FIRST_PERSON_DUPLICATE_RE = re.compile(
+    r"^(?:i|we)\b(?=.*\bgithub\b)(?=.*\bduplicates?\b)(?=.*\b(?:check|checked|search|searched)\b)",
+    re.IGNORECASE,
+)
+_GITHUB_NONPOSITIVE_RE = re.compile(
+    r"\b(?:not|never|no|without|zero|cannot|can't|couldn't|didn't|"
+    r"if|when|would|could|should|might|maybe|please|requested|"
+    r"will|going\s+to|intend(?:ed)?\s+to|plan(?:ned)?\s+to|later|tomorrow)\b",
+    re.IGNORECASE,
+)
+_GITHUB_SHORT_CONTRADICTION_RE = re.compile(
+    r"^(?:(?:i|we)\s+(?:did\s+not|did['\u2019]t)|(?:maybe|perhaps)\s+not)$",
+    re.IGNORECASE,
+)
+_GITHUB_PROVIDER_CLAIMS = (
+    (
+        "github_issue_created",
+        re.compile(r"^(?:i|we)\s+(?:have\s+)?created\s+(?:the\s+|a\s+)?github\s+issue$", re.IGNORECASE),
+    ),
+    (
+        "github_issue_fields_set",
+        re.compile(r"^(?:i|we)\s+(?:have\s+)?set\s+(?:the\s+)?github\s+issue\s+fields$", re.IGNORECASE),
+    ),
+    (
+        "github_issue_synced",
+        re.compile(r"^(?:i|we)\s+(?:have\s+)?synced\s+(?:the\s+)?github\s+issues?$", re.IGNORECASE),
+    ),
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -239,6 +291,124 @@ class ClaimEvidenceReport:
             "findings": tuple(item.to_dict() for item in self.findings),
             "unsupported_count": len(self.unsupported),
         }
+
+
+def _validated_github_issue_duplicate_search_receipt(event: object) -> dict[str, Any] | None:
+    """Return one detached exact receipt, or fail closed without callbacks."""
+
+    if type(event) is not dict or any(type(key) is not str for key in event):
+        return None
+    tool = event.get("tool")
+    action = event.get("action")
+    receipt = event.get(_GITHUB_DUPLICATE_RECEIPT_FIELD)
+    if (
+        type(tool) is not str
+        or tool != "manage_github_issues"
+        or type(action) is not str
+        or action != "duplicate_search"
+        or type(receipt) is not dict
+        or any(type(key) is not str for key in receipt)
+        or tuple(receipt.keys()) != _GITHUB_DUPLICATE_RECEIPT_FIELDS
+    ):
+        return None
+
+    schema = receipt.get("schema")
+    receipt_action = receipt.get("action")
+    status = receipt.get("status")
+    persisted = receipt.get("persisted")
+    candidate_count = receipt.get("candidate_count")
+    blocks_auto_create = receipt.get("blocks_auto_create")
+    exit_code = receipt.get("exit_code")
+    if (
+        type(schema) is not str
+        or schema != "odysseus.github_issue_duplicate_search_receipt.v1"
+        or type(receipt_action) is not str
+        or receipt_action != "duplicate_search"
+        or type(status) is not str
+        or status != "duplicates_checked_local"
+        or type(persisted) is not bool
+        or persisted
+        or type(candidate_count) is not int
+        or not 0 <= candidate_count <= 1000
+        or type(blocks_auto_create) is not bool
+        or type(exit_code) is not int
+        or exit_code != 0
+    ):
+        return None
+    return {
+        "schema": schema,
+        "action": receipt_action,
+        "status": status,
+        "persisted": False,
+        "candidate_count": candidate_count,
+        "blocks_auto_create": blocks_auto_create,
+        "exit_code": 0,
+    }
+
+
+def _github_issue_claim_findings(
+    response: object,
+    events: Iterable[Mapping[str, Any]],
+) -> tuple[ClaimEvidenceFinding, ...]:
+    """Evaluate only closed local GitHub issue evidence claims."""
+
+    if type(response) is not str or not response.strip():
+        return ()
+    masked = _GITHUB_QUOTED_TEXT_RE.sub(
+        lambda match: " " * (match.end() - match.start()),
+        response,
+    )
+    clauses = tuple(
+        " ".join(clause.split()).strip(" \t\r\n,:")
+        for clause in _GITHUB_CLAUSE_SPLIT_RE.split(masked)
+        if clause.strip(" \t\r\n,:")
+    )
+    findings: list[ClaimEvidenceFinding] = []
+    for clause in clauses:
+        for claim_type, pattern in _GITHUB_PROVIDER_CLAIMS:
+            if pattern.fullmatch(clause):
+                findings.append(
+                    ClaimEvidenceFinding(
+                        claim_type,
+                        "unsupported",
+                        "provider completion claims require independent provider evidence",
+                        (),
+                    )
+                )
+
+    positive = any(_GITHUB_DUPLICATE_POSITIVE_RE.fullmatch(clause) for clause in clauses)
+    contradicted = any(
+        _GITHUB_FIRST_PERSON_DUPLICATE_RE.search(clause)
+        and _GITHUB_NONPOSITIVE_RE.search(clause)
+        for clause in clauses
+    ) or (positive and any(_GITHUB_SHORT_CONTRADICTION_RE.fullmatch(clause) for clause in clauses))
+    if not positive or contradicted:
+        return tuple(findings)
+
+    receipts: list[dict[str, Any]] = []
+    for event in events:
+        receipt = _validated_github_issue_duplicate_search_receipt(event)
+        if receipt is not None:
+            receipts.append(receipt)
+    evidence = tuple(
+        dict.fromkeys(
+            f"github-issue-duplicate-search:{receipt['candidate_count']}:{int(receipt['blocks_auto_create'])}"
+            for receipt in receipts
+        )
+    )
+    findings.append(
+        ClaimEvidenceFinding(
+            "github_issue_duplicates_checked",
+            "supported" if evidence else "unsupported",
+            (
+                "GitHub duplicate-search claim has an exact local content-free receipt"
+                if evidence
+                else "GitHub duplicate-search claim has no exact local content-free receipt"
+            ),
+            evidence,
+        )
+    )
+    return tuple(findings)
 
 
 def _bounded_claim_assertion(
@@ -357,7 +527,7 @@ def evaluate_response_claims(
     evidence is available in the workspace or tool events.
     """
 
-    text = str(response or "")
+    text = response if type(response) is str else ""
     events = tuple(event for event in tool_events if isinstance(event, Mapping))
     transactions = tuple(item for item in tool_transactions if isinstance(item, Mapping))
     if not transactions and events:
@@ -436,6 +606,7 @@ def evaluate_response_claims(
 
     findings.extend(_todo_claim_findings(text, transactions, events))
     findings.extend(_todo_digest_claim_findings(text, events))
+    findings.extend(_github_issue_claim_findings(response, events))
 
     for claim_type, pattern, supported_reason, unsupported_reason in (
         (

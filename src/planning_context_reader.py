@@ -282,7 +282,10 @@ class _DurableRecord:
 class PlanningContextManifestProducer:
     """Capture approved Planning metadata from the app-owned durable runtime."""
 
-    __slots__ = ("_runtime", "_auth_manager", "_approved_source_service", "_project_id", "_durable_source")
+    __slots__ = (
+        "_runtime", "_auth_manager", "_approved_source_service", "_project_id",
+        "_durable_source", "_dual_resolve_pin",
+    )
 
     def __init__(
         self,
@@ -315,6 +318,10 @@ class PlanningContextManifestProducer:
         self._approved_source_service = approved_source_service
         self._project_id = project_id
         self._durable_source = durable_source
+        self._dual_resolve_pin = (
+            type(durable_source).__dict__.get("resolve_dual")
+            if durable_source is not None else None
+        )
 
     def capture(self, binding: DisclosureBinding, selection: ContextSelection) -> ContextManifest:
         metadata = self._capture_metadata(binding, selection)
@@ -361,6 +368,186 @@ class PlanningContextManifestProducer:
         except PlanningContextReaderError: raise
         except ValueError: raise
         except Exception: _fail("planning_unavailable")
+
+    def capture_metadata_dual(
+        self,
+        binding: DisclosureBinding,
+        admission: object,
+        metadata_binding: object,
+        selection: ContextSelection,
+    ) -> tuple[
+        tuple[PlanningMetadata, ...],
+        tuple[PlanningMetadata, ...],
+        str,
+    ]:
+        """Build cookie and MCP metadata from one dual-authenticated image."""
+        if (
+            type(binding) is not DisclosureBinding
+            or type(selection) is not ContextSelection
+            or self._durable_source is None
+            or self._approved_source_service is not None
+        ):
+            _fail("invalid_context")
+        selected = tuple(item for item in selection.items if item.source == "planning")
+        if not selected or len(selected) != len(selection.items):
+            _fail("invalid_context")
+        _require_mcp_metadata_admission(admission, metadata_binding)
+        try:
+            resolve_dual = self._dual_resolve_pin
+            if (
+                type(self._durable_source).__dict__.get("resolve_dual")
+                is not resolve_dual
+            ):
+                _fail("invalid_context")
+            cookie_descriptors, mcp_descriptors = resolve_dual(
+                self._durable_source, binding, admission, metadata_binding, selection,
+            )
+            if (
+                type(cookie_descriptors) is not tuple
+                or type(mcp_descriptors) is not tuple
+                or len(cookie_descriptors) != len(selected)
+                or len(mcp_descriptors) != len(selected)
+            ):
+                _fail("planning_stale")
+
+            def project(descriptors: tuple[DurablePlanningSourceDescriptor, ...]):
+                result = []
+                for item, descriptor in zip(selected, descriptors):
+                    if (
+                        type(descriptor) is not DurablePlanningSourceDescriptor
+                        or descriptor.selection() != item
+                    ):
+                        _fail("planning_stale")
+                    result.append(PlanningMetadata(
+                        item, descriptor.project_id, descriptor.roadmap_id,
+                        descriptor.approved_revision, descriptor.durable_revision_id,
+                        descriptor.durable_content_sha256,
+                        descriptor.durable_payload_sha256,
+                        descriptor.canonical_projection_sha256,
+                        descriptor.provenance_ref, descriptor.boundary_sha256,
+                        descriptor.record_sha256,
+                    ))
+                return tuple(result)
+
+            cookie_result = project(cookie_descriptors)
+            mcp_result = project(mcp_descriptors)
+            mcp_target = _mcp_recipient_digest(
+                "odysseus.context.mcp_metadata.planning.target.v1",
+                metadata_binding,
+                {"items": [item.canonical() for item in mcp_result]},
+            )
+            _require_mcp_metadata_admission(admission, metadata_binding)
+            return cookie_result, mcp_result, mcp_target
+        except McpContextAuthorityError:
+            raise
+        except McpContextMetadataAdmissionError:
+            raise
+        except DurablePlanningContextError as error:
+            self._native_error(error)
+        except PlanningContextReaderError:
+            raise
+        except ValueError:
+            raise
+        except Exception:
+            _fail("planning_unavailable")
+
+    def capture_metadata_dual_content(
+        self,
+        binding: DisclosureBinding,
+        admission: object,
+        metadata_binding: object,
+        selection: ContextSelection,
+        target: SourceSelection,
+    ) -> tuple[
+        tuple[PlanningMetadata, ...],
+        tuple[PlanningMetadata, ...],
+        str,
+        bytes,
+        bytes,
+    ]:
+        """Carry one verified Planning target only for the active dual sample."""
+        if (
+            type(binding) is not DisclosureBinding
+            or type(selection) is not ContextSelection
+            or type(target) is not SourceSelection
+            or target.source != "planning"
+            or target not in selection.items
+            or self._durable_source is None
+            or self._approved_source_service is not None
+        ):
+            _fail("invalid_context")
+        selected = tuple(item for item in selection.items if item.source == "planning")
+        if not selected or len(selected) != len(selection.items):
+            _fail("invalid_context")
+        _require_mcp_metadata_admission(admission, metadata_binding)
+        try:
+            resolve_dual = self._dual_resolve_pin
+            if type(self._durable_source).__dict__.get("resolve_dual") is not resolve_dual:
+                _fail("invalid_context")
+            resolved = resolve_dual(
+                self._durable_source, binding, admission, metadata_binding,
+                selection, _content_target=target,
+            )
+            if type(self._durable_source).__dict__.get("resolve_dual") is not resolve_dual:
+                _fail("invalid_context")
+            if type(resolved) is not tuple or len(resolved) != 4:
+                _fail("planning_stale")
+            cookie_descriptors, mcp_descriptors, cookie_payload, mcp_payload = resolved
+            if (
+                type(cookie_descriptors) is not tuple
+                or type(mcp_descriptors) is not tuple
+                or len(cookie_descriptors) != len(selected)
+                or len(mcp_descriptors) != len(selected)
+                or type(cookie_payload) is not bytes
+                or type(mcp_payload) is not bytes
+            ):
+                _fail("planning_stale")
+
+            def project(descriptors: tuple[DurablePlanningSourceDescriptor, ...]):
+                result = []
+                for item, descriptor in zip(selected, descriptors):
+                    if (
+                        type(descriptor) is not DurablePlanningSourceDescriptor
+                        or descriptor.selection() != item
+                    ):
+                        _fail("planning_stale")
+                    result.append(PlanningMetadata(
+                        item, descriptor.project_id, descriptor.roadmap_id,
+                        descriptor.approved_revision, descriptor.durable_revision_id,
+                        descriptor.durable_content_sha256,
+                        descriptor.durable_payload_sha256,
+                        descriptor.canonical_projection_sha256,
+                        descriptor.provenance_ref, descriptor.boundary_sha256,
+                        descriptor.record_sha256,
+                    ))
+                return tuple(result)
+
+            cookie_result = project(cookie_descriptors)
+            mcp_result = project(mcp_descriptors)
+            mcp_target = _mcp_recipient_digest(
+                "odysseus.context.mcp_metadata.planning.target.v1",
+                metadata_binding,
+                {"items": [item.canonical() for item in mcp_result]},
+            )
+            _require_mcp_metadata_admission(admission, metadata_binding)
+            if type(self._durable_source).__dict__.get("resolve_dual") is not resolve_dual:
+                _fail("invalid_context")
+            return (
+                cookie_result, mcp_result, mcp_target,
+                cookie_payload, mcp_payload,
+            )
+        except McpContextAuthorityError:
+            raise
+        except McpContextMetadataAdmissionError:
+            raise
+        except DurablePlanningContextError as error:
+            self._native_error(error)
+        except PlanningContextReaderError:
+            raise
+        except ValueError:
+            raise
+        except Exception:
+            _fail("planning_unavailable")
 
     def read_document(self, binding: DisclosureBinding, target: SourceSelection) -> bytes:
         if type(target) is not SourceSelection or target.source != "planning":

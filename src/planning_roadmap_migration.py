@@ -29,11 +29,13 @@ HISTORICAL_AUTHORITY_MAP_ID = "h1r03-historical-v1"
 SUCCESSOR_AUTHORITY_MAP_ID = "h1r03-successor-v2"
 DOCS_ONLY_AUTHORITY_MAP_ID = "h1r04-docs-only-v3"
 REPO_ONLY_AUTHORITY_MAP_ID = "h1r05-repo-only-v4"
+PRODUCT_READINESS_AUTHORITY_MAP_ID = "h1r03-product-readiness-v5"
 H1R04_ACCEPTED_DOCUMENT_PATH = "docs/plans/harbour-one-h1r-04-current-boundary-reconciliation-2026-08-30.json"
 H1R04_ACCEPTED_DOCUMENT_RAW_BLOB = "5248817e49784cf363ff40c6c9996caa9272493d"
 DOCS_ONLY_PRODUCT_RAW_BLOB = "ba7914f8174361d7d1528418748c4852345f0cd8"
 H1R05_ACCEPTANCE_RECEIPT_PATH = "docs/plans/evidence/harbour-one-h1r05-repo-acceptance-20261003.receipt"
 REPO_ONLY_PRODUCT_RAW_BLOB = "65e88e5775f6ca4b721e0c0906577d0a16bc7113"
+PRODUCT_READINESS_PRODUCT_RAW_BLOB = "3a374884f593d6d92d52193cacd1cd80f2848d68"
 H1R05_ACCEPTANCE_RECEIPT_RAW_BLOB = "4e9bc7fb6c84f6c01f169e145539caf33bc7b2bf"
 OWNER_ID = "fuzzy"
 PROJECT_ID = "harbour-one"
@@ -105,11 +107,18 @@ REPO_ONLY_AUTHORITY_PINS = {
     "docs/plans/harbour-one-product-roadmap.json": REPO_ONLY_PRODUCT_RAW_BLOB,
     H1R05_ACCEPTANCE_RECEIPT_PATH: H1R05_ACCEPTANCE_RECEIPT_RAW_BLOB,
 }
+PRODUCT_READINESS_AUTHORITY_PINS = {
+    **REPO_ONLY_AUTHORITY_PINS,
+    "docs/plans/harbour-one-product-roadmap.json": PRODUCT_READINESS_PRODUCT_RAW_BLOB,
+}
 AUTHORITY_MAP_REGISTRY = {
     HISTORICAL_AUTHORITY_MAP_ID: (MIGRATION_MANIFEST_SCHEMA_V1, HISTORICAL_AUTHORITY_PINS),
     SUCCESSOR_AUTHORITY_MAP_ID: (MIGRATION_MANIFEST_SCHEMA_V2, SUCCESSOR_AUTHORITY_PINS),
     DOCS_ONLY_AUTHORITY_MAP_ID: (MIGRATION_MANIFEST_SCHEMA_V2, DOCS_ONLY_AUTHORITY_PINS),
     REPO_ONLY_AUTHORITY_MAP_ID: (MIGRATION_MANIFEST_SCHEMA_V2, REPO_ONLY_AUTHORITY_PINS),
+    PRODUCT_READINESS_AUTHORITY_MAP_ID: (
+        MIGRATION_MANIFEST_SCHEMA_V2, PRODUCT_READINESS_AUTHORITY_PINS,
+    ),
 }
 
 _V1_IDENTITY_FIELDS = frozenset({
@@ -153,8 +162,8 @@ def current_authority_map(repo_root: str | Path) -> str | None:
     """Return the registered map whose exact pinned bytes are present now."""
     root = Path(repo_root).expanduser().resolve(strict=True)
     for map_id in (
-        REPO_ONLY_AUTHORITY_MAP_ID, DOCS_ONLY_AUTHORITY_MAP_ID, SUCCESSOR_AUTHORITY_MAP_ID,
-        HISTORICAL_AUTHORITY_MAP_ID,
+        PRODUCT_READINESS_AUTHORITY_MAP_ID, REPO_ONLY_AUTHORITY_MAP_ID,
+        DOCS_ONLY_AUTHORITY_MAP_ID, SUCCESSOR_AUTHORITY_MAP_ID, HISTORICAL_AUTHORITY_MAP_ID,
     ):
         _schema, pins = AUTHORITY_MAP_REGISTRY[map_id]
         try:
@@ -180,6 +189,7 @@ def authority_map_relation(batch_map_id: object, current_map_id: object) -> str:
     known_order = (
         HISTORICAL_AUTHORITY_MAP_ID, SUCCESSOR_AUTHORITY_MAP_ID,
         DOCS_ONLY_AUTHORITY_MAP_ID, REPO_ONLY_AUTHORITY_MAP_ID,
+        PRODUCT_READINESS_AUTHORITY_MAP_ID,
     )
     if known_order.index(batch_map_id) < known_order.index(current_map_id):
         return "successor"
@@ -306,12 +316,12 @@ def map_legacy_roadmap(source: Mapping[str, Any], *, source_path: str, adapter: 
 
 def build_h1r03_migration_manifest(repo_root: str | Path) -> dict[str, Any]:
     root = Path(repo_root).expanduser().resolve(strict=True)
-    for path, expected_blob in REPO_ONLY_AUTHORITY_PINS.items():
+    for path, expected_blob in PRODUCT_READINESS_AUTHORITY_PINS.items():
         try:
             raw = (root / path).read_bytes()
         except OSError:
             raise DurablePlanningStoreError("stale_authority") from None
-        if _authority_blob(path, raw, REPO_ONLY_AUTHORITY_MAP_ID) != expected_blob:
+        if _authority_blob(path, raw, PRODUCT_READINESS_AUTHORITY_MAP_ID) != expected_blob:
             raise DurablePlanningStoreError("stale_authority")
     census, supporting_observation = build_h1r03_structural_census(root)
     items: list[dict[str, Any]] = []
@@ -347,10 +357,10 @@ def build_h1r03_migration_manifest(repo_root: str | Path) -> dict[str, Any]:
     strict_json_object(supporting_raw)
     body = {
         "schema": MIGRATION_MANIFEST_SCHEMA_V2,
-        "authority_map_id": REPO_ONLY_AUTHORITY_MAP_ID,
+        "authority_map_id": PRODUCT_READINESS_AUTHORITY_MAP_ID,
         "owner_id": OWNER_ID,
         "project_id": PROJECT_ID,
-        "authority_pins": deepcopy(REPO_ONLY_AUTHORITY_PINS),
+        "authority_pins": deepcopy(PRODUCT_READINESS_AUTHORITY_PINS),
         "structural_census": census,
         "supporting_observation": supporting_observation,
         "source_items": items,
@@ -649,11 +659,17 @@ def _raw_git_blob(raw: bytes) -> str:
 def _authority_blob(path: str, raw: bytes, map_id: str) -> str:
     if path == "docs/plans/harbour-one-product-roadmap.json" and map_id in {
         SUCCESSOR_AUTHORITY_MAP_ID, DOCS_ONLY_AUTHORITY_MAP_ID, REPO_ONLY_AUTHORITY_MAP_ID,
+        PRODUCT_READINESS_AUTHORITY_MAP_ID,
     }:
         return _raw_git_blob(raw)
-    if map_id in {DOCS_ONLY_AUTHORITY_MAP_ID, REPO_ONLY_AUTHORITY_MAP_ID} and path == H1R04_ACCEPTED_DOCUMENT_PATH:
+    if map_id in {
+        DOCS_ONLY_AUTHORITY_MAP_ID, REPO_ONLY_AUTHORITY_MAP_ID,
+        PRODUCT_READINESS_AUTHORITY_MAP_ID,
+    } and path == H1R04_ACCEPTED_DOCUMENT_PATH:
         return _raw_git_blob(raw)
-    if map_id == REPO_ONLY_AUTHORITY_MAP_ID and path == H1R05_ACCEPTANCE_RECEIPT_PATH:
+    if map_id in {
+        REPO_ONLY_AUTHORITY_MAP_ID, PRODUCT_READINESS_AUTHORITY_MAP_ID,
+    } and path == H1R05_ACCEPTANCE_RECEIPT_PATH:
         return _raw_git_blob(raw)
     return _git_blob(raw)
 
@@ -667,6 +683,8 @@ __all__ = [
     "HISTORICAL_AUTHORITY_MAP_ID", "HISTORICAL_AUTHORITY_PINS",
     "MIGRATION_MANIFEST_SCHEMA", "MIGRATION_MANIFEST_SCHEMA_V1",
     "MIGRATION_MANIFEST_SCHEMA_V2", "OWNER_ID", "PROJECT_ID",
+    "PRODUCT_READINESS_AUTHORITY_MAP_ID", "PRODUCT_READINESS_AUTHORITY_PINS",
+    "PRODUCT_READINESS_PRODUCT_RAW_BLOB",
     "REPO_ONLY_AUTHORITY_MAP_ID", "REPO_ONLY_AUTHORITY_PINS", "REPO_ONLY_PRODUCT_RAW_BLOB",
     "SUCCESSOR_AUTHORITY_MAP_ID", "SUCCESSOR_AUTHORITY_PINS",
     "SUPPORTING_PATH", "accept_h1r03_migration", "build_h1r03_migration_manifest",

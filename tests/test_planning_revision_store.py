@@ -20,6 +20,8 @@ from src.planning_roadmap_migration import (
     DOCS_ONLY_AUTHORITY_PINS,
     REPO_ONLY_AUTHORITY_MAP_ID,
     REPO_ONLY_AUTHORITY_PINS,
+    PRODUCT_READINESS_AUTHORITY_MAP_ID,
+    PRODUCT_READINESS_AUTHORITY_PINS,
     HISTORICAL_AUTHORITY_PINS,
     MIGRATION_MANIFEST_SCHEMA_V1,
     build_h1r03_migration_manifest,
@@ -163,6 +165,978 @@ def test_subject_bound_bundle_is_complete_immutable_and_one_verified_image(durab
     again = store.read_subject_bound_accepted_migration_bundle(principal, project_id="harbour-one")
     assert again == bundle and json.loads(again.batch_bytes)["state"] == "accepted"
     assert len(verifications) == 2
+
+
+def test_subject_bound_bundle_validates_each_exact_payload_once_per_read(
+    durable_planning_store, monkeypatch,
+):
+    fixture = durable_planning_store
+    store, principal = fixture["store"], fixture["principal"]
+    revision_count = len(json.loads(store._path.read_bytes())["revisions"])
+    original_validate = durable_module.validate_planning_definition
+    validations = []
+
+    def counted(document):
+        validations.append(durable_module._canonical_planning_bytes(document))
+        return original_validate(document)
+
+    monkeypatch.setattr(durable_module, "validate_planning_definition", counted)
+    first = store.read_subject_bound_accepted_migration_bundle(
+        principal, project_id="harbour-one",
+    )
+    assert len(validations) == revision_count == len(first.revisions)
+    second = store.read_subject_bound_accepted_migration_bundle(
+        principal, project_id="harbour-one",
+    )
+    assert second == first
+    assert len(validations) == revision_count * 2
+
+
+def test_dual_principal_bundle_authenticates_both_and_materializes_one_image(
+    durable_planning_store, monkeypatch,
+):
+    fixture = durable_planning_store
+    store = fixture["store"]
+    cookie_principal = fixture["principal"]
+    mcp_principal = fixture["issuer"].issue(
+        subject_id=cookie_principal.subject_id,
+        owner_id=cookie_principal.owner_id,
+        auth_context_digest="sha256:" + "7" * 64,
+        ttl_seconds=3600,
+        nonce="dual-principal-mcp-0001",
+    )
+    original_authenticate = store._authenticate
+    original_materialize = store._materialize_accepted_migration_locked
+    authenticated = []
+    materialized = []
+
+    def authenticate(principal):
+        authenticated.append(principal)
+        return original_authenticate(principal)
+
+    def materialize(**kwargs):
+        materialized.append(kwargs["batch"]["batch_id"])
+        return original_materialize(**kwargs)
+
+    monkeypatch.setattr(store, "_authenticate", authenticate)
+    monkeypatch.setattr(store, "_materialize_accepted_migration_locked", materialize)
+    bundle = store._read_dual_subject_bound_accepted_migration_bundle(
+        cookie_principal, mcp_principal, project_id="harbour-one",
+    )
+
+    assert authenticated == [cookie_principal, mcp_principal]
+    assert materialized == [json.loads(bundle.batch_bytes)["batch_id"]]
+    assert bundle.owner_id == cookie_principal.owner_id
+    assert bundle.project_id == "harbour-one"
+    with pytest.raises(DurablePlanningStoreError) as reused:
+        store._read_dual_subject_bound_accepted_migration_bundle(
+            cookie_principal, cookie_principal, project_id="harbour-one",
+        )
+    assert reused.value.code == "validation_failed"
+
+
+def test_dual_principal_bundle_rejects_each_invalid_principal_slot(
+    durable_planning_store, monkeypatch,
+):
+    from src.harbour_authority import TrustedPrincipal
+
+    class ScalarString(str):
+        pass
+
+    fixture = durable_planning_store
+    store = fixture["store"]
+    cookie = fixture["principal"]
+    valid_mcp = fixture["issuer"].issue(
+        subject_id=cookie.subject_id,
+        owner_id=cookie.owner_id,
+        auth_context_digest="sha256:" + "6" * 64,
+        ttl_seconds=3600,
+        nonce="dual-principal-valid-mcp-0001",
+    )
+    foreign_issuer = AuthenticatedPrincipalIssuer(
+        issuer_id="dual-principal-foreign-issuer",
+        key_id="dual-principal-foreign-key",
+        secret=b"dual-principal-foreign-secret-0001",
+    )
+    foreign = foreign_issuer.issue(
+        subject_id=cookie.subject_id,
+        owner_id=cookie.owner_id,
+        auth_context_digest="sha256:" + "5" * 64,
+        ttl_seconds=3600,
+        nonce="dual-principal-foreign-0001",
+    )
+
+    def clone(**changes):
+        result = object.__new__(TrustedPrincipal)
+        for name in TrustedPrincipal.__slots__:
+            object.__setattr__(
+                result, name, changes.get(name, getattr(cookie, name)),
+            )
+        return result
+
+    forged = clone(_attestation="hmac-sha256:" + "0" * 64)
+    scalar_subclass = clone(_owner_id=ScalarString(cookie.owner_id))
+    materialized = []
+    original_materialize = store._materialize_accepted_migration_locked
+
+    def materialize(**kwargs):
+        materialized.append(kwargs["batch"]["batch_id"])
+        return original_materialize(**kwargs)
+
+    monkeypatch.setattr(store, "_materialize_accepted_migration_locked", materialize)
+
+    cases = (
+        (forged, valid_mcp),
+        (foreign, valid_mcp),
+        (scalar_subclass, valid_mcp),
+        (cookie, forged),
+        (cookie, foreign),
+        (cookie, scalar_subclass),
+    )
+    before = store._path.read_bytes()
+    for left, right in cases:
+        with pytest.raises(DurablePlanningStoreError) as rejected:
+            store._read_dual_subject_bound_accepted_migration_bundle(
+                left, right, project_id="harbour-one",
+            )
+        assert rejected.value.code == "unauthenticated"
+        assert store._path.read_bytes() == before
+    assert materialized == []
+
+
+def test_dual_principal_bundle_is_detached_and_fences_retained_image_mutation(
+    durable_planning_store, monkeypatch,
+):
+    fixture = durable_planning_store
+    store = fixture["store"]
+    cookie = fixture["principal"]
+    mcp = fixture["issuer"].issue(
+        subject_id=cookie.subject_id,
+        owner_id=cookie.owner_id,
+        auth_context_digest="sha256:" + "2" * 64,
+        ttl_seconds=3600,
+        nonce="dual-principal-retained-image-0001",
+    )
+    first = store._read_dual_subject_bound_accepted_migration_bundle(
+        cookie, mcp, project_id="harbour-one",
+    )
+    detached = json.loads(first.batch_bytes)
+    detached["state"] = "tampered"
+    assert json.loads(first.batch_bytes)["state"] == "accepted"
+
+    original_assert = store._assert_retained_image_locked
+
+    def mutate_then_assert(entry_bytes, entry_digest):
+        candidate = json.loads(store._path.read_bytes())
+        candidate["updated_at"] = "2099-01-01T00:00:00Z"
+        store._path.write_bytes(durable_module._canonical_planning_bytes(candidate))
+        return original_assert(entry_bytes, entry_digest)
+
+    monkeypatch.setattr(store, "_assert_retained_image_locked", mutate_then_assert)
+    with pytest.raises(DurablePlanningStoreError) as mutated:
+        store._read_dual_subject_bound_accepted_migration_bundle(
+            cookie, mcp, project_id="harbour-one",
+        )
+    assert mutated.value.code in {"stale_authority", "validation_failed"}
+
+
+def test_pair_scope_reuses_pure_payload_validation_but_replays_both_fresh_images(
+    durable_planning_store, monkeypatch,
+):
+    fixture = durable_planning_store
+    store, principal = fixture["store"], fixture["principal"]
+    revision_count = len(json.loads(store._path.read_bytes())["revisions"])
+    original_validate = durable_module.validate_planning_definition
+    original_verify = durable_module._verify_harbour_state
+    original_materialize = store._materialize_accepted_migration_locked
+    original_read = Path.read_bytes
+    validations, verifications, materializations, physical_reads = [], [], [], []
+
+    def counted_validate(document):
+        validations.append(1)
+        return original_validate(document)
+
+    def counted_verify(state):
+        verifications.append(1)
+        return original_verify(state)
+
+    def counted_materialize(**kwargs):
+        materializations.append(1)
+        return original_materialize(**kwargs)
+
+    def counted_read(path):
+        if path == store._path:
+            physical_reads.append(1)
+        return original_read(path)
+
+    monkeypatch.setattr(durable_module, "validate_planning_definition", counted_validate)
+    monkeypatch.setattr(durable_module, "_verify_harbour_state", counted_verify)
+    monkeypatch.setattr(store, "_materialize_accepted_migration_locked", counted_materialize)
+    monkeypatch.setattr(Path, "read_bytes", counted_read)
+    with store._planning_payload_validation_pair():
+        first = store.read_subject_bound_accepted_migration_bundle(
+            principal, project_id="harbour-one",
+        )
+        final = store.read_subject_bound_accepted_migration_bundle(
+            principal, project_id="harbour-one",
+        )
+    assert final == first
+    assert len(validations) == revision_count
+    assert len(verifications) == 2
+    assert len(materializations) == 2
+    assert len(physical_reads) == 4
+
+    with store._planning_payload_validation_pair():
+        repeated_first = store.read_subject_bound_accepted_migration_bundle(
+            principal, project_id="harbour-one",
+        )
+        repeated_final = store.read_subject_bound_accepted_migration_bundle(
+            principal, project_id="harbour-one",
+        )
+    assert repeated_first == repeated_final == first
+    assert len(validations) == revision_count * 2
+    assert len(verifications) == 4
+    assert len(materializations) == 4
+    assert len(physical_reads) == 8
+
+    standalone = store.read_subject_bound_accepted_migration_bundle(
+        principal, project_id="harbour-one",
+    )
+    assert standalone == first
+    assert len(validations) == revision_count * 3
+    assert len(verifications) == 5
+    assert len(materializations) == 5
+    assert len(physical_reads) == 10
+
+
+def test_pair_scope_rejects_forged_foreign_nested_cross_thread_third_read_and_exited_use(
+    durable_planning_store,
+):
+    fixture = durable_planning_store
+    store, principal = fixture["store"], fixture["principal"]
+    errors = []
+    with store._planning_payload_validation_pair() as entered:
+        assert entered is None
+        scope = store._planning_validation_pair_local.scope
+        with pytest.raises(DurablePlanningStoreError, match="validation_failed"):
+            with store._planning_payload_validation_pair():
+                pytest.fail("nested validation pair scope opened")
+
+        def cross_thread_use():
+            try:
+                store._planning_validation_pair_local.scope = scope
+                store.read_subject_bound_accepted_migration_bundle(
+                    principal, project_id="harbour-one",
+                )
+            except DurablePlanningStoreError as error:
+                errors.append(error.code)
+            finally:
+                if hasattr(store._planning_validation_pair_local, "scope"):
+                    del store._planning_validation_pair_local.scope
+
+        thread = Thread(target=cross_thread_use)
+        thread.start()
+        thread.join(timeout=10)
+        assert not thread.is_alive() and errors == ["validation_failed"]
+
+        foreign = DurablePlanningRevisionStore(
+            store.root, trusted_issuers=(fixture["issuer"],), clock=store._clock,
+        )
+        foreign._planning_validation_pair_local.scope = scope
+        try:
+            with pytest.raises(DurablePlanningStoreError, match="validation_failed"):
+                foreign.read_subject_bound_accepted_migration_bundle(
+                    principal, project_id="harbour-one",
+                )
+        finally:
+            del foreign._planning_validation_pair_local.scope
+        store.read_subject_bound_accepted_migration_bundle(
+            principal, project_id="harbour-one",
+        )
+        store.read_subject_bound_accepted_migration_bundle(
+            principal, project_id="harbour-one",
+        )
+        with pytest.raises(DurablePlanningStoreError, match="validation_failed"):
+            store.read_subject_bound_accepted_migration_bundle(
+                principal, project_id="harbour-one",
+            )
+
+    assert getattr(store._planning_validation_pair_local, "scope", None) is None
+    assert not hasattr(store, "_planning_validation_pair_issuer")
+    for name in (
+        "_PlanningPayloadValidationPair",
+        "_issue_planning_payload_validation_pair",
+        "_register_planning_payload_validation_pair",
+        "_begin_planning_payload_validation_pair_read",
+        "_finish_planning_payload_validation_pair",
+        "_close_planning_payload_validation_pair",
+    ):
+        assert not hasattr(durable_module, name)
+    forged = type(scope)()
+    for stale in (scope, forged):
+        store._planning_validation_pair_local.scope = stale
+        try:
+            with pytest.raises(DurablePlanningStoreError, match="validation_failed"):
+                store.read_subject_bound_accepted_migration_bundle(
+                    principal, project_id="harbour-one",
+                )
+        finally:
+            del store._planning_validation_pair_local.scope
+
+
+def test_pair_scope_clears_after_baseexception_corruption_and_dependency_replacement(
+    durable_planning_store, monkeypatch,
+):
+    fixture = durable_planning_store
+    store, principal = fixture["store"], fixture["principal"]
+    with pytest.raises(RuntimeError, match="interrupt pair"):
+        with store._planning_payload_validation_pair():
+            abandoned = store._planning_validation_pair_local.scope
+            store.read_subject_bound_accepted_migration_bundle(
+                principal, project_id="harbour-one",
+            )
+            raise RuntimeError("interrupt pair")
+    assert getattr(store._planning_validation_pair_local, "scope", None) is None
+    store._planning_validation_pair_local.scope = abandoned
+    try:
+        with pytest.raises(DurablePlanningStoreError, match="validation_failed"):
+            store.read_subject_bound_accepted_migration_bundle(
+                principal, project_id="harbour-one",
+            )
+    finally:
+        del store._planning_validation_pair_local.scope
+
+    with pytest.raises(KeyboardInterrupt):
+        with store._planning_payload_validation_pair():
+            store.read_subject_bound_accepted_migration_bundle(
+                principal, project_id="harbour-one",
+            )
+            store._planning_validation_pair_local.scope = object()
+            raise KeyboardInterrupt
+    assert getattr(store._planning_validation_pair_local, "scope", None) is None
+
+    with pytest.raises(SystemExit):
+        with store._planning_payload_validation_pair():
+            store.read_subject_bound_accepted_migration_bundle(
+                principal, project_id="harbour-one",
+            )
+            store.read_subject_bound_accepted_migration_bundle(
+                principal, project_id="harbour-one",
+            )
+            raise SystemExit
+    assert getattr(store._planning_validation_pair_local, "scope", None) is None
+
+    with pytest.raises(DurablePlanningStoreError, match="validation_failed"):
+        with store._planning_payload_validation_pair():
+            store.read_subject_bound_accepted_migration_bundle(
+                principal, project_id="harbour-one",
+            )
+            del store._planning_validation_pair_local.scope
+            store.read_subject_bound_accepted_migration_bundle(
+                principal, project_id="harbour-one",
+            )
+    assert getattr(store._planning_validation_pair_local, "scope", None) is None
+
+    with pytest.raises(DurablePlanningStoreError, match="validation_failed"):
+        with store._planning_payload_validation_pair():
+            store.read_subject_bound_accepted_migration_bundle(
+                principal, project_id="harbour-one",
+            )
+            store._planning_validation_pair_local.scope = object()
+            store.read_subject_bound_accepted_migration_bundle(
+                principal, project_id="harbour-one",
+            )
+    assert getattr(store._planning_validation_pair_local, "scope", None) is None
+
+    original_validate = durable_module.validate_planning_definition
+    with pytest.raises(DurablePlanningStoreError, match="validation_failed"):
+        with store._planning_payload_validation_pair():
+            store.read_subject_bound_accepted_migration_bundle(
+                principal, project_id="harbour-one",
+            )
+            monkeypatch.setattr(
+                durable_module, "validate_planning_definition",
+                lambda document: original_validate(document),
+            )
+            store.read_subject_bound_accepted_migration_bundle(
+                principal, project_id="harbour-one",
+            )
+    assert getattr(store._planning_validation_pair_local, "scope", None) is None
+    assert store.available
+
+
+@pytest.mark.parametrize(
+    "limit_name",
+    ("_PLANNING_VALIDATION_PAIR_MAX_ENTRIES", "_PLANNING_VALIDATION_PAIR_MAX_BYTES"),
+)
+def test_pair_scope_capacity_falls_back_to_uncached_validation(
+    durable_planning_store, monkeypatch, limit_name,
+):
+    fixture = durable_planning_store
+    store, principal = fixture["store"], fixture["principal"]
+    revision_count = len(json.loads(store._path.read_bytes())["revisions"])
+    original_validate = durable_module.validate_planning_definition
+    validations = []
+
+    def counted(document):
+        validations.append(1)
+        return original_validate(document)
+
+    monkeypatch.setattr(durable_module, "validate_planning_definition", counted)
+    monkeypatch.setattr(durable_module, limit_name, 0)
+    with store._planning_payload_validation_pair():
+        first = store.read_subject_bound_accepted_migration_bundle(
+            principal, project_id="harbour-one",
+        )
+        final = store.read_subject_bound_accepted_migration_bundle(
+            principal, project_id="harbour-one",
+        )
+    assert final == first
+    assert len(validations) == revision_count * 2
+
+
+def test_pair_scope_changed_exact_payload_bytes_are_revalidated(
+    durable_planning_store, monkeypatch,
+):
+    store = durable_planning_store["store"]
+    first_document = definition_fixture(PROJECT, ROADMAP, include_draft=False)
+    second_document = deepcopy(first_document)
+    second_roadmap = second_document["roadmaps"][0]
+    second_roadmap["title"] = "Different exact immutable payload bytes"
+    second_roadmap["content_hash"] = compute_roadmap_content_hash(second_roadmap)
+    second_document["project"]["latest_approved_revision"] = {
+        ROADMAP: {
+            "revision": second_roadmap["revision"],
+            "content_hash": second_roadmap["content_hash"],
+        }
+    }
+    first_payload = durable_module._canonical_planning_bytes(first_document)
+    second_payload = durable_module._canonical_planning_bytes(second_document)
+    assert first_payload != second_payload
+    original_validate = durable_module.validate_planning_definition
+    validations = []
+
+    def counted(document):
+        validations.append(1)
+        return original_validate(document)
+
+    monkeypatch.setattr(durable_module, "validate_planning_definition", counted)
+    with store._planning_payload_validation_pair():
+        with store._activate_planning_payload_validation_pair_read():
+            first_run = durable_module._PlanningPayloadValidationRun()
+            durable_module._validated_planning_payload(
+                first_payload, PROJECT, ROADMAP, _validation_run=first_run,
+            )
+        with store._activate_planning_payload_validation_pair_read():
+            second_run = durable_module._PlanningPayloadValidationRun()
+            durable_module._validated_planning_payload(
+                second_payload, PROJECT, ROADMAP, _validation_run=second_run,
+            )
+    assert len(validations) == 2
+
+
+def test_pair_scope_revalidates_canonical_contract_invalid_new_key(
+    durable_planning_store, monkeypatch,
+):
+    store = durable_planning_store["store"]
+    document = definition_fixture(PROJECT, ROADMAP, include_draft=False)
+    valid_payload = durable_module._canonical_planning_bytes(document)
+    invalid_document = deepcopy(document)
+    del invalid_document["roadmaps"][0]["objective"]
+    invalid_payload = durable_module._canonical_planning_bytes(invalid_document)
+    original_validate = durable_module.validate_planning_definition
+    validations = []
+
+    def counted(candidate):
+        validations.append(1)
+        return original_validate(candidate)
+
+    monkeypatch.setattr(durable_module, "validate_planning_definition", counted)
+    with pytest.raises(DurablePlanningStoreError, match="validation_failed"):
+        with store._planning_payload_validation_pair():
+            with store._activate_planning_payload_validation_pair_read():
+                first_run = durable_module._PlanningPayloadValidationRun()
+                durable_module._validated_planning_payload(
+                    valid_payload, PROJECT, ROADMAP, _validation_run=first_run,
+                )
+            with store._activate_planning_payload_validation_pair_read():
+                final_run = durable_module._PlanningPayloadValidationRun()
+                durable_module._validated_planning_payload(
+                    invalid_payload, PROJECT, ROADMAP, _validation_run=final_run,
+                )
+    assert len(validations) == 2
+    assert getattr(store._planning_validation_pair_local, "scope", None) is None
+
+
+def test_pair_scope_hides_masters_and_detaches_both_returned_aliases(
+    durable_planning_store, monkeypatch,
+):
+    store = durable_planning_store["store"]
+    document = definition_fixture(PROJECT, ROADMAP, include_draft=False)
+    payload = durable_module._canonical_planning_bytes(document)
+    original_validate = durable_module.validate_planning_definition
+    validations = []
+
+    def counted(candidate):
+        validations.append(1)
+        return original_validate(candidate)
+
+    monkeypatch.setattr(durable_module, "validate_planning_definition", counted)
+    with store._planning_payload_validation_pair():
+        with store._activate_planning_payload_validation_pair_read():
+            first_run = durable_module._PlanningPayloadValidationRun()
+            _raw, first, first_roadmap = durable_module._validated_planning_payload(
+                payload, PROJECT, ROADMAP, _validation_run=first_run,
+            )
+        scope = store._planning_validation_pair_local.scope
+        assert not hasattr(scope, "_memo")
+        for name, value in (("_memo", {}), ("_dependencies", ()), ("_store", store)):
+            with pytest.raises(AttributeError):
+                setattr(scope, name, value)
+        first["project"]["project_id"] = "mutated-returned-document"
+        first_roadmap["title"] = "mutated-returned-nested-roadmap"
+        with store._activate_planning_payload_validation_pair_read():
+            final_run = durable_module._PlanningPayloadValidationRun()
+            _raw, final, final_roadmap = durable_module._validated_planning_payload(
+                payload, PROJECT, ROADMAP, _validation_run=final_run,
+            )
+    assert final == document
+    assert final_roadmap == document["roadmaps"][0]
+    assert len(validations) == 1
+    assert getattr(store._planning_validation_pair_local, "scope", None) is None
+
+
+def test_pair_scope_dependency_identity_rejects_eq_hash_and_reentry_spoof(
+    durable_planning_store, monkeypatch,
+):
+    fixture = durable_planning_store
+    store, principal = fixture["store"], fixture["principal"]
+    calls = {"eq": 0, "hash": 0, "call": 0}
+
+    class MaliciousCallable:
+        def __eq__(self, other):
+            calls["eq"] += 1
+            store.read_subject_bound_accepted_migration_bundle(
+                principal, project_id="harbour-one",
+            )
+            return True
+
+        def __hash__(self):
+            calls["hash"] += 1
+            return 0
+
+        def __call__(self, document):
+            calls["call"] += 1
+            store.read_subject_bound_accepted_migration_bundle(
+                principal, project_id="harbour-one",
+            )
+
+    with pytest.raises(DurablePlanningStoreError, match="validation_failed"):
+        with store._planning_payload_validation_pair():
+            store.read_subject_bound_accepted_migration_bundle(
+                principal, project_id="harbour-one",
+            )
+            monkeypatch.setattr(
+                durable_module, "validate_planning_definition", MaliciousCallable(),
+            )
+            store.read_subject_bound_accepted_migration_bundle(
+                principal, project_id="harbour-one",
+            )
+    assert calls == {"eq": 0, "hash": 0, "call": 0}
+    assert getattr(store._planning_validation_pair_local, "scope", None) is None
+
+
+def test_pair_scope_revalidates_same_id_changed_physical_payload(
+    durable_planning_store, monkeypatch,
+):
+    fixture = durable_planning_store
+    store, principal = fixture["store"], fixture["principal"]
+    original_read = Path.read_bytes
+    original_bytes = original_read(store._path)
+    changed_state = json.loads(original_bytes)
+    revision_id = next(iter(changed_state["revisions"]))
+    record = changed_state["revisions"][revision_id]
+    document = json.loads(durable_module.base64.b64decode(record["payload_b64"]))
+    roadmap = document["roadmaps"][0]
+    roadmap["title"] = "Same revision identity with different payload bytes"
+    roadmap["content_hash"] = compute_roadmap_content_hash(roadmap)
+    latest = document["project"]["latest_approved_revision"].get(roadmap["roadmap_id"])
+    if latest is not None and latest["revision"] == roadmap["revision"]:
+        latest["content_hash"] = roadmap["content_hash"]
+    changed_payload = durable_module._canonical_planning_bytes(document)
+    record["payload_b64"] = durable_module.base64.b64encode(changed_payload).decode("ascii")
+    record["payload_sha256"] = durable_module._bytes_digest(changed_payload)
+    changed_bytes = (
+        json.dumps(changed_state, ensure_ascii=False, allow_nan=False, indent=2, sort_keys=True)
+        + "\n"
+    ).encode("utf-8")
+    original_validate = durable_module.validate_planning_definition
+    validations, reads = [], []
+
+    def counted(document):
+        validations.append(1)
+        return original_validate(document)
+
+    def changed_second_entry(path):
+        if path != store._path:
+            return original_read(path)
+        reads.append(1)
+        return changed_bytes if len(reads) == 3 else original_bytes
+
+    monkeypatch.setattr(durable_module, "validate_planning_definition", counted)
+    monkeypatch.setattr(Path, "read_bytes", changed_second_entry)
+    with pytest.raises(DurablePlanningStoreError, match="validation_failed"):
+        with store._planning_payload_validation_pair():
+            store.read_subject_bound_accepted_migration_bundle(
+                principal, project_id="harbour-one",
+            )
+            first_count = len(validations)
+            store.read_subject_bound_accepted_migration_bundle(
+                principal, project_id="harbour-one",
+            )
+    assert len(reads) == 3
+    assert len(validations) > first_count
+    assert revision_id in changed_state["revisions"]
+
+
+def test_pair_scope_public_pair_rejects_physical_aba_image(
+    durable_planning_store, monkeypatch,
+):
+    fixture = durable_planning_store
+    store, principal = fixture["store"], fixture["principal"]
+    original_read = Path.read_bytes
+    original_bytes = original_read(store._path)
+    equivalent_bytes = b" " + original_bytes
+    reads = []
+
+    def aba_read(path):
+        if path != store._path:
+            return original_read(path)
+        reads.append(1)
+        return equivalent_bytes if len(reads) == 3 else original_bytes
+
+    monkeypatch.setattr(Path, "read_bytes", aba_read)
+    with pytest.raises(DurablePlanningStoreError, match="stale_authority"):
+        with store._planning_payload_validation_pair():
+            store.read_subject_bound_accepted_migration_bundle(
+                principal, project_id="harbour-one",
+            )
+            store.read_subject_bound_accepted_migration_bundle(
+                principal, project_id="harbour-one",
+            )
+    assert len(reads) == 4
+    assert equivalent_bytes != original_bytes
+    assert getattr(store._planning_validation_pair_local, "scope", None) is None
+
+
+@pytest.mark.parametrize("changed", ("head", "receipt", "parent", "owner"))
+def test_pair_scope_replays_nonpayload_authority_on_second_image(
+    durable_planning_store, monkeypatch, changed,
+):
+    fixture = durable_planning_store
+    store, principal = fixture["store"], fixture["principal"]
+    original_verify = durable_module._verify_harbour_state
+    verifications = []
+
+    def changed_second_image(state):
+        verifications.append(1)
+        if len(verifications) == 1:
+            return original_verify(state)
+        candidate = deepcopy(state)
+        if changed == "head":
+            next(iter(candidate["heads"].values()))["generation"] += 1
+        elif changed == "receipt":
+            next(iter(candidate["receipts"].values()))["producer"] = "forged-producer"
+        elif changed == "parent":
+            record = next(
+                value for value in candidate["revisions"].values()
+                if value["parent_revision_id"] is not None
+            )
+            record["parent_revision_id"] = "forged-parent"
+        else:
+            next(iter(candidate["revisions"].values()))["owner_id"] = "forged-owner"
+        return original_verify(candidate)
+
+    monkeypatch.setattr(durable_module, "_verify_harbour_state", changed_second_image)
+    with pytest.raises(DurablePlanningStoreError, match="validation_failed"):
+        with store._planning_payload_validation_pair():
+            store.read_subject_bound_accepted_migration_bundle(
+                principal, project_id="harbour-one",
+            )
+            store.read_subject_bound_accepted_migration_bundle(
+                principal, project_id="harbour-one",
+            )
+    assert len(verifications) == 2
+    assert getattr(store._planning_validation_pair_local, "scope", None) is None
+
+
+@pytest.mark.parametrize("changed", ("disappeared", "truncated", "same-length"))
+def test_pair_scope_second_physical_read_failure_has_no_partial_result(
+    durable_planning_store, monkeypatch, changed,
+):
+    fixture = durable_planning_store
+    store, principal = fixture["store"], fixture["principal"]
+    original_read = Path.read_bytes
+    state_bytes = original_read(store._path)
+    reads = []
+
+    def changed_second_bundle(path):
+        if path != store._path:
+            return original_read(path)
+        reads.append(1)
+        if len(reads) == 3:
+            if changed == "disappeared":
+                raise FileNotFoundError()
+            if changed == "truncated":
+                return state_bytes.rstrip()[:-1]
+            return bytes([state_bytes[0] ^ 1]) + state_bytes[1:]
+        return state_bytes
+
+    monkeypatch.setattr(Path, "read_bytes", changed_second_bundle)
+    with pytest.raises(DurablePlanningStoreError, match="validation_failed"):
+        with store._planning_payload_validation_pair():
+            store.read_subject_bound_accepted_migration_bundle(
+                principal, project_id="harbour-one",
+            )
+            store.read_subject_bound_accepted_migration_bundle(
+                principal, project_id="harbour-one",
+            )
+    assert len(reads) == 3
+    assert getattr(store._planning_validation_pair_local, "scope", None) is None
+
+
+def test_validation_run_keys_exact_bytes_and_bindings_and_detaches_private_master(monkeypatch):
+    document = definition_fixture(PROJECT, ROADMAP, include_draft=False)
+    payload = durable_module._canonical_planning_bytes(document)
+    noncanonical = json.dumps(document, ensure_ascii=False, indent=1).encode("utf-8")
+    original_validate = durable_module.validate_planning_definition
+    validations = []
+
+    def counted(value):
+        validations.append(1)
+        return original_validate(value)
+
+    monkeypatch.setattr(durable_module, "validate_planning_definition", counted)
+    run = durable_module._PlanningPayloadValidationRun()
+    _raw, first, first_roadmap = durable_module._validated_planning_payload(
+        payload, PROJECT, ROADMAP, _validation_run=run,
+    )
+    first["project"]["project_id"] = "mutated-detached-result"
+    first_roadmap["title"] = "mutated-detached-roadmap"
+    _raw, second, second_roadmap = durable_module._validated_planning_payload(
+        payload, PROJECT, ROADMAP, _validation_run=run,
+    )
+    assert second == document and second_roadmap == document["roadmaps"][0]
+    assert len(validations) == 1
+
+    durable_module._validated_planning_payload(
+        noncanonical, PROJECT, ROADMAP, _validation_run=run,
+    )
+    assert len(validations) == 2
+    for project_id, roadmap_id in (("other-project", ROADMAP), (PROJECT, "other-roadmap")):
+        with pytest.raises(DurablePlanningStoreError) as denied:
+            durable_module._validated_planning_payload(
+                payload, project_id, roadmap_id, _validation_run=run,
+            )
+        assert denied.value.code == "validation_failed"
+    assert len(validations) == 4
+
+    assert not hasattr(run, "_memo")
+    for name, value in (("_memo", {}), ("_dependencies", ()), ("_sealed", False)):
+        with pytest.raises(AttributeError):
+            setattr(run, name, value)
+
+
+def test_validation_run_rejects_unsealed_wrong_image_reuse_and_dependency_change(monkeypatch):
+    document = definition_fixture(PROJECT, ROADMAP, include_draft=False)
+    payload = durable_module._canonical_planning_bytes(document)
+    digest = "sha256:" + hashlib.sha256(b"retained-image").hexdigest()
+    unsealed = durable_module._PlanningPayloadValidationRun()
+    capture = durable_module._PlanningPayloadValidationCapture()
+    with pytest.raises(DurablePlanningStoreError):
+        durable_module._validated_planning_payload(
+            payload, PROJECT, ROADMAP, _validation_run=object(),
+        )
+    with pytest.raises(DurablePlanningStoreError):
+        capture.capture(unsealed, b"retained-image", digest)
+
+    run = durable_module._PlanningPayloadValidationRun()
+    durable_module._validated_planning_payload(
+        payload, PROJECT, ROADMAP, _validation_run=run,
+    )
+    run.seal()
+    capture.capture(run, b"retained-image", digest)
+    with pytest.raises(DurablePlanningStoreError):
+        capture.take(b"different-image", digest)
+    assert capture.take(b"retained-image", digest) is run
+    run.begin_materialization(b"retained-image", digest)
+    with pytest.raises(DurablePlanningStoreError):
+        run.begin_materialization(b"retained-image", digest)
+
+    dependency_run = durable_module._PlanningPayloadValidationRun()
+    monkeypatch.setattr(
+        durable_module, "_canonical_planning_bytes", lambda _value: b"changed-dependency",
+    )
+    with pytest.raises(DurablePlanningStoreError) as changed:
+        durable_module._validated_planning_payload(
+            payload, PROJECT, ROADMAP, _validation_run=dependency_run,
+        )
+    assert changed.value.code == "validation_failed"
+
+
+def _pretty_planning_payload(payload: bytes) -> bytes:
+    document = json.loads(payload)
+    pretty = json.dumps(
+        document, ensure_ascii=False, allow_nan=False, indent=2, sort_keys=True,
+    ).encode("utf-8")
+    assert durable_module._canonical_planning_bytes(document) == payload
+    assert pretty != payload
+    return pretty
+
+
+def test_valid_noncanonical_ordinary_revision_reopens_and_reads_exact_bytes(tmp_path: Path):
+    store, issuer, principal, root = _durable_authority(tmp_path)
+    created = _durable_create(store, principal, _durable_payload(1, "Canonical genesis"))
+    pretty = _pretty_planning_payload(_durable_payload(2, "Pretty ordinary append"))
+    appended = store.append_revision(
+        principal,
+        owner_id=OWNER,
+        project_id=PROJECT,
+        roadmap_id=ROADMAP,
+        payload_bytes=pretty,
+        expected_head=created.after_head,
+        idempotency_key="pretty-ordinary-append-0001",
+    )
+    assert store.read_payload(
+        principal, owner_id=OWNER, revision_id=appended.new_revision_id,
+    ) == pretty
+
+    reopened = DurablePlanningRevisionStore(
+        root, trusted_issuers=(issuer,), clock=lambda: AUTH_NOW,
+    )
+    assert reopened.available
+    assert reopened.read_payload(
+        principal, owner_id=OWNER, revision_id=appended.new_revision_id,
+    ) == pretty
+
+
+def test_unrelated_noncanonical_revision_does_not_block_canonical_accepted_bundle(
+    durable_planning_store,
+):
+    fixture = durable_planning_store
+    store, principal = fixture["store"], fixture["principal"]
+    project_id, roadmap_id = "unrelated-project", "unrelated-roadmap"
+    document = definition_fixture(project_id, roadmap_id, include_draft=False)
+    canonical = durable_module._canonical_planning_bytes(document)
+    pretty = _pretty_planning_payload(canonical)
+    store.create_project(
+        principal,
+        owner_id="fuzzy",
+        project_id=project_id,
+        roadmap_id=roadmap_id,
+        payload_bytes=pretty,
+        idempotency_key="unrelated-pretty-create-0001",
+    )
+
+    bundle = store.read_subject_bound_accepted_migration_bundle(
+        principal, project_id="harbour-one",
+    )
+    assert bundle.project_id == "harbour-one"
+    assert all(member.revision.project_id == "harbour-one" for member in bundle.revisions)
+
+
+def test_selected_noncanonical_revision_is_denied_by_bundle_materialization(
+    durable_planning_store,
+):
+    fixture = durable_planning_store
+    store, principal = fixture["store"], fixture["principal"]
+    _owner, _batch, records, heads = store.read_subject_bound_accepted_migration_records(
+        principal, project_id="harbour-one",
+    )
+    binding = heads[0]
+    current = store.get_head(
+        principal,
+        owner_id="fuzzy",
+        project_id="harbour-one",
+        roadmap_id=binding["roadmap_id"],
+    )
+    document = deepcopy(next(
+        value for _owner, value, reference in records
+        if reference == "durable:" + current.current_revision_id
+    ))
+    roadmap = document["roadmaps"][0]
+    roadmap["revision"] += 1
+    roadmap["title"] = "Selected pretty ordinary append"
+    roadmap["content_hash"] = compute_roadmap_content_hash(roadmap)
+    document["project"]["latest_approved_revision"] = {
+        roadmap["roadmap_id"]: {
+            "revision": roadmap["revision"],
+            "content_hash": roadmap["content_hash"],
+        }
+    }
+    document["project"]["draft_refs"] = []
+    canonical = durable_module._canonical_planning_bytes(document)
+    pretty = _pretty_planning_payload(canonical)
+    store.append_revision(
+        principal,
+        owner_id="fuzzy",
+        project_id="harbour-one",
+        roadmap_id=roadmap["roadmap_id"],
+        payload_bytes=pretty,
+        expected_head=current,
+        idempotency_key="selected-pretty-append-0001",
+    )
+
+    with pytest.raises(DurablePlanningStoreError) as denied:
+        store.read_subject_bound_accepted_migration_bundle(
+            principal, project_id="harbour-one",
+        )
+    assert denied.value.code == "validation_failed"
+
+
+def test_validation_run_revalidates_noncanonical_and_reuses_only_eligible_payloads(
+    monkeypatch,
+):
+    canonical = _durable_payload(1, "Canonical memo candidate")
+    noncanonical = _pretty_planning_payload(canonical)
+    novel_canonical = _durable_payload(1, "Sealed canonical miss")
+    original_validate = durable_module.validate_planning_definition
+    validations = []
+
+    def counted(document):
+        validations.append(1)
+        return original_validate(document)
+
+    monkeypatch.setattr(durable_module, "validate_planning_definition", counted)
+    run = durable_module._PlanningPayloadValidationRun()
+    durable_module._validated_planning_payload(
+        canonical, PROJECT, ROADMAP, _validation_run=run,
+    )
+    durable_module._validated_planning_payload(
+        canonical, PROJECT, ROADMAP, _validation_run=run,
+    )
+    durable_module._validated_planning_payload(
+        noncanonical, PROJECT, ROADMAP, _validation_run=run,
+    )
+    durable_module._validated_planning_payload(
+        noncanonical, PROJECT, ROADMAP, _validation_run=run,
+    )
+    assert len(validations) == 3
+    assert not hasattr(run, "_memo")
+
+    run.seal()
+    durable_module._validated_planning_payload(
+        noncanonical, PROJECT, ROADMAP, _validation_run=run,
+    )
+    durable_module._validated_planning_payload(
+        canonical, PROJECT, ROADMAP, _validation_run=run,
+    )
+    with pytest.raises(DurablePlanningStoreError) as sealed_miss:
+        durable_module._validated_planning_payload(
+            novel_canonical, PROJECT, ROADMAP, _validation_run=run,
+        )
+    assert sealed_miss.value.code == "validation_failed"
+    assert len(validations) == 5
 
 
 @pytest.mark.parametrize("change", ("replace", "delete", "terminal"))
@@ -725,6 +1699,105 @@ def _durable_payload(revision: int, title: str, *, state: str = "approved") -> b
     ).encode("utf-8")
 
 
+def _durable_payload_exact_size(revision: int, title: str, size: int) -> bytes:
+    document = json.loads(_durable_payload(revision, title).decode("utf-8"))
+    roadmap = document["roadmaps"][0]
+    roadmap["constraints"] = []
+
+    def encode() -> bytes:
+        roadmap["content_hash"] = compute_roadmap_content_hash(roadmap)
+        document["project"]["latest_approved_revision"][ROADMAP]["content_hash"] = roadmap["content_hash"]
+        return json.dumps(
+            document, ensure_ascii=False, allow_nan=False,
+            separators=(",", ":"), sort_keys=True,
+        ).encode("utf-8")
+
+    baseline = encode()
+    deficit = size - len(baseline)
+    assert deficit > 0
+    item_count = (deficit + 4003) // 4003
+    total_text_bytes = deficit - 3 * item_count + 1
+    width, remainder = divmod(total_text_bytes, item_count)
+    constraints = []
+    for index in range(item_count):
+        item_length = width + (1 if index < remainder else 0)
+        prefix = f"store-over-old-cap-{index:05d}-"
+        assert len(prefix) <= item_length <= 4000
+        constraints.append(prefix + "x" * (item_length - len(prefix)))
+    roadmap["constraints"] = constraints
+    payload = encode()
+    assert len(payload) == size
+    validate_planning_definition(document)
+    return payload
+
+
+def test_durable_documents_over_old_cap_preserve_atomic_replay_and_rejection_state(tmp_path):
+    store, issuer, principal, root = _durable_authority(tmp_path)
+    size = 4 * 1024 * 1024 + 128 * 1024
+    created_payload = _durable_payload_exact_size(1, "Large durable create", size)
+    created = _durable_create(
+        store, principal, created_payload, key="durable-over-old-cap-create-0001",
+    )
+    assert store.read_payload(
+        principal, owner_id=OWNER, revision_id=created.new_revision_id,
+    ) == created_payload
+    assert created.after_head.current_content_sha256 == json.loads(
+        created_payload.decode("utf-8")
+    )["roadmaps"][0]["content_hash"]
+
+    appended_payload = _durable_payload_exact_size(2, "Large durable append", size + 1)
+    appended = store.append_revision(
+        principal, owner_id=OWNER, project_id=PROJECT, roadmap_id=ROADMAP,
+        payload_bytes=appended_payload, expected_head=created.after_head,
+        idempotency_key="durable-over-old-cap-append-0001",
+    )
+    state_path = root / durable_module._HARBOUR_STATE_FILE
+    accepted_bytes = state_path.read_bytes()
+    restarted = DurablePlanningRevisionStore(
+        root, trusted_issuers=(issuer,), clock=lambda: AUTH_NOW,
+    )
+    assert restarted.read_payload(
+        principal, owner_id=OWNER, revision_id=appended.new_revision_id,
+    ) == appended_payload
+    replay = restarted.append_revision(
+        principal, owner_id=OWNER, project_id=PROJECT, roadmap_id=ROADMAP,
+        payload_bytes=appended_payload, expected_head=created.after_head,
+        idempotency_key="durable-over-old-cap-append-0001",
+    )
+    assert replay == appended
+    assert state_path.read_bytes() == accepted_bytes
+
+    changed = _durable_payload_exact_size(2, "Large conflicting append", size + 2)
+    foreign = issuer.issue(
+        subject_id="foreign-user", owner_id="foreign-owner",
+        auth_context_digest=AUTH_CONTEXT, ttl_seconds=3600,
+        nonce="durable-over-old-cap-foreign-0001",
+    )
+    for call, code in (
+        (lambda: restarted.append_revision(
+            principal, owner_id=OWNER, project_id=PROJECT, roadmap_id=ROADMAP,
+            payload_bytes=changed, expected_head=created.after_head,
+            idempotency_key="durable-over-old-cap-append-0001",
+        ), "idempotency_conflict"),
+        (lambda: restarted.append_revision(
+            principal, owner_id=OWNER, project_id=PROJECT, roadmap_id=ROADMAP,
+            payload_bytes=changed, expected_head=created.after_head,
+            idempotency_key="durable-over-old-cap-stale-0001",
+        ), "stale_authority"),
+        (lambda: restarted.create_project(
+            principal, owner_id=OWNER, project_id=PROJECT, roadmap_id=ROADMAP,
+            payload_bytes=created_payload,
+            idempotency_key="durable-over-old-cap-zero-head-0001",
+            expected_generation=0,
+        ), "stale_authority"),
+        (lambda: restarted.read_payload(
+            foreign, owner_id=OWNER, revision_id=appended.new_revision_id,
+        ), "owner_scope_denied"),
+    ):
+        _assert_detached_store_error(call, code)
+        assert state_path.read_bytes() == accepted_bytes
+
+
 def _durable_create(store, principal, payload: bytes, *, key: str = "durable-create-0001"):
     return store.create_project(
         principal,
@@ -774,7 +1847,7 @@ def _cross_process_create(
         Path(root), trusted_issuers=(issuer,), clock=lambda: AUTH_NOW
     )
     ready_queue.put("ready")
-    if not start_event.wait(timeout=20):
+    if not start_event.wait(timeout=60):
         result_queue.put(("process_error", "start_timeout"))
         return
     try:
@@ -859,6 +1932,390 @@ def test_durable_idempotency_replays_across_restart_and_conflict_writes_nothing(
     assert conflict.value.code == "idempotency_conflict"
     assert conflict.value.args == ("idempotency_conflict",)
     assert state_path.read_bytes() == before
+
+
+def test_durable_revision_bundle_reads_one_fresh_owner_bound_verified_image(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store, issuer, principal, root = _durable_authority(tmp_path)
+    payload = _durable_payload(1, "Atomic immutable bundle")
+    created = _durable_create(store, principal, payload, key="atomic-bundle-create-0001")
+    refreshes = []
+    store_type = type(store)
+    original_refresh = store_type._refresh_locked
+
+    def counted_refresh(actual_store, *args, **kwargs):
+        refreshes.append(actual_store)
+        return original_refresh(actual_store, *args, **kwargs)
+
+    monkeypatch.setattr(store_type, "_refresh_locked", counted_refresh)
+    member = store.read_revision_bundle(
+        principal, owner_id=OWNER, revision_id=created.new_revision_id,
+    )
+    assert len(refreshes) == 1
+    assert member.revision.revision_id == created.new_revision_id
+    assert member.revision.owner_id == OWNER
+    assert member.payload == payload
+    assert type(member.payload) is bytes
+
+    foreign = issuer.issue(
+        subject_id="atomic-bundle-foreign-user", owner_id="atomic-bundle-foreign-owner",
+        auth_context_digest=AUTH_CONTEXT, ttl_seconds=3600,
+        nonce="atomic-bundle-foreign-0001",
+    )
+    _assert_detached_store_error(lambda: store.read_revision_bundle(
+        foreign, owner_id=OWNER, revision_id=created.new_revision_id,
+    ), "owner_scope_denied")
+    assert len(refreshes) == 1
+
+    state_path = root / durable_module._HARBOUR_STATE_FILE
+    state = json.loads(state_path.read_bytes())
+    record = state["revisions"][created.new_revision_id]
+    record["payload_b64"] = "A" + record["payload_b64"][1:]
+    corrupted = (json.dumps(
+        state, ensure_ascii=False, allow_nan=False, indent=2, sort_keys=True,
+    ) + "\n").encode("utf-8")
+    state_path.write_bytes(corrupted)
+    _assert_detached_store_error(lambda: store.read_revision_bundle(
+        principal, owner_id=OWNER, revision_id=created.new_revision_id,
+    ), "validation_failed")
+    assert len(refreshes) == 2
+    assert store.available is False
+    assert state_path.read_bytes() == corrupted
+
+
+def test_revision_bundle_validation_only_revalidates_each_read_without_memo_work(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store, _issuer, principal, _root = _durable_authority(tmp_path)
+    payload = _durable_payload(1, "Validation-only bundle")
+    created = _durable_create(
+        store, principal, payload, key="validation-only-bundle-create-0001",
+    )
+    original_parse = durable_module._strict_json_object
+    original_validate = durable_module.validate_planning_definition
+    original_canonical = durable_module._canonical_planning_bytes
+    original_deepcopy = durable_module.deepcopy
+    payload_parses = []
+    payload_validations = []
+    payload_canonicalizations = []
+    payload_copies = []
+    run_creations = []
+
+    def parse(raw):
+        if raw == payload:
+            payload_parses.append(raw)
+        return original_parse(raw)
+
+    def validate(document):
+        if document.get("roadmaps", [{}])[0].get("title") == "Validation-only bundle":
+            payload_validations.append(document)
+        return original_validate(document)
+
+    def canonical(document):
+        if document.get("roadmaps", [{}])[0].get("title") == "Validation-only bundle":
+            payload_canonicalizations.append(document)
+        return original_canonical(document)
+
+    def copy(value):
+        if (
+            type(value) is dict
+            and value.get("roadmaps", [{}])[0].get("title") == "Validation-only bundle"
+        ):
+            payload_copies.append(value)
+        return original_deepcopy(value)
+
+    def reject_run_creation(*_args, **_kwargs):
+        run_creations.append(True)
+        raise AssertionError("validation-only read created a memo run")
+
+    monkeypatch.setattr(durable_module, "_strict_json_object", parse)
+    monkeypatch.setattr(durable_module, "validate_planning_definition", validate)
+    monkeypatch.setattr(durable_module, "_canonical_planning_bytes", canonical)
+    monkeypatch.setattr(durable_module, "deepcopy", copy)
+    monkeypatch.setattr(durable_module, "_PlanningPayloadValidationRun", reject_run_creation)
+
+    first = store.read_revision_bundle(
+        principal, owner_id=OWNER, revision_id=created.new_revision_id,
+    )
+    second = store.read_revision_bundle(
+        principal, owner_id=OWNER, revision_id=created.new_revision_id,
+    )
+
+    assert first == second
+    assert first.payload == payload
+    assert payload_parses == [payload, payload]
+    assert len(payload_validations) == 2
+    assert payload_canonicalizations == []
+    assert payload_copies == []
+    assert run_creations == []
+
+
+def test_revision_bundle_validation_only_rejects_malformed_and_hash_binding_tamper(
+    tmp_path: Path,
+) -> None:
+    malformed_store, _issuer, malformed_principal, malformed_root = _durable_authority(
+        tmp_path / "malformed",
+    )
+    malformed_created = _durable_create(
+        malformed_store,
+        malformed_principal,
+        _durable_payload(1, "Malformed validation-only source"),
+        key="validation-only-malformed-create-0001",
+    )
+    malformed_path = malformed_root / durable_module._HARBOUR_STATE_FILE
+    malformed_state = json.loads(malformed_path.read_bytes())
+    malformed_record = malformed_state["revisions"][malformed_created.new_revision_id]
+    malformed_payload = b"{"
+    malformed_record["payload_b64"] = durable_module.base64.b64encode(
+        malformed_payload,
+    ).decode("ascii")
+    malformed_record["payload_sha256"] = durable_module._bytes_digest(malformed_payload)
+    malformed_path.write_bytes(json.dumps(
+        malformed_state, ensure_ascii=False, allow_nan=False,
+        separators=(",", ":"), sort_keys=True,
+    ).encode("utf-8"))
+    _assert_detached_store_error(lambda: malformed_store.read_revision_bundle(
+        malformed_principal,
+        owner_id=OWNER,
+        revision_id=malformed_created.new_revision_id,
+    ), "validation_failed")
+    assert malformed_store.available is False
+
+    binding_store, _issuer, binding_principal, binding_root = _durable_authority(
+        tmp_path / "binding",
+    )
+    binding_created = _durable_create(
+        binding_store,
+        binding_principal,
+        _durable_payload(1, "Hash-bound validation-only source"),
+        key="validation-only-binding-create-0001",
+    )
+    binding_path = binding_root / durable_module._HARBOUR_STATE_FILE
+    binding_state = json.loads(binding_path.read_bytes())
+    binding_record = binding_state["revisions"][binding_created.new_revision_id]
+    binding_record["payload_sha256"] = "sha256:" + "0" * 64
+    binding_path.write_bytes(json.dumps(
+        binding_state, ensure_ascii=False, allow_nan=False,
+        separators=(",", ":"), sort_keys=True,
+    ).encode("utf-8"))
+    _assert_detached_store_error(lambda: binding_store.read_revision_bundle(
+        binding_principal,
+        owner_id=OWNER,
+        revision_id=binding_created.new_revision_id,
+    ), "validation_failed")
+    assert binding_store.available is False
+
+
+def test_revision_bundle_validation_only_preserves_noncanonical_payload_bytes(
+    tmp_path: Path,
+) -> None:
+    store, _issuer, principal, _root = _durable_authority(tmp_path)
+    document = json.loads(_durable_payload(1, "Noncanonical validation-only bundle"))
+    payload = json.dumps(
+        document, ensure_ascii=False, allow_nan=False, indent=1, sort_keys=True,
+    ).encode("utf-8")
+    assert payload != durable_module._canonical_planning_bytes(document)
+    created = _durable_create(
+        store, principal, payload, key="validation-only-noncanonical-create-0001",
+    )
+
+    member = store.read_revision_bundle(
+        principal, owner_id=OWNER, revision_id=created.new_revision_id,
+    )
+
+    assert member.revision.revision_id == created.new_revision_id
+    assert member.payload == payload
+
+
+def test_read_validation_only_mode_rejects_capture_append_and_nonboolean_before_read(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store, _issuer, principal, root = _durable_authority(tmp_path)
+    payload = _durable_payload(1, "Validation-only isolation source")
+    _durable_create(
+        store, principal, payload, key="validation-only-isolation-create-0001",
+    )
+    state_path = root / durable_module._HARBOUR_STATE_FILE
+    original_read = Path.read_bytes
+    reads = []
+
+    def counted_read(path):
+        if path == state_path:
+            reads.append(path)
+        return original_read(path)
+
+    monkeypatch.setattr(Path, "read_bytes", counted_read)
+    capture = durable_module._PlanningPayloadValidationCapture()
+    with store._lock:
+        _assert_private_store_error(lambda: store._refresh_locked(
+            _read_validation_only=1,
+        ), "validation_failed")
+        _assert_private_store_error(lambda: store._refresh_locked(
+            _validation_run_capture=capture,
+            _read_validation_only=True,
+        ), "validation_failed")
+        with durable_module._append_planning_payload_validation_scope(store) as append_run:
+            _assert_private_store_error(lambda: store._refresh_locked(
+                _append_validation_run=append_run,
+                _read_validation_only=True,
+            ), "validation_failed")
+            _assert_private_store_error(lambda: store._refresh_locked(
+                _read_validation_only=True,
+            ), "validation_failed")
+            validated, _document, _roadmap = durable_module._validated_planning_payload(
+                payload, PROJECT, ROADMAP, _validation_run=append_run,
+            )
+            assert validated == payload
+    assert reads == []
+    assert store.available is True
+
+    with store._lock:
+        retained = store._refresh_locked(_validation_run_capture=capture)
+        retained_digest = durable_module._canonical_digest(store._state)
+    assert reads == [state_path]
+    captured_run = capture.take(retained, retained_digest)
+    durable_module._discard_planning_payload_validation_run(captured_run)
+
+
+def test_durable_append_replay_precedes_cas_after_head_advance_and_restart(
+    tmp_path: Path,
+) -> None:
+    store, issuer, principal, root = _durable_authority(tmp_path)
+    created = _durable_create(
+        store, principal, _durable_payload(1, "Replay ordering source"),
+        key="append-order-create-0001",
+    )
+    payload = _durable_payload(2, "Replay ordering append")
+    appended = store.append_revision(
+        principal, owner_id=OWNER, project_id=PROJECT, roadmap_id=ROADMAP,
+        payload_bytes=payload, expected_head=created.after_head,
+        idempotency_key="append-order-append-0001",
+    )
+    state_path = root / durable_module._HARBOUR_STATE_FILE
+    accepted_bytes = state_path.read_bytes()
+    restarted = DurablePlanningRevisionStore(
+        root, trusted_issuers=(issuer,), clock=lambda: AUTH_NOW,
+    )
+    assert restarted.append_revision(
+        principal, owner_id=OWNER, project_id=PROJECT, roadmap_id=ROADMAP,
+        payload_bytes=payload, expected_head=created.after_head,
+        idempotency_key="append-order-append-0001",
+    ) == appended
+    assert state_path.read_bytes() == accepted_bytes
+    _assert_detached_store_error(lambda: restarted.append_revision(
+        principal, owner_id=OWNER, project_id=PROJECT, roadmap_id=ROADMAP,
+        payload_bytes=_durable_payload(2, "Replay ordering conflict"),
+        expected_head=created.after_head,
+        idempotency_key="append-order-append-0001",
+    ), "idempotency_conflict")
+    assert state_path.read_bytes() == accepted_bytes
+
+
+@pytest.mark.parametrize(
+    "changed_field",
+    ["revision_id", "content_hash", "approved_revision", "generation"],
+    ids=["revision-id", "content-hash", "approved-revision", "generation"],
+)
+def test_durable_append_well_formed_mismatching_head_is_stale_before_revision_lookup(
+    tmp_path: Path, changed_field: str,
+) -> None:
+    store, _issuer, principal, root = _durable_authority(tmp_path)
+    created = _durable_create(
+        store, principal, _durable_payload(1, "CAS mismatch source"),
+        key="append-cas-mismatch-create-0001",
+    )
+    head = created.after_head
+    values = {
+        "owner_id": head.owner_id,
+        "project_id": head.project_id,
+        "roadmap_id": head.roadmap_id,
+        "current_revision_id": head.current_revision_id,
+        "current_content_sha256": head.current_content_sha256,
+        "approved_revision_id": head.approved_revision_id,
+        "generation": head.generation,
+    }
+    if changed_field == "revision_id":
+        values["current_revision_id"] = "planning-revision:" + "f" * 64
+    elif changed_field == "content_hash":
+        values["current_content_sha256"] = "sha256:" + "0" * 64
+    elif changed_field == "approved_revision":
+        values["approved_revision_id"] = head.current_revision_id
+    else:
+        values["generation"] = head.generation + 1
+    fabricated = PlanningHead(**values)
+    state_path = root / durable_module._HARBOUR_STATE_FILE
+    before = state_path.read_bytes()
+    _assert_detached_store_error(lambda: store.append_revision(
+        principal, owner_id=OWNER, project_id=PROJECT, roadmap_id=ROADMAP,
+        payload_bytes=_durable_payload(2, f"CAS mismatch {changed_field}"),
+        expected_head=fabricated,
+        idempotency_key=f"append-cas-mismatch-{changed_field}-0001",
+    ), "stale_authority")
+    assert state_path.read_bytes() == before
+
+
+def test_durable_append_matching_head_rejects_wrong_next_revision_without_write(
+    tmp_path: Path,
+) -> None:
+    store, _issuer, principal, root = _durable_authority(tmp_path)
+    created = _durable_create(
+        store, principal, _durable_payload(1, "Next revision source"),
+        key="append-next-create-0001",
+    )
+    state_path = root / durable_module._HARBOUR_STATE_FILE
+    before = state_path.read_bytes()
+    _assert_detached_store_error(lambda: store.append_revision(
+        principal, owner_id=OWNER, project_id=PROJECT, roadmap_id=ROADMAP,
+        payload_bytes=_durable_payload(3, "Skipped revision"),
+        expected_head=created.after_head,
+        idempotency_key="append-next-skipped-0001",
+    ), "validation_failed")
+    assert state_path.read_bytes() == before
+
+
+def test_durable_concurrent_appends_share_locked_cas_and_only_one_wins(
+    tmp_path: Path,
+) -> None:
+    first, issuer, principal, root = _durable_authority(tmp_path)
+    created = _durable_create(
+        first, principal, _durable_payload(1, "Concurrent append source"),
+        key="concurrent-append-create-0001",
+    )
+    second = DurablePlanningRevisionStore(
+        root, trusted_issuers=(issuer,), clock=lambda: AUTH_NOW,
+    )
+    start = Event()
+
+    def attempt(candidate_store, title: str, key: str):
+        assert start.wait(timeout=5)
+        try:
+            return ("ok", candidate_store.append_revision(
+                principal, owner_id=OWNER, project_id=PROJECT, roadmap_id=ROADMAP,
+                payload_bytes=_durable_payload(2, title),
+                expected_head=created.after_head, idempotency_key=key,
+            ))
+        except DurablePlanningStoreError as exc:
+            return ("error", exc.code)
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        futures = (
+            executor.submit(attempt, first, "Concurrent winner A", "concurrent-append-a-0001"),
+            executor.submit(attempt, second, "Concurrent winner B", "concurrent-append-b-0001"),
+        )
+        start.set()
+        results = [future.result(timeout=20) for future in futures]
+    assert sorted(result[0] for result in results) == ["error", "ok"]
+    assert [result[1] for result in results if result[0] == "error"] == ["stale_authority"]
+    winner = next(result[1] for result in results if result[0] == "ok")
+    restarted = DurablePlanningRevisionStore(
+        root, trusted_issuers=(issuer,), clock=lambda: AUTH_NOW,
+    )
+    assert restarted.get_head(
+        principal, owner_id=OWNER, project_id=PROJECT, roadmap_id=ROADMAP,
+    ) == winner.after_head
+    state = json.loads((root / durable_module._HARBOUR_STATE_FILE).read_bytes())
+    assert len(state["revisions"]) == 2
 
 
 @pytest.mark.parametrize("operation", ["create_project", "append_revision", "approve_revision", "revert_head"])
@@ -1162,7 +2619,7 @@ def test_durable_two_processes_serialize_refresh_cas_and_replace(tmp_path: Path)
     ]
     for process in processes:
         process.start()
-    assert [ready_queue.get(timeout=20) for _ in processes] == ["ready", "ready"]
+    assert [ready_queue.get(timeout=60) for _ in processes] == ["ready", "ready"]
     start_event.set()
     results = [result_queue.get(timeout=20) for _ in processes]
     for process in processes:
@@ -1272,13 +2729,30 @@ def _docs_only_v3_manifest():
     return manifest
 
 
-def test_historical_v1_manifest_reopens_and_replays_without_current_builder(tmp_path: Path, monkeypatch):
+def _repo_only_v4_manifest():
+    manifest = deepcopy(build_h1r03_migration_manifest(Path(__file__).resolve().parents[1]))
+    manifest["authority_map_id"] = REPO_ONLY_AUTHORITY_MAP_ID
+    manifest["authority_pins"] = deepcopy(REPO_ONLY_AUTHORITY_PINS)
+    identity = durable_module._migration_manifest_identity(manifest)
+    manifest["manifest_digest"] = durable_module._migration_digest(identity)
+    manifest["batch_id"] = "planning-migration-batch:" + manifest["manifest_digest"][7:]
+    return manifest
+
+
+@pytest.mark.parametrize(
+    "manifest_factory",
+    (_historical_v1_manifest, _docs_only_v3_manifest, _repo_only_v4_manifest),
+    ids=("historical-v1", "docs-only-v3", "repo-only-v4"),
+)
+def test_historical_manifest_reopens_and_replays_without_current_builder_or_writes(
+    tmp_path: Path, monkeypatch, manifest_factory,
+):
     store, issuer, _alice_principal, root = _durable_authority(tmp_path)
     principal = issuer.issue(
         subject_id="fuzzy", owner_id="fuzzy", auth_context_digest=AUTH_CONTEXT,
         ttl_seconds=3600, nonce="historical-v1-replay",
     )
-    manifest = _historical_v1_manifest()
+    manifest = manifest_factory()
     state_path = root / durable_module._HARBOUR_STATE_FILE
     prepared = store.prepare_migration(principal, manifest=manifest)
     prepared_bytes = state_path.read_bytes()
@@ -1403,13 +2877,20 @@ def test_successor_v2_manifest_keeps_fixed_digest_and_replays_without_latest_bui
     ) == terminal_receipt
 
 
-def test_historical_prepared_batch_cannot_new_accept_against_successor_manifest(tmp_path: Path):
+@pytest.mark.parametrize(
+    "manifest_factory",
+    (_historical_v1_manifest, _successor_v2_manifest, _docs_only_v3_manifest, _repo_only_v4_manifest),
+    ids=("historical-v1", "successor-v2", "docs-only-v3", "repo-only-v4"),
+)
+def test_historical_prepared_batch_cannot_first_accept_against_current_v5(
+    tmp_path: Path, manifest_factory,
+):
     store, issuer, _alice_principal, root = _durable_authority(tmp_path)
     principal = issuer.issue(
         subject_id="fuzzy", owner_id="fuzzy", auth_context_digest=AUTH_CONTEXT,
         ttl_seconds=3600, nonce="historical-v1-prepared-stale",
     )
-    historical = _historical_v1_manifest()
+    historical = manifest_factory()
     successor = build_h1r03_migration_manifest(Path(__file__).resolve().parents[1])
     store.prepare_migration(principal, manifest=historical)
     state_path = root / durable_module._HARBOUR_STATE_FILE
@@ -1421,6 +2902,32 @@ def test_historical_prepared_batch_cannot_new_accept_against_successor_manifest(
         )
     assert stale.value.code == "stale_authority"
     assert state_path.read_bytes() == before
+
+
+def test_exact_product_readiness_v5_prepares_and_accepts(tmp_path: Path):
+    store, issuer, foreign_principal, root = _durable_authority(tmp_path)
+    manifest = build_h1r03_migration_manifest(Path(__file__).resolve().parents[1])
+    assert manifest["authority_map_id"] == PRODUCT_READINESS_AUTHORITY_MAP_ID
+    assert manifest["authority_pins"] == PRODUCT_READINESS_AUTHORITY_PINS
+    state_path = root / durable_module._HARBOUR_STATE_FILE
+    before = state_path.read_bytes() if state_path.exists() else None
+    with pytest.raises(DurablePlanningStoreError) as denied:
+        store.prepare_migration(foreign_principal, manifest=manifest)
+    assert denied.value.code == "owner_scope_denied"
+    assert (state_path.read_bytes() if state_path.exists() else None) == before
+    principal = issuer.issue(
+        subject_id="fuzzy", owner_id="fuzzy", auth_context_digest=AUTH_CONTEXT,
+        ttl_seconds=3600, nonce="product-readiness-v5-positive",
+    )
+    prepared = store.prepare_migration(principal, manifest=manifest)
+    accepted = store.accept_migration(
+        principal, batch_id=manifest["batch_id"], current_manifest=lambda: deepcopy(manifest),
+    )
+    assert prepared.after_state == "prepared"
+    assert accepted.after_state == "accepted"
+    assert json.loads((root / durable_module._HARBOUR_STATE_FILE).read_bytes())[
+        "migration_batches"
+    ][manifest["batch_id"]]["state"] == "accepted"
 
 
 def test_successor_v2_prepared_batch_cannot_new_accept_against_docs_only_v3(tmp_path: Path):
@@ -1462,7 +2969,7 @@ def test_docs_only_v3_prepared_batch_cannot_new_accept_against_repo_only_v4(tmp_
 
 @pytest.mark.parametrize("corruption", [
     "v1_extra_map_id", "v1_successor_pins", "v2_missing_map_id", "v2_historical_pins", "unknown_schema",
-    "v2_historical_map_id", "v2_docs_only_with_v2_pins", "v2_docs_only_with_extra_pin",
+    "v2_historical_map_id", "v2_unknown_map_id", "v2_docs_only_with_v2_pins", "v2_docs_only_with_extra_pin",
 ])
 def test_migration_manifest_schema_dispatch_rejects_hybrids_before_persistence(tmp_path: Path, corruption: str):
     from src.planning_roadmap_migration import (
@@ -1485,6 +2992,8 @@ def test_migration_manifest_schema_dispatch_rejects_hybrids_before_persistence(t
     elif corruption == "v2_historical_map_id":
         manifest["authority_map_id"] = HISTORICAL_AUTHORITY_MAP_ID
         manifest["authority_pins"] = deepcopy(HISTORICAL_AUTHORITY_PINS)
+    elif corruption == "v2_unknown_map_id":
+        manifest["authority_map_id"] = "unknown-map"
     elif corruption == "v2_docs_only_with_v2_pins":
         manifest["authority_map_id"] = DOCS_ONLY_AUTHORITY_MAP_ID
         manifest["authority_pins"] = deepcopy(SUCCESSOR_AUTHORITY_PINS)
@@ -1502,12 +3011,16 @@ def test_migration_manifest_schema_dispatch_rejects_hybrids_before_persistence(t
 
 
 @pytest.mark.parametrize("map_id,pins", [
+    (PRODUCT_READINESS_AUTHORITY_MAP_ID, REPO_ONLY_AUTHORITY_PINS),
+    (REPO_ONLY_AUTHORITY_MAP_ID, PRODUCT_READINESS_AUTHORITY_PINS),
+    (PRODUCT_READINESS_AUTHORITY_MAP_ID, {key: value for key, value in PRODUCT_READINESS_AUTHORITY_PINS.items() if key != "docs/plans/harbour-one-product-roadmap.json"}),
+    (PRODUCT_READINESS_AUTHORITY_MAP_ID, {**PRODUCT_READINESS_AUTHORITY_PINS, "unknown/product-readiness": "0" * 40}),
     (REPO_ONLY_AUTHORITY_MAP_ID, DOCS_ONLY_AUTHORITY_PINS),
     (DOCS_ONLY_AUTHORITY_MAP_ID, REPO_ONLY_AUTHORITY_PINS),
     (REPO_ONLY_AUTHORITY_MAP_ID, {key: value for key, value in REPO_ONLY_AUTHORITY_PINS.items() if key != "docs/plans/evidence/harbour-one-h1r05-repo-acceptance-20261003.receipt"}),
     (REPO_ONLY_AUTHORITY_MAP_ID, {**REPO_ONLY_AUTHORITY_PINS, "unknown/receipt": "0" * 40}),
 ])
-def test_v4_identity_hybrids_reject_before_persistence(tmp_path: Path, map_id, pins):
+def test_v5_and_historical_identity_hybrids_reject_before_persistence(tmp_path: Path, map_id, pins):
     store, _issuer, principal, root = _durable_authority(tmp_path)
     manifest = deepcopy(build_h1r03_migration_manifest(Path(__file__).resolve().parents[1]))
     manifest["authority_map_id"] = map_id
@@ -1591,6 +3104,14 @@ def _assert_detached_store_error(operation, code: str) -> None:
     assert caught.value.code == code
     assert caught.value.__context__ is None
     assert caught.value.__cause__ is None
+
+
+def _assert_private_store_error(operation, code: str) -> None:
+    with pytest.raises(DurablePlanningStoreError) as caught:
+        operation()
+    assert type(caught.value) is DurablePlanningStoreError
+    assert caught.value.args == (code,)
+    assert caught.value.code == code
 
 
 @pytest.mark.parametrize("component", ["owner_id", "project_id", "roadmap_id", "idempotency_key"])
@@ -2956,22 +4477,31 @@ def test_terminal_rechecked_after_candidate_verification_before_atomic_write(tmp
     target = root / durable_module._HARBOUR_STATE_FILE
     old_count = len(store._state["transitions"])
     original_verify = durable_module._verify_harbour_state
+    original_ensure = store._ensure_available
+    candidate_verified = []
     published = []
 
     def verify(state):
-        original_verify(state)
-        if not published and len(state["transitions"]) > old_count:
+        result = original_verify(state)
+        if len(state["transitions"]) > old_count:
+            candidate_verified.append(True)
+        return result
+
+    def ensure_available():
+        if candidate_verified and not published:
             # An internal test seam at the final boundary, not a configured
             # dependency callback. The shared RLock permits this nested replay.
             published.append(True)
             target.write_bytes(legacy_bytes)
             peer = DurablePlanningRevisionStore(root, trusted_issuers=(issuer,), clock=lambda: AUTH_NOW)
             assert peer.available is False
+        return original_ensure()
 
     def reject_write(*args):
         pytest.fail("published terminal reached atomic write")
 
     monkeypatch.setattr(durable_module, "_verify_harbour_state", verify)
+    monkeypatch.setattr(store, "_ensure_available", ensure_available)
     monkeypatch.setattr(durable_module, "_atomic_write_json", reject_write)
     _assert_detached_store_error(call, "migration_required")
     assert published == [True]
@@ -3069,3 +4599,404 @@ def test_deep_persisted_json_publishes_shared_terminal_and_preserves_bytes(
     for operation in _PC_MUTATIONS + ["get_head", "get_migration_batch", "read_revision", "read_payload"]:
         _assert_detached_store_error(_quarantine_public_operation(operation, peer, principal), "validation_failed")
     assert path.read_bytes() == corrupted
+
+
+def test_append_transaction_validates_new_and_old_payload_once_across_both_images(
+    tmp_path, monkeypatch,
+):
+    store, _issuer, principal, root = _durable_authority(tmp_path)
+    old_payload = _durable_payload(1, "Append transaction source")
+    created = _durable_create(
+        store, principal, old_payload, key="append-transaction-count-create-0001",
+    )
+    new_payload = _durable_payload(2, "Append transaction candidate")
+    original_parse = durable_module._strict_json_object
+    original_validate = durable_module.validate_planning_definition
+    original_canonical = durable_module._canonical_planning_bytes
+    original_verify = durable_module._verify_harbour_state
+    payload_parses = []
+    validations = []
+    canonicalizations = []
+    verified_images = []
+
+    def parse(raw):
+        if raw in {old_payload, new_payload}:
+            payload_parses.append(raw)
+        return original_parse(raw)
+
+    def validate(document):
+        validations.append(document["roadmaps"][0]["title"])
+        return original_validate(document)
+
+    def canonical(document):
+        encoded = original_canonical(document)
+        if encoded in {old_payload, new_payload}:
+            canonicalizations.append(encoded)
+        return encoded
+
+    def verify(state):
+        result = original_verify(state)
+        verified_images.append((
+            len(state["revisions"]),
+            len(state["transitions"]),
+            durable_module._canonical_digest(state),
+        ))
+        return result
+
+    monkeypatch.setattr(durable_module, "_strict_json_object", parse)
+    monkeypatch.setattr(durable_module, "validate_planning_definition", validate)
+    monkeypatch.setattr(durable_module, "_canonical_planning_bytes", canonical)
+    monkeypatch.setattr(durable_module, "_verify_harbour_state", verify)
+    appended = store.append_revision(
+        principal, owner_id=OWNER, project_id=PROJECT, roadmap_id=ROADMAP,
+        payload_bytes=new_payload, expected_head=created.after_head,
+        idempotency_key="append-transaction-count-append-0001",
+    )
+
+    assert payload_parses.count(old_payload) == payload_parses.count(new_payload) == 1
+    assert validations.count("Append transaction source") == 1
+    assert validations.count("Append transaction candidate") == 1
+    assert len(validations) == 2
+    assert canonicalizations.count(old_payload) == canonicalizations.count(new_payload) == 1
+    assert len(canonicalizations) == 2
+    assert [(revisions, transitions) for revisions, transitions, _digest in verified_images] == [
+        (1, 1), (2, 2),
+    ]
+    assert verified_images[0][2] != verified_images[1][2]
+    persisted = json.loads((root / durable_module._HARBOUR_STATE_FILE).read_bytes())
+    assert persisted["heads"][f"{OWNER}:{PROJECT}:{ROADMAP}"]["current_revision_id"] == appended.new_revision_id
+
+
+@pytest.mark.parametrize(
+    "target",
+    ["persisted-head", "candidate-metadata", "candidate-head", "candidate-receipt", "candidate-transition"],
+    ids=["persisted-head", "candidate-metadata", "candidate-head", "candidate-receipt", "candidate-transition"],
+)
+def test_append_transaction_rejects_full_image_integrity_tamper_before_write(
+    tmp_path, monkeypatch, target,
+):
+    store, _issuer, principal, root = _durable_authority(tmp_path)
+    created = _durable_create(
+        store, principal, _durable_payload(1, "Append integrity source"),
+        key="append-integrity-create-0001",
+    )
+    path = root / durable_module._HARBOUR_STATE_FILE
+    before = path.read_bytes()
+    original_verify = durable_module._verify_harbour_state
+    calls = []
+
+    def verify(state):
+        calls.append(len(state["transitions"]))
+        is_candidate = len(calls) == 2
+        if target == "persisted-head" and not is_candidate:
+            next(iter(state["heads"].values()))["generation"] += 1
+        elif target == "candidate-metadata" and is_candidate:
+            revision_id = state["transitions"][-1]["new_revision_id"]
+            state["revisions"][revision_id]["principal_ref"]["owner_id"] = "mallory"
+        elif target == "candidate-head" and is_candidate:
+            next(iter(state["heads"].values()))["current_content_sha256"] = "sha256:" + "0" * 64
+        elif target == "candidate-receipt" and is_candidate:
+            receipt_id = state["transitions"][-1]["receipt_id"]
+            state["receipts"][receipt_id]["output_digest"] = "sha256:" + "0" * 64
+        elif target == "candidate-transition" and is_candidate:
+            state["transitions"][-1]["command_digest"] = "sha256:" + "0" * 64
+        return original_verify(state)
+
+    def reject_write(*_args):
+        pytest.fail("invalid append candidate reached atomic write")
+
+    monkeypatch.setattr(durable_module, "_verify_harbour_state", verify)
+    monkeypatch.setattr(durable_module, "_atomic_write_json", reject_write)
+    _assert_detached_store_error(lambda: store.append_revision(
+        principal, owner_id=OWNER, project_id=PROJECT, roadmap_id=ROADMAP,
+        payload_bytes=_durable_payload(2, f"Append integrity {target}"),
+        expected_head=created.after_head,
+        idempotency_key=f"append-integrity-{target}-0001",
+    ), "validation_failed")
+    assert calls == ([1] if target == "persisted-head" else [1, 2])
+    assert path.read_bytes() == before
+
+
+@pytest.mark.parametrize("wire_form", ["canonical", "noncanonical"], ids=["canonical", "noncanonical"])
+def test_append_transaction_binds_exact_payload_key_and_returns_only_detached_documents(
+    tmp_path, monkeypatch, wire_form,
+):
+    store, _issuer, principal, _root = _durable_authority(tmp_path)
+    old_payload = _durable_payload(1, "Append exact key source")
+    created = _durable_create(
+        store, principal, old_payload, key="append-exact-key-create-0001",
+    )
+    canonical = _durable_payload(2, "Append exact key candidate")
+    payload = canonical if wire_form == "canonical" else json.dumps(
+        json.loads(canonical), ensure_ascii=False, allow_nan=False, indent=1,
+    ).encode("utf-8")
+    assert (payload == canonical) is (wire_form == "canonical")
+    original_checkout = durable_module._checkout_planning_payload_validation_run
+    original_validate = durable_module.validate_planning_definition
+    checkouts = []
+    validations = []
+
+    def validate(document):
+        validations.append(durable_module._canonical_planning_bytes(document))
+        return original_validate(document)
+
+    def checkout(run, value, project_id, roadmap_id):
+        result = original_checkout(run, value, project_id, roadmap_id)
+        checkouts.append((run, value, project_id, roadmap_id, result[1], result[2]))
+        return result
+
+    monkeypatch.setattr(durable_module, "validate_planning_definition", validate)
+    monkeypatch.setattr(durable_module, "_checkout_planning_payload_validation_run", checkout)
+    store.append_revision(
+        principal, owner_id=OWNER, project_id=PROJECT, roadmap_id=ROADMAP,
+        payload_bytes=payload, expected_head=created.after_head,
+        idempotency_key=f"append-exact-key-{wire_form}-0001",
+    )
+
+    assert [item[1] for item in checkouts] == [payload, old_payload, old_payload, payload]
+    assert all(item[2:4] == (PROJECT, ROADMAP) for item in checkouts)
+    assert len({id(item[0]) for item in checkouts}) == 1
+    assert len({id(item[4]) for item in checkouts}) == len(checkouts)
+    assert all(item[5] is item[4]["roadmaps"][0] for item in checkouts)
+    checkouts[0][4]["roadmaps"][0]["title"] = "detached mutation"
+    assert all(
+        item[4]["roadmaps"][0]["title"] != "detached mutation"
+        for item in checkouts[1:]
+    )
+    expected_new_validations = 1 if wire_form == "canonical" else 2
+    assert validations.count(canonical) == expected_new_validations
+    captured_run = checkouts[0][0]
+    _assert_private_store_error(
+        lambda: captured_run.checkout(payload, PROJECT, ROADMAP), "validation_failed",
+    )
+
+
+@pytest.mark.parametrize(
+    "outcome",
+    ["success", "replay", "stale", "conflict", "candidate-failure", "write-failure"],
+    ids=["success", "replay", "stale", "conflict", "candidate-failure", "write-failure"],
+)
+def test_append_transaction_discards_private_run_on_every_exit(
+    tmp_path, monkeypatch, outcome,
+):
+    store, _issuer, principal, root = _durable_authority(tmp_path)
+    created = _durable_create(
+        store, principal, _durable_payload(1, "Append discard source"),
+        key="append-discard-create-0001",
+    )
+    payload = _durable_payload(2, "Append discard candidate")
+    key = "append-discard-target-0001"
+    expected_head = created.after_head
+    if outcome in {"replay", "conflict"}:
+        committed = store.append_revision(
+            principal, owner_id=OWNER, project_id=PROJECT, roadmap_id=ROADMAP,
+            payload_bytes=payload, expected_head=expected_head, idempotency_key=key,
+        )
+    elif outcome == "stale":
+        store.append_revision(
+            principal, owner_id=OWNER, project_id=PROJECT, roadmap_id=ROADMAP,
+            payload_bytes=payload, expected_head=expected_head,
+            idempotency_key="append-discard-advance-0001",
+        )
+        payload = _durable_payload(3, "Append discard stale")
+        key = "append-discard-stale-0001"
+
+    path = root / durable_module._HARBOUR_STATE_FILE
+    before = path.read_bytes()
+    original_checkout = durable_module._checkout_planning_payload_validation_run
+    original_seal = durable_module._seal_planning_payload_validation_run
+    captured = []
+    seals = []
+
+    def checkout(run, value, project_id, roadmap_id):
+        if not captured:
+            captured.append(run)
+        return original_checkout(run, value, project_id, roadmap_id)
+
+    def seal(run):
+        seals.append(run)
+        return original_seal(run)
+
+    monkeypatch.setattr(durable_module, "_checkout_planning_payload_validation_run", checkout)
+    monkeypatch.setattr(durable_module, "_seal_planning_payload_validation_run", seal)
+    if outcome == "conflict":
+        payload = _durable_payload(2, "Append discard conflict")
+    if outcome == "candidate-failure":
+        original_verify = durable_module._verify_harbour_state
+        verify_calls = []
+
+        def reject_candidate(state):
+            verify_calls.append(1)
+            if len(verify_calls) == 2:
+                next(iter(state["heads"].values()))["generation"] += 1
+            return original_verify(state)
+
+        monkeypatch.setattr(durable_module, "_verify_harbour_state", reject_candidate)
+    if outcome == "write-failure":
+        monkeypatch.setattr(
+            durable_module, "_atomic_write_json",
+            lambda *_args: (_ for _ in ()).throw(OSError("private write failure")),
+        )
+
+    call = lambda: store.append_revision(
+        principal, owner_id=OWNER, project_id=PROJECT, roadmap_id=ROADMAP,
+        payload_bytes=payload, expected_head=expected_head, idempotency_key=key,
+    )
+    if outcome == "success":
+        assert call().command_kind == "append_revision"
+    elif outcome == "replay":
+        assert call() == committed
+    else:
+        code = {
+            "stale": "stale_authority",
+            "conflict": "idempotency_conflict",
+            "candidate-failure": "validation_failed",
+            "write-failure": "validation_failed",
+        }[outcome]
+        _assert_detached_store_error(call, code)
+
+    assert len(captured) == 1
+    assert len(seals) == (1 if outcome in {"success", "write-failure"} else 0)
+    if outcome != "success":
+        assert path.read_bytes() == before
+    run = captured[0]
+    _assert_private_store_error(
+        lambda: run.checkout(payload, PROJECT, ROADMAP), "validation_failed",
+    )
+    _assert_private_store_error(run.seal, "validation_failed")
+    durable_module._discard_planning_payload_validation_run(run)
+    durable_module._discard_planning_payload_validation_run(run)
+
+
+@pytest.mark.parametrize(
+    "misuse", ["registry", "cross-store", "thread", "nested-call", "dependencies"],
+    ids=["registry", "cross-store", "thread", "nested-call", "dependencies"],
+)
+def test_append_transaction_rejects_foreign_registry_store_thread_call_and_dependencies(
+    tmp_path, monkeypatch, misuse,
+):
+    store, _issuer, principal, _root = _durable_authority(tmp_path / "primary")
+    other_store, _other_issuer, _other_principal, _other_root = _durable_authority(
+        tmp_path / "secondary",
+    )
+    created = _durable_create(
+        store, principal, _durable_payload(1, "Append binding source"),
+        key="append-binding-create-0001",
+    )
+    payload = _durable_payload(2, "Append binding candidate")
+    original_checkout = durable_module._checkout_planning_payload_validation_run
+    original_validate = durable_module.validate_planning_definition
+    observed = []
+
+    def checkout(run, value, project_id, roadmap_id):
+        if observed:
+            return original_checkout(run, value, project_id, roadmap_id)
+        observed.append(run)
+        if misuse == "dependencies":
+            monkeypatch.setattr(
+                durable_module, "validate_planning_definition",
+                lambda document: original_validate(document),
+            )
+            return original_checkout(run, value, project_id, roadmap_id)
+        result = original_checkout(run, value, project_id, roadmap_id)
+        if misuse == "registry":
+            ordinary = durable_module._PlanningPayloadValidationRun()
+            for foreign in (object(), ordinary):
+                _assert_private_store_error(lambda foreign=foreign: (
+                    durable_module._commit_append_planning_payload_validation(
+                        foreign, store, value, project_id, roadmap_id,
+                    )
+                ), "validation_failed")
+            durable_module._discard_planning_payload_validation_run(ordinary)
+        elif misuse == "cross-store":
+            _assert_private_store_error(lambda: durable_module._commit_append_planning_payload_validation(
+                run, other_store, value, project_id, roadmap_id,
+            ), "validation_failed")
+        elif misuse == "thread":
+            errors = []
+
+            def cross_thread():
+                try:
+                    run.checkout(value, project_id, roadmap_id)
+                except DurablePlanningStoreError as error:
+                    errors.append(error.code)
+
+            worker = Thread(target=cross_thread)
+            worker.start()
+            worker.join(timeout=5)
+            assert not worker.is_alive() and errors == ["validation_failed"]
+        else:
+            with pytest.raises(DurablePlanningStoreError) as nested:
+                with durable_module._append_planning_payload_validation_scope(store):
+                    pytest.fail("nested append validation scope opened")
+            assert nested.value.code == "validation_failed"
+        return result
+
+    monkeypatch.setattr(durable_module, "_checkout_planning_payload_validation_run", checkout)
+    call = lambda: store.append_revision(
+        principal, owner_id=OWNER, project_id=PROJECT, roadmap_id=ROADMAP,
+        payload_bytes=payload, expected_head=created.after_head,
+        idempotency_key=f"append-binding-{misuse}-0001",
+    )
+    if misuse == "dependencies":
+        _assert_detached_store_error(call, "validation_failed")
+    else:
+        assert call().command_kind == "append_revision"
+    assert len(observed) == 1
+    _assert_private_store_error(
+        lambda: observed[0].checkout(payload, PROJECT, ROADMAP), "validation_failed",
+    )
+
+
+def test_append_transaction_does_not_consume_surrounding_read_pair(durable_planning_store):
+    fixture = durable_planning_store
+    store, principal = fixture["store"], fixture["principal"]
+    initial = store.read_subject_bound_accepted_migration_bundle(
+        principal, project_id="harbour-one",
+    )
+    head_binding = initial.heads[0]
+    head = store.get_head(
+        principal, owner_id=head_binding.owner_id, project_id=head_binding.project_id,
+        roadmap_id=head_binding.roadmap_id,
+    )
+    member = next(
+        item for item in initial.revisions
+        if item.revision.revision_id == head.current_revision_id
+    )
+    document = json.loads(member.payload)
+    roadmap = document["roadmaps"][0]
+    roadmap["revision"] = member.revision.revision + 1
+    roadmap["title"] = "Append inside surrounding read pair"
+    roadmap["content_hash"] = compute_roadmap_content_hash(roadmap)
+    document["project"]["latest_approved_revision"] = {
+        roadmap["roadmap_id"]: {
+            "revision": roadmap["revision"],
+            "content_hash": roadmap["content_hash"],
+        },
+    }
+    document["project"]["draft_refs"] = []
+    payload = json.dumps(
+        document, ensure_ascii=False, allow_nan=False,
+        sort_keys=True, separators=(",", ":"),
+    ).encode("utf-8")
+
+    with store._planning_payload_validation_pair():
+        first = store.read_subject_bound_accepted_migration_bundle(
+            principal, project_id="harbour-one",
+        )
+        appended = store.append_revision(
+            principal, owner_id=head.owner_id, project_id=head.project_id,
+            roadmap_id=head.roadmap_id, payload_bytes=payload,
+            expected_head=head, idempotency_key="append-read-pair-isolation-0001",
+        )
+        final = store.read_subject_bound_accepted_migration_bundle(
+            principal, project_id="harbour-one",
+        )
+
+    assert first == initial
+    assert appended.after_head.current_revision_id == appended.new_revision_id
+    assert any(
+        item.revision.revision_id == appended.new_revision_id
+        and item.payload == payload
+        for item in final.revisions
+    )

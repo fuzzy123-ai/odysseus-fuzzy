@@ -314,8 +314,11 @@ body {
   }
 
   .core-window {
+    left: 18px;
     top: 70px;
+    width: calc(100vw - 36px);
     height: calc(100dvh - 84px);
+    transform: none;
   }
 }
 
@@ -334,5 +337,155 @@ body {
   .topline .tools-button {
     min-width: 44px;
     height: 44px;
+  }
+}
+
+/* Forge status stays a compact read-only control in the Agent header. */
+.forge-status-chip {
+  min-width: 132px;
+  max-width: 220px;
+}
+
+.forge-status-toggle {
+  min-width: 0;
+  max-width: 100%;
+  padding: 0;
+  text-align: left;
+}
+
+.forge-status-toggle:focus-visible,
+.forge-status-retry:focus-visible,
+.forge-repo-picker select:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+
+.forge-status-summary {
+  max-width: 86px;
+  padding: 0 8px 0 0;
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.forge-status-chip[data-forge-state="ready"] .forge-status-summary {
+  color: color-mix(in srgb, var(--green) 80%, var(--ink));
+}
+
+.forge-status-chip[data-forge-state="error"] .forge-status-summary,
+.forge-status-chip[data-forge-state="empty"] .forge-status-summary {
+  color: color-mix(in srgb, var(--red) 76%, var(--ink));
+}
+
+.forge-status-popover {
+  position: absolute;
+  top: calc(100% + 9px);
+  left: 0;
+  z-index: 72;
+  width: min(290px, calc(100vw - 24px));
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--cyan) 38%, transparent);
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(4, 18, 31, 0.98), rgba(2, 8, 15, 0.98)), #04111d;
+  color: var(--ink);
+  box-shadow: 0 14px 26px rgba(0, 0, 0, 0.42), 0 0 18px color-mix(in srgb, var(--cyan) 12%, transparent);
+}
+
+.forge-status-popover[hidden] {
+  display: none;
+}
+
+.forge-status-heading,
+.forge-repo-picker,
+.forge-status-details > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.forge-status-heading strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--cyan);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.forge-status-heading span,
+.forge-repo-picker > span,
+.forge-status-details dt {
+  color: var(--muted);
+  font: 10px/1.3 var(--mono);
+}
+
+.forge-repo-picker {
+  display: grid;
+  justify-content: stretch;
+  gap: 5px;
+}
+
+.forge-repo-picker select {
+  width: 100%;
+  min-height: 32px;
+  border: 1px solid color-mix(in srgb, var(--cyan) 30%, transparent);
+  border-radius: 5px;
+  background: rgba(2, 10, 18, 0.92);
+  color: var(--ink);
+  font: 11px/1.2 var(--mono);
+}
+
+.forge-status-message {
+  color: var(--ink-soft);
+  font: 10px/1.45 var(--mono);
+}
+
+.forge-status-details {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding-top: 9px;
+  border-top: 1px solid color-mix(in srgb, var(--cyan) 18%, transparent);
+}
+
+.forge-status-details dd {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--ink);
+  font: 10px/1.35 var(--mono);
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.forge-status-retry {
+  justify-self: start;
+  min-height: 32px;
+  padding: 5px 9px;
+  border: 1px solid color-mix(in srgb, var(--cyan) 36%, transparent);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--cyan);
+  font: 10px/1 var(--mono);
+  cursor: pointer;
+}
+
+.forge-status-retry:hover {
+  background: color-mix(in srgb, var(--cyan) 10%, transparent);
+}
+
+@media (max-width: 720px) {
+  .forge-status-chip {
+    display: inline-flex;
+    min-width: 0;
+    max-width: 152px;
+  }
+
+  .forge-status-summary {
+    display: none;
   }
 }

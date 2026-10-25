@@ -18,6 +18,7 @@ import tempfile
 import threading
 import time
 from typing import Any, Callable, Iterable, Mapping
+import weakref
 
 from src.harbour_authority import (
     AuthenticatedPrincipalIssuer,
@@ -72,6 +73,8 @@ _IDEMPOTENCY_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$")
 _IMMUTABLE_ADMIN_SUBJECT_RE = re.compile(r"^owner_[0-9a-f]{32}$")
 _REPOSITORY_LOCKS_GUARD = threading.Lock()
 _REPOSITORY_LOCKS: dict[str, threading.RLock] = {}
+_PLANNING_VALIDATION_PAIR_MAX_ENTRIES = 1_024
+_PLANNING_VALIDATION_PAIR_MAX_BYTES = 64 * 1024 * 1024
 
 
 class PlanningRevisionStoreError(ValueError):
@@ -2139,6 +2142,7 @@ class DurablePlanningRevisionStore:
         self._runtime = _planning_runtime(self.root)
         self._lock = self._runtime.lock
         self._state = _new_harbour_state()
+        self._planning_validation_pair_local = threading.local()
         with self._lock:
             try:
                 self.root.mkdir(parents=True, exist_ok=True)
@@ -2151,6 +2155,18 @@ class DurablePlanningRevisionStore:
     @property
     def available(self) -> bool:
         return self._runtime.terminal_code is None
+
+    @contextmanager
+    def _planning_payload_validation_pair(self):
+        """Enter one thread-bound, two-read lexical validation scope."""
+        with _planning_payload_validation_pair_scope(self):
+            yield None
+
+    @contextmanager
+    def _activate_planning_payload_validation_pair_read(self):
+        """Bind one fresh bundle replay to the current lexical pair, if any."""
+        with _planning_payload_validation_pair_read(self):
+            yield None
 
     @_durable_operation
     def create_project(
@@ -2211,32 +2227,34 @@ class DurablePlanningRevisionStore:
             principal, owner_id, project_id, roadmap_id, idempotency_key
         )
         expected = _exact_head(expected_head, owner, project, roadmap)
-        payload, document, roadmap_record = _validated_planning_payload(
-            payload_bytes, project, roadmap
-        )
-        current_revision = self._revision_for_head(expected)
-        if roadmap_record["revision"] != current_revision.revision + 1:
-            raise DurablePlanningStoreError("validation_failed")
-        command = {
-            "kind": "append_revision",
-            "owner_id": owner,
-            "project_id": project,
-            "roadmap_id": roadmap,
-            "expected_head": _head_dict(expected),
-            "payload_sha256": _bytes_digest(payload),
-            "principal_identity": _command_principal_identity(principal_ref),
-        }
-        return self._commit_revision_command(
-            command=command,
-            idempotency_key=key,
-            principal_ref=principal_ref,
-            payload=payload,
-            document=document,
-            roadmap_record=roadmap_record,
-            expected_head=expected,
-            restored_revision_id=None,
-            occurred_at=occurred,
-        )
+        with _append_planning_payload_validation_scope(self) as validation_run:
+            payload, document, roadmap_record = _validated_planning_payload(
+                payload_bytes, project, roadmap, _validation_run=validation_run,
+            )
+            _commit_append_planning_payload_validation(
+                validation_run, self, payload, project, roadmap,
+            )
+            command = {
+                "kind": "append_revision",
+                "owner_id": owner,
+                "project_id": project,
+                "roadmap_id": roadmap,
+                "expected_head": _head_dict(expected),
+                "payload_sha256": _bytes_digest(payload),
+                "principal_identity": _command_principal_identity(principal_ref),
+            }
+            return self._commit_revision_command(
+                command=command,
+                idempotency_key=key,
+                principal_ref=principal_ref,
+                payload=payload,
+                document=document,
+                roadmap_record=roadmap_record,
+                expected_head=expected,
+                restored_revision_id=None,
+                occurred_at=occurred,
+                _append_validation_run=validation_run,
+            )
 
     @_durable_operation
     def replay_append_revision(
@@ -2633,14 +2651,20 @@ class DurablePlanningRevisionStore:
         except ValueError:
             raise DurablePlanningStoreError("validation_failed") from None
         with self._lock, _interprocess_repository_lock(self.root):
-            entry_bytes = self._refresh_locked()
+            validation_capture = _PlanningPayloadValidationCapture()
+            with self._activate_planning_payload_validation_pair_read():
+                entry_bytes = self._refresh_locked(_validation_run_capture=validation_capture)
             if type(entry_bytes) is not bytes:
                 raise DurablePlanningStoreError("validation_failed")
             entry_digest = _canonical_digest(self._state)
             stored_batch = self._subject_bound_accepted_batch_locked(ref, project)
             owner = stored_batch["owner_id"]
+            validation_run = validation_capture.take(entry_bytes, entry_digest)
             materialized = self._materialize_accepted_migration_locked(
                 batch=stored_batch, owner=owner, project_id=project,
+                _validation_run=validation_run,
+                _retained_state_bytes=entry_bytes,
+                _retained_state_digest=entry_digest,
             )
             bundle = PlanningAcceptedMigrationBundle(
                 owner_id=owner,
@@ -2652,6 +2676,70 @@ class DurablePlanningRevisionStore:
                         key=lambda item: (item.project_id, item.roadmap_id),
                     )
                 ),
+                revisions=materialized.revisions,
+                state_digest=entry_digest,
+            )
+            self._assert_retained_image_locked(entry_bytes, entry_digest)
+            return bundle
+
+    @_durable_operation
+    def _read_dual_subject_bound_accepted_migration_bundle(
+        self,
+        cookie_principal: TrustedPrincipal,
+        mcp_principal: TrustedPrincipal,
+        *,
+        project_id: str,
+    ) -> PlanningAcceptedMigrationBundle:
+        """Authenticate two recipient principals and materialize one source image."""
+        self._ensure_available()
+        if cookie_principal is mcp_principal:
+            raise DurablePlanningStoreError("validation_failed")
+        cookie_ref, _cookie_occurred = self._authenticate(cookie_principal)
+        mcp_ref, _mcp_occurred = self._authenticate(mcp_principal)
+        if (
+            (cookie_ref.issuer_id, cookie_ref.subject_id, cookie_ref.owner_id)
+            != (mcp_ref.issuer_id, mcp_ref.subject_id, mcp_ref.owner_id)
+            or cookie_ref.auth_context_digest == mcp_ref.auth_context_digest
+            or cookie_ref.principal_digest == mcp_ref.principal_digest
+        ):
+            raise DurablePlanningStoreError("validation_failed")
+        try:
+            project = _harbour_identifier(project_id)
+        except ValueError:
+            raise DurablePlanningStoreError("validation_failed") from None
+        with self._lock, _interprocess_repository_lock(self.root):
+            validation_capture = _PlanningPayloadValidationCapture()
+            with self._activate_planning_payload_validation_pair_read():
+                entry_bytes = self._refresh_locked(
+                    _validation_run_capture=validation_capture,
+                )
+            if type(entry_bytes) is not bytes:
+                raise DurablePlanningStoreError("validation_failed")
+            entry_digest = _canonical_digest(self._state)
+            cookie_batch = self._subject_bound_accepted_batch_locked(cookie_ref, project)
+            mcp_batch = self._subject_bound_accepted_batch_locked(mcp_ref, project)
+            if cookie_batch is not mcp_batch and cookie_batch != mcp_batch:
+                raise DurablePlanningStoreError("validation_failed")
+            owner = cookie_batch["owner_id"]
+            if owner != cookie_ref.owner_id or owner != mcp_ref.owner_id:
+                raise DurablePlanningStoreError("validation_failed")
+            validation_run = validation_capture.take(entry_bytes, entry_digest)
+            materialized = self._materialize_accepted_migration_locked(
+                batch=cookie_batch,
+                owner=owner,
+                project_id=project,
+                _validation_run=validation_run,
+                _retained_state_bytes=entry_bytes,
+                _retained_state_digest=entry_digest,
+            )
+            bundle = PlanningAcceptedMigrationBundle(
+                owner_id=owner,
+                project_id=project,
+                batch_bytes=_canonical_planning_bytes(materialized.batch),
+                heads=tuple(sorted(
+                    materialized.heads,
+                    key=lambda item: (item.project_id, item.roadmap_id),
+                )),
                 revisions=materialized.revisions,
                 state_digest=entry_digest,
             )
@@ -2820,7 +2908,21 @@ class DurablePlanningRevisionStore:
 
     def _materialize_accepted_migration_locked(
         self, *, batch: dict[str, Any], owner: str, project_id: str,
+        _validation_run: _PlanningPayloadValidationRun | None = None,
+        _retained_state_bytes: bytes | None = None,
+        _retained_state_digest: str | None = None,
     ) -> _AcceptedMigrationMaterialization:
+        if _validation_run is None:
+            if _retained_state_bytes is not None or _retained_state_digest is not None:
+                raise DurablePlanningStoreError("validation_failed")
+        else:
+            if type(_validation_run) is not _PlanningPayloadValidationRun:
+                raise DurablePlanningStoreError("validation_failed")
+            if _canonical_digest(self._state) != _retained_state_digest:
+                raise DurablePlanningStoreError("validation_failed")
+            _validation_run.begin_materialization(
+                _retained_state_bytes, _retained_state_digest,
+            )
         stored_batch = self._state["migration_batches"].get(batch["batch_id"])
         if stored_batch is None or stored_batch != batch:
             raise DurablePlanningStoreError("validation_failed")
@@ -2890,22 +2992,20 @@ class DurablePlanningRevisionStore:
                     raise DurablePlanningStoreError("validation_failed")
                 seen_revisions.add(revision.revision_id)
                 payload = self._payload_for_revision(revision.revision_id, refresh=False)
-                document = _strict_json_object(payload)
-                canonical = _canonical_planning_bytes(document)
-                if canonical != payload:
-                    raise DurablePlanningStoreError("validation_failed")
                 _payload, _normalized, roadmap_record = _validated_planning_payload(
-                    payload, project_id, roadmap_id
+                    payload, project_id, roadmap_id, _validation_run=_validation_run,
                 )
                 if (
-                    _bytes_digest(payload) != revision.payload_sha256
+                    _canonical_planning_bytes(_normalized) != payload
+                    or _payload != payload
+                    or _bytes_digest(payload) != revision.payload_sha256
                     or roadmap_record["content_hash"] != revision.content_sha256
                     or roadmap_record["revision"] != revision.revision
                     or roadmap_record["revision_state"] != revision.revision_state
                 ):
                     raise DurablePlanningStoreError("validation_failed")
                 roadmap_by_id[revision.revision_id] = roadmap_record
-                records.append((owner, document, "durable:" + revision.revision_id))
+                records.append((owner, _normalized, "durable:" + revision.revision_id))
                 revision_members.append(PlanningContextRevisionMember(revision, bytes(payload)))
             accepted_record = roadmap_by_id.get(accepted.revision_id)
             current_record = roadmap_by_id.get(current.revision_id)
@@ -3279,6 +3379,39 @@ class DurablePlanningRevisionStore:
             return revision
 
     @_durable_operation
+    def read_revision_bundle(
+        self,
+        principal: TrustedPrincipal,
+        *,
+        owner_id: str,
+        revision_id: str,
+    ) -> PlanningContextRevisionMember:
+        self._ensure_available()
+        principal_ref, _occurred = self._authenticate(principal)
+        try:
+            owner = require_owner(principal_ref, owner_id)
+            target_id = _harbour_identifier(revision_id)
+        except HarbourAuthorityError as exc:
+            raise DurablePlanningStoreError(exc.code) from None
+        except ValueError:
+            raise DurablePlanningStoreError("validation_failed") from None
+        with self._lock:
+            self._refresh_locked(_read_validation_only=True)
+            record = self._state["revisions"].get(target_id)
+            if record is None:
+                raise DurablePlanningStoreError("not_found")
+            try:
+                revision = _revision_from_dict(record)
+                payload = bytes(base64.b64decode(record["payload_b64"], validate=True))
+            except (ValueError, TypeError, KeyError):
+                raise DurablePlanningStoreError("validation_failed") from None
+            if revision.revision_id != target_id:
+                raise DurablePlanningStoreError("validation_failed")
+            if revision.owner_id != owner:
+                raise DurablePlanningStoreError("not_found")
+            return PlanningContextRevisionMember(revision=revision, payload=payload)
+
+    @_durable_operation
     def read_payload(
         self,
         principal: TrustedPrincipal,
@@ -3393,11 +3526,20 @@ class DurablePlanningRevisionStore:
         expected_head: PlanningHead | None,
         restored_revision_id: str | None,
         occurred_at: str,
+        _append_validation_run: _PlanningPayloadValidationRun | None = None,
     ) -> PlanningReceipt:
+        is_append = command.get("kind") == "append_revision"
+        if is_append != (type(_append_validation_run) is _PlanningPayloadValidationRun):
+            raise DurablePlanningStoreError("validation_failed")
         digest = _canonical_digest(command)
         with self._lock:
             with _interprocess_repository_lock(self.root):
-                self._refresh_locked()
+                if is_append:
+                    self._refresh_locked(
+                        _append_validation_run=_append_validation_run,
+                    )
+                else:
+                    self._refresh_locked()
                 replay = self._idempotency_result(
                     command["owner_id"], idempotency_key, digest
                 )
@@ -3408,6 +3550,25 @@ class DurablePlanningRevisionStore:
                 )
                 if actual != expected_head:
                     raise DurablePlanningStoreError("stale_authority")
+                if command["kind"] == "append_revision":
+                    if actual is None:
+                        raise DurablePlanningStoreError("stale_authority")
+                    current_record = self._state["revisions"].get(actual.current_revision_id)
+                    if current_record is None:
+                        raise DurablePlanningStoreError("validation_failed")
+                    try:
+                        current_revision = _revision_from_dict(current_record)
+                    except ValueError:
+                        raise DurablePlanningStoreError("validation_failed") from None
+                    if (
+                        current_revision.revision_id != actual.current_revision_id
+                        or current_revision.owner_id != actual.owner_id
+                        or current_revision.project_id != actual.project_id
+                        or current_revision.roadmap_id != actual.roadmap_id
+                        or current_revision.content_sha256 != actual.current_content_sha256
+                        or roadmap_record["revision"] != current_revision.revision + 1
+                    ):
+                        raise DurablePlanningStoreError("validation_failed")
                 subject_key = _planning_key(
                     command["owner_id"], command["project_id"], command["roadmap_id"]
                 )
@@ -3457,6 +3618,7 @@ class DurablePlanningRevisionStore:
                     payload=payload,
                     restored_revision_id=restored_revision_id,
                     occurred_at=occurred,
+                    _append_validation_run=_append_validation_run,
                 )
 
     def _commit_head_command(
@@ -3515,6 +3677,7 @@ class DurablePlanningRevisionStore:
         payload: bytes | None,
         restored_revision_id: str | None,
         occurred_at: str,
+        _append_validation_run: _PlanningPayloadValidationRun | None = None,
     ) -> PlanningReceipt:
         transition_id = "planning-transition:" + hashlib.sha256(
             (command_digest + ":transition").encode("ascii")
@@ -3568,7 +3731,18 @@ class DurablePlanningRevisionStore:
             "receipt_id": receipt_id,
         }
         try:
-            _verify_harbour_state(candidate)
+            if command["kind"] == "append_revision":
+                if type(_append_validation_run) is not _PlanningPayloadValidationRun:
+                    raise DurablePlanningStoreError("validation_failed")
+                with _append_planning_payload_validation_verification(
+                    self, _append_validation_run, "candidate",
+                ):
+                    _verify_harbour_state(candidate)
+                _append_validation_run.seal()
+            else:
+                if _append_validation_run is not None:
+                    raise DurablePlanningStoreError("validation_failed")
+                _verify_harbour_state(candidate)
             self._ensure_available()
             _atomic_write_json(self._path, candidate)
         except DurablePlanningStoreError:
@@ -3624,9 +3798,24 @@ class DurablePlanningRevisionStore:
         value = self._state["heads"].get(_planning_key(owner_id, project_id, roadmap_id))
         return _head_from_dict(value) if value is not None else None
 
-    def _refresh_locked(self) -> bytes | None:
+    def _refresh_locked(
+        self, *,
+        _validation_run_capture: _PlanningPayloadValidationCapture | None = None,
+        _append_validation_run: _PlanningPayloadValidationRun | None = None,
+        _read_validation_only: bool = False,
+    ) -> bytes | None:
         # Callers hold the repository lock. Preserve the first unavailable
         # classification, including for operations that passed an earlier check.
+        if (
+            type(_read_validation_only) is not bool
+            or _read_validation_only and (
+                _validation_run_capture is not None
+                or _append_validation_run is not None
+            )
+        ):
+            raise DurablePlanningStoreError("validation_failed")
+        if _read_validation_only:
+            _require_planning_payload_read_validation_only_mode()
         self._ensure_available()
         raw_state = None
         try:
@@ -3634,12 +3823,28 @@ class DurablePlanningRevisionStore:
                 raw_state = self._path.read_bytes()
                 state = _strict_json_object(raw_state)
                 state = _upgrade_harbour_state(state)
-                _verify_harbour_state(state)
+                if _read_validation_only:
+                    validation_run = _verify_harbour_state(
+                        state, _read_validation_only=True,
+                    )
+                elif _append_validation_run is None:
+                    validation_run = _verify_harbour_state(state)
+                else:
+                    with _append_planning_payload_validation_verification(
+                        self, _append_validation_run, "refresh",
+                    ):
+                        validation_run = _verify_harbour_state(state)
                 if _legacy_key_quarantine_required(state):
                     self._runtime.publish("migration_required")
                     self._state = _new_harbour_state()
                 else:
                     self._state = state
+                    if _validation_run_capture is not None:
+                        if type(_validation_run_capture) is not _PlanningPayloadValidationCapture:
+                            raise TypeError("invalid validation capture")
+                        _validation_run_capture.capture(
+                            validation_run, raw_state, _canonical_digest(state),
+                        )
             elif self._state != _new_harbour_state():
                 raise ValueError("durable state disappeared")
         except (
@@ -3761,10 +3966,850 @@ def _legacy_key_quarantine_required(state: dict[str, Any]) -> bool:
     return False
 
 
+def _planning_payload_validation_dependencies() -> tuple[object, ...]:
+    return (
+        _validated_planning_payload,
+        _strict_json_object,
+        validate_planning_definition,
+        _canonical_planning_bytes,
+        deepcopy,
+    )
+
+
+class _PlanningPayloadValidationRun:
+    """Opaque identity for one replay-local validation run."""
+
+    __slots__ = ("__weakref__",)
+
+    def __init__(
+        self, *, _append_store: object | None = None,
+        _append_invocation: object | None = None,
+    ) -> None:
+        _register_planning_payload_validation_run(
+            self,
+            append_store=_append_store,
+            append_invocation=_append_invocation,
+        )
+
+    def __init_subclass__(cls, **kwargs) -> None:
+        raise TypeError("planning validation runs cannot be subclassed")
+
+    def __setattr__(self, name: str, value: object) -> None:
+        raise AttributeError("planning validation runs are immutable")
+
+    def __repr__(self) -> str:
+        return "_PlanningPayloadValidationRun(<opaque>)"
+
+    def checkout(
+        self, value: object, project_id: str, roadmap_id: str,
+    ) -> tuple[bytes, dict[str, Any], dict[str, Any]]:
+        return _checkout_planning_payload_validation_run(
+            self, value, project_id, roadmap_id,
+        )
+
+    def seal(self) -> None:
+        _seal_planning_payload_validation_run(self)
+
+    def bind_image(self, state_bytes: bytes, state_digest: str) -> None:
+        _bind_planning_payload_validation_run(self, state_bytes, state_digest)
+
+    def begin_materialization(self, state_bytes: object, state_digest: object) -> None:
+        _begin_planning_payload_validation_materialization(
+            self, state_bytes, state_digest,
+        )
+
+
+def _build_planning_payload_validation_registry():
+    """Keep all reusable validation masters outside caller-reachable objects."""
+    pair_rows: dict[int, dict[str, Any]] = {}
+    run_rows: dict[int, dict[str, Any]] = {}
+    guard = threading.RLock()
+    dependency_reader = _planning_payload_validation_dependencies
+    current_thread = threading.current_thread
+    get_ident = threading.get_ident
+    getpid = os.getpid
+    ref = weakref.ref
+    active_pair_local = threading.local()
+    active_read_local = threading.local()
+    active_append_local = threading.local()
+    active_append_verification_local = threading.local()
+
+    class PairHandle:
+        __slots__ = ("__weakref__",)
+
+        def __setattr__(self, name: str, value: object) -> None:
+            raise AttributeError("planning validation pair handles are immutable")
+
+        def __repr__(self) -> str:
+            return "_PlanningPayloadValidationPair(<opaque>)"
+
+    class AppendInvocation:
+        __slots__ = ("__weakref__",)
+
+        def __setattr__(self, name: str, value: object) -> None:
+            raise AttributeError("append validation invocations are immutable")
+
+    def same_dependencies(actual: object, expected: object) -> bool:
+        if type(actual) is not tuple or type(expected) is not tuple:
+            return False
+        if len(actual) != len(expected):
+            return False
+        for index in range(len(expected)):
+            if actual[index] is not expected[index]:
+                return False
+        return True
+
+    def context_identity() -> tuple[threading.Thread, int, int]:
+        return current_thread(), get_ident(), getpid()
+
+    def fail() -> None:
+        raise DurablePlanningStoreError("validation_failed")
+
+    def require_read_validation_only_mode() -> None:
+        if (
+            getattr(active_read_local, "scope", None) is not None
+            or getattr(active_append_local, "scope", None) is not None
+            or getattr(active_append_verification_local, "scope", None) is not None
+        ):
+            fail()
+
+    def active_pairs() -> dict[int, object]:
+        rows = getattr(active_pair_local, "rows", None)
+        if rows is None:
+            rows = {}
+            active_pair_local.rows = rows
+        if type(rows) is not dict:
+            fail()
+        return rows
+
+    def validate_pair_locked(
+        handle: object, store: object | None = None,
+    ) -> dict[str, Any]:
+        if type(handle) is not PairHandle:
+            fail()
+        row = pair_rows.get(id(handle))
+        thread, thread_id, process_id = context_identity()
+        try:
+            bound_store = row["store"]()
+            valid = (
+                type(row) is dict
+                and row["handle"]() is handle
+                and bound_store is not None
+                and (store is None or bound_store is store)
+                and row["thread"]() is thread
+                and row["thread_id"] == thread_id
+                and row["process_id"] == process_id
+                and active_pairs().get(id(bound_store)) is handle
+                and getattr(bound_store._planning_validation_pair_local, "scope", None) is handle
+                and type(row["memo"]) is dict
+                and type(row["memo_bytes"]) is int
+                and row["memo_bytes"] >= 0
+                and type(row["read_count"]) is int
+                and 0 <= row["read_count"] <= 2
+                and type(row["read_open"]) is bool
+                and same_dependencies(dependency_reader(), row["dependencies"])
+            )
+        except (KeyError, TypeError, ValueError):
+            valid = False
+        if not valid:
+            fail()
+        return row
+
+    def validate_run_locked(run: object) -> dict[str, Any]:
+        if type(run) is not _PlanningPayloadValidationRun:
+            fail()
+        row = run_rows.get(id(run))
+        thread, thread_id, process_id = context_identity()
+        try:
+            valid = (
+                type(row) is dict
+                and row["run"]() is run
+                and row["thread"]() is thread
+                and row["thread_id"] == thread_id
+                and row["process_id"] == process_id
+                and type(row["memo"]) is dict
+                and type(row["sealed"]) is bool
+                and type(row["materialized"]) is bool
+                and same_dependencies(dependency_reader(), row["dependencies"])
+            )
+        except (KeyError, TypeError, ValueError):
+            valid = False
+        if not valid:
+            fail()
+        kind = row.get("kind")
+        if kind == "append":
+            active = getattr(active_append_local, "scope", None)
+            try:
+                bound_store = row["append_store"]()
+                invocation = row["append_invocation"]()
+                valid = (
+                    type(active) is tuple
+                    and len(active) == 2
+                    and active[0] is invocation
+                    and active[1] is bound_store
+                    and bound_store is not None
+                    and type(invocation) is AppendInvocation
+                    and row["pair"] is None
+                    and row["phase"] in {
+                        "new_payload", "payload_committed", "refresh_verifying",
+                        "refresh_verified", "candidate_verifying", "candidate_verified",
+                        "sealed",
+                    }
+                    and type(row["initial_checkout_count"]) is int
+                    and 0 <= row["initial_checkout_count"] <= 1
+                    and (
+                        row["initial_key"] is None
+                        or type(row["initial_key"]) is tuple
+                    )
+                    and type(row["verification_claimed"]) is bool
+                    and type(row["verification_completed"]) is bool
+                )
+            except (KeyError, TypeError, ValueError):
+                valid = False
+            if not valid:
+                fail()
+        elif kind != "ordinary" or any(
+            row.get(name) is not None
+            for name in ("append_store", "append_invocation", "phase", "initial_key")
+        ):
+            fail()
+        pair = row["pair"]
+        if pair is not None:
+            pair_row = validate_pair_locked(pair)
+            if pair_row["read_open"] and pair_row["active_run"]() is not run:
+                fail()
+        return row
+
+    def clear_run(row: object) -> None:
+        if type(row) is not dict:
+            return
+        memo = row.get("memo")
+        try:
+            if type(memo) is dict:
+                dict.clear(memo)
+            row["bound_state_bytes"] = None
+            row["bound_state_digest"] = None
+            row["append_store"] = None
+            row["append_invocation"] = None
+            row["initial_key"] = None
+        except BaseException:
+            pass
+
+    def discard_run(run: object) -> None:
+        if type(run) is not _PlanningPayloadValidationRun:
+            return
+        row = None
+        try:
+            with guard:
+                candidate = run_rows.get(id(run))
+                if type(candidate) is dict and candidate.get("run")() is run:
+                    row = run_rows.pop(id(run), None)
+        except BaseException:
+            pass
+        clear_run(row)
+
+    def run_collected(identity: int):
+        def collected(dead_ref: object) -> None:
+            with guard:
+                row = run_rows.pop(identity, None)
+            clear_run(row)
+        return collected
+
+    @contextmanager
+    def pair_scope(store: object):
+        if type(store) is not DurablePlanningRevisionStore:
+            fail()
+        local = store._planning_validation_pair_local
+        rows = active_pairs()
+        store_key = id(store)
+        if rows or getattr(local, "scope", None) is not None:
+            fail()
+        handle = PairHandle()
+        identity = id(handle)
+        thread, thread_id, process_id = context_identity()
+        dependencies = dependency_reader()
+        if type(dependencies) is not tuple:
+            fail()
+        row = {
+            "handle": ref(handle),
+            "store": ref(store),
+            "thread": ref(thread),
+            "thread_id": thread_id,
+            "process_id": process_id,
+            "dependencies": dependencies,
+            "memo": {},
+            "memo_bytes": 0,
+            "read_count": 0,
+            "read_open": False,
+            "active_run": lambda: None,
+        }
+        with guard:
+            if identity in pair_rows:
+                fail()
+            pair_rows[identity] = row
+            rows[store_key] = handle
+        try:
+            local.scope = handle
+            yield None
+            with guard:
+                current = validate_pair_locked(handle, store)
+                if (
+                    current["read_count"] != 2
+                    or current["read_open"]
+                    or current["active_run"]() is not None
+                ):
+                    fail()
+        finally:
+            with guard:
+                removed = pair_rows.pop(identity, None)
+            try:
+                active = getattr(active_pair_local, "rows", None)
+                if type(active) is dict:
+                    active.pop(store_key, None)
+            except BaseException:
+                pass
+            try:
+                if hasattr(local, "scope"):
+                    del local.scope
+            except BaseException:
+                pass
+            try:
+                memo = removed.get("memo") if type(removed) is dict else None
+                if type(memo) is dict:
+                    dict.clear(memo)
+            except BaseException:
+                pass
+
+    @contextmanager
+    def pair_read(store: object):
+        if type(store) is not DurablePlanningRevisionStore:
+            fail()
+        local = store._planning_validation_pair_local
+        rows = active_pairs()
+        handle = rows.get(id(store))
+        mirror = getattr(local, "scope", None)
+        if handle is None and mirror is None:
+            yield None
+            return
+        if handle is None or mirror is not handle:
+            fail()
+        if getattr(active_read_local, "scope", None) is not None:
+            fail()
+        with guard:
+            row = validate_pair_locked(handle, store)
+            if row["read_count"] >= 2 or row["read_open"] or row["active_run"]() is not None:
+                fail()
+            row["read_count"] += 1
+            row["read_open"] = True
+        try:
+            active_read_local.scope = handle
+            yield None
+        finally:
+            try:
+                if hasattr(active_read_local, "scope"):
+                    del active_read_local.scope
+            except BaseException:
+                pass
+            with guard:
+                current = pair_rows.get(id(handle))
+                if type(current) is dict and current.get("handle")() is handle:
+                    current["read_open"] = False
+                    current["active_run"] = lambda: None
+
+    def register_run(
+        run: object, *, append_store: object | None = None,
+        append_invocation: object | None = None,
+    ) -> None:
+        if type(run) is not _PlanningPayloadValidationRun:
+            fail()
+        identity = id(run)
+        thread, thread_id, process_id = context_identity()
+        dependencies = dependency_reader()
+        if type(dependencies) is not tuple:
+            fail()
+        append = append_store is not None or append_invocation is not None
+        if append:
+            active = getattr(active_append_local, "scope", None)
+            if (
+                type(append_store) is not DurablePlanningRevisionStore
+                or type(append_invocation) is not AppendInvocation
+                or type(active) is not tuple
+                or len(active) != 2
+                or active[0] is not append_invocation
+                or active[1] is not append_store
+                or getattr(active_read_local, "scope", None) is not None
+            ):
+                fail()
+            pair = None
+        else:
+            if append_store is not None or append_invocation is not None:
+                fail()
+            pair = getattr(active_read_local, "scope", None)
+        with guard:
+            if identity in run_rows:
+                fail()
+            if pair is not None:
+                pair_row = validate_pair_locked(pair)
+                if not pair_row["read_open"] or pair_row["active_run"]() is not None:
+                    pair = None
+                elif not same_dependencies(dependencies, pair_row["dependencies"]):
+                    fail()
+            run_ref = ref(run, run_collected(identity))
+            run_rows[identity] = {
+                "run": run_ref,
+                "thread": ref(thread),
+                "thread_id": thread_id,
+                "process_id": process_id,
+                "dependencies": dependencies,
+                "pair": pair,
+                "kind": "append" if append else "ordinary",
+                "append_store": ref(append_store) if append else None,
+                "append_invocation": ref(append_invocation) if append else None,
+                "phase": "new_payload" if append else None,
+                "initial_key": None,
+                "initial_checkout_count": 0,
+                "verification_claimed": False,
+                "verification_completed": False,
+                "memo": {},
+                "sealed": False,
+                "bound_state_bytes": None,
+                "bound_state_digest": None,
+                "materialized": False,
+            }
+            if pair is not None:
+                pair_row["active_run"] = run_ref
+
+    @contextmanager
+    def append_scope(store: object):
+        if type(store) is not DurablePlanningRevisionStore:
+            fail()
+        if (
+            getattr(active_append_local, "scope", None) is not None
+            or getattr(active_append_verification_local, "scope", None) is not None
+            or getattr(active_read_local, "scope", None) is not None
+        ):
+            fail()
+        invocation = AppendInvocation()
+        active_append_local.scope = (invocation, store)
+        run = None
+        try:
+            run = _PlanningPayloadValidationRun(
+                _append_store=store,
+                _append_invocation=invocation,
+            )
+            yield run
+        finally:
+            discard_run(run)
+            try:
+                current = getattr(active_append_local, "scope", None)
+                if type(current) is tuple and current[0] is invocation:
+                    del active_append_local.scope
+            except BaseException:
+                pass
+
+    def commit_append_payload(
+        run: object, store: object, payload: object,
+        project_id: object, roadmap_id: object,
+    ) -> None:
+        if (
+            type(payload) is not bytes
+            or type(project_id) is not str
+            or type(roadmap_id) is not str
+        ):
+            fail()
+        key = (bytes(payload), project_id, roadmap_id)
+        with guard:
+            row = validate_run_locked(run)
+            bound_store = row["append_store"]() if row["kind"] == "append" else None
+            memo = row["memo"]
+            if (
+                row["kind"] != "append"
+                or bound_store is not store
+                or row["phase"] != "new_payload"
+                or row["initial_checkout_count"] != 1
+                or row["initial_key"] != key
+                or len(memo) > 1
+                or (memo and key not in memo)
+            ):
+                fail()
+            master = memo.get(key)
+        if master is not None and type(master) is not dict:
+            fail()
+        with guard:
+            row = validate_run_locked(run)
+            if row["phase"] != "new_payload" or row["initial_key"] != key:
+                fail()
+            row["phase"] = "payload_committed"
+
+    @contextmanager
+    def append_verification(store: object, run: object, phase: object):
+        if phase not in {"refresh", "candidate"}:
+            fail()
+        expected = "payload_committed" if phase == "refresh" else "refresh_verified"
+        verifying = phase + "_verifying"
+        completed = phase + "_verified"
+        with guard:
+            row = validate_run_locked(run)
+            bound_store = row["append_store"]() if row["kind"] == "append" else None
+            invocation = row["append_invocation"]() if row["kind"] == "append" else None
+            if (
+                bound_store is not store
+                or row["phase"] != expected
+                or getattr(active_append_verification_local, "scope", None) is not None
+            ):
+                fail()
+            row["phase"] = verifying
+            row["verification_claimed"] = False
+            row["verification_completed"] = False
+            active_append_verification_local.scope = (run, store, invocation, phase)
+        succeeded = False
+        try:
+            yield None
+            succeeded = True
+        finally:
+            try:
+                if hasattr(active_append_verification_local, "scope"):
+                    del active_append_verification_local.scope
+            except BaseException:
+                pass
+        if succeeded:
+            with guard:
+                row = validate_run_locked(run)
+                if (
+                    row["phase"] != verifying
+                    or not row["verification_claimed"]
+                    or not row["verification_completed"]
+                ):
+                    fail()
+                row["phase"] = completed
+                row["verification_claimed"] = False
+                row["verification_completed"] = False
+
+    def active_append_verification_run() -> _PlanningPayloadValidationRun | None:
+        scope = getattr(active_append_verification_local, "scope", None)
+        if scope is None:
+            return None
+        if type(scope) is not tuple or len(scope) != 4:
+            fail()
+        run, store, invocation, phase = scope
+        with guard:
+            row = validate_run_locked(run)
+            if (
+                row["kind"] != "append"
+                or row["append_store"]() is not store
+                or row["append_invocation"]() is not invocation
+                or row["phase"] != phase + "_verifying"
+                or row["verification_claimed"]
+                or row["verification_completed"]
+            ):
+                fail()
+            row["verification_claimed"] = True
+        return run
+
+    def complete_append_verification(run: object) -> None:
+        scope = getattr(active_append_verification_local, "scope", None)
+        if type(scope) is not tuple or len(scope) != 4 or scope[0] is not run:
+            fail()
+        with guard:
+            row = validate_run_locked(run)
+            if not row["verification_claimed"] or row["verification_completed"]:
+                fail()
+            row["verification_completed"] = True
+
+    def pair_checkout(
+        pair: object, key: tuple[bytes, str, str], dependencies: tuple[object, ...],
+    ) -> dict[str, Any] | None:
+        with guard:
+            row = validate_pair_locked(pair)
+            if row["read_count"] != 2 or not same_dependencies(dependencies, row["dependencies"]):
+                return None
+            master = row["memo"].get(key)
+        if master is None:
+            return None
+        if type(master) is not dict or dependencies[3](master) != key[0]:
+            raise ValueError("paired validation memo changed")
+        return master
+
+    def pair_remember(
+        pair: object,
+        key: tuple[bytes, str, str],
+        master: dict[str, Any],
+        dependencies: tuple[object, ...],
+    ) -> None:
+        with guard:
+            row = validate_pair_locked(pair)
+            if row["read_count"] != 1 or not same_dependencies(dependencies, row["dependencies"]):
+                return
+            if key in row["memo"]:
+                return
+            payload_bytes = len(key[0])
+            if (
+                len(row["memo"]) >= _PLANNING_VALIDATION_PAIR_MAX_ENTRIES
+                or payload_bytes > _PLANNING_VALIDATION_PAIR_MAX_BYTES - row["memo_bytes"]
+            ):
+                return
+        if type(master) is not dict or dependencies[3](master) != key[0]:
+            raise ValueError("paired validation memo was not canonical")
+        with guard:
+            row = validate_pair_locked(pair)
+            if (
+                row["read_count"] == 1
+                and same_dependencies(dependencies, row["dependencies"])
+                and key not in row["memo"]
+                and len(row["memo"]) < _PLANNING_VALIDATION_PAIR_MAX_ENTRIES
+                and payload_bytes <= _PLANNING_VALIDATION_PAIR_MAX_BYTES - row["memo_bytes"]
+            ):
+                row["memo"][key] = master
+                row["memo_bytes"] += payload_bytes
+
+    def checkout_run(
+        run: object, value: object, project_id: str, roadmap_id: str,
+    ) -> tuple[bytes, dict[str, Any], dict[str, Any]]:
+        with guard:
+            row = validate_run_locked(run)
+            dependencies = row["dependencies"]
+            pair = row["pair"]
+            sealed = row["sealed"]
+            kind = row["kind"]
+            phase = row["phase"]
+            if kind == "append" and not (
+                (phase == "new_payload" and row["initial_checkout_count"] == 0)
+                or (
+                    phase in {"refresh_verifying", "candidate_verifying"}
+                    and not row["verification_completed"]
+                )
+            ):
+                fail()
+        if (
+            type(value) is not bytes
+            or type(project_id) is not str
+            or type(roadmap_id) is not str
+            or len(value) < 1
+        ):
+            fail()
+        payload = bytes(value)
+        key = (payload, project_id, roadmap_id)
+        try:
+            with guard:
+                row = validate_run_locked(run)
+                master = row["memo"].get(key)
+            if master is not None:
+                # Append masters are transaction-local, registry-owned copies;
+                # callers receive only detached documents. Ordinary/read-pair
+                # runs retain their defensive canonical recheck.
+                if (
+                    type(master) is not dict
+                    or (kind != "append" and dependencies[3](master) != payload)
+                ):
+                    raise ValueError("validation memo changed")
+                detached = dependencies[4](master)
+            else:
+                paired = (
+                    pair_checkout(pair, key, dependencies)
+                    if pair is not None and not sealed else None
+                )
+                if paired is not None:
+                    with guard:
+                        row = validate_run_locked(run)
+                        if row["sealed"]:
+                            raise ValueError("sealed validation memo miss")
+                        row["memo"][key] = paired
+                    detached = dependencies[4](paired)
+                else:
+                    document = dependencies[1](payload)
+                    dependencies[2](document)
+                    if document["project"]["project_id"] != project_id:
+                        raise ValueError
+                    if document["project"]["roadmap_refs"] != [roadmap_id]:
+                        raise ValueError
+                    if len(document["roadmaps"]) != 1:
+                        raise ValueError
+                    roadmap = document["roadmaps"][0]
+                    if roadmap["project_id"] != project_id or roadmap["roadmap_id"] != roadmap_id:
+                        raise ValueError
+                    if dependencies[3](document) == payload:
+                        if sealed:
+                            raise ValueError("sealed validation memo miss")
+                        master = dependencies[4](document)
+                        if type(master) is not dict or master is document:
+                            raise ValueError("validation memo master did not detach")
+                        with guard:
+                            row = validate_run_locked(run)
+                            if row["sealed"]:
+                                raise ValueError("sealed validation memo miss")
+                            row["memo"][key] = master
+                        if pair is not None:
+                            pair_remember(pair, key, master, dependencies)
+                        detached = dependencies[4](master)
+                    else:
+                        detached = dependencies[4](document)
+            with guard:
+                row = validate_run_locked(run)
+                private_master = row["memo"].get(key)
+            if type(detached) is not dict or detached is private_master:
+                raise ValueError("validation memo did not detach")
+            if kind == "append" and phase == "new_payload":
+                with guard:
+                    row = validate_run_locked(run)
+                    if row["phase"] != "new_payload" or row["initial_checkout_count"] != 0:
+                        fail()
+                    row["initial_checkout_count"] = 1
+                    row["initial_key"] = key
+            roadmap = detached["roadmaps"][0]
+            return payload, detached, roadmap
+        except (
+            UnicodeError,
+            ValueError,
+            TypeError,
+            KeyError,
+            RecursionError,
+            PlanningDefinitionContractError,
+        ):
+            raise DurablePlanningStoreError("validation_failed") from None
+
+    def seal_run(run: object) -> None:
+        with guard:
+            row = validate_run_locked(run)
+            if row["sealed"]:
+                fail()
+            if row["kind"] == "append" and row["phase"] != "candidate_verified":
+                fail()
+            row["sealed"] = True
+            if row["kind"] == "append":
+                row["phase"] = "sealed"
+
+    def bind_run(run: object, state_bytes: bytes, state_digest: str) -> None:
+        with guard:
+            row = validate_run_locked(run)
+            if (
+                row["kind"] != "ordinary"
+                or not row["sealed"]
+                or row["bound_state_bytes"] is not None
+                or row["bound_state_digest"] is not None
+                or type(state_bytes) is not bytes
+                or type(state_digest) is not str
+            ):
+                fail()
+        try:
+            _digest_value(state_digest)
+        except (TypeError, ValueError):
+            raise DurablePlanningStoreError("validation_failed") from None
+        with guard:
+            row = validate_run_locked(run)
+            if row["bound_state_bytes"] is not None or row["bound_state_digest"] is not None:
+                fail()
+            row["bound_state_bytes"] = bytes(state_bytes)
+            row["bound_state_digest"] = state_digest
+
+    def bound_matches(run: object, state_bytes: object, state_digest: object) -> bool:
+        with guard:
+            row = validate_run_locked(run)
+            if row["kind"] != "ordinary":
+                fail()
+            return (
+                type(state_bytes) is bytes
+                and type(state_digest) is str
+                and row["bound_state_bytes"] == state_bytes
+                and row["bound_state_digest"] == state_digest
+            )
+
+    def begin_materialization(
+        run: object, state_bytes: object, state_digest: object,
+    ) -> None:
+        with guard:
+            row = validate_run_locked(run)
+            if (
+                row["kind"] != "ordinary"
+                or not row["sealed"]
+                or row["materialized"]
+                or type(state_bytes) is not bytes
+                or type(state_digest) is not str
+                or row["bound_state_bytes"] != state_bytes
+                or row["bound_state_digest"] != state_digest
+            ):
+                fail()
+            row["materialized"] = True
+
+    return (
+        pair_scope,
+        pair_read,
+        require_read_validation_only_mode,
+        append_scope,
+        register_run,
+        commit_append_payload,
+        append_verification,
+        active_append_verification_run,
+        complete_append_verification,
+        discard_run,
+        checkout_run,
+        seal_run,
+        bind_run,
+        bound_matches,
+        begin_materialization,
+    )
+
+
+(
+    _planning_payload_validation_pair_scope,
+    _planning_payload_validation_pair_read,
+    _require_planning_payload_read_validation_only_mode,
+    _append_planning_payload_validation_scope,
+    _register_planning_payload_validation_run,
+    _commit_append_planning_payload_validation,
+    _append_planning_payload_validation_verification,
+    _active_append_planning_payload_validation_run,
+    _complete_append_planning_payload_validation_verification,
+    _discard_planning_payload_validation_run,
+    _checkout_planning_payload_validation_run,
+    _seal_planning_payload_validation_run,
+    _bind_planning_payload_validation_run,
+    _planning_payload_validation_run_bound_matches,
+    _begin_planning_payload_validation_materialization,
+) = _build_planning_payload_validation_registry()
+del _build_planning_payload_validation_registry
+
+
+class _PlanningPayloadValidationCapture:
+    """Lexical handoff from one successful refresh to its bundle materialization."""
+
+    __slots__ = ("_run", "_taken")
+
+    def __init__(self) -> None:
+        self._run: _PlanningPayloadValidationRun | None = None
+        self._taken = False
+
+    def capture(
+        self, run: object, state_bytes: bytes, state_digest: str,
+    ) -> None:
+        if type(run) is not _PlanningPayloadValidationRun or self._run is not None:
+            raise DurablePlanningStoreError("validation_failed")
+        run.bind_image(state_bytes, state_digest)
+        self._run = run
+
+    def take(self, state_bytes: bytes, state_digest: str) -> _PlanningPayloadValidationRun:
+        run = self._run
+        if self._taken or type(run) is not _PlanningPayloadValidationRun:
+            raise DurablePlanningStoreError("validation_failed")
+        if not _planning_payload_validation_run_bound_matches(
+            run, state_bytes, state_digest,
+        ):
+            raise DurablePlanningStoreError("validation_failed")
+        self._taken = True
+        return run
+
+
 def _validated_planning_payload(
-    value: object, project_id: str, roadmap_id: str
+    value: object,
+    project_id: str,
+    roadmap_id: str,
+    *,
+    _validation_run: _PlanningPayloadValidationRun | None = None,
 ) -> tuple[bytes, dict[str, Any], dict[str, Any]]:
-    if type(value) is not bytes or not 1 <= len(value) <= 4 * 1024 * 1024:
+    if _validation_run is not None:
+        if type(_validation_run) is not _PlanningPayloadValidationRun:
+            raise DurablePlanningStoreError("validation_failed")
+        return _validation_run.checkout(value, project_id, roadmap_id)
+    if type(value) is not bytes or len(value) < 1:
         raise DurablePlanningStoreError("validation_failed")
     payload = bytes(value)
     try:
@@ -3811,7 +4856,20 @@ def _strict_json_object(raw: bytes) -> dict[str, Any]:
     return value
 
 
-def _verify_harbour_state(state: dict[str, Any]) -> None:
+def _verify_harbour_state(
+    state: dict[str, Any], *, _read_validation_only: bool = False,
+) -> _PlanningPayloadValidationRun | None:
+    if type(_read_validation_only) is not bool:
+        raise ValueError("invalid read validation mode")
+    if _read_validation_only:
+        _require_planning_payload_read_validation_only_mode()
+        validation_run = None
+        append_validation = False
+    else:
+        validation_run = _active_append_planning_payload_validation_run()
+        append_validation = validation_run is not None
+        if validation_run is None:
+            validation_run = _PlanningPayloadValidationRun()
     if type(state) is not dict or set(state) != {
         "schema", "revisions", "transitions", "receipts", "idempotency", "heads",
         "head_fences", "migration_batches"
@@ -3833,11 +4891,18 @@ def _verify_harbour_state(state: dict[str, Any]) -> None:
         payload = base64.b64decode(record["payload_b64"], validate=True)
         if _bytes_digest(payload) != revision.payload_sha256:
             raise ValueError("payload digest")
-        _payload, _document, roadmap = _validated_planning_payload(
-            bytes(payload), revision.project_id, revision.roadmap_id
-        )
+        if _read_validation_only:
+            _payload, _document, roadmap = _validated_planning_payload(
+                bytes(payload), revision.project_id, revision.roadmap_id,
+            )
+        else:
+            _payload, _document, roadmap = _validated_planning_payload(
+                bytes(payload), revision.project_id, revision.roadmap_id,
+                _validation_run=validation_run,
+            )
         if (
-            roadmap["revision"] != revision.revision
+            _payload != payload
+            or roadmap["revision"] != revision.revision
             or roadmap["content_hash"] != revision.content_sha256
             or roadmap["revision_state"] != revision.revision_state
             or revision.principal_ref.owner_id != revision.owner_id
@@ -4060,7 +5125,12 @@ def _verify_harbour_state(state: dict[str, Any]) -> None:
         receipt = state["receipts"].get(record["receipt_id"])
         if receipt is None or receipt["input_digest"] != record["command_digest"]:
             raise ValueError("idempotency binding")
-    _verify_migration_batches(state)
+    _verify_migration_batches(state, _validation_run=validation_run)
+    if append_validation:
+        _complete_append_planning_payload_validation_verification(validation_run)
+    elif validation_run is not None:
+        validation_run.seal()
+    return validation_run
 
 
 def _validated_migration_manifest(value: Mapping[str, Any]) -> dict[str, Any]:
@@ -4621,7 +5691,10 @@ def _verify_migration_phase_records(state: Mapping[str, Any], batch: Mapping[str
             raise ValueError("migration phase identity binding")
 
 
-def _verify_migration_batches(state: dict[str, Any]) -> None:
+def _verify_migration_batches(
+    state: dict[str, Any], *,
+    _validation_run: _PlanningPayloadValidationRun | None = None,
+) -> None:
     fields = {
         "batch_id", "manifest_digest", "owner_id", "project_id", "state",
         "source_items", "supporting_relations", "expected_subjects", "accepted_subjects",
@@ -4729,11 +5802,16 @@ def _verify_migration_batches(state: dict[str, Any]) -> None:
             if type(payload_text) is not str:
                 raise ValueError("migration payload missing")
             payload = payload_text.encode("utf-8")
-            document = _strict_json_object(payload)
-            if _canonical_planning_bytes(document) != payload:
-                raise ValueError("migration payload noncanonical")
-            _raw, _doc, roadmap = _validated_planning_payload(payload, batch["project_id"], roadmap_id)
-            if _bytes_digest(payload) != item["payload_sha256"] or roadmap["content_hash"] != item["content_hash"]:
+            _raw, document, roadmap = _validated_planning_payload(
+                payload, batch["project_id"], roadmap_id,
+                _validation_run=_validation_run,
+            )
+            if (
+                _raw != payload
+                or _canonical_planning_bytes(document) != payload
+                or _bytes_digest(payload) != item["payload_sha256"]
+                or roadmap["content_hash"] != item["content_hash"]
+            ):
                 raise ValueError("migration payload evidence")
         if set(batch["normalized_payloads"]) != set(roadmap_ids):
             raise ValueError("migration payload set")

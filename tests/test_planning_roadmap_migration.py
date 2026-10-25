@@ -18,6 +18,9 @@ from src.planning_roadmap_migration import (
     DOCS_ONLY_AUTHORITY_PINS,
     REPO_ONLY_AUTHORITY_MAP_ID,
     REPO_ONLY_AUTHORITY_PINS,
+    PRODUCT_READINESS_AUTHORITY_MAP_ID,
+    PRODUCT_READINESS_AUTHORITY_PINS,
+    PRODUCT_READINESS_PRODUCT_RAW_BLOB,
     HISTORICAL_AUTHORITY_MAP_ID,
     HISTORICAL_AUTHORITY_PINS,
     H1R04_ACCEPTED_DOCUMENT_PATH,
@@ -102,7 +105,11 @@ def test_six_locked_validator_outputs_and_source_bytes_are_stable() -> None:
 
 def _migration_fixture_root(tmp_path: Path) -> Path:
     fixture_root = tmp_path / "repo"
-    paths = set(AUTHORITY_PINS) | set(DOCS_ONLY_AUTHORITY_PINS) | set(REPO_ONLY_AUTHORITY_PINS) | {path for path, *_rest in FROZEN_MEMBERS}
+    paths = (
+        set(AUTHORITY_PINS) | set(DOCS_ONLY_AUTHORITY_PINS)
+        | set(REPO_ONLY_AUTHORITY_PINS) | set(PRODUCT_READINESS_AUTHORITY_PINS)
+        | {path for path, *_rest in FROZEN_MEMBERS}
+    )
     paths.add("specs/roadmaps/roadmap-reconciliation-report-reduction.v1.json")
     for relative in paths:
         target = fixture_root / relative
@@ -182,8 +189,8 @@ def test_current_reviewed_roadmap_pin_and_manifest_semantics_are_bound() -> None
     )
     manifest = build_h1r03_migration_manifest(ROOT)
     assert manifest["schema"] == MIGRATION_MANIFEST_SCHEMA_V2
-    assert manifest["authority_map_id"] == REPO_ONLY_AUTHORITY_MAP_ID
-    assert manifest["authority_pins"] == REPO_ONLY_AUTHORITY_PINS
+    assert manifest["authority_map_id"] == PRODUCT_READINESS_AUTHORITY_MAP_ID
+    assert manifest["authority_pins"] == PRODUCT_READINESS_AUTHORITY_PINS
     assert resolve_migration_manifest_identity({
         "schema": MIGRATION_MANIFEST_SCHEMA_V1,
         "owner_id": "fuzzy", "project_id": "harbour-one", "source_items": [],
@@ -211,19 +218,28 @@ def test_current_reviewed_roadmap_pin_and_manifest_semantics_are_bound() -> None
     )
 
 
-def test_docs_only_manifest_binds_exact_final_roadmap_git_blob_and_progress_tuple() -> None:
+def test_product_readiness_v5_binds_exact_current_roadmap_and_progress() -> None:
     manifest = build_h1r03_migration_manifest(ROOT)
     raw = (ROOT / "docs/plans/harbour-one-product-roadmap.json").read_bytes()
     product = json.loads(raw)
     expected_blob = hashlib.sha1(b"blob " + str(len(raw)).encode("ascii") + b"\0" + raw).hexdigest()
-    assert expected_blob == REPO_ONLY_AUTHORITY_PINS["docs/plans/harbour-one-product-roadmap.json"]
+    assert expected_blob == PRODUCT_READINESS_PRODUCT_RAW_BLOB
     assert manifest["authority_pins"]["docs/plans/harbour-one-product-roadmap.json"] == expected_blob
-    assert product["updated_at"] == "2026-10-03"
-    assert (product["progress"]["completed"], product["progress"]["total"], product["progress"]["percent"]) == (9, 17, 53)
-    assert {"H1R-03", "H1R-04"} <= set(product["progress"]["accepted_slice_ids"])
+    assert len(PRODUCT_READINESS_AUTHORITY_PINS) == len(REPO_ONLY_AUTHORITY_PINS) == 12
+    assert {
+        path: blob for path, blob in PRODUCT_READINESS_AUTHORITY_PINS.items()
+        if path != "docs/plans/harbour-one-product-roadmap.json"
+    } == {
+        path: blob for path, blob in REPO_ONLY_AUTHORITY_PINS.items()
+        if path != "docs/plans/harbour-one-product-roadmap.json"
+    }
+    assert product["updated_at"] == "2026-10-09T10:08:58.288003+00:00"
+    assert (product["progress"]["completed"], product["progress"]["total"], product["progress"]["percent"]) == (10, 17, 59)
+    assert {"H1R-03", "H1R-04", "H1R-09"} <= set(product["progress"]["accepted_slice_ids"])
     assert next(item["status"] for item in product["slices"] if item["id"] == "H1R-03") == "accepted_repo_only_2026-10-02"
     assert next(item["status"] for item in product["slices"] if item["id"] == "H1R-04") == "accepted_docs_only_2026-10-02"
     assert next(item["status"] for item in product["slices"] if item["id"] == "H1R-05") == "accepted_repo_only_2026-10-03"
+    assert next(item["status"] for item in product["slices"] if item["id"] == "H1R-09") == "accepted_repo_only_2026-10-09"
 
 
 def test_mcp_first_profile_scopes_interface_without_changing_product_inventory() -> None:
@@ -239,9 +255,9 @@ def test_mcp_first_profile_scopes_interface_without_changing_product_inventory()
     assert "temporal/containment" in profile["effective_verification_overrides"]["H1R-15"]
     assert "actual authenticated MCP golden backend flow" in profile["effective_verification_overrides"]["H1R-16"]
     assert "no completion claim and no denominator change" in profile["effective_verification_overrides"]["H1R-14"]
-    assert product["progress"]["completed"] == 9
+    assert product["progress"]["completed"] == 10
     assert product["progress"]["total"] == 17
-    assert product["progress"]["percent"] == 53
+    assert product["progress"]["percent"] == 59
     assert len(product["slices"]) == 17
     assert {item["id"]: item["status"] for item in product["slices"]}["H1R-05"] == "accepted_repo_only_2026-10-03"
     assert {item["id"]: item["status"] for item in product["slices"]}["H1R-14"] == "planned_needs_design"
@@ -313,7 +329,7 @@ def test_successor_v2_product_pin_uses_raw_bytes_without_lf_normalization_fallba
     assert _authority_blob(path, crlf_variant, SUCCESSOR_AUTHORITY_MAP_ID) != expected_blob
 
 
-def test_docs_only_identity_freezes_v2_digest_and_closed_forward_relations() -> None:
+def test_historical_digests_and_forward_relations_remain_frozen() -> None:
     from src.planning_revision_store import _migration_digest, _migration_manifest_identity
 
     manifest = _historical_vector_manifest()
@@ -333,31 +349,47 @@ def test_docs_only_identity_freezes_v2_digest_and_closed_forward_relations() -> 
     assert authority_map_relation(DOCS_ONLY_AUTHORITY_MAP_ID, REPO_ONLY_AUTHORITY_MAP_ID) == "successor"
     assert authority_map_relation(REPO_ONLY_AUTHORITY_MAP_ID, REPO_ONLY_AUTHORITY_MAP_ID) == "same"
     assert authority_map_relation(REPO_ONLY_AUTHORITY_MAP_ID, DOCS_ONLY_AUTHORITY_MAP_ID) == "unknown"
+    assert authority_map_relation(REPO_ONLY_AUTHORITY_MAP_ID, PRODUCT_READINESS_AUTHORITY_MAP_ID) == "successor"
+    assert authority_map_relation(PRODUCT_READINESS_AUTHORITY_MAP_ID, PRODUCT_READINESS_AUTHORITY_MAP_ID) == "same"
+    assert authority_map_relation(PRODUCT_READINESS_AUTHORITY_MAP_ID, REPO_ONLY_AUTHORITY_MAP_ID) == "unknown"
 
 
 @pytest.mark.parametrize(
     ("batch_map", "current_map", "expected"),
     [
         (left, right, "same" if left == right else "successor" if left_index < right_index else "unknown")
-        for left_index, left in enumerate((HISTORICAL_AUTHORITY_MAP_ID, SUCCESSOR_AUTHORITY_MAP_ID, DOCS_ONLY_AUTHORITY_MAP_ID, REPO_ONLY_AUTHORITY_MAP_ID))
-        for right_index, right in enumerate((HISTORICAL_AUTHORITY_MAP_ID, SUCCESSOR_AUTHORITY_MAP_ID, DOCS_ONLY_AUTHORITY_MAP_ID, REPO_ONLY_AUTHORITY_MAP_ID))
+        for left_index, left in enumerate((HISTORICAL_AUTHORITY_MAP_ID, SUCCESSOR_AUTHORITY_MAP_ID, DOCS_ONLY_AUTHORITY_MAP_ID, REPO_ONLY_AUTHORITY_MAP_ID, PRODUCT_READINESS_AUTHORITY_MAP_ID))
+        for right_index, right in enumerate((HISTORICAL_AUTHORITY_MAP_ID, SUCCESSOR_AUTHORITY_MAP_ID, DOCS_ONLY_AUTHORITY_MAP_ID, REPO_ONLY_AUTHORITY_MAP_ID, PRODUCT_READINESS_AUTHORITY_MAP_ID))
     ] + [
         (None, REPO_ONLY_AUTHORITY_MAP_ID, "unknown"),
         (HISTORICAL_AUTHORITY_MAP_ID, None, "unknown"),
         ("unknown-map", REPO_ONLY_AUTHORITY_MAP_ID, "unknown"),
-        (REPO_ONLY_AUTHORITY_MAP_ID, "unknown-map", "unknown"),
+        (PRODUCT_READINESS_AUTHORITY_MAP_ID, "unknown-map", "unknown"),
     ],
 )
-def test_authority_map_relation_is_a_closed_four_by_four_forward_matrix(batch_map, current_map, expected) -> None:
+def test_authority_map_relation_is_a_closed_five_by_five_forward_matrix(batch_map, current_map, expected) -> None:
     assert authority_map_relation(batch_map, current_map) == expected
 
 
-def test_repo_only_v4_raw_product_and_receipt_pins_are_exact_and_current() -> None:
+def test_repo_only_v4_historical_raw_product_and_receipt_pins_remain_exact() -> None:
     product_path = "docs/plans/harbour-one-product-roadmap.json"
     receipt_raw = (ROOT / H1R05_ACCEPTANCE_RECEIPT_PATH).read_bytes()
-    product_raw = (ROOT / product_path).read_bytes()
+    product_raw = subprocess.run(
+        ["git", "cat-file", "blob", REPO_ONLY_AUTHORITY_PINS[product_path]],
+        cwd=ROOT, check=True, capture_output=True,
+    ).stdout
+    historical_product = json.loads(product_raw)
     assert len(REPO_ONLY_AUTHORITY_PINS) == 12
     assert _raw_git_blob(product_raw) == REPO_ONLY_AUTHORITY_PINS[product_path]
+    assert historical_product["updated_at"] == "2026-10-03"
+    assert (
+        historical_product["progress"]["completed"],
+        historical_product["progress"]["total"],
+        historical_product["progress"]["percent"],
+    ) == (9, 17, 53)
+    assert next(
+        item["status"] for item in historical_product["slices"] if item["id"] == "H1R-09"
+    ) == "planned_needs_architecture"
     assert _raw_git_blob(receipt_raw) == H1R05_ACCEPTANCE_RECEIPT_RAW_BLOB
     assert _authority_blob(product_path, product_raw, REPO_ONLY_AUTHORITY_MAP_ID) == REPO_ONLY_AUTHORITY_PINS[product_path]
     assert _authority_blob(H1R05_ACCEPTANCE_RECEIPT_PATH, receipt_raw, REPO_ONLY_AUTHORITY_MAP_ID) == H1R05_ACCEPTANCE_RECEIPT_RAW_BLOB
@@ -386,11 +418,11 @@ def test_prepromotion_v3_manifest_vector_stays_literal_under_v4() -> None:
     assert _migration_digest(identity) == "sha256:f52fa560c8bb2d0c5495e9421432a96a5a6ee771342eeea9ed36c3f4fba49ebf"
 
 
-def test_v3_and_v4_maps_use_exact_raw_product_and_document_bytes(tmp_path: Path) -> None:
+def test_v3_v4_and_current_v5_use_exact_raw_product_and_inherited_evidence_bytes(tmp_path: Path) -> None:
     product_path = "docs/plans/harbour-one-product-roadmap.json"
     product_raw = (ROOT / product_path).read_bytes()
     document_raw = (ROOT / H1R04_ACCEPTED_DOCUMENT_PATH).read_bytes()
-    assert _raw_git_blob(product_raw) == REPO_ONLY_AUTHORITY_PINS[product_path]
+    assert _raw_git_blob(product_raw) == PRODUCT_READINESS_AUTHORITY_PINS[product_path]
     assert DOCS_ONLY_AUTHORITY_PINS[product_path] != REPO_ONLY_AUTHORITY_PINS[product_path]
     v3_product_raw = subprocess.run(
         ["git", "cat-file", "blob", DOCS_ONLY_AUTHORITY_PINS[product_path]],
@@ -398,12 +430,19 @@ def test_v3_and_v4_maps_use_exact_raw_product_and_document_bytes(tmp_path: Path)
     ).stdout
     assert _raw_git_blob(v3_product_raw) == DOCS_ONLY_AUTHORITY_PINS[product_path]
     assert _authority_blob(product_path, v3_product_raw, DOCS_ONLY_AUTHORITY_MAP_ID) == DOCS_ONLY_AUTHORITY_PINS[product_path]
+    v4_product_raw = subprocess.run(
+        ["git", "cat-file", "blob", REPO_ONLY_AUTHORITY_PINS[product_path]],
+        cwd=ROOT, check=True, capture_output=True,
+    ).stdout
+    assert _authority_blob(product_path, v4_product_raw, REPO_ONLY_AUTHORITY_MAP_ID) == REPO_ONLY_AUTHORITY_PINS[product_path]
+    assert _authority_blob(product_path, product_raw, PRODUCT_READINESS_AUTHORITY_MAP_ID) == PRODUCT_READINESS_PRODUCT_RAW_BLOB
     assert _raw_git_blob(document_raw) == H1R04_ACCEPTED_DOCUMENT_RAW_BLOB
-    for map_id in (DOCS_ONLY_AUTHORITY_MAP_ID, REPO_ONLY_AUTHORITY_MAP_ID):
+    for map_id in (DOCS_ONLY_AUTHORITY_MAP_ID, REPO_ONLY_AUTHORITY_MAP_ID, PRODUCT_READINESS_AUTHORITY_MAP_ID):
         assert _authority_blob(H1R04_ACCEPTED_DOCUMENT_PATH, document_raw, map_id) == H1R04_ACCEPTED_DOCUMENT_RAW_BLOB
-    assert current_authority_map(ROOT) == REPO_ONLY_AUTHORITY_MAP_ID
+    assert _authority_blob(H1R05_ACCEPTANCE_RECEIPT_PATH, (ROOT / H1R05_ACCEPTANCE_RECEIPT_PATH).read_bytes(), PRODUCT_READINESS_AUTHORITY_MAP_ID) == H1R05_ACCEPTANCE_RECEIPT_RAW_BLOB
+    assert current_authority_map(ROOT) == PRODUCT_READINESS_AUTHORITY_MAP_ID
     fixture = _migration_fixture_root(tmp_path)
-    assert current_authority_map(fixture) == REPO_ONLY_AUTHORITY_MAP_ID
+    assert current_authority_map(fixture) == PRODUCT_READINESS_AUTHORITY_MAP_ID
     for relative in (product_path, H1R04_ACCEPTED_DOCUMENT_PATH, H1R05_ACCEPTANCE_RECEIPT_PATH):
         drifted_root = tmp_path / ("drift-" + Path(relative).stem)
         _copy_fixture(fixture, drifted_root)

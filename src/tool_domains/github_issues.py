@@ -21,6 +21,7 @@ from src.tool_domains.common import _parse_tool_args
 
 
 _WRITE_ACTIONS = {"create_triaged", "set_fields"}
+_DUPLICATE_RECEIPT_SCHEMA = "odysseus.github_issue_duplicate_search_receipt.v1"
 
 
 def build_github_issue_sync_readiness(repository: str) -> Dict[str, Any]:
@@ -177,9 +178,58 @@ def _duplicate_search(args: dict[str, Any], *, owner: str, repository: str) -> D
                 report=report,
             )
     return {
+        "action": "duplicate_search",
+        "status": "duplicates_checked_local",
+        "persisted": persist,
         "github_issue_duplicates": report.to_dict(),
         "index": reindex.to_dict(),
         "recorded_candidates": recorded,
+        "exit_code": 0,
+    }
+
+
+def _github_issue_duplicate_search_receipt(result: object) -> dict[str, Any] | None:
+    """Project one successful local-only result into a content-free receipt."""
+
+    if type(result) is not dict or any(type(key) is not str for key in result):
+        return None
+    action = result.get("action")
+    status = result.get("status")
+    persisted = result.get("persisted")
+    exit_code = result.get("exit_code")
+    recorded = result.get("recorded_candidates")
+    report = result.get("github_issue_duplicates")
+    if (
+        type(action) is not str
+        or action != "duplicate_search"
+        or type(status) is not str
+        or status != "duplicates_checked_local"
+        or type(persisted) is not bool
+        or persisted
+        or type(exit_code) is not int
+        or exit_code != 0
+        or type(recorded) is not int
+        or recorded != 0
+        or type(report) is not dict
+        or any(type(key) is not str for key in report)
+        or tuple(report.keys()) != ("owner", "repository", "blocks_auto_create", "candidates")
+    ):
+        return None
+    blocks_auto_create = report.get("blocks_auto_create")
+    candidates = report.get("candidates")
+    if (
+        type(blocks_auto_create) is not bool
+        or type(candidates) is not list
+        or not 0 <= len(candidates) <= 1000
+    ):
+        return None
+    return {
+        "schema": _DUPLICATE_RECEIPT_SCHEMA,
+        "action": "duplicate_search",
+        "status": "duplicates_checked_local",
+        "persisted": False,
+        "candidate_count": len(candidates),
+        "blocks_auto_create": blocks_auto_create,
         "exit_code": 0,
     }
 

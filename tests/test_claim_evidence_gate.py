@@ -664,3 +664,243 @@ def test_todo_reports_and_corrections_do_not_expose_raw_todo_values(tmp_path: Pa
     assert report.unsupported[0].claim_type == "todo_item_completed"
     assert "secret-todo-text" not in repr(report.to_dict())
     assert "private-list-id" not in correction
+
+
+def _github_duplicate_result(*, count: int = 1, blocks: bool = False) -> dict:
+    return {
+        "action": "duplicate_search",
+        "status": "duplicates_checked_local",
+        "persisted": False,
+        "github_issue_duplicates": {
+            "owner": "private-owner",
+            "repository": "private/repository",
+            "blocks_auto_create": blocks,
+            "candidates": [
+                {
+                    "external_id": f"private-{index}",
+                    "score": 900,
+                    "reason": "private candidate text",
+                    "state": "open",
+                    "labels": ["private-label"],
+                    "url": "https://example.invalid/private",
+                    "blocks_auto_create": blocks,
+                }
+                for index in range(count)
+            ],
+        },
+        "index": {"private": "index"},
+        "recorded_candidates": 0,
+        "exit_code": 0,
+    }
+
+
+def _github_duplicate_event(*, count: int = 1, blocks: bool = False) -> dict:
+    from src import agent_loop
+
+    forward = getattr(agent_loop, "_github_issue_tool_event_forward")
+    return forward(_github_duplicate_result(count=count, blocks=blocks))
+
+
+def test_github_issue_claim_language_ignores_negated_hypothetical_and_quoted_text():
+    from src import claim_evidence_gate
+
+    findings_for = getattr(claim_evidence_gate, "_github_issue_claim_findings")
+    event = _github_duplicate_event()
+    texts = (
+        "I checked no GitHub issue duplicates locally.",
+        "I did not check GitHub issue duplicates locally.",
+        "I never checked GitHub issue duplicates locally.",
+        "I checked GitHub issue duplicates locally without searching.",
+        "If I checked GitHub issue duplicates locally, I would report it.",
+        "Maybe I checked GitHub issue duplicates locally.",
+        'The user said "I checked GitHub issue duplicates locally."',
+        "According to the report, GitHub issue duplicates were checked locally.",
+        "`I checked GitHub issue duplicates locally.`",
+    )
+
+    for text in texts:
+        assert findings_for(text, (event,)) == ()
+
+
+def test_github_issue_create_set_fields_and_sync_claims_remain_unsupported():
+    from src import claim_evidence_gate
+
+    findings_for = getattr(claim_evidence_gate, "_github_issue_claim_findings")
+    cases = (
+        ("I created the GitHub issue.", "create_triaged", "github_issue_created"),
+        ("I set the GitHub issue fields.", "set_fields", "github_issue_fields_set"),
+        ("I synced the GitHub issues.", "sync", "github_issue_synced"),
+    )
+    for text, action, claim_type in cases:
+        event = {"tool": "manage_github_issues", "action": action, "status": "success", "exit_code": 0}
+        findings = findings_for(text, (event,))
+        assert [(item.claim_type, item.status, item.evidence) for item in findings] == [
+            (claim_type, "unsupported", ()),
+        ]
+
+
+def test_github_issue_duplicate_claim_does_not_borrow_authority_across_mixed_clauses():
+    from src import claim_evidence_gate
+
+    findings_for = getattr(claim_evidence_gate, "_github_issue_claim_findings")
+    event = _github_duplicate_event()
+    assert findings_for(
+        "I checked GitHub issue duplicates locally, but I did not check GitHub issue duplicates locally.",
+        (event,),
+    ) == ()
+    assert findings_for(
+        'The report said "I did not check GitHub issue duplicates locally."; I checked GitHub issue duplicates locally.',
+        (event,),
+    )[0].status == "supported"
+    assert findings_for(
+        '"I checked GitHub issue duplicates locally"; I did not check GitHub issue duplicates locally.',
+        (event,),
+    ) == ()
+    for text in (
+        "I checked GitHub issue duplicates locally, but I did not.",
+        "I checked GitHub issue duplicates locally, but maybe not.",
+    ):
+        assert findings_for(text, (event,)) == ()
+    for actor in ("I", "We"):
+        for apostrophe in ("'", "\u2019"):
+            contradiction = f"{actor} didn{apostrophe}t"
+            for separator in (". ", ", but "):
+                assert findings_for(
+                    f"{actor} checked GitHub issue duplicates locally{separator}{contradiction}.",
+                    (event,),
+                ) == ()
+                unrelated = findings_for(
+                    f"{actor} checked GitHub issue duplicates locally{separator}"
+                    f"{contradiction} persist anything.",
+                    (event,),
+                )
+                assert [
+                    (item.claim_type, item.status) for item in unrelated
+                ] == [("github_issue_duplicates_checked", "supported")]
+
+
+def test_github_issue_duplicate_claim_rejects_generic_exit_zero_and_live_gate_packets():
+    from src import claim_evidence_gate
+
+    findings_for = getattr(claim_evidence_gate, "_github_issue_claim_findings")
+    packets = (
+        {"tool": "manage_github_issues", "action": "duplicate_search", "exit_code": 0},
+        {"tool": "manage_github_issues", "action": "duplicate_search", "status": "needs_live_go", "exit_code": 0},
+        {"tool": "manage_github_issues", "action": "duplicate_search", "status": "confirmation_required", "exit_code": 0},
+        {"tool": "manage_github_issues", "action": "create_triaged", "status": "blocked_by_duplicate_candidate", "exit_code": 0},
+    )
+    for packet in packets:
+        findings = findings_for("I checked GitHub issue duplicates locally.", (packet,))
+        assert [(item.claim_type, item.status, item.evidence) for item in findings] == [
+            ("github_issue_duplicates_checked", "unsupported", ()),
+        ]
+
+
+def test_github_issue_duplicate_claim_requires_affirmative_self_performed_full_clause():
+    from src import claim_evidence_gate
+
+    findings_for = getattr(claim_evidence_gate, "_github_issue_claim_findings")
+    event = _github_duplicate_event()
+    for text in (
+        "I checked GitHub issue duplicates locally.",
+        "I searched GitHub issues for duplicates locally.",
+        "We checked GitHub issue duplicates locally.",
+        "We searched GitHub issues for duplicates locally.",
+    ):
+        findings = findings_for(text, (event,))
+        assert [(item.claim_type, item.status) for item in findings] == [
+            ("github_issue_duplicates_checked", "supported"),
+        ]
+    assert findings_for("The tool checked GitHub issue duplicates locally.", (event,)) == ()
+    assert findings_for("The search completed locally.", (event,)) == ()
+    assert findings_for("The user said I checked GitHub issue duplicates locally.", (event,)) == ()
+    assert findings_for("I checked GitHub issue duplicates locally.", ())[0].status == "unsupported"
+
+
+def test_github_issue_duplicate_claim_requires_exact_verified_receipt():
+    from src import claim_evidence_gate
+
+    findings_for = getattr(claim_evidence_gate, "_github_issue_claim_findings")
+    text = "I checked GitHub issue duplicates locally."
+    for count in (0, 1000):
+        findings = findings_for(text, (_github_duplicate_event(count=count),))
+        assert findings[0].status == "supported"
+        assert findings[0].evidence == (f"github-issue-duplicate-search:{count}:0",)
+
+    event = _github_duplicate_event()
+    for key, value in (
+        ("schema", "wrong"),
+        ("action", "sync"),
+        ("status", "confirmation_required"),
+        ("persisted", True),
+        ("candidate_count", 1001),
+        ("blocks_auto_create", 0),
+        ("exit_code", True),
+    ):
+        malformed = {**event, "github_issue_duplicate_search_receipt": dict(event["github_issue_duplicate_search_receipt"])}
+        malformed["github_issue_duplicate_search_receipt"][key] = value
+        assert findings_for(text, (malformed,))[0].status == "unsupported"
+
+
+def test_github_issue_event_forward_is_content_free_and_detached():
+    from src import agent_loop
+
+    forward = getattr(agent_loop, "_github_issue_tool_event_forward")
+    source = _github_duplicate_result(count=2, blocks=True)
+    event = forward(source)
+    assert event == {
+        "tool": "manage_github_issues",
+        "action": "duplicate_search",
+        "github_issue_duplicate_search_receipt": {
+            "schema": "odysseus.github_issue_duplicate_search_receipt.v1",
+            "action": "duplicate_search",
+            "status": "duplicates_checked_local",
+            "persisted": False,
+            "candidate_count": 2,
+            "blocks_auto_create": True,
+            "exit_code": 0,
+        },
+    }
+    assert "private" not in repr(event)
+    source["github_issue_duplicates"]["candidates"].clear()
+    source["github_issue_duplicates"]["blocks_auto_create"] = False
+    assert event["github_issue_duplicate_search_receipt"]["candidate_count"] == 2
+    assert event["github_issue_duplicate_search_receipt"]["blocks_auto_create"] is True
+    assert forward(source) is not event
+
+
+def test_github_issue_receipt_rejects_hostile_mapping_wrong_types_extra_fields_and_mutation():
+    from collections.abc import Mapping
+    from src import claim_evidence_gate
+
+    validate = getattr(claim_evidence_gate, "_validated_github_issue_duplicate_search_receipt")
+    event = _github_duplicate_event()
+    receipt = event["github_issue_duplicate_search_receipt"]
+    snapshot = validate(event)
+    assert snapshot == receipt
+    receipt["candidate_count"] = 999
+    assert snapshot["candidate_count"] == 1
+
+    class HostileMapping(Mapping):
+        def __getitem__(self, key):
+            raise RuntimeError("private callback")
+
+        def __iter__(self):
+            raise RuntimeError("private callback")
+
+        def __len__(self):
+            raise RuntimeError("private callback")
+
+    class HostileString(str):
+        def __eq__(self, other):
+            raise RuntimeError("private callback")
+
+    assert validate(HostileMapping()) is None
+    hostile = _github_duplicate_event()
+    hostile["github_issue_duplicate_search_receipt"]["schema"] = HostileString(
+        "odysseus.github_issue_duplicate_search_receipt.v1"
+    )
+    assert validate(hostile) is None
+    extra = _github_duplicate_event()
+    extra["github_issue_duplicate_search_receipt"]["private"] = "leak"
+    assert validate(extra) is None

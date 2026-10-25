@@ -45,6 +45,14 @@ def get_mcp_manager():
 
 logger = logging.getLogger(__name__)
 
+_DOCUMENT_TOOL_NAMES = frozenset({
+    "create_document",
+    "update_document",
+    "edit_document",
+    "suggest_document",
+    "manage_documents",
+})
+
 _VAULT_MCP_RATE_LIMIT_BUCKETS: Dict[str, list[float]] = {}
 _VAULT_MCP_RATE_LIMIT_MAX = 10
 _VAULT_MCP_RATE_LIMIT_WINDOW = 60
@@ -228,11 +236,19 @@ async def _call_mcp_tool(
     content: str,
     progress_cb: Optional[Callable[[Dict], Awaitable[None]]] = None,
     owner: Optional[str] = None,
+    *,
+    document_authority=None,
 ) -> Dict:
     """Route a legacy tool call through the MCP manager, with direct fallbacks."""
     mcp = get_mcp_manager()
     if not mcp:
-        return await _direct_fallback(tool, content, progress_cb=progress_cb, owner=owner) or {"error": f"MCP manager not available for tool '{tool}'", "exit_code": 1}
+        return await _direct_fallback(
+            tool,
+            content,
+            progress_cb=progress_cb,
+            owner=owner,
+            document_authority=document_authority,
+        ) or {"error": f"MCP manager not available for tool '{tool}'", "exit_code": 1}
 
     server_id, tool_name = _MCP_TOOL_MAP[tool]
     qualified = f"mcp__{server_id}__{tool_name}"
@@ -241,7 +257,13 @@ async def _call_mcp_tool(
 
     # If MCP server not connected, try direct fallback
     if isinstance(result, dict) and result.get("exit_code") == 1 and "not connected" in result.get("error", ""):
-        fallback = await _direct_fallback(tool, content, progress_cb=progress_cb, owner=owner)
+        fallback = await _direct_fallback(
+            tool,
+            content,
+            progress_cb=progress_cb,
+            owner=owner,
+            document_authority=document_authority,
+        )
         if fallback:
             return fallback
 
@@ -301,6 +323,9 @@ async def _direct_fallback(
     progress_cb: Optional[Callable[[Dict], Awaitable[None]]] = None,
     session_id: Optional[str] = None,
     owner: Optional[str] = None,
+    *,
+    document_authority=None,
+    document_revision_token=None,
 ) -> Optional[Dict]:
     _subproc_env = {
         **os.environ,
@@ -316,6 +341,8 @@ async def _direct_fallback(
             "subproc_env": _subproc_env,
             "session_id": session_id,
             "owner": owner,
+            "document_authority": document_authority,
+            "document_revision_token": document_revision_token,
         }
 
         from src.agent_tools import TOOL_HANDLERS
@@ -333,10 +360,18 @@ async def _document_tool_dispatch(
     content: str,
     session_id: Optional[str] = None,
     owner: Optional[str] = None,
+    *,
+    document_authority=None,
+    document_revision_token=None,
 ) -> Optional[Dict]:
     """Route a document tool through TOOL_HANDLERS with the right ctx shape."""
     from src.agent_tools import TOOL_HANDLERS
-    ctx = {"session_id": session_id, "owner": owner}
+    ctx = {
+        "session_id": session_id,
+        "owner": owner,
+        "document_authority": document_authority,
+        "document_revision_token": document_revision_token,
+    }
     if tool in TOOL_HANDLERS:
         return await TOOL_HANDLERS[tool](content, ctx)
     return None
@@ -360,6 +395,9 @@ async def execute_tool_block(
     tool_policy: Optional[Any] = None,
     ai_lens_emitter: Optional[Any] = None,
     tool_usage_instrumentation: Optional[Any] = None,
+    *,
+    document_authority=None,
+    document_revision_token=None,
 ) -> Tuple[str, Dict]:
     """Execute a single tool block. Returns (description, result_dict).
 
@@ -383,12 +421,22 @@ async def execute_tool_block(
             headers=headers,
             context_length=context_length,
             tool_policy=tool_policy,
+            document_authority=document_authority,
+            document_revision_token=document_revision_token,
         )
         duration_ms = max(1, int((time.perf_counter() - started_at) * 1000))
+        public_result = _instrumentation_result(
+            getattr(block, "tool_type", ""), outcome[1]
+        )
+        instrumentation_description = (
+            getattr(block, "tool_type", "")
+            if getattr(block, "tool_type", "") in _DOCUMENT_TOOL_NAMES
+            else outcome[0]
+        )
         normalized = (
             _normalized_tool_usage_outcome(
-                description=outcome[0],
-                result=outcome[1],
+                description=instrumentation_description,
+                result=public_result,
             )
             if tool_usage_instrumentation is not None
             else None
@@ -406,9 +454,9 @@ async def execute_tool_block(
             status=(
                 normalized.ai_lens_status
                 if normalized is not None
-                else "failed" if _tool_result_failed(outcome[1]) else "succeeded"
+                else "failed" if _tool_result_failed(public_result) else "succeeded"
             ),
-            result=outcome[1],
+            result=public_result,
             latency_ms=duration_ms,
         )
         return outcome
@@ -464,6 +512,27 @@ def _tool_result_failed(result: Any) -> bool:
     return bool(result.get("error")) or result.get("exit_code") not in (None, 0, "0")
 
 
+def _instrumentation_result(tool_name: Any, result: Any) -> Any:
+    """Return a bounded projection for optional runtime instrumentation.
+
+    Native document results remain sealed and are returned unchanged to the
+    agent loop.  Only the instrumentation sinks receive this fixed projection,
+    so document ids, titles, content, hashes, and lengths cannot cross that
+    boundary before finalization.
+    """
+    name = str(tool_name or "")
+    if name not in _DOCUMENT_TOOL_NAMES:
+        return dict(result) if isinstance(result, dict) else result
+    failed = _tool_result_failed(result)
+    return {
+        "code": "document_tool",
+        "name": name,
+        "metadata_only": True,
+        "status": "failed" if failed else "succeeded",
+        "exit_code": 1 if failed else 0,
+    }
+
+
 def _secret_safe_diagnostic_source_refusal(
     tool: object,
     content: object,
@@ -499,9 +568,15 @@ def _begin_tool_usage(instrumentation: Any, block: Any) -> Any:
     if instrumentation is None:
         return None
     try:
+        tool_name = str(getattr(block, "tool_type", "") or "")
+        argument = (
+            None
+            if tool_name in _DOCUMENT_TOOL_NAMES
+            else getattr(block, "content", "")
+        )
         return instrumentation.begin(
-            getattr(block, "tool_type", ""),
-            getattr(block, "content", ""),
+            tool_name,
+            argument,
         )
     except (Exception, asyncio.CancelledError):
         return None
@@ -550,7 +625,11 @@ def _emit_ai_lens_tool_event(
         from src.ai_lens_service import opaque_ai_lens_ref
 
         tool_name = str(getattr(block, "tool_type", "") or "unknown")
-        content = str(getattr(block, "content", "") or "")
+        content = (
+            ""
+            if tool_name in _DOCUMENT_TOOL_NAMES
+            else str(getattr(block, "content", "") or "")
+        )
         source_ref = AiLensSourceRef.create(
             source_id=opaque_ai_lens_ref("tool", tool_name),
             kind=AiLensSourceKind.TOOL,
@@ -595,6 +674,9 @@ async def _execute_tool_block_impl(
     headers: Optional[Dict[str, str]] = None,
     context_length: int = 0,
     tool_policy: Optional[Any] = None,
+    *,
+    document_authority=None,
+    document_revision_token=None,
 ) -> Tuple[str, Dict]:
     """Execute a single tool block. Returns (description, result_dict).
 
@@ -823,12 +905,21 @@ async def _execute_tool_block_impl(
     if tool in _MCP_TOOL_MAP:
         first_line = content.split(chr(10))[0][:80]
         desc = f"{tool}: {first_line}"
-        result = await _call_mcp_tool(tool, content, progress_cb=progress_cb, owner=owner)
+        result = await _call_mcp_tool(
+            tool,
+            content,
+            progress_cb=progress_cb,
+            owner=owner,
+            document_authority=document_authority,
+        )
     elif tool in ("grep", "glob", "ls", "get_workspace"):
         # Code-navigation tools — no MCP server; run the direct implementation.
         first_line = content.split(chr(10))[0][:80]
         desc = f"{tool}: {first_line}"
-        result = await _direct_fallback(tool, content, progress_cb=progress_cb, owner=owner) \
+        result = await _direct_fallback(
+            tool, content, progress_cb=progress_cb, owner=owner,
+            document_authority=document_authority,
+        ) \
             or {"error": f"{tool}: execution failed", "exit_code": 1}
     elif tool in ("publish_artifact", "verify_pygame_headless", "commit_project"):
         # Owner/workspace-bound effectful tools live in the direct agent
@@ -840,6 +931,7 @@ async def _execute_tool_block_impl(
             content,
             progress_cb=progress_cb,
             owner=owner,
+            document_authority=document_authority,
         ) or {"error": f"{tool}: execution failed", "exit_code": 1}
     elif tool == "delegate":
         from src.delegate_tool import do_delegate
@@ -869,22 +961,30 @@ async def _execute_tool_block_impl(
     elif tool == "manage_bg_jobs":
         # Inspect/kill detached `bash` jobs; needs session_id to scope to chat.
         desc = f"manage_bg_jobs: {content.split(chr(10))[0][:80]}"
-        result = await _direct_fallback(tool, content, session_id=session_id, owner=owner) \
+        result = await _direct_fallback(
+            tool, content, session_id=session_id, owner=owner,
+            document_authority=document_authority,
+        ) \
             or {"error": "manage_bg_jobs: execution failed", "exit_code": 1}
     elif tool in ("create_document", "update_document", "edit_document",
                   "suggest_document", "manage_documents"):
-        desc = f"{tool}: {content.split(chr(10))[0][:80]}"
-        result = await _document_tool_dispatch(tool, content, session_id, owner) \
+        desc = tool
+        result = await _document_tool_dispatch(
+            tool, content, session_id, owner,
+            document_authority=document_authority,
+            document_revision_token=document_revision_token,
+        ) \
             or {"error": f"{tool}: execution failed", "exit_code": 1}
-        if tool in ("edit_document", "suggest_document") and "title" in (result or {}):
-            desc = f"{tool}: {result.get('title', '')}"
     elif tool == "search_chats":
         query = content.split("\n")[0].strip()
         desc = f"search_chats: {query[:80]}"
         result = await do_search_chats(query, owner=owner)
     elif tool == "query_knowledge":
         desc = "query_knowledge"
-        result = await _direct_fallback(tool, content, session_id=session_id, owner=owner) \
+        result = await _direct_fallback(
+            tool, content, session_id=session_id, owner=owner,
+            document_authority=document_authority,
+        ) \
             or {"error": "query_knowledge_failed", "exit_code": 1, "content_included": False}
     elif tool in ("chat_with_model", "ask_teacher", "list_models"):
         # Migrated to the agent_tools registry (#3629): dispatched through
@@ -893,7 +993,11 @@ async def _execute_tool_block_impl(
         # src/agent_tools/model_interaction_tools.py.
         first_line = content.split(chr(10))[0].strip()[:60]
         desc = f"{tool}: {first_line}" if first_line else tool
-        result = await _document_tool_dispatch(tool, content, session_id, owner) \
+        result = await _document_tool_dispatch(
+            tool, content, session_id, owner,
+            document_authority=document_authority,
+            document_revision_token=document_revision_token,
+        ) \
             or {"error": f"{tool}: execution failed", "exit_code": 1}
     elif tool in ("create_session", "list_sessions", "send_to_session", "manage_session"):
         # Migrated to the agent_tools registry (#3629): dispatched through
@@ -901,7 +1005,11 @@ async def _execute_tool_block_impl(
         # live in src/agent_tools/session_tools.py.
         first_line = content.split(chr(10))[0].strip()[:60]
         desc = f"{tool}: {first_line}" if first_line else tool
-        result = await _document_tool_dispatch(tool, content, session_id, owner) \
+        result = await _document_tool_dispatch(
+            tool, content, session_id, owner,
+            document_authority=document_authority,
+            document_revision_token=document_revision_token,
+        ) \
             or {"error": f"{tool}: execution failed", "exit_code": 1}
     elif tool in ("pipeline", "manage_memory", "ui_control"):
         from src.ai_interaction import dispatch_ai_tool
@@ -1013,7 +1121,10 @@ async def _execute_tool_block_impl(
         desc = "edit_image"
         result = await do_edit_image(content, owner=owner)
     elif tool == "edit_file":
-        result = await _direct_fallback(tool, content, owner=owner) or {"error": "edit failed", "exit_code": 1}
+        result = await _direct_fallback(
+            tool, content, owner=owner,
+            document_authority=document_authority,
+        ) or {"error": "edit failed", "exit_code": 1}
         desc = result.get("output") or result.get("error") or "edit_file"
     elif tool == "trigger_research":
         desc = "trigger_research"

@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import shlex
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable, Mapping
@@ -96,6 +97,56 @@ class UniversalProjectSpec:
 
 
 @dataclass(frozen=True, slots=True)
+class ServerProjectToolCapsule:
+    """Non-executing argv-only projection for one approved quality gate."""
+
+    capsule_id: str
+    argv: tuple[str, ...]
+    workspace_scope: str
+    timeout_seconds: int = 300
+    network_mode: str = "none"
+    secrets_allowed: bool = False
+    host_shell_allowed: bool = False
+    execution_allowed: bool = False
+    live_effect_allowed: bool = False
+    raw_content_visible: bool = False
+
+    def __post_init__(self) -> None:
+        if not re.fullmatch(r"sha256:[a-f0-9]{64}", self.capsule_id):
+            raise ValueError("tool capsule id must be canonical SHA-256")
+        if not self.argv or any(not item or item != item.strip() for item in self.argv):
+            raise ValueError("tool capsule argv must be a non-empty argv tuple")
+        if not self.workspace_scope.startswith("projects/"):
+            raise ValueError("tool capsule workspace scope must be project-relative")
+        if type(self.timeout_seconds) is not int or not 1 <= self.timeout_seconds <= 1800:
+            raise ValueError("tool capsule timeout must be between 1 and 1800")
+        if self.network_mode != "none":
+            raise ValueError("tool capsule network must remain none")
+        for field_name in ("secrets_allowed", "host_shell_allowed", "execution_allowed", "live_effect_allowed", "raw_content_visible"):
+            if getattr(self, field_name) is not False:
+                raise ValueError(f"tool capsule {field_name} must remain false")
+        if self.capsule_id != _tool_capsule_digest(self.semantic_dict()):
+            raise ValueError("tool capsule id does not match canonical facts")
+
+    def semantic_dict(self) -> dict[str, Any]:
+        return {
+            "schema": "odysseus.server_project_runner.tool_capsule.v1",
+            "argv": self.argv,
+            "workspace_scope": self.workspace_scope,
+            "timeout_seconds": self.timeout_seconds,
+            "network_mode": "none",
+            "secrets_allowed": False,
+            "host_shell_allowed": False,
+            "execution_allowed": False,
+            "live_effect_allowed": False,
+            "raw_content_visible": False,
+        }
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"capsule_id": self.capsule_id, **self.semantic_dict()}
+
+
+@dataclass(frozen=True, slots=True)
 class ServerProjectRunnerPlan:
     project_spec: UniversalProjectSpec
     project_id: str
@@ -113,6 +164,7 @@ class ServerProjectRunnerPlan:
     decision: str
     blockers: tuple[str, ...]
     planned_steps: tuple[Mapping[str, Any], ...]
+    tool_capsules: tuple[ServerProjectToolCapsule, ...]
     operator_gate: Mapping[str, Any]
     evidence_summary: Mapping[str, Any]
     next_human_decision: str
@@ -147,6 +199,7 @@ class ServerProjectRunnerPlan:
             "decision": self.decision,
             "blockers": list(self.blockers),
             "planned_steps": [dict(step) for step in self.planned_steps],
+            "tool_capsules": [capsule.to_dict() for capsule in self.tool_capsules],
             "operator_gate": dict(self.operator_gate),
             "evidence_summary": dict(self.evidence_summary),
             "next_human_decision": self.next_human_decision,
@@ -272,6 +325,7 @@ def _server_project_plan_material(plan: ServerProjectRunnerPlan) -> dict[str, An
         "decision": plan.decision,
         "blockers": list(plan.blockers),
         "planned_steps": [dict(step) for step in plan.planned_steps],
+        "tool_capsules": [capsule.to_dict() for capsule in plan.tool_capsules],
         "operator_gate": dict(plan.operator_gate),
         "evidence_summary": dict(plan.evidence_summary),
         "next_human_decision": plan.next_human_decision,
@@ -319,6 +373,52 @@ def _server_project_plan_is_valid(plan: Any) -> bool:
         return _server_project_plan_material(rebuilt) == _server_project_plan_material(plan)
     except (AttributeError, TypeError, ValueError):
         return False
+
+
+def build_server_project_tool_capsules(
+    *,
+    quality_gate_commands: Iterable[Any],
+    workspace_scope: Any,
+) -> tuple[ServerProjectToolCapsule, ...]:
+    """Render safe quality-gate capability descriptors without executing them."""
+
+    scope = _normalize_text(workspace_scope, field_name="workspace_scope")
+    if not scope.startswith("projects/") or _SECRET_RE.search(scope) or _PATH_RE.search(scope):
+        raise ValueError("tool capsule workspace scope must be project-relative")
+    capsules: list[ServerProjectToolCapsule] = []
+    for command in _dedupe(quality_gate_commands, field_name="quality_gate_command", allow_empty=False):
+        if not quality_gate_command_text_is_allowed(command):
+            raise ValueError("tool capsule command is not allowlisted")
+        try:
+            argv = tuple(shlex.split(command, posix=True))
+        except ValueError as exc:
+            raise ValueError("tool capsule command cannot be parsed as argv") from exc
+        if not argv or any(_SECRET_RE.search(arg) or _PATH_RE.search(arg) for arg in argv):
+            raise ValueError("tool capsule argv contains unsafe content")
+        semantic = {
+            "schema": "odysseus.server_project_runner.tool_capsule.v1",
+            "argv": argv,
+            "workspace_scope": scope,
+            "timeout_seconds": 300,
+            "network_mode": "none",
+            "secrets_allowed": False,
+            "host_shell_allowed": False,
+            "execution_allowed": False,
+            "live_effect_allowed": False,
+            "raw_content_visible": False,
+        }
+        capsules.append(
+            ServerProjectToolCapsule(
+                capsule_id=_tool_capsule_digest(semantic),
+                **{key: value for key, value in semantic.items() if key != "schema"},
+            )
+        )
+    return tuple(capsules)
+
+
+def _tool_capsule_digest(payload: Mapping[str, Any]) -> str:
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    return "sha256:" + hashlib.sha256(encoded.encode("utf-8")).hexdigest()
 
 
 def _build_steps(
@@ -527,6 +627,14 @@ def build_server_project_runner_plan(
         deploy_target=normalized_target,
         smoke_target=normalized_smoke,
     )
+    tool_capsules = (
+        build_server_project_tool_capsules(
+            quality_gate_commands=raw_commands,
+            workspace_scope=project_spec.workspace_root,
+        )
+        if not blocked_command_requested
+        else ()
+    )
 
     return ServerProjectRunnerPlan(
         project_spec=project_spec,
@@ -545,6 +653,7 @@ def build_server_project_runner_plan(
         decision=_normalize_choice(decision, field_name="decision", choices=_DECISIONS),
         blockers=tuple(blockers),
         planned_steps=planned_steps,
+        tool_capsules=tool_capsules,
         operator_gate={
             "live_go": live_go_value,
             "operator_decision": normalized_operator,
@@ -554,6 +663,7 @@ def build_server_project_runner_plan(
             "cloudflare_tunnel_requested": cloudflare_requested_value,
             "operator_live_go_ready": decision == "ready_for_operator_go",
             "mutation_allowed": False,
+            "tool_capsules_execution_allowed": False,
             "raw_content_visible": False,
         },
         evidence_summary={
@@ -561,6 +671,7 @@ def build_server_project_runner_plan(
             "smoke_target_present": bool(normalized_smoke),
             "rollback_plan_present": bool(normalized_rollback),
             "quality_gate_count": len(normalized_commands),
+            "tool_capsule_count": len(tool_capsules),
             "planned_step_count": len(planned_steps),
             "raw_content_visible": False,
         },

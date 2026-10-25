@@ -625,6 +625,14 @@ def test_subject_and_scope_must_exist_in_selected_projection_catalog():
         )
 
 
+def test_legacy_structural_provider_is_explicitly_not_product_registerable():
+    fixtures = _fixtures()
+    provider = StructuralQueryProvider(FakeTransport(), fixtures["catalog"])
+
+    assert provider.product_registerable is False
+    assert type(provider).product_registerable is False
+
+
 def test_serialized_results_contain_no_raw_content_or_absolute_host_paths():
     fixtures = _fixtures()
     result = StructuralQueryProvider(

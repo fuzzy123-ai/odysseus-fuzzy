@@ -42,7 +42,11 @@ from src.planning_revision_store import (
     PlanningRevisionStore,
     PlanningRevisionStoreError,
 )
-from src.planning_source_inventory import build_planning_source_inventory
+from src.planning_source_inventory import (
+    build_planning_source_inventory,
+    build_planning_source_record_from_bytes,
+    planning_source_id,
+)
 from src.planning_source_memory import (
     build_derived_planning_memory_records,
     build_planning_memory_capsules,
@@ -178,6 +182,22 @@ _REVISION_NOTIFICATION_EVENTS = frozenset(
 
 
 _OwnerSourceIdentity = tuple[int, int, int, int, int, int, int, int]
+_PlanningPathIdentity = tuple[int, int, int, int, int, int, int, int]
+
+
+@dataclass(frozen=True, slots=True)
+class _PlanningAllowedRoot:
+    relative_path: str
+    full_path: str
+    parent_identities: tuple[tuple[str, _PlanningPathIdentity], ...]
+
+
+@dataclass(frozen=True, slots=True)
+class _PlanningJsonCandidate:
+    relative_path: str
+    full_path: str
+    identity: _PlanningPathIdentity
+    parent_identities: tuple[tuple[str, _PlanningPathIdentity], ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -2117,43 +2137,242 @@ class PlanningMcpService:
         }
         return _fit_context_budget(pack, self.context_budget_bytes)
 
-    def _resolve_allowed_roots(self) -> tuple[tuple[str, Path], ...]:
-        roots: list[tuple[str, Path]] = []
+    def _resolve_allowed_roots(self) -> tuple[_PlanningAllowedRoot, ...]:
+        roots: list[_PlanningAllowedRoot] = []
+        repo_root = os.fspath(self.repo_root)
         for relative in PLANNING_ROOTS:
-            candidate = self.repo_root.joinpath(*relative.split("/"))
-            if not candidate.exists():
+            current = repo_root
+            parents: list[tuple[str, _PlanningPathIdentity]] = []
+            missing = False
+            for component in relative.split("/"):
+                try:
+                    _verify_planning_directories(tuple(parents))
+                    entries = list(os.scandir(current))
+                    _verify_planning_directories(tuple(parents))
+                except (OSError, ValueError, PlanningServiceError):
+                    raise PlanningServiceError(
+                        "unsafe_planning_root",
+                        "Configured Planning root is unavailable or unsafe",
+                    ) from None
+                exact = next((entry for entry in entries if entry.name == component), None)
+                if exact is None:
+                    if any(entry.name.casefold() == component.casefold() for entry in entries):
+                        raise PlanningServiceError(
+                            "unsafe_planning_root",
+                            "Configured Planning root casing does not match the repository entry",
+                        )
+                    missing = True
+                    break
+                current = os.path.join(current, component)
+                try:
+                    identity = _planning_path_identity(os.lstat(current))
+                except (OSError, ValueError):
+                    raise PlanningServiceError(
+                        "unsafe_planning_root",
+                        "Configured Planning root is unavailable or unsafe",
+                    ) from None
+                if (
+                    not stat.S_ISDIR(identity[2])
+                    or stat.S_ISLNK(identity[2])
+                    or identity[6]
+                ):
+                    raise PlanningServiceError(
+                        "unsafe_planning_root",
+                        "Configured Planning root is unavailable or unsafe",
+                    )
+                parents.append((current, identity))
+            if missing:
                 continue
-            resolved = candidate.resolve(strict=True)
-            if not _is_relative_to(resolved, self.repo_root):
-                raise PlanningServiceError(
-                    "unsafe_planning_root",
-                    "Configured Planning root resolves outside the repository",
+            roots.append(
+                _PlanningAllowedRoot(
+                    relative_path=relative,
+                    full_path=current,
+                    parent_identities=tuple(parents),
                 )
-            roots.append((relative, resolved))
+            )
         return tuple(roots)
 
-    def _inventory_records(self) -> list[dict[str, Any]]:
-        inventory = build_planning_source_inventory(
-            str(self.repo_root),
-            allowlist=PLANNING_ROOTS,
-            preview_chars=self.preview_chars,
-        )
-        records: list[dict[str, Any]] = []
-        for item in inventory.get("sources") or []:
-            if not isinstance(item, Mapping) or str(item.get("extension") or "").lower() != "json":
-                continue
+    def _json_candidates(self) -> list[_PlanningJsonCandidate]:
+        candidates: list[_PlanningJsonCandidate] = []
+
+        def visit(
+            directory: str,
+            relative: str,
+            parents: tuple[tuple[str, _PlanningPathIdentity], ...],
+        ) -> None:
             try:
-                self._secure_existing_path(str(item.get("path") or ""))
+                _verify_planning_directories(parents)
+                entries = list(os.scandir(directory))
+                _verify_planning_directories(parents)
+            except (OSError, ValueError, PlanningServiceError):
+                return
+            for entry in entries:
+                if entry.name in {".git", "__pycache__"}:
+                    continue
+                try:
+                    info = os.lstat(entry.path)
+                    identity = _planning_path_identity(info)
+                except (OSError, ValueError):
+                    continue
+                if stat.S_ISLNK(identity[2]) or identity[6]:
+                    continue
+                child_relative = f"{relative}/{entry.name}"
+                try:
+                    if _normalize_repo_path(child_relative) != child_relative:
+                        continue
+                except PlanningServiceError:
+                    continue
+                if stat.S_ISDIR(identity[2]):
+                    visit(entry.path, child_relative, parents + ((entry.path, identity),))
+                elif stat.S_ISREG(identity[2]) and entry.name.lower().endswith(".json"):
+                    candidates.append(
+                        _PlanningJsonCandidate(
+                            child_relative,
+                            entry.path,
+                            identity,
+                            parents,
+                        )
+                    )
+
+        for root in self._allowed_roots:
+            try:
+                _verify_planning_directories(root.parent_identities)
             except PlanningServiceError:
                 continue
-            records.append(dict(item))
-        return records
+            visit(root.full_path, root.relative_path, root.parent_identities)
+        candidates.sort(key=lambda item: item.relative_path.lower())
+        return candidates
+
+    def _inventory_records(self) -> list[dict[str, Any]]:
+        return [self._metadata_only_record(candidate) for candidate in self._json_candidates()]
+
+    def _metadata_only_record(self, candidate: _PlanningJsonCandidate) -> dict[str, Any]:
+        record = build_planning_source_record_from_bytes(
+            candidate.relative_path,
+            b"",
+            preview_chars=self.preview_chars,
+            size_bytes=candidate.identity[3],
+            mtime=candidate.identity[4] / 1_000_000_000,
+        )
+        record["source_hash"] = ""
+        record["preview"] = ""
+        return record
+
+    def _snapshot_record(
+        self,
+        candidate: _PlanningJsonCandidate,
+    ) -> tuple[dict[str, Any], bytes]:
+        raw = _read_planning_json_candidate(candidate)
+        record = build_planning_source_record_from_bytes(
+            candidate.relative_path,
+            raw,
+            preview_chars=self.preview_chars,
+            size_bytes=len(raw),
+            mtime=candidate.identity[4] / 1_000_000_000,
+        )
+        return record, raw
+
+    @staticmethod
+    def _parse_json_snapshot(raw: bytes) -> tuple[dict[str, Any], str]:
+        try:
+            text = raw.decode("utf-8", "strict")
+            loaded = json.loads(text)
+        except UnicodeError:
+            raise PlanningServiceError(
+                "roadmap_unavailable",
+                "Planning source could not be read",
+            ) from None
+        except (ValueError, RecursionError):
+            raise PlanningServiceError(
+                "invalid_json",
+                "Planning source is not valid JSON",
+            ) from None
+        if not isinstance(loaded, dict):
+            raise PlanningServiceError(
+                "invalid_roadmap_shape",
+                "Planning source JSON must be an object",
+            )
+        return loaded, text
+
+    def _candidate_for_reference(self, reference: str) -> _PlanningJsonCandidate:
+        if reference.startswith("repo-plan:"):
+            candidates = self._json_candidates()
+            for candidate in candidates:
+                if planning_source_id(candidate.relative_path) == reference:
+                    return candidate
+            raise PlanningServiceError(
+                "roadmap_not_found",
+                "Roadmap source id was not found",
+            )
+
+        normalized = _normalize_repo_path(reference)
+        if reference != normalized:
+            raise PlanningServiceError(
+                "invalid_path",
+                "Planning path must use its canonical repository spelling",
+            )
+        candidates = self._json_candidates()
+        for candidate in candidates:
+            if candidate.relative_path == normalized:
+                return candidate
+        if any(candidate.relative_path.casefold() == normalized.casefold() for candidate in candidates):
+            raise PlanningServiceError(
+                "path_case_mismatch",
+                "Planning path casing does not match the repository entry",
+            )
+        self._reject_unsafe_existing_path(normalized)
+        raise PlanningServiceError(
+            "roadmap_not_found",
+            "Roadmap path was not found in the Planning inventory",
+        )
+
+    def _reject_unsafe_existing_path(self, relative: str) -> None:
+        allowed = next(
+            (
+                root
+                for root in self._allowed_roots
+                if relative == root.relative_path
+                or relative.startswith(root.relative_path + "/")
+            ),
+            None,
+        )
+        if allowed is not None:
+            _verify_planning_directories(allowed.parent_identities)
+        current = os.fspath(self.repo_root)
+        try:
+            for part in relative.split("/"):
+                current = os.path.join(current, part)
+                identity = _planning_path_identity(os.lstat(current))
+                if stat.S_ISLNK(identity[2]) or identity[6]:
+                    raise PlanningServiceError(
+                        "path_escape",
+                        "Planning path resolves outside the allowlisted repository root",
+                    )
+        except FileNotFoundError:
+            return
+        except PlanningServiceError:
+            raise
+        except (OSError, ValueError):
+            raise PlanningServiceError(
+                "roadmap_metadata_unavailable",
+                "Planning source metadata is unavailable",
+            ) from None
 
     def _roadmap_records(self) -> list[dict[str, Any]]:
         records: list[dict[str, Any]] = []
-        for record in self._inventory_records():
+        for candidate in self._json_candidates():
             try:
-                payload, _raw = self._load_json(record["path"])
+                record, raw_bytes = self._snapshot_record(candidate)
+            except PlanningServiceError as exc:
+                if exc.code not in {"roadmap_too_large", "roadmap_unavailable"}:
+                    continue
+                record = self._metadata_only_record(candidate)
+                if str(record.get("kind")) == "roadmap_json" or "roadmap" in str(record.get("path", "")).lower():
+                    record["valid_json"] = False
+                    records.append(record)
+                continue
+            try:
+                payload, _raw = self._parse_json_snapshot(raw_bytes)
             except PlanningServiceError:
                 if str(record.get("kind")) == "roadmap_json" or "roadmap" in str(record.get("path", "")).lower():
                     record["valid_json"] = False
@@ -2173,70 +2392,24 @@ class PlanningMcpService:
         return records
 
     def _resolve_roadmap(self, source_id_or_path: str) -> tuple[dict[str, Any], dict[str, Any], str]:
-        reference = str(source_id_or_path or "").strip()
+        reference = str(source_id_or_path or "")
         if not reference:
             raise PlanningServiceError("missing_roadmap_ref", "Roadmap source id or path is required")
-        inventory = self._inventory_records()
-        if reference.startswith("repo-plan:"):
-            matches = [record for record in inventory if record.get("source_id") == reference]
-            if not matches:
-                raise PlanningServiceError("roadmap_not_found", "Roadmap source id was not found")
-            record = matches[0]
-        else:
-            normalized = _normalize_repo_path(reference)
-            matches = [record for record in inventory if str(record.get("path")) == normalized]
-            if not matches:
-                # Resolve once even when inventory omitted an unsafe link, so callers
-                # get an explicit fail-closed path error instead of filesystem access.
-                self._secure_existing_path(normalized)
-                raise PlanningServiceError("roadmap_not_found", "Roadmap path was not found in the Planning inventory")
-            record = matches[0]
-        payload, raw = self._load_json(str(record["path"]))
+        candidate = self._candidate_for_reference(reference)
+        record, raw_bytes = self._snapshot_record(candidate)
+        payload, raw = self._parse_json_snapshot(raw_bytes)
         if not _is_roadmap_payload(payload, record):
             raise PlanningServiceError("not_a_roadmap", "Planning JSON does not contain a roadmap structure")
         return record, payload, raw
 
     def _secure_existing_path(self, relative: str) -> Path:
-        normalized = _normalize_repo_path(relative)
-        allowed = next(
-            (
-                resolved
-                for prefix, resolved in self._allowed_roots
-                if normalized == prefix or normalized.startswith(prefix + "/")
-            ),
-            None,
-        )
-        if allowed is None:
-            raise PlanningServiceError("path_not_allowlisted", "Planning path is outside the allowlisted roots")
-        candidate = self.repo_root.joinpath(*normalized.split("/"))
-        try:
-            resolved = candidate.resolve(strict=True)
-        except OSError as exc:
-            raise PlanningServiceError("roadmap_not_found", "Planning path does not resolve to a file") from exc
-        if not resolved.is_file():
-            raise PlanningServiceError("not_a_file", "Planning path does not resolve to a file")
-        if not _is_relative_to(resolved, allowed) or not _is_relative_to(resolved, self.repo_root):
-            raise PlanningServiceError("path_escape", "Planning path resolves outside the allowlisted repository root")
-        return resolved
+        candidate = self._candidate_for_reference(_normalize_repo_path(relative))
+        return Path(candidate.full_path)
 
     def _load_json(self, relative: str) -> tuple[dict[str, Any], str]:
-        path = self._secure_existing_path(relative)
-        try:
-            size = path.stat().st_size
-        except OSError as exc:
-            raise PlanningServiceError("roadmap_unavailable", "Planning source metadata is unavailable") from exc
-        if size > MAX_SOURCE_BYTES:
-            raise PlanningServiceError("roadmap_too_large", "Planning source exceeds the read budget")
-        try:
-            raw = path.read_text(encoding="utf-8")
-            loaded = json.loads(raw)
-        except (OSError, UnicodeError) as exc:
-            raise PlanningServiceError("roadmap_unavailable", "Planning source could not be read") from exc
-        except json.JSONDecodeError as exc:
-            raise PlanningServiceError("invalid_json", "Planning source is not valid JSON") from exc
-        if not isinstance(loaded, dict):
-            raise PlanningServiceError("invalid_roadmap_shape", "Planning source JSON must be an object")
-        return loaded, raw
+        candidate = self._candidate_for_reference(_normalize_repo_path(relative))
+        _record, raw = self._snapshot_record(candidate)
+        return self._parse_json_snapshot(raw)
 
     def _filter_records(
         self,
@@ -3855,6 +4028,215 @@ def _create_roadmap_draft(
         "validation": validation,
         "roadmap": roadmap,
     }
+
+
+def _planning_path_identity(info: os.stat_result) -> _PlanningPathIdentity:
+    mtime = getattr(info, "st_mtime_ns", None)
+    if type(mtime) is not int:
+        mtime = int(info.st_mtime * 1_000_000_000)
+    ctime = getattr(info, "st_ctime_ns", None)
+    if type(ctime) is not int:
+        ctime = int(info.st_ctime * 1_000_000_000)
+    birthtime = getattr(info, "st_birthtime_ns", None)
+    if type(birthtime) is not int:
+        birthtime = ctime
+    attributes = getattr(info, "st_file_attributes", 0)
+    marker = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
+    reparse = type(attributes) is int and bool(attributes & marker)
+    return (
+        int(info.st_dev),
+        int(info.st_ino),
+        int(info.st_mode),
+        int(info.st_size),
+        mtime,
+        ctime,
+        1 if reparse else 0,
+        birthtime,
+    )
+
+
+def _planning_stable_identity(
+    identity: _PlanningPathIdentity,
+) -> tuple[int, int, int, int]:
+    return identity[0], identity[1], stat.S_IFMT(identity[2]), identity[6]
+
+
+def _planning_path_handle_match(
+    path: _PlanningPathIdentity,
+    handle: _PlanningPathIdentity,
+) -> bool:
+    if os.name != "nt":
+        return path == handle
+    return path[:5] == handle[:5] and path[6:] == handle[6:]
+
+
+def _planning_open_flags() -> int:
+    flags = os.O_RDONLY
+    for name in ("O_NONBLOCK", "O_NOFOLLOW", "O_BINARY", "O_NOINHERIT"):
+        value = getattr(os, name, 0)
+        if type(value) is int:
+            flags |= value
+    return flags
+
+
+def _verify_planning_directories(
+    directories: tuple[tuple[str, _PlanningPathIdentity], ...],
+) -> None:
+    for path, expected in directories:
+        try:
+            actual = _planning_path_identity(os.lstat(path))
+        except (OSError, ValueError):
+            raise PlanningServiceError(
+                "path_escape",
+                "Planning path is unavailable or unsafe",
+            ) from None
+        if (
+            not stat.S_ISDIR(actual[2])
+            or stat.S_ISLNK(actual[2])
+            or actual[6]
+            or _planning_stable_identity(actual) != _planning_stable_identity(expected)
+        ):
+            raise PlanningServiceError(
+                "path_escape",
+                "Planning path is unavailable or unsafe",
+            )
+
+
+def _verify_planning_candidate_parents(candidate: _PlanningJsonCandidate) -> None:
+    _verify_planning_directories(candidate.parent_identities)
+
+
+def _read_planning_json_candidate(candidate: _PlanningJsonCandidate) -> bytes:
+    _verify_planning_candidate_parents(candidate)
+    try:
+        before = _planning_path_identity(os.lstat(candidate.full_path))
+    except (OSError, ValueError):
+        raise PlanningServiceError(
+            "roadmap_metadata_unavailable",
+            "Planning source metadata is unavailable",
+        ) from None
+    if (
+        not stat.S_ISREG(before[2])
+        or stat.S_ISLNK(before[2])
+        or before[6]
+        or _planning_stable_identity(before)
+        != _planning_stable_identity(candidate.identity)
+    ):
+        raise PlanningServiceError(
+            "path_escape",
+            "Planning path is unavailable or unsafe",
+        )
+    if before != candidate.identity:
+        raise PlanningServiceError(
+            "roadmap_changed",
+            "Planning source changed during the read",
+        )
+    if before[3] > MAX_SOURCE_BYTES:
+        raise PlanningServiceError(
+            "roadmap_too_large",
+            "Planning source exceeds the read budget",
+        )
+
+    descriptor: int | None = None
+    try:
+        try:
+            descriptor = os.open(candidate.full_path, _planning_open_flags())
+        except (OSError, ValueError):
+            raise PlanningServiceError(
+                "roadmap_unavailable",
+                "Planning source could not be read",
+            ) from None
+        try:
+            opened = _planning_path_identity(os.fstat(descriptor))
+            second = _planning_path_identity(os.lstat(candidate.full_path))
+        except (OSError, ValueError):
+            raise PlanningServiceError(
+                "roadmap_metadata_unavailable",
+                "Planning source metadata is unavailable",
+            ) from None
+        _verify_planning_candidate_parents(candidate)
+        if (
+            not stat.S_ISREG(opened[2])
+            or stat.S_ISLNK(opened[2])
+            or opened[6]
+            or not stat.S_ISREG(second[2])
+            or stat.S_ISLNK(second[2])
+            or second[6]
+            or _planning_stable_identity(opened)
+            != _planning_stable_identity(candidate.identity)
+            or _planning_stable_identity(second)
+            != _planning_stable_identity(candidate.identity)
+        ):
+            raise PlanningServiceError(
+                "path_escape",
+                "Planning path is unavailable or unsafe",
+            )
+        if (
+            not _planning_path_handle_match(candidate.identity, opened)
+            or second != candidate.identity
+        ):
+            raise PlanningServiceError(
+                "roadmap_changed",
+                "Planning source changed during the read",
+            )
+
+        chunks: list[bytes] = []
+        total = 0
+        while total <= MAX_SOURCE_BYTES:
+            requested = min(65_536, MAX_SOURCE_BYTES + 1 - total)
+            try:
+                chunk = os.read(descriptor, requested)
+            except OSError:
+                raise PlanningServiceError(
+                    "roadmap_unavailable",
+                    "Planning source could not be read",
+                ) from None
+            if not chunk:
+                break
+            chunks.append(chunk)
+            total += len(chunk)
+        raw = b"".join(chunks)
+        if len(raw) > MAX_SOURCE_BYTES or len(raw) > candidate.identity[3]:
+            raise PlanningServiceError(
+                "roadmap_changed",
+                "Planning source changed during the read",
+            )
+        try:
+            final_opened = _planning_path_identity(os.fstat(descriptor))
+            final_path = _planning_path_identity(os.lstat(candidate.full_path))
+        except (OSError, ValueError):
+            raise PlanningServiceError(
+                "roadmap_metadata_unavailable",
+                "Planning source metadata is unavailable",
+            ) from None
+        _verify_planning_candidate_parents(candidate)
+        if (
+            final_opened != opened
+            or not _planning_path_handle_match(candidate.identity, final_opened)
+            or final_path != candidate.identity
+            or len(raw) != candidate.identity[3]
+        ):
+            if (
+                _planning_stable_identity(final_opened)
+                != _planning_stable_identity(candidate.identity)
+                or _planning_stable_identity(final_path)
+                != _planning_stable_identity(candidate.identity)
+            ):
+                raise PlanningServiceError(
+                    "path_escape",
+                    "Planning path is unavailable or unsafe",
+                )
+            raise PlanningServiceError(
+                "roadmap_changed",
+                "Planning source changed during the read",
+            )
+        return raw
+    finally:
+        if descriptor is not None:
+            try:
+                os.close(descriptor)
+            except OSError:
+                pass
 
 
 def _normalize_repo_path(value: str) -> str:

@@ -10,11 +10,16 @@ from src.coding_agent_backend import (
     CodingCheckCommand,
     CodingCommandResult,
     CodingPatchOperation,
+    apply_coding_patch_transaction,
     apply_coding_patch_set,
     build_coding_publish_plan,
     build_coding_subagent_plan,
     build_coding_task_plan,
+    build_coding_worktree_transaction_receipt,
+    build_transactional_coding_handoff_plan,
+    capture_coding_exact_read_receipt,
     create_coding_worktree,
+    create_transactional_coding_worktree,
     evaluate_coding_done_gate,
     evaluate_coding_quality_gate,
     evaluate_coding_worktree_gate,
@@ -193,6 +198,42 @@ def test_create_coding_worktree_blocks_dirty_source_repo(tmp_path: Path):
     assert "source repo has uncommitted changes" in report.blockers[0]
 
 
+def test_transactional_worktree_creation_records_clean_revision_and_rollback_boundary(tmp_path: Path):
+    repo = _repo_root(tmp_path)
+
+    def fake_runner(argv, *, cwd, timeout_seconds, env):
+        if argv == ("git", "status", "--porcelain"):
+            return CodingCommandResult(exit_code=0, stdout="")
+        if argv[:4] == ("git", "worktree", "add", "--detach"):
+            (Path(argv[4]) / ".git").mkdir(parents=True)
+            return CodingCommandResult(exit_code=0, stdout="prepared")
+        if argv == ("git", "rev-parse", "HEAD"):
+            return CodingCommandResult(exit_code=0, stdout="a" * 40 + "\n")
+        raise AssertionError(f"unexpected command: {argv!r} in {cwd!s}")
+
+    report = create_transactional_coding_worktree(
+        registry=_registry(),
+        repo_id="demo",
+        workspace_base=tmp_path,
+        objective="Add a transactional edit",
+        implementer_id="bob",
+        allowed_paths=["src"],
+        checks=[_check()],
+        task_id="transactional-edit",
+        worktree_base=tmp_path / "worktrees",
+        live_enabled=True,
+        operator_decision="go",
+        command_runner=fake_runner,
+    )
+
+    assert repo.exists()
+    assert report.ready is True
+    assert report.transaction is not None
+    assert report.transaction.base_revision == "a" * 40
+    assert report.transaction.to_dict()["rollback_ready"] is True
+    assert report.transaction.to_dict()["raw_content_visible"] is False
+
+
 def test_patch_set_applies_exact_replacement_inside_existing_worktree(tmp_path: Path):
     _repo_root(tmp_path)
     worktree_file = tmp_path / "worktrees" / "demo" / "backend-route" / "src" / "app.py"
@@ -230,6 +271,246 @@ def test_patch_set_applies_exact_replacement_inside_existing_worktree(tmp_path: 
     assert results[0].ok is True
     assert "return 'new'" in worktree_file.read_text(encoding="utf-8")
     assert "--- a/src/app.py" in results[0].diff
+
+
+def test_transactional_patch_binds_exact_read_diff_rollback_and_independent_review(tmp_path: Path):
+    _repo_root(tmp_path)
+    worktree_file = tmp_path / "worktrees" / "demo" / "backend-route" / "src" / "app.py"
+    worktree_file.parent.mkdir(parents=True)
+    worktree_file.write_bytes(b"VALUE = 'old'\n")
+    plan = build_coding_task_plan(
+        registry=_registry(),
+        repo_id="demo",
+        workspace_base=tmp_path,
+        objective="Update transaction helper",
+        allowed_paths=["src"],
+        checks=[_check()],
+        task_id="backend-route",
+        worktree_base=tmp_path / "worktrees",
+        allow_existing_worktree=True,
+        live_enabled=True,
+        operator_decision="go",
+    )
+    transaction = build_coding_worktree_transaction_receipt(
+        plan=plan,
+        base_revision="a" * 40,
+        source_status="",
+        implementer_id="bob",
+    )
+    read = capture_coding_exact_read_receipt(
+        plan=plan,
+        transaction=transaction,
+        repo_path="src/app.py",
+        reader_id="bob",
+        worktree_base=tmp_path / "worktrees",
+    )
+    patch = CodingPatchOperation.create(path="src/app.py", find="'old'", replace="'new'")
+    result = apply_coding_patch_transaction(
+        plan=plan,
+        transaction=transaction,
+        patches=[patch],
+        exact_reads=[read],
+        worktree_base=tmp_path / "worktrees",
+        live_enabled=True,
+        operator_decision="go",
+    )
+    quality = evaluate_coding_quality_gate(
+        changed_paths=result.changed_paths,
+        allowed_paths=plan.allowed_paths,
+        check_results=[CodingCommandResult(exit_code=0)],
+    )
+    self_review = evaluate_coding_done_gate(
+        quality_gate=quality,
+        review_decision="approved",
+        reviewed_by="bob",
+        implemented_by="bob",
+        content_reviewed=True,
+    )
+    done = evaluate_coding_done_gate(
+        quality_gate=quality,
+        review_decision="approved",
+        reviewed_by="charlie",
+        implemented_by="bob",
+        content_reviewed=True,
+    )
+    handoff = build_transactional_coding_handoff_plan(
+        plan=plan,
+        transaction=transaction,
+        patch_report=result,
+        done_gate=done,
+    )
+
+    assert result.applied is True
+    assert result.diff_digest.startswith("sha256:")
+    assert result.rollback_ready is True
+    assert "VALUE = 'new'" in worktree_file.read_text(encoding="utf-8")
+    assert worktree_file.read_bytes() == b"VALUE = 'new'\n"
+    assert self_review.done is False
+    assert "reviewer identity must differ from implementer" in self_review.blockers
+    assert handoff.decision == "plan_ready"
+
+
+def test_transactional_patch_rejects_a_stale_exact_read_without_writing(tmp_path: Path):
+    _repo_root(tmp_path)
+    worktree_file = tmp_path / "worktrees" / "demo" / "backend-route" / "src" / "app.py"
+    worktree_file.parent.mkdir(parents=True)
+    worktree_file.write_text("VALUE = 'old'\n", encoding="utf-8")
+    plan = build_coding_task_plan(
+        registry=_registry(), repo_id="demo", workspace_base=tmp_path,
+        objective="Keep exact reads fresh", allowed_paths=["src"], checks=[_check()],
+        task_id="backend-route", worktree_base=tmp_path / "worktrees",
+        allow_existing_worktree=True, live_enabled=True, operator_decision="go",
+    )
+    transaction = build_coding_worktree_transaction_receipt(
+        plan=plan, base_revision="b" * 40, source_status="", implementer_id="bob"
+    )
+    read = capture_coding_exact_read_receipt(
+        plan=plan, transaction=transaction, repo_path="src/app.py", reader_id="bob",
+        worktree_base=tmp_path / "worktrees",
+    )
+    worktree_file.write_text("VALUE = 'foreign'\n", encoding="utf-8")
+
+    result = apply_coding_patch_transaction(
+        plan=plan, transaction=transaction,
+        patches=[CodingPatchOperation.create(path="src/app.py", find="'old'", replace="'new'")],
+        exact_reads=[read], worktree_base=tmp_path / "worktrees",
+        live_enabled=True, operator_decision="go",
+    )
+
+    assert result.applied is False
+    assert "exact read receipt is stale: src/app.py" in result.blockers
+    assert "foreign" in worktree_file.read_text(encoding="utf-8")
+
+
+def test_duplicate_patch_paths_are_rejected_before_transactional_or_legacy_writes(tmp_path: Path):
+    _repo_root(tmp_path)
+    worktree_file = tmp_path / "worktrees" / "demo" / "backend-route" / "src" / "app.py"
+    worktree_file.parent.mkdir(parents=True)
+    original = b"VALUE = 'old'\n"
+    worktree_file.write_bytes(original)
+    plan = build_coding_task_plan(
+        registry=_registry(), repo_id="demo", workspace_base=tmp_path,
+        objective="Reject duplicate patch paths", allowed_paths=["src"], checks=[_check()],
+        task_id="backend-route", worktree_base=tmp_path / "worktrees",
+        allow_existing_worktree=True, live_enabled=True, operator_decision="go",
+    )
+    transaction = build_coding_worktree_transaction_receipt(
+        plan=plan, base_revision="c" * 40, source_status="", implementer_id="bob"
+    )
+    receipt = capture_coding_exact_read_receipt(
+        plan=plan, transaction=transaction, repo_path="src/app.py", reader_id="bob",
+        worktree_base=tmp_path / "worktrees",
+    )
+    duplicates = [
+        CodingPatchOperation.create(path="src/app.py", find="'old'", replace="'new'"),
+        CodingPatchOperation.create(path="src/app.py", find="'old'", replace="'other'"),
+    ]
+
+    strict = apply_coding_patch_transaction(
+        plan=plan, transaction=transaction, patches=duplicates, exact_reads=[receipt],
+        worktree_base=tmp_path / "worktrees", live_enabled=True, operator_decision="go",
+    )
+    legacy = apply_coding_patch_set(
+        plan=plan, patches=duplicates, worktree_base=tmp_path / "worktrees",
+        live_enabled=True, operator_decision="go",
+    )
+
+    assert strict.applied is False
+    assert "patch transaction contains duplicate paths: src/app.py" in strict.blockers
+    assert all(result.ok is False for result in legacy)
+    assert all("patch transaction contains duplicate paths: src/app.py" == result.blocker for result in legacy)
+    assert worktree_file.read_bytes() == original
+
+
+def test_transactional_rollback_restores_the_partially_written_failing_target(tmp_path: Path, monkeypatch):
+    _repo_root(tmp_path)
+    worktree_root = tmp_path / "worktrees" / "demo" / "backend-route" / "src"
+    first = worktree_root / "first.py"
+    failing = worktree_root / "failing.py"
+    worktree_root.mkdir(parents=True)
+    originals = {first: b"VALUE = 'old'\n", failing: b"VALUE = 'old'\n"}
+    for path, content in originals.items():
+        path.write_bytes(content)
+    plan = build_coding_task_plan(
+        registry=_registry(), repo_id="demo", workspace_base=tmp_path,
+        objective="Rollback partial transactional writes", allowed_paths=["src"], checks=[_check()],
+        task_id="backend-route", worktree_base=tmp_path / "worktrees",
+        allow_existing_worktree=True, live_enabled=True, operator_decision="go",
+    )
+    transaction = build_coding_worktree_transaction_receipt(
+        plan=plan, base_revision="d" * 40, source_status="", implementer_id="bob"
+    )
+    reads = [
+        capture_coding_exact_read_receipt(
+            plan=plan, transaction=transaction, repo_path=f"src/{path.name}", reader_id="bob",
+            worktree_base=tmp_path / "worktrees",
+        )
+        for path in (first, failing)
+    ]
+    original_write = Path.write_bytes
+    failed_once = False
+
+    def partial_write(path: Path, content: bytes):
+        nonlocal failed_once
+        if path == failing and not failed_once:
+            failed_once = True
+            original_write(path, b"partial-write")
+            raise OSError("injected partial write")
+        return original_write(path, content)
+
+    monkeypatch.setattr(Path, "write_bytes", partial_write)
+    report = apply_coding_patch_transaction(
+        plan=plan, transaction=transaction,
+        patches=[
+            CodingPatchOperation.create(path="src/first.py", find="'old'", replace="'new'"),
+            CodingPatchOperation.create(path="src/failing.py", find="'old'", replace="'new'"),
+        ],
+        exact_reads=reads, worktree_base=tmp_path / "worktrees",
+        live_enabled=True, operator_decision="go",
+    )
+
+    assert report.status == "rolled_back"
+    assert {path: path.read_bytes() for path in originals} == originals
+
+
+def test_legacy_rollback_restores_the_partially_written_failing_target(tmp_path: Path, monkeypatch):
+    _repo_root(tmp_path)
+    worktree_root = tmp_path / "worktrees" / "demo" / "backend-route" / "src"
+    first = worktree_root / "first.py"
+    failing = worktree_root / "failing.py"
+    worktree_root.mkdir(parents=True)
+    originals = {first: b"VALUE = 'old'\n", failing: b"VALUE = 'old'\n"}
+    for path, content in originals.items():
+        path.write_bytes(content)
+    plan = build_coding_task_plan(
+        registry=_registry(), repo_id="demo", workspace_base=tmp_path,
+        objective="Rollback partial legacy writes", allowed_paths=["src"], checks=[_check()],
+        task_id="backend-route", worktree_base=tmp_path / "worktrees",
+        allow_existing_worktree=True, live_enabled=True, operator_decision="go",
+    )
+    original_write = Path.write_bytes
+    failed_once = False
+
+    def partial_write(path: Path, content: bytes):
+        nonlocal failed_once
+        if path == failing and not failed_once:
+            failed_once = True
+            original_write(path, b"partial-write")
+            raise OSError("injected partial write")
+        return original_write(path, content)
+
+    monkeypatch.setattr(Path, "write_bytes", partial_write)
+    results = apply_coding_patch_set(
+        plan=plan,
+        patches=[
+            CodingPatchOperation.create(path="src/first.py", find="'old'", replace="'new'"),
+            CodingPatchOperation.create(path="src/failing.py", find="'old'", replace="'new'"),
+        ],
+        worktree_base=tmp_path / "worktrees", live_enabled=True, operator_decision="go",
+    )
+
+    assert all(result.ok is False for result in results)
+    assert {path: path.read_bytes() for path in originals} == originals
 
 
 def test_worktree_gate_derives_changed_paths_and_runs_checks(tmp_path: Path):
@@ -398,8 +679,8 @@ def test_coding_agent_routes_create_plan_and_quality_gate(tmp_path: Path, monkey
     assert plan.status_code == 200
     assert plan.json()["success"] is True
     assert plan.json()["coding_task"]["worktree_ref"] == "coding-worktrees/demo/add-route"
-    assert plan.json()["runner_state"]["phase"] == "scoped"
-    assert plan.json()["runner_state"]["progress_percent"] == 20
+    assert plan.json()["runner_state"]["phase"] == "blocked"
+    assert plan.json()["runner_state"]["gates_waiting"] == ["planning_authority"]
     assert plan.json()["agent_task"]["surface"] == "workstation"
     assert plan.json()["agent_task"]["target_ref"] == "repo:demo"
     assert plan.json()["agent_task"]["status"] == "planned"
@@ -409,7 +690,7 @@ def test_coding_agent_routes_create_plan_and_quality_gate(tmp_path: Path, monkey
     assert tasks.json()["records"][0]["task_type"] == "coding_agent_task"
     state = client.get("/api/coding-agent/runner-state/add-route")
     assert state.status_code == 200
-    assert state.json()["runner_state"]["phase"] == "scoped"
+    assert state.json()["runner_state"]["phase"] == "blocked"
     assert gate.status_code == 200
     assert gate.json()["success"] is True
     dumped = json.dumps({"plan": plan.json(), "gate": gate.json()})

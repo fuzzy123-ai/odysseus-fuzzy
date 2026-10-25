@@ -446,6 +446,8 @@ class StructuralMappingCatalog:
 
 
 class StructuralQueryProvider:
+    product_registerable = False
+
     def __init__(self, transport: StructuralQueryTransport, catalog: StructuralMappingCatalog) -> None:
         if not hasattr(transport, "query_structural"):
             raise CodebaseMemoryQueryError("transport must implement query_structural")

@@ -325,6 +325,327 @@ def test_timeout_fails_closed_without_raw_details(tmp_path, monkeypatch) -> None
     assert "private" not in json.dumps(outcome.to_dict(spec))
 
 
+def _impact_rules():
+    return [
+        {
+            "rule_id": "verify-source",
+            "kind": "exact",
+            "path": "scripts/verify.py",
+            "tests": ["tests/test_verify_entrypoint.py"],
+        },
+        {
+            "rule_id": "taxonomy-source",
+            "kind": "prefix",
+            "path": "tests/_taxonomy.py",
+            "tests": ["tests/test_taxonomy.py", "tests/test_run_focus.py"],
+        },
+        {
+            "rule_id": "shared-python-policy",
+            "kind": "shared",
+            "path": "pyproject.toml",
+            "tests": [],
+        },
+    ]
+
+
+def _quality_measurements(*, lint=(), typing=(), covered=90, total=100):
+    return {
+        "lint": [{"rule_id": rule, "count": count} for rule, count in lint],
+        "type": [{"rule_id": rule, "count": count} for rule, count in typing],
+        "coverage": {"covered": covered, "total": total},
+    }
+
+
+def _focused_plan(verify):
+    return verify.build_diff_impact_plan(
+        base_revision="a" * 40,
+        head_revision="b" * 40,
+        changed_paths=["scripts/verify.py"],
+        mapping_rules=_impact_rules(),
+        full_test_lane=[
+            "tests/test_run_focus.py",
+            "tests/test_taxonomy.py",
+            "tests/test_verify_entrypoint.py",
+        ],
+    )
+
+
+def test_diff_plan_explains_direct_and_reviewed_path_mappings() -> None:
+    verify = _load_verify()
+    plan = verify.build_diff_impact_plan(
+        base_revision="a" * 40,
+        head_revision="b" * 40,
+        changed_paths=["tests/test_taxonomy.py", "scripts/verify.py"],
+        mapping_rules=_impact_rules(),
+        full_test_lane=[
+            "tests/test_run_focus.py",
+            "tests/test_taxonomy.py",
+            "tests/test_verify_entrypoint.py",
+        ],
+    )
+
+    assert plan["status"] == "planned"
+    assert plan["selection"] == "focused"
+    assert plan["selected_tests"] == [
+        "tests/test_taxonomy.py",
+        "tests/test_verify_entrypoint.py",
+    ]
+    assert plan["explanations"] == [
+        {
+            "changed_path": "scripts/verify.py",
+            "rule_id": "verify-source",
+            "reason": "reviewed_exact_mapping",
+            "selected_tests": ["tests/test_verify_entrypoint.py"],
+        },
+        {
+            "changed_path": "tests/test_taxonomy.py",
+            "rule_id": "direct_test_change",
+            "reason": "direct_test_change",
+            "selected_tests": ["tests/test_taxonomy.py"],
+        },
+    ]
+
+
+def test_diff_plan_selects_changed_tests_and_deduplicates_deterministically() -> None:
+    verify = _load_verify()
+    kwargs = {
+        "base_revision": "a" * 40,
+        "head_revision": "b" * 40,
+        "mapping_rules": _impact_rules(),
+        "full_test_lane": [
+            "tests/test_verify_entrypoint.py",
+            "tests/test_taxonomy.py",
+            "tests/test_run_focus.py",
+        ],
+    }
+
+    first = verify.build_diff_impact_plan(
+        changed_paths=[
+            "tests\\test_taxonomy.py",
+            "scripts/verify.py",
+            "tests/test_taxonomy.py",
+        ],
+        **kwargs,
+    )
+    second = verify.build_diff_impact_plan(
+        changed_paths=["scripts/verify.py", "tests/test_taxonomy.py"],
+        **kwargs,
+    )
+
+    assert first == second
+    assert first["changed_paths"] == [
+        "scripts/verify.py",
+        "tests/test_taxonomy.py",
+    ]
+
+
+def test_diff_plan_widens_shared_contracts_to_full_lane() -> None:
+    verify = _load_verify()
+    plan = verify.build_diff_impact_plan(
+        base_revision="a" * 40,
+        head_revision="b" * 40,
+        changed_paths=["pyproject.toml", "scripts/verify.py"],
+        mapping_rules=_impact_rules(),
+        full_test_lane=[
+            "tests/test_verify_entrypoint.py",
+            "tests/test_run_focus.py",
+            "tests/test_taxonomy.py",
+        ],
+    )
+
+    assert plan["selection"] == "full"
+    assert plan["selected_tests"] == [
+        "tests/test_run_focus.py",
+        "tests/test_taxonomy.py",
+        "tests/test_verify_entrypoint.py",
+    ]
+    assert any(
+        item["rule_id"] == "shared-python-policy"
+        and item["reason"] == "shared_contract_widening"
+        for item in plan["explanations"]
+    )
+
+
+def test_diff_plan_unmapped_ambiguous_or_unsafe_paths_fail_closed() -> None:
+    verify = _load_verify()
+    common = {
+        "base_revision": "a" * 40,
+        "head_revision": "b" * 40,
+        "full_test_lane": ["tests/test_verify_entrypoint.py"],
+    }
+    unmapped = verify.build_diff_impact_plan(
+        changed_paths=["src/unmapped.py"],
+        mapping_rules=_impact_rules(),
+        **common,
+    )
+    ambiguous_rules = _impact_rules() + [
+        {
+            "rule_id": "verify-conflict",
+            "kind": "exact",
+            "path": "scripts/verify.py",
+            "tests": ["tests/test_taxonomy.py"],
+        }
+    ]
+    ambiguous = verify.build_diff_impact_plan(
+        changed_paths=["scripts/verify.py"],
+        mapping_rules=ambiguous_rules,
+        **common,
+    )
+
+    assert unmapped["selection"] == "full"
+    assert unmapped["fail_closed_reasons"] == ["unmapped_path"]
+    assert ambiguous["selection"] == "full"
+    assert ambiguous["fail_closed_reasons"] == ["ambiguous_mapping"]
+    for path in ("../private.py", "/absolute.py", "C:\\private.py", "bad\x00.py"):
+        unavailable = verify.build_diff_impact_plan(
+            changed_paths=[path], mapping_rules=_impact_rules(), **common
+        )
+        assert unavailable["status"] == "unavailable"
+        assert unavailable["selected_tests"] == ["tests/test_verify_entrypoint.py"]
+
+
+def test_diff_plan_binds_base_head_changed_paths_and_plan_digest() -> None:
+    verify = _load_verify()
+    plan = _focused_plan(verify)
+
+    assert plan["base_revision"] == "a" * 40
+    assert plan["head_revision"] == "b" * 40
+    assert plan["changed_paths"] == ["scripts/verify.py"]
+    assert plan["plan_digest"].startswith("sha256:")
+    assert verify.validate_diff_impact_plan(plan) == plan
+    changed = dict(plan, head_revision="c" * 40)
+    with pytest.raises(verify.VerificationConfigError, match="digest"):
+        verify.validate_diff_impact_plan(changed)
+
+
+def test_quality_ratchet_reports_visible_baseline_and_candidate_debt_by_rule() -> None:
+    verify = _load_verify()
+    result = verify.evaluate_quality_ratchet(
+        plan=_focused_plan(verify),
+        baseline=_quality_measurements(
+            lint=(("E1", 3), ("E2", 1)), typing=(("arg-type", 2),)
+        ),
+        candidate=_quality_measurements(
+            lint=(("E1", 2), ("E2", 1)), typing=(("arg-type", 2),)
+        ),
+    )
+
+    assert result["status"] == "passed"
+    assert result["baseline_debt"] == {
+        "lint": {"E1": 3, "E2": 1},
+        "type": {"arg-type": 2},
+    }
+    assert result["candidate_debt"] == {
+        "lint": {"E1": 2, "E2": 1},
+        "type": {"arg-type": 2},
+    }
+    assert result["coverage"] == {
+        "baseline": {"covered": 90, "total": 100},
+        "candidate": {"covered": 90, "total": 100},
+    }
+
+
+def test_quality_ratchet_rejects_lint_or_type_regression_without_cross_rule_offset() -> None:
+    verify = _load_verify()
+    result = verify.evaluate_quality_ratchet(
+        plan=_focused_plan(verify),
+        baseline=_quality_measurements(
+            lint=(("E1", 4), ("E2", 0)), typing=(("arg-type", 1),)
+        ),
+        candidate=_quality_measurements(
+            lint=(("E1", 0), ("E2", 1)), typing=(("arg-type", 2),)
+        ),
+    )
+
+    assert result["status"] == "failed"
+    assert result["regressions"] == [
+        {"kind": "lint", "rule_id": "E2", "baseline": 0, "candidate": 1},
+        {
+            "kind": "type",
+            "rule_id": "arg-type",
+            "baseline": 1,
+            "candidate": 2,
+        },
+    ]
+
+
+def test_quality_ratchet_rejects_coverage_regression_and_changed_denominator() -> None:
+    verify = _load_verify()
+    decreased = verify.evaluate_quality_ratchet(
+        plan=_focused_plan(verify),
+        baseline=_quality_measurements(covered=9001, total=10000),
+        candidate=_quality_measurements(covered=9000, total=10000),
+    )
+    changed = verify.evaluate_quality_ratchet(
+        plan=_focused_plan(verify),
+        baseline=_quality_measurements(covered=90, total=100),
+        candidate=_quality_measurements(covered=99, total=110),
+    )
+
+    assert decreased["status"] == "failed"
+    assert decreased["regressions"] == [
+        {
+            "kind": "coverage",
+            "reason": "coverage_decreased",
+            "baseline": {"covered": 9001, "total": 10000},
+            "candidate": {"covered": 9000, "total": 10000},
+        }
+    ]
+    assert changed["status"] == "failed"
+    assert changed["regressions"][0]["reason"] == "coverage_denominator_changed"
+
+
+def test_quality_ratchet_missing_tool_base_or_measurement_is_unavailable_not_passed() -> None:
+    verify = _load_verify()
+    plan = _focused_plan(verify)
+    cases = (
+        (None, _quality_measurements()),
+        (_quality_measurements(), None),
+        (_quality_measurements(), {"lint": [], "type": []}),
+    )
+
+    for baseline, candidate in cases:
+        result = verify.evaluate_quality_ratchet(
+            plan=plan, baseline=baseline, candidate=candidate
+        )
+        assert result["status"] == "unavailable"
+        assert result["regressions"] == []
+        assert result["ratchet_digest"].startswith("sha256:")
+
+
+def test_diff_receipt_rejects_repository_drift_and_binds_ratchet_digest() -> None:
+    verify = _load_verify()
+    plan = _focused_plan(verify)
+    ratchet = verify.evaluate_quality_ratchet(
+        plan=plan,
+        baseline=_quality_measurements(lint=(("E1", 1),)),
+        candidate=_quality_measurements(lint=(("E1", 1),)),
+    )
+    binding = {
+        "head_commit": "b" * 40,
+        "workspace_state": "dirty_diff",
+        "dirty_diff_digest": "c" * 64,
+    }
+    receipt = verify.build_diff_quality_receipt(
+        plan=plan,
+        ratchet=ratchet,
+        binding_before=binding,
+        binding_after=dict(binding),
+    )
+
+    assert receipt["plan_digest"] == plan["plan_digest"]
+    assert receipt["ratchet_digest"] == ratchet["ratchet_digest"]
+    assert receipt["result"] == "passed"
+    assert str(ROOT) not in json.dumps(receipt, sort_keys=True)
+    with pytest.raises(verify.ReceiptError, match="changed during verification"):
+        verify.build_diff_quality_receipt(
+            plan=plan,
+            ratchet=ratchet,
+            binding_before=binding,
+            binding_after=dict(binding, dirty_diff_digest="d" * 64),
+        )
+
+
 def test_cli_lists_registry_and_dry_run_is_content_free() -> None:
     listed = subprocess.run(
         [sys.executable, str(SCRIPT), "--list"],

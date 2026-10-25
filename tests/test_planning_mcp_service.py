@@ -2,6 +2,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import traceback
 
 import pytest
 
@@ -201,6 +202,1619 @@ def _nested_keys(value: object) -> set[str]:
     if isinstance(value, list):
         return {nested for item in value for nested in _nested_keys(item)}
     return set()
+
+
+def _owner_source_service(
+    tmp_path: Path,
+    *,
+    definition: dict | None = None,
+    source_ref: str = "docs/plans/owner-source.json",
+):
+    from src.planning_revision_store import PlanningRevisionStore
+
+    payload = definition or _definition_v2()
+    source = tmp_path.joinpath(*source_ref.split("/"))
+    _write_json(source, payload)
+    store = PlanningRevisionStore(
+        [("owner-1", payload, source_ref)],
+        cursor_secret=b"owner-source-test-secret",
+    )
+    service = PlanningMcpService(
+        tmp_path,
+        definition_store=store,
+        definition_owner="owner-1",
+    )
+    return service, store, payload, source
+
+
+def test_owner_markdown_capture_and_read_preserve_exact_approved_body(
+    tmp_path: Path,
+) -> None:
+    from src.planning_definition_contract import compute_roadmap_content_hash
+    from src.planning_revision_store import PlanningRevisionStore
+
+    source_ref = "docs/plans/rendered-handoff.md"
+    body = "# Exact handoff\r\n\r\nUnicode: Odysseus λ\r\n"
+    raw = body.encode("utf-8")
+    body_path = tmp_path.joinpath(*source_ref.split("/"))
+    body_path.parent.mkdir(parents=True, exist_ok=True)
+    body_path.write_bytes(raw)
+    definition = _definition_v2()
+    definition["roadmaps"][0]["source_refs"] = [source_ref]
+    definition["roadmaps"][0]["content_hash"] = compute_roadmap_content_hash(
+        definition["roadmaps"][0]
+    )
+    definition["project"]["latest_approved_revision"]["core-map"]["content_hash"] = (
+        definition["roadmaps"][0]["content_hash"]
+    )
+    planning_ref = "docs/plans/owner-source.json"
+    planning_path = tmp_path.joinpath(*planning_ref.split("/"))
+    _write_json(planning_path, definition)
+    store = PlanningRevisionStore(
+        [("owner-1", definition, planning_ref)],
+        cursor_secret=b"owner-markdown-test-secret",
+    )
+    service = PlanningMcpService(
+        tmp_path,
+        definition_store=store,
+        definition_owner="owner-1",
+        owner_markdown_selections=(
+            {
+                "owner_ref": "owner-1",
+                "project_id": "demo-project",
+                "roadmap_id": "core-map",
+                "source_ref": source_ref,
+                "expected_body_sha256": "sha256:" + hashlib.sha256(raw).hexdigest(),
+            },
+        ),
+    )
+
+    captured = service.capture_owner_markdown_snapshot("owner-1")
+    descriptor = captured["descriptors"][0]
+    read = service.read_owner_markdown_body(
+        descriptor,
+        expected_owner_ref="owner-1",
+        expected_snapshot_digest=captured["snapshot_digest"],
+    )
+
+    assert set(captured) == {
+        "schema_id",
+        "owner_ref",
+        "selection_mode",
+        "selection_digest",
+        "planning_snapshot_digest",
+        "descriptors",
+        "eligible_count",
+        "classification",
+        "content_policy",
+        "owner_policy_ref",
+        "body_exact",
+        "canonical_truth",
+        "read_only",
+        "writes_performed",
+        "snapshot_digest",
+    }
+    assert set(descriptor) == {
+        "schema_id",
+        "owner_ref",
+        "project_id",
+        "roadmap_id",
+        "approved_revision",
+        "domain_content_hash",
+        "canonical_projection_hash",
+        "planning_source_ref",
+        "planning_snapshot_digest",
+        "selection_digest",
+        "source_ref",
+        "body_sha256",
+        "byte_count",
+        "classification",
+        "content_policy",
+        "owner_policy_ref",
+        "body_exact",
+        "canonical_truth",
+        "version_digest",
+    }
+    assert set(read) == {
+        "schema_id",
+        "owner_ref",
+        "snapshot_digest",
+        "selection_digest",
+        "planning_snapshot_digest",
+        "descriptor",
+        "content",
+        "body_sha256",
+        "byte_count",
+        "classification",
+        "content_policy",
+        "owner_policy_ref",
+        "body_exact",
+        "canonical_truth",
+        "read_only",
+        "writes_performed",
+    }
+    assert captured["schema_id"] == "odysseus.planning.owner_markdown_capture.v1"
+    assert captured["selection_mode"] == "explicit_approved_ref_and_expected_bytes"
+    assert descriptor["schema_id"] == "odysseus.planning.owner_markdown_descriptor.v1"
+    assert read["schema_id"] == "odysseus.planning.owner_markdown_body_read.v1"
+    assert read["content"] == body
+    assert read["body_sha256"] == "sha256:" + hashlib.sha256(raw).hexdigest()
+    assert read["byte_count"] == len(raw)
+    assert read["descriptor"] == descriptor
+    assert captured["classification"] == read["classification"] == "private"
+    assert captured["content_policy"] == read["content_policy"] == "inline_local"
+    assert captured["body_exact"] is read["body_exact"] is True
+    assert captured["canonical_truth"] is read["canonical_truth"] is False
+    assert captured["read_only"] is read["read_only"] is True
+    assert captured["writes_performed"] is read["writes_performed"] is False
+
+
+def _owner_markdown_test_service(
+    tmp_path: Path,
+    raw: bytes,
+    *,
+    definition: dict | None = None,
+    body_ref: str = "docs/plans/rendered-handoff.md",
+    selection_rows: tuple[dict[str, str], ...] | None = None,
+):
+    from src.planning_definition_contract import compute_roadmap_content_hash
+    from src.planning_revision_store import PlanningRevisionStore
+
+    payload = definition or _definition_v2()
+    if definition is None:
+        payload["roadmaps"][0]["source_refs"] = [body_ref]
+        payload["roadmaps"][0]["content_hash"] = compute_roadmap_content_hash(
+            payload["roadmaps"][0]
+        )
+        payload["project"]["latest_approved_revision"]["core-map"]["content_hash"] = (
+            payload["roadmaps"][0]["content_hash"]
+        )
+    body_path = tmp_path.joinpath(*body_ref.split("/"))
+    body_path.parent.mkdir(parents=True, exist_ok=True)
+    body_path.write_bytes(raw)
+    planning_ref = "docs/plans/owner-source.json"
+    _write_json(tmp_path.joinpath(*planning_ref.split("/")), payload)
+    store = PlanningRevisionStore(
+        [("owner-1", payload, planning_ref)],
+        cursor_secret=b"owner-markdown-hostile-test-secret",
+    )
+    if selection_rows is None:
+        selection_rows = ({
+            "owner_ref": "owner-1",
+            "project_id": "demo-project",
+            "roadmap_id": "core-map",
+            "source_ref": body_ref,
+            "expected_body_sha256": "sha256:" + hashlib.sha256(raw).hexdigest(),
+        },)
+    service = PlanningMcpService(
+        tmp_path, definition_store=store, definition_owner="owner-1",
+        owner_markdown_selections=selection_rows,
+    )
+    return service, store, payload, body_path
+
+
+def test_owner_markdown_default_empty_and_unselected_reference_never_touch_markdown(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    import src.planning_mcp_service as service_module
+
+    selected, store, _definition, _body_path = _owner_markdown_test_service(
+        tmp_path, b"approved body"
+    )
+    selected_capture = selected.capture_owner_markdown_snapshot("owner-1")
+    service = PlanningMcpService(
+        tmp_path, definition_store=store, definition_owner="owner-1"
+    )
+    markdown_io = {"lstat": 0, "open": 0}
+    original_lstat = service_module.os.lstat
+    original_open = service_module.os.open
+
+    def tracking_lstat(path):
+        if os.fspath(path).lower().endswith((".md", ".markdown")):
+            markdown_io["lstat"] += 1
+        return original_lstat(path)
+
+    def tracking_open(path, flags):
+        if os.fspath(path).lower().endswith((".md", ".markdown")):
+            markdown_io["open"] += 1
+        return original_open(path, flags)
+
+    monkeypatch.setattr(service_module.os, "lstat", tracking_lstat)
+    monkeypatch.setattr(service_module.os, "open", tracking_open)
+    capture = service.capture_owner_markdown_snapshot("owner-1")
+    assert capture["descriptors"] == []
+    assert capture["eligible_count"] == 0
+    with pytest.raises(PlanningServiceError) as denied:
+        service.read_owner_markdown_body(
+            selected_capture["descriptors"][0], expected_owner_ref="owner-1",
+            expected_snapshot_digest=selected_capture["snapshot_digest"],
+        )
+    assert denied.value.code == "owner_markdown_stale"
+    assert markdown_io == {"lstat": 0, "open": 0}
+
+
+def test_owner_markdown_selection_is_exact_detached_and_errors_are_context_free(
+    tmp_path: Path,
+) -> None:
+    row = {
+        "owner_ref": "owner-1", "project_id": "demo-project",
+        "roadmap_id": "core-map", "source_ref": "docs/plans/rendered-handoff.md",
+        "expected_body_sha256": "sha256:" + hashlib.sha256(b"body").hexdigest(),
+    }
+    service, _store, _definition, _path = _owner_markdown_test_service(
+        tmp_path, b"body", selection_rows=(row,)
+    )
+    original_row = {**row}
+    row["source_ref"] = "docs/plans/other.md"
+    first_capture = service.capture_owner_markdown_snapshot("owner-1")
+    assert first_capture["eligible_count"] == 1
+    first_capture["descriptors"][0]["source_ref"] = "docs/plans/mutated.md"
+    assert (service.capture_owner_markdown_snapshot("owner-1")["descriptors"][0][
+        "source_ref"
+    ] == original_row["source_ref"])
+
+    class DictSubclass(dict):
+        pass
+
+    class StrSubclass(str):
+        pass
+
+    conflicting = {
+        **original_row, "roadmap_id": "other-map",
+        "expected_body_sha256": "sha256:" + hashlib.sha256(b"different").hexdigest(),
+    }
+    invalid = [
+        [dict(original_row)],
+        (DictSubclass(original_row),),
+        ({**original_row, "source_ref": StrSubclass(original_row["source_ref"])},),
+        ({**original_row, "source_ref": "docs/plans/../private.md"},),
+        ({**original_row, "expected_body_sha256": "sha256:" + ("A" * 64)},),
+        (dict(original_row), dict(original_row)),
+        (dict(original_row), conflicting),
+    ]
+    for value in invalid:
+        with pytest.raises(PlanningServiceError) as rejected:
+            PlanningMcpService(
+                tmp_path, definition_owner="owner-1", owner_markdown_selections=value
+            )
+        assert rejected.value.code == "owner_markdown_invalid_selection"
+        assert rejected.value.__cause__ is None
+        assert rejected.value.__context__ is None
+
+
+def test_owner_markdown_unapproved_ref_fails_before_body_io(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    import src.planning_mcp_service as service_module
+    from src.planning_definition_contract import compute_roadmap_content_hash
+
+    definition = _definition_v2()
+    definition["roadmaps"][0]["source_refs"] = ["docs/plans/approved.md"]
+    definition["roadmaps"][0]["content_hash"] = compute_roadmap_content_hash(
+        definition["roadmaps"][0]
+    )
+    definition["project"]["latest_approved_revision"]["core-map"]["content_hash"] = (
+        definition["roadmaps"][0]["content_hash"]
+    )
+    service, _store, _payload, _path = _owner_markdown_test_service(
+        tmp_path, b"unapproved", definition=definition,
+        body_ref="docs/plans/unapproved.md",
+    )
+    touched = {"markdown": 0}
+    original_lstat = service_module.os.lstat
+
+    def tracking_lstat(path):
+        if os.fspath(path).lower().endswith((".md", ".markdown")):
+            touched["markdown"] += 1
+        return original_lstat(path)
+
+    monkeypatch.setattr(service_module.os, "lstat", tracking_lstat)
+    with pytest.raises(PlanningServiceError) as rejected:
+        service.capture_owner_markdown_snapshot("owner-1")
+    assert rejected.value.code == "owner_markdown_stale"
+    assert touched["markdown"] == 0
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        b"", b"line one\nline two\n", b"line one\r\nline two\r\n",
+        "Unicode λ 東京\n".encode("utf-8"), b"\xef\xbb\xbf# BOM\r\n",
+        b"x" * 2_000_000,
+    ],
+    ids=["empty", "lf", "crlf", "unicode", "bom", "exact-byte-limit"],
+)
+def test_owner_markdown_preserves_exact_utf8_bytes_and_boundary(
+    tmp_path: Path, raw: bytes,
+) -> None:
+    service, _store, _definition, _path = _owner_markdown_test_service(tmp_path, raw)
+    capture = service.capture_owner_markdown_snapshot("owner-1")
+    descriptor = capture["descriptors"][0]
+    read = service.read_owner_markdown_body(
+        descriptor, expected_owner_ref="owner-1",
+        expected_snapshot_digest=capture["snapshot_digest"],
+    )
+    assert read["content"] == raw.decode("utf-8", "strict")
+    assert read["byte_count"] == len(raw)
+    assert read["body_sha256"] == "sha256:" + hashlib.sha256(raw).hexdigest()
+
+
+@pytest.mark.parametrize("raw", [b"bad \xff utf8", b"contains\x00nul"])
+def test_owner_markdown_rejects_invalid_body_without_raw_error_context(
+    tmp_path: Path, raw: bytes,
+) -> None:
+    service, _store, _definition, _path = _owner_markdown_test_service(tmp_path, raw)
+    with pytest.raises(PlanningServiceError) as rejected:
+        service.capture_owner_markdown_snapshot("owner-1")
+    assert rejected.value.code == "owner_markdown_invalid_body"
+    assert rejected.value.__cause__ is None
+    assert rejected.value.__context__ is None
+    assert os.fspath(tmp_path) not in str(rejected.value)
+
+
+def test_owner_markdown_stale_replacement_and_malformed_descriptor_fail_closed(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    import src.planning_mcp_service as service_module
+
+    service, _store, _definition, body_path = _owner_markdown_test_service(
+        tmp_path, b"first body"
+    )
+    capture = service.capture_owner_markdown_snapshot("owner-1")
+    malformed = dict(capture["descriptors"][0])
+    malformed["byte_count"] = True
+    opened = {"markdown": 0}
+    original_open = service_module.os.open
+
+    def tracking_open(path, flags):
+        if os.fspath(path).lower().endswith((".md", ".markdown")):
+            opened["markdown"] += 1
+        return original_open(path, flags)
+
+    monkeypatch.setattr(service_module.os, "open", tracking_open)
+    with pytest.raises(PlanningServiceError) as invalid:
+        service.read_owner_markdown_body(
+            malformed, expected_owner_ref="owner-1",
+            expected_snapshot_digest=capture["snapshot_digest"],
+        )
+    assert invalid.value.code == "owner_markdown_invalid_request"
+    assert opened["markdown"] == 0
+    body_path.write_bytes(b"other body")
+    with pytest.raises(PlanningServiceError) as stale:
+        service.read_owner_markdown_body(
+            capture["descriptors"][0], expected_owner_ref="owner-1",
+            expected_snapshot_digest=capture["snapshot_digest"],
+        )
+    assert stale.value.code == "owner_markdown_stale"
+    assert stale.value.__cause__ is None
+    assert stale.value.__context__ is None
+
+
+def test_owner_markdown_shared_ref_reads_once_and_store_swap_is_stale(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    import src.planning_mcp_service as service_module
+    from src.planning_definition_contract import compute_roadmap_content_hash
+    from src.planning_revision_store import PlanningRevisionStore
+
+    raw = b"shared body"
+    source_ref = "docs/plans/shared.md"
+    definition = _second_roadmap_definition()
+    rows = []
+    for roadmap in definition["roadmaps"]:
+        roadmap["source_refs"] = [source_ref]
+        roadmap["content_hash"] = compute_roadmap_content_hash(roadmap)
+        definition["project"]["latest_approved_revision"][roadmap["roadmap_id"]][
+            "content_hash"
+        ] = roadmap["content_hash"]
+        rows.append({
+            "owner_ref": "owner-1", "project_id": "demo-project",
+            "roadmap_id": roadmap["roadmap_id"], "source_ref": source_ref,
+            "expected_body_sha256": "sha256:" + hashlib.sha256(raw).hexdigest(),
+        })
+    service, _store, payload, _path = _owner_markdown_test_service(
+        tmp_path, raw, definition=definition, body_ref=source_ref,
+        selection_rows=tuple(rows),
+    )
+    original = service_module._read_owner_source_candidate_raw
+    counts = {"markdown": 0}
+
+    def tracking(candidate, *, total_remaining):
+        result = original(candidate, total_remaining=total_remaining)
+        if candidate.relative_path.lower().endswith((".md", ".markdown")):
+            counts["markdown"] += 1
+        return result
+
+    monkeypatch.setattr(service_module, "_read_owner_source_candidate_raw", tracking)
+    capture = service.capture_owner_markdown_snapshot("owner-1")
+    assert len(capture["descriptors"]) == 2
+    assert counts["markdown"] == 1
+
+    replacement = PlanningRevisionStore(
+        [("owner-1", payload, "docs/plans/owner-source.json")],
+        cursor_secret=b"equivalent-replacement-store",
+    )
+    swapped = {"done": False}
+
+    def swapping(candidate, *, total_remaining):
+        result = original(candidate, total_remaining=total_remaining)
+        if candidate.relative_path.lower().endswith((".md", ".markdown")) and not swapped["done"]:
+            swapped["done"] = True
+            service._definition_store = replacement
+        return result
+
+    monkeypatch.setattr(service_module, "_read_owner_source_candidate_raw", swapping)
+    with pytest.raises(PlanningServiceError) as stale:
+        service.capture_owner_markdown_snapshot("owner-1")
+    assert stale.value.code == "owner_markdown_stale"
+
+
+@pytest.mark.parametrize(
+    "field",
+    ["schema_id", "owner_ref", "classification", "content_policy", "owner_policy_ref"],
+)
+def test_owner_markdown_descriptor_fixed_strings_require_exact_str_before_recapture(
+    tmp_path: Path, monkeypatch, field: str,
+) -> None:
+    import src.planning_mcp_service as service_module
+
+    service, _store, _definition, _path = _owner_markdown_test_service(
+        tmp_path, b"exact descriptor"
+    )
+    capture = service.capture_owner_markdown_snapshot("owner-1")
+    descriptor = dict(capture["descriptors"][0])
+
+    class StrSubclass(str):
+        pass
+
+    descriptor[field] = StrSubclass(descriptor[field])
+    calls = {"recapture": 0, "open": 0}
+    original_capture = service._capture_owner_markdown_snapshot
+    original_open = service_module.os.open
+
+    def tracking_capture(owner):
+        calls["recapture"] += 1
+        return original_capture(owner)
+
+    def tracking_open(path, flags):
+        calls["open"] += 1
+        return original_open(path, flags)
+
+    monkeypatch.setattr(service, "_capture_owner_markdown_snapshot", tracking_capture)
+    monkeypatch.setattr(service_module.os, "open", tracking_open)
+    with pytest.raises(PlanningServiceError) as rejected:
+        service.read_owner_markdown_body(
+            descriptor, expected_owner_ref="owner-1",
+            expected_snapshot_digest=capture["snapshot_digest"],
+        )
+    assert rejected.value.code == "owner_markdown_invalid_request"
+    assert calls == {"recapture": 0, "open": 0}
+
+
+def test_owner_markdown_descriptor_hostile_equality_is_invalid_before_io(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    import src.planning_mcp_service as service_module
+
+    service, _store, _definition, _path = _owner_markdown_test_service(
+        tmp_path, b"hostile descriptor"
+    )
+    capture = service.capture_owner_markdown_snapshot("owner-1")
+    descriptor = dict(capture["descriptors"][0])
+
+    class HostileEquality:
+        def __eq__(self, other):
+            raise AssertionError("hostile equality executed")
+
+    descriptor["schema_id"] = HostileEquality()
+    calls = {"recapture": 0, "open": 0}
+    original_capture = service._capture_owner_markdown_snapshot
+    original_open = service_module.os.open
+
+    def tracking_capture(owner):
+        calls["recapture"] += 1
+        return original_capture(owner)
+
+    def tracking_open(path, flags):
+        calls["open"] += 1
+        return original_open(path, flags)
+
+    monkeypatch.setattr(service, "_capture_owner_markdown_snapshot", tracking_capture)
+    monkeypatch.setattr(service_module.os, "open", tracking_open)
+    with pytest.raises(PlanningServiceError) as rejected:
+        service.read_owner_markdown_body(
+            descriptor, expected_owner_ref="owner-1",
+            expected_snapshot_digest=capture["snapshot_digest"],
+        )
+    assert rejected.value.code == "owner_markdown_invalid_request"
+    assert calls == {"recapture": 0, "open": 0}
+
+
+def test_owner_markdown_owner_fields_are_bound_through_final_body_verify(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    import src.planning_mcp_service as service_module
+
+    service, _store, _definition, _path = _owner_markdown_test_service(
+        tmp_path, b"owner-bound body"
+    )
+    original_verify = service_module._verify_owner_source_candidate
+
+    def changing_owner(candidate):
+        original_verify(candidate)
+        if candidate.relative_path.lower().endswith((".md", ".markdown")):
+            service._definition_owner = "owner-2"
+            service._owner_source_definition_owner = "owner-2"
+
+    monkeypatch.setattr(service_module, "_verify_owner_source_candidate", changing_owner)
+    with pytest.raises(PlanningServiceError) as stale:
+        service.capture_owner_markdown_snapshot("owner-1")
+    assert stale.value.code == "owner_markdown_stale"
+
+
+def _unicode_distinct_markdown_service(tmp_path: Path, *, create_both: bool):
+    from src.planning_definition_contract import compute_roadmap_content_hash
+
+    raw = b"same bytes"
+    refs = ("docs/plans/strasse.md", "docs/plans/straße.md")
+    definition = _second_roadmap_definition()
+    rows = []
+    for roadmap, source_ref in zip(definition["roadmaps"], refs, strict=True):
+        roadmap["source_refs"] = [source_ref]
+        roadmap["content_hash"] = compute_roadmap_content_hash(roadmap)
+        definition["project"]["latest_approved_revision"][roadmap["roadmap_id"]][
+            "content_hash"
+        ] = roadmap["content_hash"]
+        rows.append({
+            "owner_ref": "owner-1", "project_id": "demo-project",
+            "roadmap_id": roadmap["roadmap_id"], "source_ref": source_ref,
+            "expected_body_sha256": "sha256:" + hashlib.sha256(raw).hexdigest(),
+        })
+    service, store, payload, _path = _owner_markdown_test_service(
+        tmp_path, raw, definition=definition, body_ref=refs[0],
+        selection_rows=tuple(rows),
+    )
+    if create_both:
+        second = tmp_path.joinpath(*refs[1].split("/"))
+        second.write_bytes(raw)
+    return service, store, payload, refs
+
+
+def test_owner_markdown_unicode_casefold_collision_does_not_hide_missing_ref(
+    tmp_path: Path,
+) -> None:
+    service, _store, _payload, _refs = _unicode_distinct_markdown_service(
+        tmp_path, create_both=False
+    )
+    with pytest.raises(PlanningServiceError) as stale:
+        service.capture_owner_markdown_snapshot("owner-1")
+    assert stale.value.code == "owner_markdown_stale"
+
+
+def test_owner_markdown_unicode_distinct_files_are_each_validated_and_read(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    import src.planning_mcp_service as service_module
+
+    service, _store, _payload, refs = _unicode_distinct_markdown_service(
+        tmp_path, create_both=True
+    )
+    original = service_module._read_owner_source_candidate_raw
+    reads = []
+
+    def tracking(candidate, *, total_remaining):
+        result = original(candidate, total_remaining=total_remaining)
+        if candidate.relative_path.lower().endswith((".md", ".markdown")):
+            reads.append(candidate.relative_path)
+        return result
+
+    monkeypatch.setattr(service_module, "_read_owner_source_candidate_raw", tracking)
+    capture = service.capture_owner_markdown_snapshot("owner-1")
+    assert len(capture["descriptors"]) == 2
+    assert sorted(reads) == sorted(refs)
+
+
+@pytest.mark.parametrize("drift", ["json", "selection", "root"])
+def test_owner_markdown_composition_rejects_json_selection_and_root_drift(
+    tmp_path: Path, monkeypatch, drift: str,
+) -> None:
+    import src.planning_mcp_service as service_module
+
+    service, _store, _payload, _path = _owner_markdown_test_service(
+        tmp_path, b"drift body"
+    )
+    if drift == "json":
+        original_capture = service._capture_owner_source_snapshot
+        calls = {"count": 0}
+
+        def drifting_capture(owner, *, max_sources):
+            capture, projections = original_capture(owner, max_sources=max_sources)
+            calls["count"] += 1
+            if calls["count"] == 2:
+                capture = json.loads(json.dumps(capture))
+                capture["snapshot_digest"] = "sha256:" + ("f" * 64)
+            return capture, projections
+
+        monkeypatch.setattr(service, "_capture_owner_source_snapshot", drifting_capture)
+    else:
+        original_read = service_module._read_owner_source_candidate_raw
+
+        def drifting_read(candidate, *, total_remaining):
+            raw = original_read(candidate, total_remaining=total_remaining)
+            if candidate.relative_path.lower().endswith((".md", ".markdown")):
+                if drift == "selection":
+                    service._owner_markdown_selections = ()
+                else:
+                    service._owner_source_repo_root = str(tmp_path / "other-root")
+            return raw
+
+        monkeypatch.setattr(service_module, "_read_owner_source_candidate_raw", drifting_read)
+    with pytest.raises(PlanningServiceError) as stale:
+        service.capture_owner_markdown_snapshot("owner-1")
+    assert stale.value.code == "owner_markdown_stale"
+
+
+@pytest.mark.parametrize("change", ["growth", "truncation", "missing"])
+def test_owner_markdown_read_rejects_body_growth_truncation_and_missing(
+    tmp_path: Path, change: str,
+) -> None:
+    service, _store, _payload, body_path = _owner_markdown_test_service(
+        tmp_path, b"original body"
+    )
+    capture = service.capture_owner_markdown_snapshot("owner-1")
+    if change == "growth":
+        body_path.write_bytes(b"original body plus growth")
+    elif change == "truncation":
+        body_path.write_bytes(b"")
+    else:
+        body_path.unlink()
+    with pytest.raises(PlanningServiceError) as stale:
+        service.read_owner_markdown_body(
+            capture["descriptors"][0], expected_owner_ref="owner-1",
+            expected_snapshot_digest=capture["snapshot_digest"],
+        )
+    assert stale.value.code == "owner_markdown_stale"
+
+
+@pytest.mark.parametrize("target_kind", ["leaf", "parent"])
+def test_owner_markdown_composition_rejects_reparse_leaf_and_parent_before_body_open(
+    tmp_path: Path, monkeypatch, target_kind: str,
+) -> None:
+    import src.planning_mcp_service as service_module
+
+    service, _store, _payload, body_path = _owner_markdown_test_service(
+        tmp_path, b"filesystem body"
+    )
+    target = body_path if target_kind == "leaf" else body_path.parent
+    target_norm = os.path.normcase(str(target))
+    original_lstat = service_module.os.lstat
+    original_open = service_module.os.open
+    body_opens = {"count": 0}
+
+    class ReparseInfo:
+        def __init__(self, value):
+            self._value = value
+            self.st_file_attributes = 0x400
+
+        def __getattr__(self, name):
+            return getattr(self._value, name)
+
+    def reparse_lstat(path):
+        value = original_lstat(path)
+        return ReparseInfo(value) if os.path.normcase(os.fspath(path)) == target_norm else value
+
+    def tracking_open(path, flags):
+        if os.fspath(path).lower().endswith((".md", ".markdown")):
+            body_opens["count"] += 1
+        return original_open(path, flags)
+
+    monkeypatch.setattr(service_module.os, "lstat", reparse_lstat)
+    monkeypatch.setattr(service_module.os, "open", tracking_open)
+    with pytest.raises(PlanningServiceError) as unsafe:
+        service.capture_owner_markdown_snapshot("owner-1")
+    assert unsafe.value.code == "owner_markdown_unsafe_filesystem"
+    assert body_opens["count"] == 0
+
+
+def test_owner_markdown_composition_rejects_handle_swap_before_first_body_byte(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    import src.planning_mcp_service as service_module
+
+    service, _store, _payload, _body_path = _owner_markdown_test_service(
+        tmp_path, b"handle body"
+    )
+    original_open = service_module.os.open
+    original_fstat = service_module.os.fstat
+    original_read = service_module.os.read
+    markdown_fd = {"value": None}
+    body_read = {"called": False}
+
+    class ChangedSizeInfo:
+        def __init__(self, value):
+            self._value = value
+            self.st_size = value.st_size + 1
+
+        def __getattr__(self, name):
+            return getattr(self._value, name)
+
+    def tracking_open(path, flags):
+        descriptor = original_open(path, flags)
+        if os.fspath(path).lower().endswith((".md", ".markdown")):
+            markdown_fd["value"] = descriptor
+        return descriptor
+
+    def swapped_fstat(descriptor):
+        value = original_fstat(descriptor)
+        return ChangedSizeInfo(value) if descriptor == markdown_fd["value"] else value
+
+    def tracking_read(descriptor, size):
+        if descriptor == markdown_fd["value"]:
+            body_read["called"] = True
+        return original_read(descriptor, size)
+
+    monkeypatch.setattr(service_module.os, "open", tracking_open)
+    monkeypatch.setattr(service_module.os, "fstat", swapped_fstat)
+    monkeypatch.setattr(service_module.os, "read", tracking_read)
+    with pytest.raises(PlanningServiceError) as stale:
+        service.capture_owner_markdown_snapshot("owner-1")
+    assert stale.value.code == "owner_markdown_stale"
+    assert body_read["called"] is False
+
+
+def test_owner_markdown_composition_enforces_per_body_and_metadata_budgets_before_open(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    import src.planning_mcp_service as service_module
+
+    oversized, _store, _payload, _path = _owner_markdown_test_service(
+        tmp_path / "body", b"x" * 2_000_001
+    )
+    with pytest.raises(PlanningServiceError) as body_limit:
+        oversized.capture_owner_markdown_snapshot("owner-1")
+    assert body_limit.value.code == "owner_markdown_limit_exceeded"
+
+    metadata, _store, _payload, _path = _owner_markdown_test_service(
+        tmp_path / "metadata", b"body"
+    )
+    body_io = {"count": 0}
+    original_lstat = service_module.os.lstat
+
+    def tracking_lstat(path):
+        if os.fspath(path).lower().endswith((".md", ".markdown")):
+            body_io["count"] += 1
+        return original_lstat(path)
+
+    monkeypatch.setattr(service_module.os, "lstat", tracking_lstat)
+    monkeypatch.setattr(service_module, "MAX_OWNER_MARKDOWN_METADATA_BYTES", 512)
+    with pytest.raises(PlanningServiceError) as metadata_limit:
+        metadata.capture_owner_markdown_snapshot("owner-1")
+    assert metadata_limit.value.code == "owner_markdown_limit_exceeded"
+    assert body_io["count"] == 0
+
+
+def test_owner_markdown_composition_enforces_unique_total_body_budget_before_open(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    import src.planning_mcp_service as service_module
+    from src.planning_definition_contract import compute_roadmap_content_hash
+
+    refs = [f"docs/plans/large-{index}.md" for index in range(5)]
+    raw = b"x" * 1_700_000
+    definition = _definition_v2()
+    definition["roadmaps"][0]["source_refs"] = refs
+    definition["roadmaps"][0]["content_hash"] = compute_roadmap_content_hash(
+        definition["roadmaps"][0]
+    )
+    definition["project"]["latest_approved_revision"]["core-map"]["content_hash"] = (
+        definition["roadmaps"][0]["content_hash"]
+    )
+    rows = tuple({
+        "owner_ref": "owner-1", "project_id": "demo-project",
+        "roadmap_id": "core-map", "source_ref": ref,
+        "expected_body_sha256": "sha256:" + hashlib.sha256(raw).hexdigest(),
+    } for ref in refs)
+    service, _store, _payload, _path = _owner_markdown_test_service(
+        tmp_path, raw, definition=definition, body_ref=refs[0], selection_rows=rows
+    )
+    for ref in refs[1:]:
+        path = tmp_path.joinpath(*ref.split("/"))
+        path.write_bytes(raw)
+    opens = {"body": 0}
+    original_open = service_module.os.open
+
+    def tracking_open(path, flags):
+        if os.fspath(path).lower().endswith((".md", ".markdown")):
+            opens["body"] += 1
+        return original_open(path, flags)
+
+    monkeypatch.setattr(service_module.os, "open", tracking_open)
+    with pytest.raises(PlanningServiceError) as limit:
+        service.capture_owner_markdown_snapshot("owner-1")
+    assert limit.value.code == "owner_markdown_limit_exceeded"
+    assert opens["body"] == 0
+
+
+def test_owner_markdown_draft_cross_owner_and_cross_roadmap_have_no_body_authority(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    import src.planning_mcp_service as service_module
+    from src.planning_definition_contract import compute_roadmap_content_hash
+
+    draft = _definition_v2()
+    draft["roadmaps"][0]["revision_state"] = "draft"
+    draft["roadmaps"][0]["source_refs"] = ["docs/plans/draft.md"]
+    draft["roadmaps"][0]["content_hash"] = compute_roadmap_content_hash(
+        draft["roadmaps"][0]
+    )
+    draft["project"]["latest_approved_revision"] = {}
+    service, _store, _payload, _path = _owner_markdown_test_service(
+        tmp_path / "draft", b"draft", definition=draft, body_ref="docs/plans/draft.md"
+    )
+    body_io = {"count": 0}
+    original_lstat = service_module.os.lstat
+
+    def tracking_lstat(path):
+        if os.fspath(path).lower().endswith((".md", ".markdown")):
+            body_io["count"] += 1
+        return original_lstat(path)
+
+    monkeypatch.setattr(service_module.os, "lstat", tracking_lstat)
+    with pytest.raises(PlanningServiceError) as draft_denied:
+        service.capture_owner_markdown_snapshot("owner-1")
+    assert draft_denied.value.code == "owner_markdown_stale"
+    assert body_io["count"] == 0
+
+    valid_row = {
+        "owner_ref": "owner-1", "project_id": "demo-project",
+        "roadmap_id": "other-map", "source_ref": "docs/plans/body.md",
+        "expected_body_sha256": "sha256:" + hashlib.sha256(b"body").hexdigest(),
+    }
+    cross_roadmap, _store, _payload, _path = _owner_markdown_test_service(
+        tmp_path / "roadmap", b"body", body_ref="docs/plans/body.md",
+        selection_rows=(valid_row,),
+    )
+    with pytest.raises(PlanningServiceError) as roadmap_denied:
+        cross_roadmap.capture_owner_markdown_snapshot("owner-1")
+    assert roadmap_denied.value.code == "owner_markdown_stale"
+    assert body_io["count"] == 0
+
+    cross_owner = {**valid_row, "owner_ref": "owner-2", "roadmap_id": "core-map"}
+    with pytest.raises(PlanningServiceError) as owner_denied:
+        PlanningMcpService(
+            tmp_path, definition_owner="owner-1",
+            owner_markdown_selections=(cross_owner,),
+        )
+    assert owner_denied.value.code == "owner_markdown_invalid_selection"
+    assert body_io["count"] == 0
+
+
+def _second_roadmap_definition() -> dict:
+    from src.planning_definition_contract import compute_roadmap_content_hash
+
+    definition = _definition_v2()
+    second = json.loads(json.dumps(definition["roadmaps"][0]))
+    second["roadmap_id"] = "other-map"
+    second["title"] = "Other Planning Roadmap"
+    second["content_hash"] = compute_roadmap_content_hash(second)
+    definition["roadmaps"].append(second)
+    definition["project"]["roadmap_refs"].append("other-map")
+    definition["project"]["latest_approved_revision"]["other-map"] = {
+        "revision": 1,
+        "content_hash": second["content_hash"],
+    }
+    return definition
+
+
+def test_owner_source_capture_and_exact_read_are_private_content_addressed_and_raw_free(
+    tmp_path: Path,
+) -> None:
+    definition = _definition_v2()
+    definition["roadmaps"][0]["objective"] = "Private planning prose is preserved exactly."
+    definition["roadmaps"][0]["source_refs"] = ["docs/plans/rendered-handoff.md"]
+    from src.planning_definition_contract import compute_roadmap_content_hash
+
+    definition["roadmaps"][0]["content_hash"] = compute_roadmap_content_hash(
+        definition["roadmaps"][0]
+    )
+    definition["project"]["latest_approved_revision"]["core-map"]["content_hash"] = (
+        definition["roadmaps"][0]["content_hash"]
+    )
+    service, _store, _payload, source = _owner_source_service(
+        tmp_path,
+        definition=definition,
+    )
+
+    captured = service.capture_owner_source_snapshot("owner-1")
+    descriptor = captured["descriptors"][0]
+    read = service.read_owner_source_projection(
+        descriptor,
+        expected_owner_ref="owner-1",
+        expected_snapshot_digest=captured["snapshot_digest"],
+    )
+
+    assert captured["classification"] == "private"
+    assert captured["content_policy"] == "inline_local"
+    assert captured["raw_source_included"] is False
+    assert descriptor["supporting_refs"] == [
+        {
+            "source_ref": "docs/plans/rendered-handoff.md",
+            "kind": "rendered_handoff_ref",
+            "access": "reference_only",
+        }
+    ]
+    assert read["projection"] == {
+        "schema_id": "odysseus.planning.owner_source_projection.v1",
+        "project_id": "demo-project",
+        "roadmap": definition["roadmaps"][0],
+    }
+    assert read["projection_exact"] is True
+    assert read["raw_source_exact"] is False
+    assert read["raw_source_included"] is False
+    assert "Private planning prose is preserved exactly." in json.dumps(read)
+    assert not (
+        {"raw_json", "raw_hash", "mtime", "preview", "secret_free"}
+        & _nested_keys(captured)
+    )
+
+    before = captured["snapshot_digest"]
+    stat = source.stat()
+    os.utime(source, ns=(stat.st_atime_ns, stat.st_mtime_ns + 1_000_000))
+    assert service.capture_owner_source_snapshot("owner-1")["snapshot_digest"] == before
+
+
+def test_owner_source_capture_uses_only_selected_refs_and_no_inventory_or_eager_store_api(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    import src.planning_mcp_service as service_module
+
+    service, store, _payload, selected = _owner_source_service(tmp_path)
+    unselected = tmp_path / "docs" / "plans" / "unselected.json"
+    _write_json(unselected, _definition_v2())
+    touched: list[str] = []
+    original_lstat = service_module.os.lstat
+
+    def tracking_lstat(path):
+        touched.append(os.fspath(path))
+        return original_lstat(path)
+
+    def explode(*args, **kwargs):
+        raise AssertionError("global discovery or eager store API was called")
+
+    monkeypatch.setattr(service_module, "build_planning_source_inventory", explode)
+    monkeypatch.setattr(service_module.os, "walk", explode)
+    monkeypatch.setattr(service_module.os, "scandir", explode)
+    monkeypatch.setattr(Path, "glob", explode)
+    monkeypatch.setattr(Path, "rglob", explode)
+    monkeypatch.setattr(store, "list_projects", explode)
+    monkeypatch.setattr(store, "list_roadmaps", explode)
+    monkeypatch.setattr(store, "get_project", explode)
+    monkeypatch.setattr(store, "get_roadmap", explode)
+    monkeypatch.setattr(store, "list_revisions", explode)
+    monkeypatch.setattr(service_module.os, "lstat", tracking_lstat)
+
+    captured = service.capture_owner_source_snapshot("owner-1")
+
+    assert len(captured["descriptors"]) == 1
+    assert any(os.path.samefile(path, selected) for path in touched if os.path.exists(path))
+    assert not any(str(unselected) == path for path in touched)
+
+
+def test_owner_source_capture_deduplicates_shared_json_and_excludes_unselected_records(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    import src.planning_mcp_service as service_module
+
+    definition = _second_roadmap_definition()
+    service, _store, _payload, source = _owner_source_service(
+        tmp_path,
+        definition=definition,
+    )
+    calls = 0
+    original_open = service_module.os.open
+
+    def counting_open(path, flags):
+        nonlocal calls
+        calls += 1
+        return original_open(path, flags)
+
+    monkeypatch.setattr(service_module.os, "open", counting_open)
+    captured = service.capture_owner_source_snapshot("owner-1")
+
+    assert calls == 1
+    assert [item["roadmap_id"] for item in captured["descriptors"]] == [
+        "core-map",
+        "other-map",
+    ]
+    assert {item["source_ref"] for item in captured["descriptors"]} == {
+        "docs/plans/owner-source.json"
+    }
+    assert source.exists()
+
+
+def test_owner_source_capture_keeps_approved_pointer_and_draft_only_is_zero_io(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    import src.planning_mcp_service as service_module
+    from src.planning_definition_contract import compute_roadmap_content_hash
+
+    definition = _definition_v2()
+    draft = json.loads(json.dumps(definition["roadmaps"][0]))
+    draft["revision"] = 2
+    draft["revision_state"] = "draft"
+    draft["title"] = "Newer unapproved draft"
+    draft["content_hash"] = compute_roadmap_content_hash(draft)
+    definition["roadmaps"].append(draft)
+    definition["project"]["draft_refs"] = [
+        {
+            "draft_id": "draft-core-map",
+            "roadmap_id": "core-map",
+            "base_revision": 1,
+            "base_hash": definition["roadmaps"][0]["content_hash"],
+        }
+    ]
+    service, _store, _payload, _source = _owner_source_service(
+        tmp_path / "approved",
+        definition=definition,
+    )
+
+    captured = service.capture_owner_source_snapshot("owner-1")
+
+    assert captured["descriptors"][0]["revision"] == 1
+    assert captured["descriptors"][0]["revision_state"] == "approved"
+
+    draft_only = _definition_v2()
+    draft_only["roadmaps"][0]["revision_state"] = "draft"
+    draft_only["roadmaps"][0]["content_hash"] = compute_roadmap_content_hash(
+        draft_only["roadmaps"][0]
+    )
+    draft_only["project"]["latest_approved_revision"] = {}
+    service, _store, _payload, _source = _owner_source_service(
+        tmp_path / "draft-only",
+        definition=draft_only,
+    )
+
+    def explode_open(*args, **kwargs):
+        raise AssertionError("draft-only source was opened")
+
+    monkeypatch.setattr(service_module.os, "open", explode_open)
+    captured = service.capture_owner_source_snapshot("owner-1")
+    assert captured["descriptors"] == []
+    assert captured["ineligible"] == [
+        {
+            "project_id": "demo-project",
+            "roadmap_id": "core-map",
+            "eligibility": "ineligible_no_approved_revision",
+            "revision": None,
+            "revision_state": "",
+            "content_hash": "",
+            "updated_at": "",
+            "source_ref": "",
+        }
+    ]
+
+
+def test_owner_source_capture_rejects_store_owner_caps_and_ab_drift_before_success(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    import src.planning_mcp_service as service_module
+    from src.planning_revision_store import PlanningRevisionStore
+
+    service, store, _payload, _source = _owner_source_service(tmp_path)
+    opened = False
+    original_open = service_module.os.open
+
+    def tracking_open(path, flags):
+        nonlocal opened
+        opened = True
+        return original_open(path, flags)
+
+    monkeypatch.setattr(service_module.os, "open", tracking_open)
+    for owner, cap in (("other-owner", 100), ("owner-1", True), ("owner-1", 101)):
+        with pytest.raises(PlanningServiceError):
+            service.capture_owner_source_snapshot(owner, max_sources=cap)
+        assert opened is False
+
+    class StoreSubclass(PlanningRevisionStore):
+        pass
+
+    subclass_service = PlanningMcpService(
+        tmp_path,
+        definition_store=StoreSubclass(),
+        definition_owner="owner-1",
+    )
+    with pytest.raises(PlanningServiceError) as subclass:
+        subclass_service.capture_owner_source_snapshot("owner-1")
+    assert subclass.value.code == "definition_store_unavailable"
+    assert opened is False
+
+    original_snapshot = PlanningRevisionStore.snapshot_owner_sources
+    calls = 0
+
+    def drifting_snapshot(self, owner):
+        nonlocal calls
+        calls += 1
+        result = original_snapshot(self, owner)
+        if calls == 2:
+            result["snapshot_digest"] = "sha256:" + ("f" * 64)
+        return result
+
+    monkeypatch.setattr(
+        PlanningRevisionStore,
+        "snapshot_owner_sources",
+        drifting_snapshot,
+    )
+    with pytest.raises(PlanningServiceError) as drift:
+        service.capture_owner_source_snapshot("owner-1")
+    assert drift.value.code == "owner_source_changed"
+
+    monkeypatch.setattr(
+        PlanningRevisionStore,
+        "snapshot_owner_sources",
+        original_snapshot,
+    )
+    replacement = PlanningRevisionStore(
+        [("owner-1", _definition_v2(), "docs/plans/owner-source.json")],
+        cursor_secret=b"replacement-owner-source-secret",
+    )
+
+    def replacing_open(path, flags):
+        descriptor = original_open(path, flags)
+        service._definition_store = replacement
+        return descriptor
+
+    monkeypatch.setattr(service_module.os, "open", replacing_open)
+    with pytest.raises(PlanningServiceError) as replacement_error:
+        service.capture_owner_source_snapshot("owner-1")
+    assert replacement_error.value.code == "owner_source_changed"
+
+
+def test_owner_source_capture_rejects_duplicate_json_sensitive_fields_and_oversize_preopen(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    import src.planning_mcp_service as service_module
+    from src.planning_definition_contract import compute_roadmap_content_hash
+
+    service, _store, definition, source = _owner_source_service(tmp_path)
+    raw = json.dumps(definition)
+    source.write_text('{"schema_id":"duplicate",' + raw[1:], encoding="utf-8")
+    with pytest.raises(PlanningServiceError) as duplicate:
+        service.capture_owner_source_snapshot("owner-1")
+    assert duplicate.value.code == "owner_source_invalid_json"
+
+    huge_integer = "9" * 5_000
+    source.write_text(
+        raw.replace('"revision": 1', f'"revision": {huge_integer}', 1),
+        encoding="utf-8",
+    )
+    with pytest.raises(PlanningServiceError) as integer_limit:
+        service.capture_owner_source_snapshot("owner-1")
+    assert integer_limit.value.code == "owner_source_invalid_json"
+
+    definition["roadmaps"][0]["objective"] = "api_key=synthetic-sensitive-value"
+    definition["roadmaps"][0]["content_hash"] = compute_roadmap_content_hash(
+        definition["roadmaps"][0]
+    )
+    definition["project"]["latest_approved_revision"]["core-map"]["content_hash"] = (
+        definition["roadmaps"][0]["content_hash"]
+    )
+    service, _store, _payload, source = _owner_source_service(
+        tmp_path / "sensitive",
+        definition=definition,
+    )
+    with pytest.raises(PlanningServiceError) as sensitive:
+        service.capture_owner_source_snapshot("owner-1")
+    assert sensitive.value.code == "owner_source_sensitive_content"
+
+    service, _store, payload, source = _owner_source_service(tmp_path / "large")
+    valid = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+    source.write_bytes(valid + (b" " * (2_000_000 - len(valid))))
+    assert service.capture_owner_source_snapshot("owner-1")["eligible_count"] == 1
+    source.write_bytes(valid + (b" " * (2_000_001 - len(valid))))
+
+    def explode_open(*args, **kwargs):
+        raise AssertionError("oversized source was opened")
+
+    monkeypatch.setattr(service_module.os, "open", explode_open)
+    with pytest.raises(PlanningServiceError) as oversized:
+        service.capture_owner_source_snapshot("owner-1")
+    assert oversized.value.code == "owner_source_limit_exceeded"
+
+
+def test_owner_source_exact_read_rejects_tamper_stale_body_and_raw_error_causes(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    import src.planning_mcp_service as service_module
+    from src.planning_definition_contract import compute_roadmap_content_hash
+
+    service, _store, definition, source = _owner_source_service(tmp_path)
+    captured = service.capture_owner_source_snapshot("owner-1")
+    descriptor = captured["descriptors"][0]
+    tampered = dict(descriptor)
+    tampered["revision"] = 2
+    with pytest.raises(PlanningServiceError) as changed_descriptor:
+        service.read_owner_source_projection(
+            tampered,
+            expected_owner_ref="owner-1",
+            expected_snapshot_digest=captured["snapshot_digest"],
+        )
+    assert changed_descriptor.value.code == "owner_source_stale"
+
+    definition["roadmaps"][0]["title"] = "Changed after descriptor capture"
+    definition["roadmaps"][0]["content_hash"] = compute_roadmap_content_hash(
+        definition["roadmaps"][0]
+    )
+    definition["project"]["latest_approved_revision"]["core-map"]["content_hash"] = (
+        definition["roadmaps"][0]["content_hash"]
+    )
+    _write_json(source, definition)
+    with pytest.raises(PlanningServiceError) as stale:
+        service.read_owner_source_projection(
+            descriptor,
+            expected_owner_ref="owner-1",
+            expected_snapshot_digest=captured["snapshot_digest"],
+        )
+    assert stale.value.code in {
+        "owner_source_stale",
+        "owner_source_changed",
+        "source_version_stale",
+    }
+
+    service, _store, _payload, _source = _owner_source_service(tmp_path / "error")
+
+    def secret_error(*args, **kwargs):
+        raise OSError("TOP_SECRET_RAW_CAUSE")
+
+    monkeypatch.setattr(service_module.os, "open", secret_error)
+    with pytest.raises(PlanningServiceError) as unavailable:
+        service.capture_owner_source_snapshot("owner-1")
+    assert "TOP_SECRET_RAW_CAUSE" not in str(unavailable.value)
+    assert "TOP_SECRET_RAW_CAUSE" not in json.dumps(unavailable.value.to_dict())
+    rendered = "".join(
+        traceback.format_exception(
+            type(unavailable.value),
+            unavailable.value,
+            unavailable.tb,
+        )
+    )
+    assert "TOP_SECRET_RAW_CAUSE" not in rendered
+    assert unavailable.value.__cause__ is None
+    assert unavailable.value.__context__ is None
+
+
+def test_owner_source_capture_checks_identity_before_first_byte_and_detects_growth_boundary(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    import src.planning_mcp_service as service_module
+
+    service, _store, _payload, _source = _owner_source_service(tmp_path)
+    original_fstat = service_module.os.fstat
+    original_read = service_module.os.read
+    first_fstat = True
+    read_called = False
+
+    class ChangedSizeInfo:
+        def __init__(self, value):
+            self._value = value
+            self.st_size = value.st_size + 1
+
+        def __getattr__(self, name):
+            return getattr(self._value, name)
+
+    def changed_fstat(descriptor):
+        nonlocal first_fstat
+        value = original_fstat(descriptor)
+        if first_fstat:
+            first_fstat = False
+            return ChangedSizeInfo(value)
+        return value
+
+    def forbidden_read(*args, **kwargs):
+        nonlocal read_called
+        read_called = True
+        raise AssertionError("read happened before handle identity matched")
+
+    monkeypatch.setattr(service_module.os, "fstat", changed_fstat)
+    monkeypatch.setattr(service_module.os, "read", forbidden_read)
+    with pytest.raises(PlanningServiceError) as first_byte:
+        service.capture_owner_source_snapshot("owner-1")
+    assert first_byte.value.code == "owner_source_changed"
+    assert read_called is False
+
+    monkeypatch.setattr(service_module.os, "fstat", original_fstat)
+    boundary_injected = False
+
+    def growing_read(descriptor, size):
+        nonlocal boundary_injected
+        chunk = original_read(descriptor, size)
+        if not chunk and size == 1 and not boundary_injected:
+            boundary_injected = True
+            return b"x"
+        return chunk
+
+    monkeypatch.setattr(service_module.os, "read", growing_read)
+    with pytest.raises(PlanningServiceError) as growth:
+        service.capture_owner_source_snapshot("owner-1")
+    assert growth.value.code == "owner_source_changed"
+    assert boundary_injected is True
+
+
+def test_owner_source_capture_rejects_reparse_leaf_and_lexical_root_before_open(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    import src.planning_mcp_service as service_module
+
+    service, _store, _payload, source = _owner_source_service(tmp_path)
+    original_lstat = service_module.os.lstat
+    reparse_target = os.path.normcase(str(source))
+    opened = False
+
+    class ReparseInfo:
+        def __init__(self, value):
+            self._value = value
+            self.st_file_attributes = 0x400
+
+        def __getattr__(self, name):
+            return getattr(self._value, name)
+
+    def reparse_lstat(path):
+        value = original_lstat(path)
+        if os.path.normcase(os.fspath(path)) == reparse_target:
+            return ReparseInfo(value)
+        return value
+
+    def explode_open(*args, **kwargs):
+        nonlocal opened
+        opened = True
+        raise AssertionError("unsafe target was opened")
+
+    monkeypatch.setattr(service_module.os, "lstat", reparse_lstat)
+    monkeypatch.setattr(service_module.os, "open", explode_open)
+    with pytest.raises(PlanningServiceError) as leaf:
+        service.capture_owner_source_snapshot("owner-1")
+    assert leaf.value.code == "owner_source_unsafe_filesystem"
+    assert opened is False
+
+    reparse_target = os.path.normcase(str(tmp_path))
+    with pytest.raises(PlanningServiceError) as lexical:
+        service.capture_owner_source_snapshot("owner-1")
+    assert lexical.value.code == "owner_source_unsafe_filesystem"
+    assert opened is False
+
+
+@pytest.mark.parametrize(
+    "unsafe_ref",
+    [
+        "docs/plans/archive.txt:owner-source.json",
+        "docs/plans/CON.json",
+        "docs/plans/prn.notes.json",
+        "docs/plans/AUX.json",
+        "docs/plans/NUL.json",
+        "docs/plans/COM1.json",
+        "docs/plans/LPT9.data.json",
+        "docs/plans/CON .json",
+        "docs/plans/LPT1 .folder/owner-source.json",
+        "docs/plans/CONıN$.json",
+        "docs/plans/bad?.json",
+        "docs/plans/bad*.json",
+        "docs/plans/bad<name>.json",
+        'docs/plans/bad"name.json',
+        "docs/plans/bad|name.json",
+        "docs/plans./owner-source.json",
+        "docs/plans /owner-source.json",
+    ],
+)
+def test_owner_source_capture_rejects_unsafe_windows_source_components_before_io(
+    tmp_path: Path,
+    monkeypatch,
+    unsafe_ref: str,
+) -> None:
+    import src.planning_mcp_service as service_module
+    from src.planning_revision_store import PlanningRevisionStore
+
+    payload = _definition_v2()
+    store = PlanningRevisionStore(
+        [("owner-1", payload, unsafe_ref)],
+        cursor_secret=b"unsafe-windows-source-ref-test",
+    )
+    service = PlanningMcpService(
+        tmp_path,
+        definition_store=store,
+        definition_owner="owner-1",
+    )
+    touched: list[tuple[str, str]] = []
+
+    def explode_lstat(path):
+        touched.append(("lstat", os.fspath(path)))
+        raise AssertionError("unsafe source reference reached filesystem metadata")
+
+    def explode_open(path, flags):
+        touched.append(("open", os.fspath(path)))
+        raise AssertionError("unsafe source reference reached filesystem content")
+
+    monkeypatch.setattr(service_module.os, "lstat", explode_lstat)
+    monkeypatch.setattr(service_module.os, "open", explode_open)
+
+    with pytest.raises(PlanningServiceError) as unsafe:
+        service.capture_owner_source_snapshot("owner-1")
+
+    assert unsafe.value.code == "owner_source_unsafe_ref"
+    assert touched == []
+
+
+@pytest.mark.parametrize(
+    "unsafe_ref",
+    [
+        "docs/plans/note.txt:rendered.md",
+        "docs/plans/CON.md",
+        "docs/plans/CONOUT$ .md",
+        "docs/plans/CONıN$.md",
+        "docs/plans/bad?.md",
+        "docs/plans./rendered.md",
+    ],
+)
+def test_owner_source_capture_rejects_unsafe_windows_supporting_refs_without_markdown_io(
+    tmp_path: Path,
+    monkeypatch,
+    unsafe_ref: str,
+) -> None:
+    import src.planning_mcp_service as service_module
+    from src.planning_definition_contract import compute_roadmap_content_hash
+
+    definition = _definition_v2()
+    definition["roadmaps"][0]["source_refs"] = [unsafe_ref]
+    definition["roadmaps"][0]["content_hash"] = compute_roadmap_content_hash(
+        definition["roadmaps"][0]
+    )
+    definition["project"]["latest_approved_revision"]["core-map"]["content_hash"] = (
+        definition["roadmaps"][0]["content_hash"]
+    )
+    service, _store, _payload, _source = _owner_source_service(
+        tmp_path,
+        definition=definition,
+    )
+    touched: list[tuple[str, str]] = []
+    original_lstat = service_module.os.lstat
+    original_open = service_module.os.open
+
+    def tracking_lstat(path):
+        touched.append(("lstat", os.fspath(path)))
+        return original_lstat(path)
+
+    def tracking_open(path, flags):
+        touched.append(("open", os.fspath(path)))
+        return original_open(path, flags)
+
+    monkeypatch.setattr(service_module.os, "lstat", tracking_lstat)
+    monkeypatch.setattr(service_module.os, "open", tracking_open)
+
+    with pytest.raises(PlanningServiceError) as unsafe:
+        service.capture_owner_source_snapshot("owner-1")
+
+    assert unsafe.value.code == "owner_source_unsafe_ref"
+    unsafe_path = os.path.normcase(
+        os.fspath(tmp_path.joinpath(*unsafe_ref.split("/")))
+    )
+    assert all(os.path.normcase(path) != unsafe_path for _operation, path in touched)
+
+
+def test_owner_source_capture_validates_retained_lexical_root_before_io_g1(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    import src.planning_mcp_service as service_module
+
+    root = tmp_path / "ordinary-root"
+    service, store, _payload, _source = _owner_source_service(
+        root,
+        source_ref="docs/plans/road-map.v2.json",
+    )
+    assert service.capture_owner_source_snapshot("owner-1")["eligible_count"] == 1
+
+    lexical_dot_root = os.fspath(root) + os.sep + "."
+    service = PlanningMcpService(
+        lexical_dot_root,
+        definition_store=store,
+        definition_owner="owner-1",
+    )
+    assert service._owner_source_repo_root_input == lexical_dot_root
+    touched: list[tuple[str, str]] = []
+
+    def explode_lstat(path):
+        touched.append(("lstat", os.fspath(path)))
+        raise AssertionError("unsafe lexical root reached filesystem metadata")
+
+    def explode_open(path, flags):
+        touched.append(("open", os.fspath(path)))
+        raise AssertionError("unsafe lexical root reached filesystem content")
+
+    monkeypatch.setattr(service_module.os, "lstat", explode_lstat)
+    monkeypatch.setattr(service_module.os, "open", explode_open)
+    with pytest.raises(PlanningServiceError) as dot_root:
+        service.capture_owner_source_snapshot("owner-1")
+    assert dot_root.value.code == "owner_source_unsafe_filesystem"
+    assert touched == []
+
+    for suffix in (
+        "CON.folder",
+        "AUX .folder",
+        "CONIN$ .folder",
+        "root-alias.",
+        "root-alias ",
+    ):
+        lexical_alias = os.path.join(os.fspath(tmp_path), suffix)
+        with pytest.raises(PlanningServiceError) as alias_root:
+            service_module._owner_source_validate_lexical_repo_root(
+                lexical_alias,
+                os.path.abspath(lexical_alias),
+            )
+        assert alias_root.value.code == "owner_source_unsafe_filesystem"
+
+
+def test_owner_source_windows_reserved_device_stem_table_g2() -> None:
+    import src.planning_mcp_service as service_module
+
+    reserved_stems = {
+        "CON",
+        "PRN",
+        "AUX",
+        "NUL",
+        "CONIN$",
+        "CONOUT$",
+        *(f"COM{index}" for index in range(1, 10)),
+        *(f"LPT{index}" for index in range(1, 10)),
+        "COM¹",
+        "COM²",
+        "COM³",
+        "LPT¹",
+        "LPT²",
+        "LPT³",
+    }
+    for stem in reserved_stems:
+        for component in (
+            stem,
+            f"{stem}.json",
+            f"{stem} .json",
+            f"{stem.lower()}.md",
+        ):
+            assert (
+                service_module._owner_source_windows_component_is_safe(component)
+                is False
+            ), component
+    for component in ("CONıN$.json", "conın$ .json"):
+        assert (
+            service_module._owner_source_windows_component_is_safe(component)
+            is False
+        ), component
+
+
+@pytest.mark.parametrize(
+    "component",
+    [
+        "COM0",
+        "COM10.json",
+        "LPT0",
+        "LPT10.md",
+        "CONIN.json",
+        "CONOUT.md",
+        "COM⁴.json",
+        "report .json",
+        "ordinary-map",
+        "CONıN.json",
+    ],
+)
+def test_owner_source_windows_safe_device_near_misses_g2(component: str) -> None:
+    import src.planning_mcp_service as service_module
+
+    assert service_module._owner_source_windows_component_is_safe(component) is True
 
 
 def test_definition_v2_validation_is_content_free_and_recursively_rejects_runtime_fields(

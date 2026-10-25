@@ -47,6 +47,16 @@ then private-source automation, then broader release/distribution polish.
 - No feature readiness claims without runtime/live evidence when only repo
   artifacts exist.
 
+## Current Authority Reconciliation
+
+The June order below is historical context, not an executable queue. Revision
+181 gives the two remaining tracks stable source-local gate IDs without
+aliasing them to broader release records or granting a live action:
+
+```json
+{"schema_version":1,"kind":"odysseus.remaining_features.source_normalization","source_path":"docs/plans/remaining-features-roadmap-2026-06-20.md","source_blob":"bb1392830ee0e2f53e31a8d3e326f5a30daad09c","authority_snapshot":{"round7_blob":"967c7df4a2c26312c88f06d131515a2ff3915836","open_work_blob":"82b6c75831b522c06d57131fffb508157a8690b5","guidance_blob":"b2248b804801a9b8e9e45bb11cb854c2090b5ecb"},"source_disposition":"gates_only","historical_scope":["P2","P3","P4","P5","P6","P7","P8","P9"],"current_units":[{"id":"RFR20260620-P0-UPDATER-RUNTIME-CLOSURE","source_id":"P0","kind":"compound_release_and_live_gate","status":"waiting_on_current_release_chain_and_action_specific_go","accepted":false,"claimable":false,"related_not_alias":["RCH-Debian-local-build-release-manifest","CI-GPU-compose-release-revision-parity"],"acceptance":["exact published revision has required CI and applicable publication evidence","reviewed Debian updater installation is bound to that revision","one action-specific updater/deployment run has bounded redacted manifest and image-revision readback"]},{"id":"RFR20260620-P1-UPDATES-BACKUPS-UI-LIVE-SMOKE","source_id":"P1","kind":"admin_ui_and_action_gate","status":"waiting_on_action_specific_ui_host_go","accepted":false,"claimable":false,"depends_on":["RFR20260620-P0-UPDATER-RUNTIME-CLOSURE"],"related_not_alias":["docs/plans/updates-backups-ui-roadmap.md"],"acceptance":["admin-only Debian status projection is bounded and redacted","update check is observed non-mutating","backup and update actions each have action-specific authority and preserve existing live controls"]}],"invariants":["source-local IDs are not aliases for RCH, OWM-1 or broad release gates","both units count once until accepted evidence closes them","normalization grants no commit, push, deploy, host, backup or update authority"]}
+```
+
 ## P0 - Auto-Updater Runtime Closure
 
 Goal:

@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Odysseus · Agent-Screen v2 (Dark)</title>
+<style>
+  /* =========================================================================
+     Design Tokens — Odysseus „Calm Control Room" (dark-first)
+     Eine bewusst frische Welt, ersetzt das alte DESIGN.md.
+     ========================================================================= */
+  :root {
+    --bg: #121417;            /* Leinwand */
+    --surface: #1b1e24;       /* Fläche */
+    --surface-2: #21252c;     /* angehobene Fläche */
+    --surface-3: #262b33;     /* Hover/aktiv */
+    --ink: #e8eaee;           /* Primärtext */
+    --muted: #9aa1ad;         /* Sekundärtext */
+    --faint: #98a1af;         /* Tertiärtext — AA auf --surface */
+    --line: #2a2f38;          /* Border */
+    --line-soft: #252a32;     /* weiche Border */
+    --accent: #2dd4a8;        /* Primäraktion */
+    --accent-strong: #6ee7c8; /* Akzenttext auf dunkel */
+    --accent-soft: #12332b;   /* Akzentfläche */
+    --amber: #e6a75c;
+    --amber-soft: #332a1c;
+    --danger: #e0736e;
+    --danger-soft: #331d1c;
+    --ok: #4ecb8d;
+    --ok-soft: #12301f;
+    --r-sm: 8px; --r-md: 12px; --r-lg: 16px; --r-pill: 999px;
+    --focus: 0 0 0 3px rgba(45, 212, 168, .35);
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 14px 36px rgba(0,0,0,.4);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { color-scheme: dark; }
+  body {
+    font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg); color: var(--ink); line-height: 1.5;
+    padding: 26px 18px 70px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .mono { font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace; font-size: 12px; }
+  .wrap { max-width: 960px; margin: 0 auto; }
+
+  /* Fokus immer sichtbar */
+  :focus-visible { outline: none; box-shadow: var(--focus); border-radius: 6px; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+
+  /* ---- Top-Leiste: einzige persistente Navigation (keine Sidebar) ---- */
+  .topbar {
+    display: flex; align-items: center; gap: 18px;
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--r-lg); padding: 10px 14px; box-shadow: var(--shadow);
+  }
+  .brand { display: flex; align-items: center; gap: 9px; font-weight: 650; font-size: 15px; }
+  .brand .logo { width: 24px; height: 24px; border-radius: 8px; background: var(--accent); color: #0a100e; display: grid; place-items: center; font-size: 13px; }
+  .nav { display: flex; gap: 2px; flex: 1; }
+  .nav .tab { padding: 7px 13px; border-radius: 9px; color: var(--muted); font-size: 13.5px; }
+  .nav .tab:hover { color: var(--ink); background: var(--surface-2); }
+  .nav .tab[aria-current="page"] { background: var(--accent-soft); color: var(--accent-strong); font-weight: 600; }
+  .search {
+    display: flex; align-items: center; gap: 8px; color: var(--muted);
+    background: var(--surface-2); border: 1px solid var(--line); border-radius: 9px;
+    padding: 7px 12px; font-size: 13px; width: 210px;
+  }
+  .search .kbd { border: 1px solid var(--line); border-radius: 5px; padding: 0 5px; font-size: 11px; background: var(--surface); color: var(--faint); }
+  .avatar { width: 30px; height: 30px; border-radius: 50%; background: #23423a; color: var(--accent-strong); display: grid; place-items: center; font-weight: 600; font-size: 13px; }
+
+  /* ---- Agent-Lauf Kopfzeile ---- */
+  .run { margin-top: 18px; }
+  .run-row1 { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .run h1 { font-size: 22px; font-weight: 650; letter-spacing: -0.01em; }
+  .status {
+    display: inline-flex; align-items: center; gap: 7px;
+    background: var(--ok-soft); color: var(--ok); border-radius: var(--r-pill);
+    padding: 4px 11px; font-size: 12.5px; font-weight: 600;
+  }
+  .status .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); }
+  @media (prefers-reduced-motion: no-preference) {
+    .status .dot { box-shadow: 0 0 0 0 rgba(78,203,141,.5); animation: pulse 1.8s infinite; }
+  }
+  @keyframes pulse { 0%{box-shadow:0 0 0 0 rgba(78,203,141,.5)} 70%{box-shadow:0 0 0 7px rgba(78,203,141,0)} 100%{box-shadow:0 0 0 0 rgba(78,203,141,0)} }
+  .run-row1 .spacer { flex: 1; }
+  .actions { display: flex; gap: 8px; align-items: center; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    border-radius: 9px; padding: 8px 13px; font-size: 13px; font-weight: 600;
+    border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+  }
+  .btn:hover { background: var(--surface-2); }
+  .btn.ghost { color: var(--muted); }
+  .btn.danger { border-color: var(--danger); color: var(--danger); }
+  .btn.danger:hover { background: var(--danger-soft); }
+
+  /* Stopp-Bestätigung (Beispiel des zweistufigen Musters) */
+  .confirm {
+    display: flex; gap: 6px; align-items: center;
+    background: var(--surface-2); border: 1px solid var(--danger); border-radius: 10px; padding: 5px 8px;
+  }
+  .confirm .q { font-size: 12.5px; color: var(--ink); }
+  .confirm .yes { background: var(--danger); color: #fff; border-radius: 7px; padding: 5px 10px; font-size: 12px; font-weight: 600; }
+  .confirm .no { color: var(--muted); border-radius: 7px; padding: 5px 8px; font-size: 12px; }
+
+  /* Meta: gruppiert statt gleichförmige Chip-Reihe */
+  .meta { display: flex; gap: 16px; margin-top: 12px; flex-wrap: wrap; }
+  .meta .group { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .meta .glabel { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--faint); margin-right: 2px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
+    padding: 5px 10px; font-size: 12.5px; color: var(--muted);
+  }
+  .chip .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+  .chip.amber .dot { background: var(--amber); }
+  .chip .info { color: var(--faint); font-size: 11px; border-bottom: 1px dotted var(--faint); cursor: help; }
+
+  /* Fortschritt (semantisch) */
+  .progress { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+  .progress .track { flex: 1; height: 6px; background: var(--line-soft); border-radius: var(--r-pill); overflow: hidden; }
+  .progress .fill { display: block; height: 100%; width: 50%; background: var(--accent); border-radius: var(--r-pill); }
+  .progress .label { font-size: 12px; color: var(--muted); white-space: nowrap; }
+
+  /* ---- Stream ---- */
+  .stream {
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg);
+    box-shadow: var(--shadow); margin-top: 14px; padding: 22px; min-height: 480px;
+    display: flex; flex-direction: column;
+  }
+  .entry { display: flex; gap: 12px; margin-bottom: 18px; }
+  .entry .who {
+    flex: none; align-self: flex-start; font-size: 10.5px; font-weight: 700;
+    letter-spacing: .07em; padding: 3px 7px; border-radius: 6px; margin-top: 2px;
+  }
+  .entry.agent .who { background: var(--accent-soft); color: var(--accent-strong); }
+  .entry.system .who { background: var(--surface-2); color: var(--faint); border: 1px solid var(--line); }
+  .entry.tool .who { background: #262b33; color: #b6beca; }
+
+  .entry.agent .bubble {
+    background: var(--surface-2); border: 1px solid var(--line-soft); border-radius: 4px 14px 14px 14px;
+    padding: 11px 14px; max-width: 78%; font-size: 14px;
+  }
+  .entry.system .line {
+    border-left: 2px solid var(--line); padding: 2px 0 2px 12px; color: var(--muted); font-size: 13px;
+  }
+
+  .toolcard { border: 1px solid var(--line); border-radius: var(--r-md); overflow: hidden; background: var(--surface); flex: 1; }
+  .toolcard .head {
+    display: flex; align-items: center; gap: 9px; padding: 9px 12px;
+    background: var(--surface-2); border-bottom: 1px solid var(--line-soft); font-size: 13px;
+  }
+  .toolcard .head .name { font-weight: 600; }
+  .toolcard .head .arg { color: var(--muted); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .toolcard .head .ms { margin-left: auto; color: var(--faint); font-size: 12px; white-space: nowrap; }
+  .toolcard .body { padding: 10px 12px; font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+  .toolcard .body .ok { color: var(--ok); font-weight: 600; }
+  .toolcard .expand { margin-left: auto; color: var(--accent-strong); font-size: 12px; font-weight: 600; }
+
+  .receipt { border: 1px solid var(--line); border-radius: var(--r-md); padding: 11px 13px; background: #171a20; flex: 1; }
+  .receipt .rlabel { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--faint); margin-bottom: 5px; }
+  .receipt .rhash { color: var(--accent-strong); }
+
+  .composer {
+    margin-top: auto; display: flex; gap: 10px; align-items: center;
+    border: 1px solid var(--line); border-radius: 13px; padding: 11px 13px; background: var(--surface);
+  }
+  .composer .input { flex: 1; color: var(--faint); font-size: 14px; }
+  .composer .send {
+    background: var(--accent); color: #0a100e; border-radius: 9px; padding: 9px 16px;
+    font-size: 13px; font-weight: 650; display: inline-flex; gap: 7px; align-items: center;
+  }
+  .composer .send:hover { filter: brightness(1.05); }
+
+  .note { margin-top: 14px; color: var(--faint); font-size: 12.5px; text-align: center; }
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Top-Leiste: einzige persistente Navigation (keine Sidebar) -->
+  <header class="topbar">
+    <div class="brand"><span class="logo" aria-hidden="true">◆</span> Odysseus</div>
+    <nav class="nav" aria-label="Hauptnavigation">
+      <button class="tab">Chat</button>
+      <button class="tab" aria-current="page">Agent</button>
+      <button class="tab">Dokumente</button>
+      <button class="tab">Mail</button>
+      <button class="tab">Notizen</button>
+      <button class="tab">Kalender</button>
+    </nav>
+    <button class="search" aria-label="Suche oder Bereich wechseln">Suchen oder wechseln… <span class="kbd">⌘K</span><span class="kbd">Strg+K</span></button>
+    <button class="avatar" aria-label="Benutzermenü">N</button>
+  </header>
+
+  <!-- Agent-Lauf Kopfzeile -->
+  <section class="run" aria-label="Lauf-Status">
+    <div class="run-row1">
+      <h1>Skill-Import · Kompatibilität</h1>
+      <span class="status" role="status"><span class="dot" aria-hidden="true"></span> Läuft</span>
+      <div class="spacer"></div>
+      <div class="actions">
+        <button class="btn ghost">❚❚ Pause</button>
+        <div class="confirm" role="group" aria-label="Stopp bestätigen">
+          <span class="q">Wirklich stoppen?</span>
+          <button class="yes">Ja, stoppen</button>
+          <button class="no">Abbrechen</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="meta">
+      <div class="group">
+        <span class="glabel">Modell</span>
+        <span class="chip"><span class="dot" aria-hidden="true"></span> gpt-5.6-sol</span>
+      </div>
+      <div class="group">
+        <span class="glabel">Owner</span>
+        <span class="chip amber"><span class="dot" aria-hidden="true"></span> Root <span class="info" title="Lokale Ausführung in deiner Umgebung; kein Fernzugriff.">i</span></span>
+      </div>
+      <div class="group">
+        <span class="glabel">Scope</span>
+        <span class="chip mono">6 Pfade</span>
+        <span class="chip mono">Korrekturen 1/1</span>
+      </div>
+      <div class="group">
+        <span class="glabel">Dauer</span>
+        <span class="chip mono">00:12:34</span>
+      </div>
+    </div>
+
+    <div class="progress">
+      <span class="label">Phase 4 von 8 · Verifikation</span>
+      <div class="track" role="progressbar" aria-label="Fortschritt" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100">
+        <span class="fill"></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Stream -->
+  <main class="stream" aria-label="Agenten-Aktivität">
+
+    <div class="entry system">
+      <span class="who">SYSTEM</span>
+      <div class="line">Lauf gestartet · Claim registriert als <span class="mono">ABC-PPS1-V6-REV357</span></div>
+    </div>
+
+    <div class="entry agent">
+      <span class="who">AGENT</span>
+      <div class="bubble">Ich beginne tests-first. Zuerst lese ich die sechs Claim-Pfade und prüfe den Clean-Origin gegen die v6-Baseline.</div>
+    </div>
+
+    <div class="entry tool">
+      <span class="who">TOOL</span>
+      <div class="toolcard">
+        <div class="head">
+          <span class="name">read_file</span>
+          <span class="arg mono">services/memory/skill_format.py</span>
+          <span class="ms mono">142 ms</span>
+        </div>
+        <div class="body"><span class="ok">Baseline OK</span><span>444 Zeilen gelesen</span><button class="expand" aria-label="Details anzeigen">Details ▾</button></div>
+      </div>
+    </div>
+
+    <div class="entry tool">
+      <span class="who">TOOL</span>
+      <div class="toolcard">
+        <div class="head">
+          <span class="name">run_tests</span>
+          <span class="arg mono">test_skill_format · test_skill_importer · test_skills_manager_owner_isolation</span>
+          <span class="ms mono">3.8 s</span>
+        </div>
+        <div class="body"><span class="ok">62 passed · 0 failed</span><span>RED vor Implementierung bestätigt</span><button class="expand" aria-label="Details anzeigen">Details ▾</button></div>
+      </div>
+    </div>
+
+    <div class="entry agent">
+      <span class="who">AGENT</span>
+      <div class="bubble">Der fokussierte Testlauf ist grün. Ich friere den Kandidaten jetzt als unveränderlichen 6-Blob-Tupel ein.</div>
+    </div>
+
+    <div class="entry system">
+      <span class="who">SYSTEM</span>
+      <div class="receipt">
+        <div class="rlabel">Evidence · eingefrorener Kandidat</div>
+        <div class="mono rhash">diff-digest 9970a5f5…14eaad · 6 Blobs · 3 Validatoren PASS</div>
+      </div>
+    </div>
+
+    <div class="composer">
+      <label class="sr-only" for="composer-input">Anweisung an den Agenten</label>
+      <div class="input" id="composer-input">Anweisung an den Agenten …</div>
+      <button class="send">Senden ↗</button>
+    </div>
+  </main>
+
+  <p class="note">Odysseus · Agent — ruhiger, dichter Arbeitsbereich ohne Seitenleiste · <span class="mono">Design v2 · Dark</span></p>
+
+</div>
+</body>
+</html>

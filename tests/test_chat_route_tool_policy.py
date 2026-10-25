@@ -10,9 +10,13 @@ Fix: (1) Read from JSON body as fallback.
 """
 
 import ast
+import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 
 _CHAT_ROUTES = Path(__file__).resolve().parent.parent / "routes" / "chat_routes.py"
 
@@ -221,6 +225,364 @@ def test_explicit_false_disables_even_for_admin():
         allow_bash="false", can_use_bash=True,
     )
     assert "bash" in disabled
+
+
+@pytest.mark.parametrize("instrumentation_mode", ["disabled", "failing"])
+def test_agent_stream_reaches_terminal_sse_when_runtime_instrumentation_is_optional(
+    monkeypatch, instrumentation_mode
+):
+    """The route must fail open when optional capture cannot bind.
+
+    This exercises the actual ``/api/chat_stream`` Agent branch and drains its
+    detached SSE subscription.  Before TUA4R the call expression itself raised
+    ``NameError`` because the instrumentation name had not been initialized.
+    """
+    import routes.chat_routes as chat_routes
+    from src.agent_loop import _bind_tool_usage_instrumentation
+    import src.settings as settings
+
+    private_message = "synthetic-private-message-must-not-reach-analytics"
+    session = SimpleNamespace(
+        endpoint_url="http://localhost:11434",
+        model="synthetic-agent-model",
+        headers={},
+        name="",
+        history=[],
+    )
+
+    class _SessionManager:
+        def get_session(self, session_id):
+            assert session_id == "synthetic-agent-session"
+            return session
+
+    class _Query:
+        def filter(self, *_args):
+            return self
+
+        def order_by(self, *_args):
+            return self
+
+        def first(self):
+            return None
+
+    class _Database:
+        def query(self, *_args):
+            return _Query()
+
+        def close(self):
+            return None
+
+    class _FailingInstrumentation:
+        def __init__(self):
+            self.bind_calls = []
+            self.write_calls = 0
+
+        def with_context(self, context):
+            self.bind_calls.append(context)
+            raise RuntimeError("synthetic capture bind failure")
+
+    class _DetachedRuns:
+        def __init__(self):
+            self.streams = {}
+
+        def start(self, session_id, stream):
+            self.streams[session_id] = stream
+
+        async def subscribe(self, session_id):
+            async for chunk in self.streams.pop(session_id):
+                yield chunk
+
+    async def _context(*_args, **_kwargs):
+        return SimpleNamespace(
+            preprocessed=SimpleNamespace(attachment_meta=[]),
+            preset=SimpleNamespace(character_name="", temperature=0, max_tokens=0),
+            auto_opened_docs=[],
+            rag_sources=[],
+            web_sources=[],
+            used_memories=[],
+            was_compacted=False,
+            context_length=0,
+            messages=[{"role": "user", "content": private_message}],
+            uprefs={},
+            user=None,
+        )
+
+    observed = {}
+
+    async def _agent_stream(*_args, **kwargs):
+        observed.update(kwargs)
+        # This is the same bind boundary used by stream_agent_loop. The
+        # optional factory failure must resolve to None, never abort reply flow.
+        assert _bind_tool_usage_instrumentation(
+            kwargs["tool_usage_context"], kwargs["tool_usage_instrumentation"]
+        ) is None
+        yield 'data: {"type":"tool_start","tool":"read_file","round":1,"command":"synthetic"}\n\n'
+        yield 'data: {"type":"tool_output","tool":"read_file","exit_code":0,"output":"synthetic"}\n\n'
+        yield 'data: {"delta":"synthetic agent reply"}\n\n'
+        yield "data: [DONE]\n\n"
+
+    instrumentation = None if instrumentation_mode == "disabled" else _FailingInstrumentation()
+    detached_runs = _DetachedRuns()
+    monkeypatch.setattr(chat_routes, "_set_user_time_from_request", lambda _request: None)
+    monkeypatch.setattr(chat_routes, "_verify_session_owner", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(chat_routes, "_chat_effective_user", lambda _request: None)
+    monkeypatch.setattr(chat_routes, "_clear_orphaned_session_endpoint", lambda *_args, **_kwargs: False)
+    monkeypatch.setattr(chat_routes, "_recover_empty_session_model", lambda *_args, **_kwargs: False)
+    monkeypatch.setattr(chat_routes, "_enforce_chat_privileges", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(chat_routes, "resolve_session_auth", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(chat_routes, "coerce_message_and_session", lambda _body, message, sid, *_args, **_kwargs: (message, sid))
+    monkeypatch.setattr(chat_routes, "build_chat_context", _context)
+    monkeypatch.setattr(chat_routes, "build_deterministic_capability_self_report", lambda _message: None)
+    monkeypatch.setattr(chat_routes, "SessionLocal", _Database)
+    monkeypatch.setattr(chat_routes, "get_session_mode", lambda _sid: "chat")
+    monkeypatch.setattr(chat_routes, "set_session_mode", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(chat_routes, "_clarification_gate_for_session", lambda **_kwargs: {"open": False})
+    monkeypatch.setattr(chat_routes, "_is_image_generation_session", lambda *_args, **_kwargs: False)
+    monkeypatch.setattr(chat_routes, "save_assistant_response", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(chat_routes, "run_post_response_tasks", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(chat_routes, "stream_agent_loop", _agent_stream)
+    monkeypatch.setattr(chat_routes, "agent_runs", detached_runs)
+    monkeypatch.setattr(settings, "get_setting", lambda _name, default=None: default)
+
+    app = FastAPI()
+    app.state.tool_usage_instrumentation = instrumentation
+    app.include_router(
+        chat_routes.setup_chat_routes(
+            _SessionManager(),
+            SimpleNamespace(),
+            SimpleNamespace(),
+            SimpleNamespace(),
+            SimpleNamespace(),
+            SimpleNamespace(),
+        )
+    )
+
+    response = TestClient(app).post(
+        "/api/chat_stream",
+        data={
+            "message": private_message,
+            "session": "synthetic-agent-session",
+            "mode": "agent",
+        },
+        headers={"Authorization": "Bearer synthetic-analytics-compat"},
+    )
+
+    assert response.status_code == 200
+    assert "data: [DONE]" in response.text
+    assert '"type":"tool_start"' in response.text
+    assert "synthetic agent reply" in response.text
+    assert private_message not in response.text
+    assert observed["tool_usage_context"].persistence_allowed is True
+    assert observed["tool_usage_instrumentation"] is instrumentation
+    if instrumentation is None:
+        assert observed["tool_usage_instrumentation"] is None
+    else:
+        assert len(instrumentation.bind_calls) == 1
+        assert instrumentation.write_calls == 0
+
+
+@pytest.mark.parametrize("instrumentation_mode", ["disabled", "failing"])
+def test_agent_stream_executes_real_loop_tool_round_without_optional_analytics(
+    monkeypatch, instrumentation_mode
+):
+    """Route integration: the real loop must survive optional analytics failure."""
+    import core.database as database
+    import routes.chat_routes as chat_routes
+    import src.agent_loop as agent_loop
+    import src.settings as settings
+    import src.teacher_escalation as teacher_escalation
+    import src.tool_index as tool_index
+    from src.tool_usage_context import TrustedToolUsageContext
+
+    private_message = "synthetic-private-route-input-must-not-be-emitted"
+    session = SimpleNamespace(
+        endpoint_url="https://api.openai.com/v1",
+        model="gpt-4o",
+        headers={},
+        name="",
+        history=[],
+    )
+
+    class _SessionManager:
+        def get_session(self, session_id):
+            assert session_id == "synthetic-real-loop-session"
+            return session
+
+    class _Query:
+        def filter(self, *_args):
+            return self
+
+        def order_by(self, *_args):
+            return self
+
+        def first(self):
+            return None
+
+    class _Database:
+        def query(self, *_args):
+            return _Query()
+
+        def close(self):
+            return None
+
+    class _FailingInstrumentation:
+        def __init__(self, sink):
+            self.bind_calls = []
+            self.sink = sink
+
+        def with_context(self, context):
+            self.bind_calls.append(context)
+            raise RuntimeError("synthetic capture bind failure")
+
+    class _Sink:
+        def __init__(self):
+            self.write_calls = 0
+
+        def append_best_effort(self, _events):
+            self.write_calls += 1
+
+    class _DetachedRuns:
+        def __init__(self):
+            self.streams = {}
+
+        def start(self, session_id, stream):
+            self.streams[session_id] = stream
+
+        async def subscribe(self, session_id):
+            async for chunk in self.streams.pop(session_id):
+                yield chunk
+
+    async def _context(*_args, **_kwargs):
+        return SimpleNamespace(
+            preprocessed=SimpleNamespace(attachment_meta=[]),
+            preset=SimpleNamespace(character_name="", temperature=0, max_tokens=0),
+            auto_opened_docs=[],
+            rag_sources=[],
+            web_sources=[],
+            used_memories=[],
+            was_compacted=False,
+            context_length=0,
+            messages=[{"role": "user", "content": private_message}],
+            uprefs={},
+            user=None,
+        )
+
+    model_round = {"count": 0}
+    executed = []
+
+    async def _model_stream(_candidates, _messages, **_kwargs):
+        model_round["count"] += 1
+        if model_round["count"] == 1:
+            yield (
+                "data: "
+                + json.dumps(
+                    {
+                        "type": "tool_calls",
+                        "calls": [
+                            {
+                                "name": "bash",
+                                "arguments": json.dumps({"command": "synthetic-tool-command"}),
+                            }
+                        ],
+                    }
+                )
+                + "\n\n"
+            )
+        else:
+            yield 'data: {"delta":"synthetic real-loop reply"}\n\n'
+        yield "data: [DONE]\n\n"
+
+    async def _tool(block, **kwargs):
+        executed.append((block, kwargs.get("tool_usage_instrumentation")))
+        assert kwargs["tool_usage_instrumentation"] is None
+        return "bash", {"output": "synthetic-tool-result", "exit_code": 0}
+
+    async def _no_teacher(*_args, **_kwargs):
+        if False:
+            yield ""
+
+    sink = _Sink()
+    instrumentation = None if instrumentation_mode == "disabled" else _FailingInstrumentation(sink)
+    detached_runs = _DetachedRuns()
+
+    monkeypatch.setattr(chat_routes, "_set_user_time_from_request", lambda _request: None)
+    monkeypatch.setattr(chat_routes, "_verify_session_owner", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(chat_routes, "_chat_effective_user", lambda _request: None)
+    monkeypatch.setattr(chat_routes, "_clear_orphaned_session_endpoint", lambda *_args, **_kwargs: False)
+    monkeypatch.setattr(chat_routes, "_recover_empty_session_model", lambda *_args, **_kwargs: False)
+    monkeypatch.setattr(chat_routes, "_enforce_chat_privileges", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(chat_routes, "resolve_session_auth", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(chat_routes, "coerce_message_and_session", lambda _body, message, sid, *_args, **_kwargs: (message, sid))
+    monkeypatch.setattr(chat_routes, "build_chat_context", _context)
+    monkeypatch.setattr(chat_routes, "build_deterministic_capability_self_report", lambda _message: None)
+    monkeypatch.setattr(chat_routes, "build_trusted_chat_tool_usage_context", lambda **_kwargs: TrustedToolUsageContext.create(surface="chat", agent_mode="agent"))
+    monkeypatch.setattr(chat_routes, "SessionLocal", _Database)
+    monkeypatch.setattr(chat_routes, "get_session_mode", lambda _sid: "chat")
+    monkeypatch.setattr(chat_routes, "set_session_mode", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(chat_routes, "_clarification_gate_for_session", lambda **_kwargs: {"open": False})
+    monkeypatch.setattr(chat_routes, "_is_image_generation_session", lambda *_args, **_kwargs: False)
+    monkeypatch.setattr(chat_routes, "save_assistant_response", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(chat_routes, "run_post_response_tasks", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(chat_routes, "agent_runs", detached_runs)
+    monkeypatch.setattr(settings, "get_setting", lambda _name, default=None: default)
+
+    async def _snapshot(*_args, **_kwargs):
+        return SimpleNamespace(context_length=4096, known=False)
+
+    monkeypatch.setattr(agent_loop, "_resolve_agent_context_snapshot", _snapshot)
+    monkeypatch.setattr(agent_loop, "get_mcp_manager", lambda: None)
+    monkeypatch.setattr(tool_index, "get_tool_index", lambda: None)
+    monkeypatch.setattr(agent_loop, "blocked_tools_for_owner", lambda _owner: set())
+    monkeypatch.setattr(agent_loop, "_load_mcp_disabled_map", lambda: {})
+    monkeypatch.setattr(agent_loop, "_classify_agent_request", lambda *_args: {"domains": set(), "low_signal": False, "retrieval_query": "", "continuation": False})
+    monkeypatch.setattr(agent_loop, "_detect_admin_intent", lambda _messages: False)
+    monkeypatch.setattr(agent_loop, "_build_system_prompt", lambda messages, *_args, **_kwargs: (list(messages), []))
+    monkeypatch.setattr(agent_loop, "_inject_context_provider_messages", lambda messages, **_kwargs: messages)
+    monkeypatch.setattr(agent_loop, "get_function_tool_schemas", lambda: [{"type": "function", "function": {"name": "bash"}}])
+    monkeypatch.setattr(agent_loop, "stream_llm_with_fallback", _model_stream)
+    monkeypatch.setattr(agent_loop, "execute_tool_block", _tool)
+    monkeypatch.setattr(agent_loop, "estimate_tokens", lambda *_args, **_kwargs: 1)
+    monkeypatch.setattr(agent_loop, "get_setting", lambda name, default=None: 0 if name == "agent_input_token_budget" else default)
+    monkeypatch.setattr(database, "SessionLocal", _Database)
+    monkeypatch.setattr(teacher_escalation, "run_teacher_inline", _no_teacher)
+
+    app = FastAPI()
+    app.state.tool_usage_instrumentation = instrumentation
+    app.include_router(
+        chat_routes.setup_chat_routes(
+            _SessionManager(),
+            SimpleNamespace(),
+            SimpleNamespace(),
+            SimpleNamespace(),
+            SimpleNamespace(),
+            SimpleNamespace(),
+        )
+    )
+
+    response = TestClient(app).post(
+        "/api/chat_stream",
+        data={
+            "message": private_message,
+            "session": "synthetic-real-loop-session",
+            "mode": "agent",
+        },
+        headers={"Authorization": "Bearer synthetic-analytics-compat"},
+    )
+
+    assert response.status_code == 200
+    assert "data: [DONE]" in response.text
+    assert "synthetic real-loop reply" in response.text
+    assert '"type": "tool_start"' in response.text
+    assert "synthetic-tool-result" in response.text
+    assert private_message not in response.text
+    assert model_round["count"] == 2
+    assert len(executed) == 1
+    assert executed[0][0].tool_type == "bash"
+    if instrumentation is None:
+        assert executed[0][1] is None
+    else:
+        assert len(instrumentation.bind_calls) == 1
+    assert sink.write_calls == 0
 
 
 # ── Frontend source-level guards ──────────────────────────────

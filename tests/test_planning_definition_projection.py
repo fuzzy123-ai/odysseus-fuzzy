@@ -387,3 +387,234 @@ def test_projection_and_store_import_no_agent_or_temporal_provider() -> None:
     assert "from temporal" not in source
     assert "import agent" not in source
     assert "from agent" not in source
+
+
+def test_owner_source_snapshot_is_scalar_detached_and_uses_exact_approved_pointer() -> None:
+    first = definition_fixture(include_draft=True)
+    second = definition_fixture("project-b", "roadmap-b", include_draft=False)
+    store = PlanningRevisionStore(
+        [
+            ("alice", first, "docs/plans/a.json"),
+            ("alice", second, "specs/roadmaps/b.json"),
+        ]
+    )
+
+    snapshot = store.snapshot_owner_sources("alice")
+    repeated = store.snapshot_owner_sources("alice")
+
+    assert snapshot == repeated
+    assert snapshot["schema_id"] == "odysseus.planning.owner_source_snapshot.v1"
+    assert snapshot["owner"] == "alice"
+    assert snapshot["snapshot_digest"].startswith("sha256:")
+    assert [
+        (item["project_id"], item["roadmap_id"], item["revision"])
+        for item in snapshot["eligible"]
+    ] == [
+        ("project-a", "roadmap-a", 1),
+        ("project-b", "roadmap-b", 1),
+    ]
+    assert snapshot["selection_mode"] == "latest_approved"
+    assert snapshot["ineligible"] == []
+    assert snapshot["eligible"][0]["source_ref"] == "docs/plans/a.json"
+    snapshot["eligible"][0]["source_ref"] = "mutated.json"
+    assert store.snapshot_owner_sources("alice")["eligible"][0]["source_ref"] == (
+        "docs/plans/a.json"
+    )
+
+
+def test_owner_source_snapshot_never_reads_large_definition_bodies() -> None:
+    class Poison:
+        def __str__(self) -> str:
+            raise AssertionError("large prose was touched")
+
+        def __deepcopy__(self, memo):
+            raise AssertionError("large graph was copied")
+
+    store = PlanningRevisionStore(
+        [("alice", definition_fixture(include_draft=False), "docs/plans/a.json")]
+    )
+    roadmap = store._revisions["alice"][("project-a", "roadmap-a", 1)]
+    roadmap["title"] = Poison()
+    roadmap["objective"] = Poison()
+    roadmap["nodes"] = Poison()
+    roadmap["edges"] = Poison()
+    roadmap["gates"] = Poison()
+
+    snapshot = store.snapshot_owner_sources("alice")
+
+    assert snapshot["eligible"][0]["content_hash"].startswith("sha256:")
+
+
+def test_owner_source_snapshot_rejects_cardinality_before_iteration() -> None:
+    class IterationBomb(dict):
+        def items(self):
+            raise AssertionError("cardinality gate iterated")
+
+        def __iter__(self):
+            raise AssertionError("cardinality gate iterated")
+
+    store = PlanningRevisionStore(
+        [("alice", definition_fixture(include_draft=False), "docs/plans/a.json")]
+    )
+    store._projects["alice"] = IterationBomb(
+        {str(index): {} for index in range(101)}
+    )
+    with pytest.raises(PlanningRevisionStoreError) as projects:
+        store.snapshot_owner_sources("alice")
+    assert projects.value.code == "owner_source_limit_exceeded"
+
+    store = PlanningRevisionStore(
+        [("alice", definition_fixture(include_draft=False), "docs/plans/a.json")]
+    )
+    store._revisions["alice"] = IterationBomb(
+        {index: {} for index in range(1001)}
+    )
+    store._sources["alice"] = {
+        index: "docs/plans/a.json" for index in range(1001)
+    }
+    with pytest.raises(PlanningRevisionStoreError) as revisions:
+        store.snapshot_owner_sources("alice")
+    assert revisions.value.code == "owner_source_limit_exceeded"
+
+    store = PlanningRevisionStore(
+        [("alice", definition_fixture(include_draft=False), "docs/plans/a.json")]
+    )
+    store._revisions["alice"] = IterationBomb(store._revisions["alice"])
+    store._sources["alice"] = {}
+    with pytest.raises(PlanningRevisionStoreError) as mismatch:
+        store.snapshot_owner_sources("alice")
+    assert mismatch.value.code == "owner_source_unavailable"
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("revision", True),
+        ("revision_state", "running"),
+        ("content_hash", "sha256:0"),
+        ("updated_at", "not-a-timestamp"),
+    ],
+)
+def test_owner_source_snapshot_rejects_non_exact_or_invalid_scalars(
+    field: str,
+    value: object,
+) -> None:
+    store = PlanningRevisionStore(
+        [("alice", definition_fixture(include_draft=False), "docs/plans/a.json")]
+    )
+    key = ("project-a", "roadmap-a", 1)
+    if field == "revision":
+        store._projects["alice"]["project-a"]["latest_approved_revision"][
+            "roadmap-a"
+        ]["revision"] = value
+    else:
+        store._revisions["alice"][key][field] = value
+
+    with pytest.raises(PlanningRevisionStoreError) as raised:
+        store.snapshot_owner_sources("alice")
+    assert raised.value.code == "owner_source_integrity_error"
+
+
+def test_owner_source_snapshot_missing_owner_and_101st_logical_roadmap_fail_closed() -> None:
+    store = PlanningRevisionStore(
+        [("alice", definition_fixture(include_draft=False), "docs/plans/a.json")]
+    )
+    with pytest.raises(PlanningRevisionStoreError) as missing:
+        store.snapshot_owner_sources("bob")
+    assert missing.value.code == "owner_not_found"
+
+    class ReferencePoison:
+        def __str__(self):
+            raise AssertionError("declared-roadmap cap inspected references")
+
+    project = store._projects["alice"]["project-a"]
+    project["roadmap_refs"] = [ReferencePoison() for _ in range(101)]
+    project["latest_approved_revision"] = {}
+
+    with pytest.raises(PlanningRevisionStoreError) as limit:
+        store.snapshot_owner_sources("alice")
+    assert limit.value.code == "owner_source_limit_exceeded"
+
+
+def test_owner_source_snapshot_reports_ineligible_and_ignores_incidental_new_draft() -> None:
+    approved = definition_fixture(include_draft=False)
+    with_draft = definition_fixture(include_draft=True)
+    approved_store = PlanningRevisionStore(
+        [("alice", approved, "docs/plans/a.json")]
+    )
+    draft_store = PlanningRevisionStore(
+        [("alice", with_draft, "docs/plans/a.json")]
+    )
+
+    first = approved_store.snapshot_owner_sources("alice")
+    second = draft_store.snapshot_owner_sources("alice")
+
+    assert first["snapshot_digest"] == second["snapshot_digest"]
+    assert first["eligible"] == second["eligible"]
+    assert second["eligible"][0]["revision"] == 1
+
+    draft_only = definition_fixture(include_draft=False)
+    roadmap = draft_only["roadmaps"][0]
+    roadmap["revision_state"] = "draft"
+    roadmap["content_hash"] = compute_roadmap_content_hash(roadmap)
+    draft_only["project"]["latest_approved_revision"] = {}
+    store = PlanningRevisionStore(
+        [("alice", draft_only, "docs/plans/draft.json")]
+    )
+
+    snapshot = store.snapshot_owner_sources("alice")
+
+    assert snapshot["eligible"] == []
+    assert snapshot["ineligible"] == [
+        {
+            "project_id": "project-a",
+            "roadmap_id": "roadmap-a",
+            "eligibility": "ineligible_no_approved_revision",
+            "revision": None,
+            "revision_state": "",
+            "content_hash": "",
+            "updated_at": "",
+            "source_ref": "",
+        }
+    ]
+
+
+@pytest.mark.parametrize(
+    "corruption",
+    [
+        "pointer_hash",
+        "pointer_none",
+        "selected_state",
+        "selected_source",
+        "extra_pointer",
+    ],
+)
+def test_owner_source_snapshot_rejects_corrupt_approved_binding(corruption: str) -> None:
+    store = PlanningRevisionStore(
+        [("alice", definition_fixture(include_draft=False), "docs/plans/a.json")]
+    )
+    project = store._projects["alice"]["project-a"]
+    key = ("project-a", "roadmap-a", 1)
+    if corruption == "pointer_hash":
+        project["latest_approved_revision"]["roadmap-a"]["content_hash"] = (
+            "sha256:" + ("f" * 64)
+        )
+    elif corruption == "pointer_none":
+        project["latest_approved_revision"]["roadmap-a"] = None
+    elif corruption == "selected_state":
+        store._revisions["alice"][key]["revision_state"] = "draft"
+    elif corruption == "selected_source":
+        store._sources["alice"][key] = "../unsafe.json"
+    else:
+        project["latest_approved_revision"]["extra"] = {
+            "revision": 1,
+            "content_hash": "sha256:" + ("0" * 64),
+        }
+
+    with pytest.raises(PlanningRevisionStoreError) as raised:
+        store.snapshot_owner_sources("alice")
+    assert raised.value.code == (
+        "owner_source_limit_exceeded"
+        if corruption == "extra_pointer"
+        else "owner_source_integrity_error"
+    )

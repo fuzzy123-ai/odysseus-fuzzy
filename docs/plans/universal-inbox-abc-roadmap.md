@@ -1,8 +1,17 @@
 # Universal Inbox ABC Roadmap
 
+Current-status reconciliation: 2026-09-05. The canonical product parent is
+`docs/plans/harbour-one-product-roadmap.json` H1R-08/H1R-09. Open Work and
+`tests/test_open_roadmap_priority_contract.py` preserve accepted UIX-ABC13
+through UIX-ABC24. The source-access, working-copy, workbench, Inbox API and
+frontend workbench test files are present. The dated July evidence and
+implementation packets below describe their original baselines, not a fresh
+execution queue. This reconciliation does not certify current UI/live
+behavior or complete H1R-09. Evidence: `docs/plans/evidence/harbour-one-plan-reconciliation-20260905.json`.
+
 Stand: 2026-07-15
 
-Status: active roadmap; UIX-ABC0 bis UIX-ABC11 sind historisch eingeordnet, UIX-ABC12 ist abgeschlossen, die Dokument-Workbench UIX-ABC13 bis UIX-ABC24 ist geplant und noch nicht implementiert
+Status: document-workbench foundation accepted in canonical Open Work; UIX-ABC13 through UIX-ABC24 must not restart. Cross-domain typed Inbox H1R-09 and live source actions remain open/gated.
 
 ## Goal
 
@@ -17,7 +26,7 @@ Die Universal Inbox verarbeitet abgelegte Dateien end-to-end so, dass Metadaten,
 - Verifikation: `venv\Scripts\python.exe -m pytest tests\test_universal_inbox_routing.py tests\test_nextcloud_intake_ledger.py tests\test_nextcloud_review_queue.py tests\test_nextcloud_tag_governance.py tests\test_nextcloud_source_provider.py` -> `44 passed`.
 - Kein aktiver Alice/Bob/Charlie-Thread wurde fuer diese Roadmap uebernommen.
 
-## Status Reconciliation (2026-07-15)
+## Historical Status Reconciliation (2026-07-15)
 
 - UIX-ABC0 bis UIX-ABC11 bleiben als historische Pipeline- und Live-Readiness-Slices erhalten. Ihre eingebetteten Delegation Prompts sind keine aktuellen Claims.
 - Die neuere Roadmap `docs/plans/universal-inbox-nextcloud-flow-rework-roadmap.md` ist fuer den Repo-only-Flow UIX2 bis UIX5 und UIX8 abgeschlossen. Offen bleiben die dort dokumentierten Design- und Live-Gates.

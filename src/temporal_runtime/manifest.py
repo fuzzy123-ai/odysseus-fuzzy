@@ -3,18 +3,20 @@
 from __future__ import annotations
 
 import hashlib
-from pathlib import PurePosixPath
 import re
 from typing import Any, Mapping, Sequence
 
 from src.planning_definition_contract import (
-    PLANNING_DEFINITION_SCHEMA_ID,
+    collect_repository_paths,
     PlanningDefinitionContractError,
-    compute_roadmap_content_hash,
-    validate_planning_definition,
+)
+from src.definition_authority_snapshot import (
+    DefinitionAuthoritySnapshotError,
+    build_definition_authority_snapshot,
 )
 from src.temporal_runtime.contracts import (
     MAX_MANIFEST_BYTES,
+    DefinitionSnapshotReference,
     ExecutionContractError,
     ExecutionManifest,
     ExecutionPolicy,
@@ -25,7 +27,6 @@ from src.temporal_runtime.contracts import (
     NormalizedNode,
     canonical_json,
     freeze_json,
-    validate_hash,
     validate_identifier,
 )
 
@@ -51,48 +52,32 @@ def build_execution_manifest(
 ) -> ExecutionManifest:
     owner = _owner_scope(owner_scope_ref)
     request_id = _start_request_id(start_request_id)
-    if not isinstance(read_model, Mapping):
-        _fail("invalid_read_model", "$", "Planning read model must be an object")
-    project = read_model.get("project")
-    roadmap = read_model.get("roadmap")
-    if not isinstance(project, Mapping) or not isinstance(roadmap, Mapping):
-        _fail("invalid_read_model", "$", "Planning project and roadmap are required")
     try:
-        validate_planning_definition(
-            {
-                "schema_id": PLANNING_DEFINITION_SCHEMA_ID,
-                "project": dict(project),
-                "roadmaps": [dict(roadmap)],
-            }
-        )
-    except PlanningDefinitionContractError as exc:
-        _fail("invalid_planning_definition", exc.path, exc.detail)
+        definition_snapshot = build_definition_authority_snapshot(read_model)
+    except DefinitionAuthoritySnapshotError as exc:
+        _fail(exc.code, exc.path, exc.detail)
+    snapshot_payload = definition_snapshot.to_payload()
+    definition_snapshot_ref = DefinitionSnapshotReference.create(definition_snapshot.reference_payload())
+    project_id = definition_snapshot_ref.project_id
+    roadmap_id = definition_snapshot_ref.roadmap_id
+    revision = definition_snapshot_ref.planning_revision
+    content_hash = definition_snapshot_ref.planning_content_hash
 
-    project_id = validate_identifier(project.get("project_id"), "$.project.project_id")
-    roadmap_id = validate_identifier(roadmap.get("roadmap_id"), "$.roadmap.roadmap_id")
-    if roadmap.get("project_id") != project_id:
-        _fail("planning_reference_mismatch", "$.roadmap.project_id", "project does not match")
-    revision = roadmap.get("revision")
-    if isinstance(revision, bool) or not isinstance(revision, int) or revision < 1:
-        _fail("invalid_revision", "$.roadmap.revision", "revision must be positive")
-    content_hash = validate_hash(roadmap.get("content_hash"), "$.roadmap.content_hash")
-    if roadmap.get("revision_state") != "approved":
-        _fail("planning_revision_not_approved", "$.roadmap.revision_state", "revision is not approved")
-    latest = project.get("latest_approved_revision", {}).get(roadmap_id)
-    if not isinstance(latest, Mapping) or latest.get("revision") != revision or latest.get("content_hash") != content_hash:
-        _fail("plan_revision_conflict", "$.project.latest_approved_revision", "approved head changed")
-    if compute_roadmap_content_hash(roadmap) != content_hash:
-        _fail("plan_revision_conflict", "$.roadmap.content_hash", "roadmap content changed after hashing")
-
-    normalized_dag = normalize_execution_dag(roadmap)
-    done_contract = freeze_json(roadmap["done_contract"], path="$.roadmap.done_contract")
+    # Execution keeps legacy-compatible projections, but they are all derived
+    # from the one validated authority snapshot rather than re-normalizing the
+    # mutable read model a second time.
+    normalized_dag = normalize_execution_dag(snapshot_payload["normalized_dag"])
+    done_contract = freeze_json(snapshot_payload["done_contract"], path="$.definition_snapshot.done_contract")
     if not isinstance(done_contract, FrozenObject):
-        _fail("invalid_done_contract", "$.roadmap.done_contract", "done contract must be an object")
-    allowed_paths = _paths_from_nodes(roadmap["nodes"], "allowed_paths")
-    blocked_paths = _paths_from_nodes(roadmap["nodes"], "blocked_paths")
+        _fail("invalid_done_contract", "$.definition_snapshot.done_contract", "done contract must be an object")
+    allowed_paths = tuple(snapshot_payload["allowed_paths"])
+    blocked_paths = tuple(snapshot_payload["blocked_paths"])
     if set(allowed_paths) & set(blocked_paths):
-        _fail("path_scope_conflict", "$.roadmap.nodes", "one path is both allowed and blocked")
-    hotfiles = _normalize_paths(policy.hotfiles, "$.policy.hotfiles")
+        _fail("path_scope_conflict", "$.definition_snapshot", "one path is both allowed and blocked")
+    try:
+        hotfiles = collect_repository_paths(policy.hotfiles, path="$.policy.hotfiles", unique=True)
+    except PlanningDefinitionContractError as exc:
+        _fail(exc.reason_code, exc.path, exc.detail)
     if not set(hotfiles) <= set(allowed_paths):
         _fail("hotfile_outside_scope", "$.policy.hotfiles", "hotfiles must be allowed Planning paths")
 
@@ -104,6 +89,7 @@ def build_execution_manifest(
         roadmap_id=roadmap_id,
         planning_revision=revision,
         planning_content_hash=content_hash,
+        definition_snapshot_ref=definition_snapshot_ref,
         normalized_dag=normalized_dag,
         done_contract=done_contract,
         queue_scope=policy.queue_scope,
@@ -129,52 +115,44 @@ def build_execution_manifest(
     return result
 
 
-def normalize_execution_dag(roadmap: Mapping[str, Any]) -> NormalizedDag:
-    node_records = roadmap.get("nodes")
-    edge_records = roadmap.get("edges")
-    gate_records = roadmap.get("gates")
-    if not isinstance(node_records, Sequence) or isinstance(node_records, (str, bytes)):
-        _fail("invalid_dag", "$.roadmap.nodes", "nodes must be an array")
-    if not isinstance(edge_records, Sequence) or isinstance(edge_records, (str, bytes)):
-        _fail("invalid_dag", "$.roadmap.edges", "edges must be an array")
-    if not isinstance(gate_records, Sequence) or isinstance(gate_records, (str, bytes)):
-        _fail("invalid_dag", "$.roadmap.gates", "gates must be an array")
+def normalize_execution_dag(snapshot_dag: Mapping[str, Any]) -> NormalizedDag:
+    """Adapt the validated snapshot DAG to the legacy manifest value objects."""
 
-    dependencies: dict[str, set[str]] = {}
+    node_records = snapshot_dag.get("nodes")
+    edge_records = snapshot_dag.get("edges")
+    gate_records = snapshot_dag.get("gates")
+    if not isinstance(node_records, Sequence) or isinstance(node_records, (str, bytes)):
+        _fail("invalid_dag", "$.definition_snapshot.normalized_dag.nodes", "nodes must be an array")
+    if not isinstance(edge_records, Sequence) or isinstance(edge_records, (str, bytes)):
+        _fail("invalid_dag", "$.definition_snapshot.normalized_dag.edges", "edges must be an array")
+    if not isinstance(gate_records, Sequence) or isinstance(gate_records, (str, bytes)):
+        _fail("invalid_dag", "$.definition_snapshot.normalized_dag.gates", "gates must be an array")
+
     raw_nodes: dict[str, Mapping[str, Any]] = {}
     for index, item in enumerate(node_records):
         if not isinstance(item, Mapping):
-            _fail("invalid_dag", f"$.roadmap.nodes[{index}]", "node must be an object")
-        node_id = validate_identifier(item.get("node_id"), f"$.roadmap.nodes[{index}].node_id")
+            _fail("invalid_dag", f"$.definition_snapshot.normalized_dag.nodes[{index}]", "node must be an object")
+        node_id = validate_identifier(item.get("node_id"), f"$.definition_snapshot.normalized_dag.nodes[{index}].node_id")
         if node_id in raw_nodes:
-            _fail("duplicate_node", f"$.roadmap.nodes[{index}]", "node id is duplicated")
+            _fail("duplicate_node", f"$.definition_snapshot.normalized_dag.nodes[{index}]", "node id is duplicated")
         raw_nodes[node_id] = item
-        dependencies[node_id] = set(item.get("depends_on", ()))
 
     edges: list[NormalizedEdge] = []
     for index, item in enumerate(edge_records):
         if not isinstance(item, Mapping):
-            _fail("invalid_dag", f"$.roadmap.edges[{index}]", "edge must be an object")
-        source = validate_identifier(item.get("from"), f"$.roadmap.edges[{index}].from")
-        target = validate_identifier(item.get("to"), f"$.roadmap.edges[{index}].to")
+            _fail("invalid_dag", f"$.definition_snapshot.normalized_dag.edges[{index}]", "edge must be an object")
+        source = validate_identifier(item.get("from"), f"$.definition_snapshot.normalized_dag.edges[{index}].from")
+        target = validate_identifier(item.get("to"), f"$.definition_snapshot.normalized_dag.edges[{index}].to")
         kind = str(item.get("kind") or "")
         if source not in raw_nodes or target not in raw_nodes:
-            _fail("missing_dependency", f"$.roadmap.edges[{index}]", "edge endpoint is unknown")
-        if kind == "depends_on":
-            dependencies[source].add(target)
+            _fail("missing_dependency", f"$.definition_snapshot.normalized_dag.edges[{index}]", "edge endpoint is unknown")
         edges.append(NormalizedEdge(source=source, target=target, kind=kind))
-
-    for node_id, required in dependencies.items():
-        unknown = sorted(required - set(raw_nodes))
-        if unknown:
-            _fail("missing_dependency", f"$.roadmap.nodes.{node_id}", f"unknown dependency {unknown[0]}")
-    _reject_cycles(dependencies)
 
     nodes = tuple(
         NormalizedNode(
             node_id=node_id,
             kind=str(raw_nodes[node_id]["kind"]),
-            depends_on=tuple(sorted(dependencies[node_id])),
+            depends_on=tuple(raw_nodes[node_id]["depends_on"]),
             gate_ids=tuple(sorted(raw_nodes[node_id].get("gate_ids", ()))),
             verification_rule_ids=tuple(sorted(raw_nodes[node_id].get("verification_rule_ids", ()))),
         )
@@ -183,13 +161,13 @@ def normalize_execution_dag(roadmap: Mapping[str, Any]) -> NormalizedDag:
     normalized_gates: list[NormalizedGate] = []
     for index, item in enumerate(gate_records):
         if not isinstance(item, Mapping):
-            _fail("invalid_dag", f"$.roadmap.gates[{index}]", "gate must be an object")
-        scope = freeze_json(item.get("approval_scope_schema", {}), path=f"$.roadmap.gates[{index}].approval_scope_schema")
+            _fail("invalid_dag", f"$.definition_snapshot.normalized_dag.gates[{index}]", "gate must be an object")
+        scope = freeze_json(item.get("approval_scope_schema", {}), path=f"$.definition_snapshot.normalized_dag.gates[{index}].approval_scope_schema")
         if not isinstance(scope, FrozenObject):
-            _fail("invalid_dag", f"$.roadmap.gates[{index}]", "approval scope must be an object")
+            _fail("invalid_dag", f"$.definition_snapshot.normalized_dag.gates[{index}]", "approval scope must be an object")
         normalized_gates.append(
             NormalizedGate(
-                gate_id=validate_identifier(item.get("gate_id"), f"$.roadmap.gates[{index}].gate_id"),
+                gate_id=validate_identifier(item.get("gate_id"), f"$.definition_snapshot.normalized_dag.gates[{index}].gate_id"),
                 kind=str(item.get("kind") or ""),
                 blocks=tuple(sorted(item.get("blocks", ()))),
                 decision_needed=str(item.get("decision_needed") or ""),
@@ -208,46 +186,6 @@ def normalize_execution_dag(roadmap: Mapping[str, Any]) -> NormalizedDag:
 def workflow_id_for(manifest: ExecutionManifest) -> str:
     owner_hash = hashlib.sha256(manifest.owner_scope_ref.encode("utf-8")).hexdigest()[:16]
     return f"odysseus-abc/{owner_hash}/{manifest.agent_run_id}"
-
-
-def _paths_from_nodes(nodes: Sequence[Mapping[str, Any]], field: str) -> tuple[str, ...]:
-    values: list[str] = []
-    for node in nodes:
-        values.extend(node.get(field, ()))
-    return _normalize_paths(values, f"$.roadmap.nodes.{field}")
-
-
-def _normalize_paths(values: Sequence[Any], path: str) -> tuple[str, ...]:
-    normalized: set[str] = set()
-    for index, value in enumerate(values):
-        item_path = f"{path}[{index}]"
-        if not isinstance(value, str) or not value.strip() or len(value) > 512:
-            _fail("invalid_repo_path", item_path, "path must be a bounded string")
-        raw = value.replace("\\", "/")
-        candidate = PurePosixPath(raw)
-        if candidate.is_absolute() or ".." in candidate.parts or re.match(r"^[A-Za-z]:", raw):
-            _fail("invalid_repo_path", item_path, "path must be repository-relative")
-        normalized.add(candidate.as_posix())
-    return tuple(sorted(normalized))
-
-
-def _reject_cycles(graph: Mapping[str, set[str]]) -> None:
-    visited: set[str] = set()
-    active: set[str] = set()
-
-    def visit(node_id: str) -> None:
-        if node_id in active:
-            _fail("dependency_cycle", "$.roadmap.nodes", f"cycle contains {node_id}")
-        if node_id in visited:
-            return
-        active.add(node_id)
-        for dependency in sorted(graph[node_id]):
-            visit(dependency)
-        active.remove(node_id)
-        visited.add(node_id)
-
-    for node_id in sorted(graph):
-        visit(node_id)
 
 
 def _agent_run_id(owner_scope_ref: str, start_request_id: str) -> str:

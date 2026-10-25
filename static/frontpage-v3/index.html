@@ -194,19 +194,29 @@
               <path d="M12 7.5v5l3.2 1.9"></path>
             </svg>
           </button>
-          <div class="repo-branch-chip" aria-label="Repository odysseus, branch dev, 2405 new code lines since last commit">
-            <button class="repo-branch-main" type="button" data-repo-commit-request aria-label="Prepare clean commit request for odysseus on branch dev">
-              <span class="repo-branch-name">dev</span>
+          <div class="repo-branch-chip forge-status-chip" data-forge-status-root>
+            <button class="repo-branch-main forge-status-toggle" type="button" data-forge-status-toggle aria-expanded="false" aria-controls="forge-status-popover" aria-label="Open repository status">
+              <span class="repo-branch-name" data-forge-branch>Repository</span>
+              <span class="forge-status-summary" data-forge-summary>Reading status…</span>
             </button>
-            <button class="repo-line-delta" type="button" data-open-code-changes aria-label="Open 2405 code changes in document viewer">+2405</button>
-            <span class="repo-chip-tooltip" role="tooltip">
-              <span class="repo-tooltip-title">Repository linked</span>
-              <span class="repo-tooltip-row"><span>Repo</span><span>nkatz/odysseus</span></span>
-              <span class="repo-tooltip-row"><span>Branch</span><span>dev</span></span>
-              <span class="repo-tooltip-row"><span>Since commit</span><span>+2405 code lines</span></span>
-              <span class="repo-tooltip-row"><span>Files</span><span>8 modified</span></span>
-              <span class="repo-tooltip-row"><span>Mode</span><span>Local workspace</span></span>
-            </span>
+            <div class="forge-status-popover" id="forge-status-popover" data-forge-status-popover role="dialog" aria-label="Repository status" hidden>
+              <div class="forge-status-heading">
+                <strong data-forge-repo-title>Repository status</strong>
+                <span data-forge-state>Loading</span>
+              </div>
+              <label class="forge-repo-picker" data-forge-repo-picker hidden>
+                <span>Repository</span>
+                <select data-forge-repo-select aria-label="Select repository"></select>
+              </label>
+              <div class="forge-status-message" data-forge-message role="status">Reading repository status…</div>
+              <dl class="forge-status-details" data-forge-details hidden>
+                <div><dt>Branch</dt><dd data-forge-detail-branch>—</dd></div>
+                <div><dt>Worktree</dt><dd data-forge-detail-worktree>—</dd></div>
+                <div><dt>Version</dt><dd data-forge-detail-version>—</dd></div>
+                <div><dt>Policy</dt><dd data-forge-detail-policy>—</dd></div>
+              </dl>
+              <button class="forge-status-retry" type="button" data-forge-retry hidden>Retry</button>
+            </div>
           </div>
           <div class="chat-title" title="Double click to rename">Vector Debug</div>
           <input class="chat-title-editor" value="Vector Debug" aria-label="Rename chat title" hidden>
@@ -660,6 +670,7 @@
   </main>
 
   <script src="./data.js?v=harbor-v3-fixed-1"></script>
+  <script src="./forge-api.js?v=harbor-forge-ui-1"></script>
   <script src="./app.js?v=harbor-v3-fixed-2"></script>
   <script src="./inbox-fixtures.js?v=harbor-uix18-1"></script>
   <script src="./inbox-api.js?v=harbor-uix18-1"></script>

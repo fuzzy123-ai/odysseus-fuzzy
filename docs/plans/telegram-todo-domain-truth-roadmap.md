@@ -1,6 +1,6 @@
 # Telegram Todo Domain Truth Roadmap
 
-Stand: 2026-07-24
+Stand: 2026-09-07
 
 Status: `TTD-00` bis `TTD-02` sind am 2026-07-23 akzeptiert. Der read-only
 `TTD-03`-Boundary-Recon ist abgeschlossen.
@@ -29,13 +29,21 @@ mehreren Terra-Korrekturen und tiefem Sol-PASS am Implementierungscommit
 `090ede31` akzeptiert. `TTD-07A3` ist nach mehreren Root-/Terra-Korrekturrunden
 und finalem tiefen Sol-PASS am Implementierungscommit `53109195` akzeptiert.
 `TTD-07A4` ist nach drei tiefen Sol-Reviews und finalem PASS am
-Implementierungscommit `c48f47c8` akzeptiert. Der `TTD-07A5`-Elfpfad-Claim ist
-nach zwei abgelehnten unvollstaendigen Versuchen freigegeben und
-architektur-gegated. Vor einem neuen Implementierungsclaim muessen stabile
-Transport-Intake-Identitaet, per-Operation-DB-Lifetime, atomare
-Lease-/Intake-Fences, Poll-Offset-Hold und expliziter Owner-Cutover in einem
-read-only Handoff eingefroren werden; produktive Aktivierung und Live bleiben
-fuer diesen Slice ungeclaimt.
+Implementierungscommit `c48f47c8` akzeptiert. Die ersten zwei unvollstaendigen
+`TTD-07A5`-Versuche wurden verworfen; danach wurden der R0-Architektur-Handoff
+und die seriellen Child-Slices `TTD-07A5A`, `TTD-07A5B`, `TTD-07A5C1`,
+`TTD-07A5C2` und `TTD-07A5C3` jeweils `released_accepted`. Damit ist der eine
+kanonische Parent `TTD-07A5-poll-webhook-sweep-and-turn-lease` am Commit
+`fd2340a6` repo-accepted und weiterhin default-off. Die Child-Slices sind
+Ausfuehrungsevidence, keine zusaetzlichen Nenner-Units. `TTD-07A6` ist
+nach unabhaengiger v2-Pruefung `released_blocked`; der Kandidat bleibt
+unabgenommen und default-off. Integer-Untertypen umgehen die eingefrorenen
+Selektorgrenzen (7 Nachrichten, 4669 Inhaltszeichen). 67 fokussierte und
+161 Abhaengigkeitstests bestanden, ersetzen aber dieses FAIL nicht.
+Evidenz und Circuit Breaker: `handoffs/abc-open-work-5h-run-20260905.json`,
+`ttd07a6_v2_deep_qa` und `ttd07a6_v2_circuit_breaker`. Der alte Rev301-Claim
+und sein Budget bleiben erhalten; kein weiterer Routineversuch ist erlaubt.
+Produktive Aktivierung, Telegram-Send und Live bleiben ungeclaimt.
 Der dazu disjunkte Achtpfad-Slice `TTD-08A` fuer wahrheitsgemaesse
 Raw-Klassifikation und content-free Audit-Projektionen ist akzeptiert.
 Der dazu disjunkte Vierpfad-Slice `TTD-08B` fuer einen separaten begrenzten

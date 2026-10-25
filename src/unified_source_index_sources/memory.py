@@ -33,6 +33,7 @@ from src.unified_source_index_contract import (
     SourceVersionRecord,
     TextRangeLocator,
     content_hash,
+    make_source_version_id,
 )
 from src.unified_source_index_owner_scope import OwnerScope
 from src.unified_source_index_source_capability import (
@@ -255,12 +256,24 @@ class MemorySourceDescriptor:
                 or detached_source.classification is not Classification.SENSITIVE
                 or detached_source.content_policy is not ContentPolicy.INLINE_LOCAL
                 or detached_source.provider_ref != MEMORY_SOURCE_ADAPTER_ID
+                or detached_source.canonical_ref != detached_locator.record_ref
+                or detached_source.canonical_ref != detached_evidence.record_ref
                 or detached_version.source_id != detached_source.source_id
+                or detached_version.revision_ref != detached_locator.record_digest
+                or detached_version.revision_ref != detached_evidence.record_digest
+                or detached_version.owner_scope != detached_source.owner_scope
+                or detached_version.provider_ref != detached_source.provider_ref
+                or detached_version.classification
+                is not detached_source.classification
+                or detached_version.content_policy is not detached_source.content_policy
                 or detached_evidence.source_id != detached_source.source_id
                 or detached_evidence.source_version_id
                 != detached_version.source_version_id
                 or detached_locator.record_ref != detached_evidence.record_ref
                 or detached_locator.record_digest != detached_evidence.record_digest
+                or detached_locator.snapshot_digest
+                != detached_evidence.snapshot_digest
+                or detached_locator.binding_digest != detached_evidence.binding_digest
             ):
                 raise MemorySourceAdapterError("invalid_snapshot")
             object.__setattr__(self, "source", detached_source)
@@ -314,8 +327,17 @@ class MemorySourceOccurrence:
                 detached_chunk.source_id != descriptor.source.source_id
                 or detached_chunk.source_version_id
                 != descriptor.source_version.source_version_id
-                or detached_chunk.classification is not Classification.SENSITIVE
-                or detached_chunk.content_policy is not ContentPolicy.INLINE_LOCAL
+                or detached_chunk.owner_scope != descriptor.source_version.owner_scope
+                or detached_chunk.classification
+                is not descriptor.source_version.classification
+                or detached_chunk.content_policy
+                is not descriptor.source_version.content_policy
+                or detached_chunk.extractor_profile_ref
+                != MEMORY_SOURCE_EXTRACTOR_PROFILE
+                or detached_chunk.content_hash
+                != descriptor.source_version.content_hash
+                or type(detached_chunk.content) is not str
+                or text_range.end_char != len(detached_chunk.content)
                 or type(chunk_locator) is not TextRangeLocator
                 or chunk_locator.start_char != text_range.start_char
                 or chunk_locator.end_char != text_range.end_char
@@ -363,6 +385,14 @@ class MemoryDiscoveryPage:
             ):
                 raise MemorySourceAdapterError("invalid_snapshot")
             detached_items = tuple(_detach_descriptor(item) for item in items)
+            if any(
+                item.locator.snapshot_digest != snapshot_digest
+                or item.evidence.snapshot_digest != snapshot_digest
+                or item.locator.binding_digest != binding_digest
+                or item.evidence.binding_digest != binding_digest
+                for item in detached_items
+            ):
+                raise MemorySourceAdapterError("invalid_snapshot")
             object.__setattr__(self, "items", detached_items)
         except MemorySourceAdapterError:
             raise
@@ -403,10 +433,23 @@ class MemoryExactRead:
                 raise MemorySourceAdapterError("invalid_snapshot")
             detached_locator = _detach_locator(locator)
             detached_evidence = _detach_evidence(evidence)
+            text_range = detached_locator.text_range
+            expected_source_version_id = make_source_version_id(
+                detached_evidence.source_id,
+                detached_evidence.record_digest,
+                supplied_content_hash,
+            )
             if (
                 record_ref != detached_locator.record_ref
                 or record_ref != detached_evidence.record_ref
                 or supplied_content_hash != content_hash(content)
+                or detached_locator.record_digest != detached_evidence.record_digest
+                or detached_locator.snapshot_digest
+                != detached_evidence.snapshot_digest
+                or detached_locator.binding_digest != detached_evidence.binding_digest
+                or detached_evidence.source_version_id != expected_source_version_id
+                or text_range.start_char != 0
+                or text_range.end_char != len(content)
             ):
                 raise MemorySourceAdapterError("invalid_snapshot")
             object.__setattr__(self, "locator", detached_locator)

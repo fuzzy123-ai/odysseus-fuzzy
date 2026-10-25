@@ -668,11 +668,15 @@ def test_default_durable_surface_uses_only_data_root_and_keeps_legacy_write_disa
 
 def test_h1r03_actual_default_routes_prepare_accept_restart_and_project_durable_append(tmp_path, monkeypatch):
     from src.planning_definition_contract import compute_roadmap_content_hash
-    from src.planning_roadmap_migration import FROZEN_MEMBERS, SUPPORTING_PATH, build_h1r03_migration_manifest, canonical_json_bytes
+    from src.planning_roadmap_migration import (
+        FROZEN_MEMBERS, PRODUCT_READINESS_AUTHORITY_MAP_ID, SUPPORTING_PATH,
+        build_h1r03_migration_manifest, canonical_json_bytes,
+    )
 
     env = _default_durable_client(tmp_path, monkeypatch, username="fuzzy")
     migration = "/api/planning/durable/migrations/h1r03"
     manifest = build_h1r03_migration_manifest(Path(__file__).resolve().parents[1])
+    assert manifest["authority_map_id"] == PRODUCT_READINESS_AUTHORITY_MAP_ID
     census_digest = "sha256:" + hashlib.sha256(canonical_json_bytes(manifest["structural_census"])).hexdigest()
     source_before = {path: (Path(__file__).resolve().parents[1] / path).read_bytes()
                      for path, *_rest in FROZEN_MEMBERS}
@@ -716,6 +720,7 @@ def test_h1r03_actual_default_routes_prepare_accept_restart_and_project_durable_
     assert accepted_status["currentness"]["authority_map_relation"] == "same"
     assert accepted_status["currentness"]["batch_authority_map_id"] == manifest["authority_map_id"]
     assert accepted_status["currentness"]["current_authority_map_id"] == manifest["authority_map_id"]
+    accepted_state_bytes = env.store._path.read_bytes()
     accepted_inventory = env.client.get(migration + "/inventory").json()
     counts = accepted_inventory["migration_projection"]["authority_disposition_counts"]
     role_counts = {}
@@ -730,6 +735,11 @@ def test_h1r03_actual_default_routes_prepare_accept_restart_and_project_durable_
     # A fresh router/store instance reads the persisted canonical heads through
     # the existing /api/planning URLs and carries subsequent durable revisions.
     restarted = _default_durable_client(tmp_path, monkeypatch, username="fuzzy")
+    assert restarted.store._path.read_bytes() == accepted_state_bytes
+    restarted_currentness = restarted.client.get(migration + "/status").json()["currentness"]
+    assert restarted_currentness["authority_map_relation"] == "same"
+    assert restarted_currentness["current_authority_map_id"] == PRODUCT_READINESS_AUTHORITY_MAP_ID
+    assert restarted.store._path.read_bytes() == accepted_state_bytes
     projects = restarted.client.get("/api/planning/projects")
     assert projects.status_code == 200
     project = next(item for item in projects.json()["items"] if item["project_id"] == "harbour-one")
@@ -1060,7 +1070,8 @@ def test_h1r03_status_separates_accepted_source_and_relation_currentness(tmp_pat
 def test_historical_accepted_batch_reports_successor_currentness_without_rewriting_heads(tmp_path, monkeypatch):
     import src.planning_roadmap_migration as migration_module
     from src.planning_roadmap_migration import (
-        REPO_ONLY_AUTHORITY_MAP_ID, HISTORICAL_AUTHORITY_PINS, MIGRATION_MANIFEST_SCHEMA_V1,
+        PRODUCT_READINESS_AUTHORITY_MAP_ID, HISTORICAL_AUTHORITY_PINS,
+        MIGRATION_MANIFEST_SCHEMA_V1,
         build_h1r03_migration_manifest, canonical_json_bytes,
     )
 
@@ -1092,33 +1103,37 @@ def test_historical_accepted_batch_reports_successor_currentness_without_rewriti
     status = env.client.get(migration + "/status").json()
     currentness = status["currentness"]
     assert currentness["batch_authority_map_id"] == "h1r03-historical-v1"
-    assert currentness["current_authority_map_id"] == REPO_ONLY_AUTHORITY_MAP_ID
+    assert currentness["current_authority_map_id"] == PRODUCT_READINESS_AUTHORITY_MAP_ID
     assert currentness["authority_map_relation"] == "successor"
     assert currentness["authority_current"] is True
     assert currentness["current"] is True
     assert env.store._path.read_bytes() == before
 
 
-@pytest.mark.parametrize("manifest_kind", ("v1", "v2", "v3"))
-def test_legacy_route_exports_and_full_state_replays_survive_repo_only_v4(
+@pytest.mark.parametrize("manifest_kind", ("v1", "v2", "v3", "v4"))
+def test_legacy_route_exports_and_full_state_replays_survive_product_readiness_v5(
     tmp_path, monkeypatch, manifest_kind,
 ):
     import src.planning_roadmap_migration as migration_module
     from src.planning_roadmap_migration import (
-        REPO_ONLY_AUTHORITY_MAP_ID, DOCS_ONLY_AUTHORITY_MAP_ID, HISTORICAL_AUTHORITY_MAP_ID, SUCCESSOR_AUTHORITY_MAP_ID,
+        PRODUCT_READINESS_AUTHORITY_MAP_ID, REPO_ONLY_AUTHORITY_MAP_ID,
+        DOCS_ONLY_AUTHORITY_MAP_ID, HISTORICAL_AUTHORITY_MAP_ID,
+        SUCCESSOR_AUTHORITY_MAP_ID,
         build_h1r03_migration_manifest, canonical_json_bytes,
     )
     from tests.test_planning_revision_store import (
-        _docs_only_v3_manifest, _historical_v1_manifest, _successor_v2_manifest,
+        _docs_only_v3_manifest, _historical_v1_manifest, _repo_only_v4_manifest,
+        _successor_v2_manifest,
     )
 
     repo_root = Path(__file__).resolve().parents[1]
-    current_v4 = build_h1r03_migration_manifest(repo_root)
-    assert current_v4["authority_map_id"] == REPO_ONLY_AUTHORITY_MAP_ID
+    current_v5 = build_h1r03_migration_manifest(repo_root)
+    assert current_v5["authority_map_id"] == PRODUCT_READINESS_AUTHORITY_MAP_ID
     legacy = {
         "v1": _historical_v1_manifest,
         "v2": _successor_v2_manifest,
         "v3": _docs_only_v3_manifest,
+        "v4": _repo_only_v4_manifest,
     }[manifest_kind]()
     manifest_holder = {"value": legacy}
     monkeypatch.setattr(
@@ -1228,7 +1243,7 @@ def test_legacy_route_exports_and_full_state_replays_survive_repo_only_v4(
             legacy["normalized_payloads"][item["roadmap_id"]].encode("utf-8")
         )
 
-    manifest_holder["value"] = current_v4
+    manifest_holder["value"] = current_v5
     status = env.client.get(migration + "/status")
     assert status.status_code == 200
     currentness = status.json()["currentness"]
@@ -1236,11 +1251,12 @@ def test_legacy_route_exports_and_full_state_replays_survive_repo_only_v4(
         "v1": HISTORICAL_AUTHORITY_MAP_ID,
         "v2": SUCCESSOR_AUTHORITY_MAP_ID,
         "v3": DOCS_ONLY_AUTHORITY_MAP_ID,
+        "v4": REPO_ONLY_AUTHORITY_MAP_ID,
     }[manifest_kind]
     assert currentness["batch_authority_map_id"] == expected_map
-    assert currentness["current_authority_map_id"] == REPO_ONLY_AUTHORITY_MAP_ID
+    assert currentness["current_authority_map_id"] == PRODUCT_READINESS_AUTHORITY_MAP_ID
     assert currentness["authority_map_relation"] == "successor"
-    expected_structural_current = legacy["structural_census"] == current_v4["structural_census"]
+    expected_structural_current = legacy["structural_census"] == current_v5["structural_census"]
     assert currentness["structural_current"] is expected_structural_current
     assert currentness["primary_sources_current"] is True
     assert currentness["authority_current"] is True
@@ -1327,7 +1343,7 @@ def test_legacy_route_exports_and_full_state_replays_survive_repo_only_v4(
     reopened_status = rolled_back_reopened.client.get(migration + "/status")
     assert reopened_status.status_code == 200
     assert reopened_status.json()["state"] == "rolled_back"
-    assert reopened_status.json()["currentness"]["current_authority_map_id"] == REPO_ONLY_AUTHORITY_MAP_ID
+    assert reopened_status.json()["currentness"]["current_authority_map_id"] == PRODUCT_READINESS_AUTHORITY_MAP_ID
     assert json.loads(rolled_back_reopened.store._path.read_bytes())["migration_batches"][legacy["batch_id"]] == rolled_back_batch
     for roadmap_id in roadmap_ids:
         for extension in ("json", "md"):

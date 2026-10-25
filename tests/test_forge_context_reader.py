@@ -113,8 +113,6 @@ def _framed_metadata_reader(tmp_path, monkeypatch, raw):
         git_calls.append(arguments)
         if arguments[:2] == ("cat-file", "-t"):
             return b"commit"
-        if arguments[:1] == ("rev-parse",):
-            return b"a" * 40
         if arguments[:3] == ("ls-tree", "-r", "-z"):
             return raw
         raise AssertionError(arguments)
@@ -126,6 +124,46 @@ def _framed_metadata_reader(tmp_path, monkeypatch, raw):
         lambda object_id, expected_size: hashed.append((object_id, expected_size)) or "sha256:" + "c" * 64,
     )
     return reader, request, git_calls, hashed
+
+
+def test_inventory_uses_commit_type_and_tree_listing_without_redundant_tree_resolution(tmp_path, monkeypatch):
+    raw = (
+        b"100644 blob " + b"a" * 40 + b" 1\tselected.txt\0"
+        + b"100644 blob " + b"b" * 40 + b" 2\tunselected.txt\0"
+    )
+    reader, request, git_calls, hashed = _framed_metadata_reader(tmp_path, monkeypatch, raw)
+
+    inventory = reader.inventory(request, paths=("selected.txt",))
+
+    assert git_calls == [
+        ("cat-file", "-t", request.commit_sha),
+        ("ls-tree", "-r", "-z", "-l", request.commit_sha),
+    ]
+    assert [entry.path for entry in inventory.files] == ["selected.txt"]
+    assert hashed == [(b"a" * 40, 1)]
+
+    wrong_type_reader = ImmutableForgeContextReader(reader._retained)
+    wrong_type_calls = []
+    wrong_type_hashed = []
+
+    def wrong_type_git(arguments, *, max_output=1_000_001):
+        del max_output
+        wrong_type_calls.append(arguments)
+        if arguments[:2] == ("cat-file", "-t"):
+            return b"tree"
+        raise AssertionError(arguments)
+
+    monkeypatch.setattr(wrong_type_reader, "_git", wrong_type_git)
+    monkeypatch.setattr(
+        wrong_type_reader,
+        "_blob_sha256",
+        lambda object_id, expected_size: wrong_type_hashed.append((object_id, expected_size)) or "sha256:" + "c" * 64,
+    )
+    with pytest.raises(ForgeContextReaderError) as exc_info:
+        wrong_type_reader.inventory(request, paths=("selected.txt",))
+    assert exc_info.value.code == "immutable_commit_invalid"
+    assert wrong_type_calls == [("cat-file", "-t", request.commit_sha)]
+    assert wrong_type_hashed == []
 
 
 @pytest.mark.parametrize("object_id", [b"a" * 40, b"b" * 64])

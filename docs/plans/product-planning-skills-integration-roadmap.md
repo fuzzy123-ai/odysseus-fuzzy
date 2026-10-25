@@ -1,6 +1,6 @@
 # Product Planning Skills Integration Roadmap
 
-Status: proposed, execution-ready, waiting for operator activation
+Status: proposed, execution-ready, repo-only activation authorized; fresh claim preflight required
 
 Created: 2026-07-12
 
@@ -29,14 +29,14 @@ Before every implementation claim, reconcile this roadmap with:
 3. `specs/roadmaps/odysseus-multiagent-roadmap.v1.json`
 4. `git status --short --branch`
 
-Planning this track is authorized. Implementation is not active until the
-operator says exactly:
+Planning this track is authorized. The operator gave the activation phrase on
+2026-08-22:
 
 ```text
 GO PPS repo-only implementation
 ```
 
-That phrase authorizes only the `safe_offline` and `repo_only` slices below. It
+It authorizes only the `safe_offline` and `repo_only` slices below. It
 does not authorize UI/design work, live research, provider calls, deployment,
 external writes, skill auto-publication, or a push with unrelated files.
 
@@ -208,7 +208,7 @@ accepted. Repo tests cannot satisfy a live or UI gate.
 
 ### PPS-1-skill-import-compatibility
 
-- Status: planned, waiting for `PPS-G0`
+- Status: authorized by `PPS-G0`; waiting for fresh dependency/path-collision/claim preflight
 - Class: `repo_only`
 - Owner: Bob
 - Execution mode: `worker`
@@ -248,7 +248,7 @@ accepted. Repo tests cannot satisfy a live or UI gate.
 
 ### PPS-2-curated-product-planning-skill-pack
 
-- Status: planned, waiting for `PPS-G0`
+- Status: authorized by `PPS-G0`; waiting for fresh dependency/path-collision/claim preflight
 - Class: `repo_only`
 - Owner: Alice
 - Execution mode: `worker`
@@ -494,14 +494,15 @@ PPS-0
 
 ### PPS-G0-implementation-activation
 
-- Class: `blocked`
-- Blocks: PPS-1 through PPS-7
-- Decision needed: operator says `GO PPS repo-only implementation`.
-- Safe preparation done: analysis, target architecture, slice scopes, tests,
-  and stop rules are documented.
-- Risk if bypassed: a plan-only request would be misread as authorization to
-  edit runtime and skill files.
-- Next safe slice: none until Go.
+- Class: `repo_only`
+- Status: `satisfied_by_operator_2026_08_22`
+- Unblocks: dependency-ready PPS repo-only/safe-offline slices only; every slice
+  still needs fresh dependency, collision, baseline and claim preflight.
+- Authority received: `GO PPS repo-only implementation`.
+- Limits: no UI/design work, live research, provider call, external write,
+  skill auto-publication, commit, push, deployment or other live action.
+- Next safe slice: read-only preflight for PPS-1 and PPS-2; claim only one
+  dependency-ready disjoint writer slice after the preflight passes.
 
 ### PPS-G1-runtime-hotfiles-stable
 

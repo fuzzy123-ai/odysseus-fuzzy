@@ -40,6 +40,145 @@ _FORBIDDEN_FIELD_PARTS = (
     "raw_output",
     "secret",
 )
+_COMMIT_CLAIM_COLUMN_TYPES = (
+    ("scope_key", "text", str),
+    ("claim_id", "text", str),
+    ("owner_id", "text", str),
+    ("repo_id", "text", str),
+    ("task_id", "text", str),
+    ("plan_id", "text", str),
+    ("slice_id", "text", str),
+    ("agent_run_id", "text", str),
+    ("claimant_ref", "text", str),
+    ("fence", "integer", int),
+    ("state", "text", str),
+    ("acquired_at", "text", str),
+    ("lease_expires_at", "text", str),
+    ("last_heartbeat_at", "text", str),
+    ("last_progress_at", "text", str),
+    ("released_at", ("null", "text"), (type(None), str)),
+)
+_COMMIT_CAPABILITY_COLUMN_TYPES = (
+    ("capability_id", "text", str),
+    ("nonce", "text", str),
+    ("scope_key", "text", str),
+    ("owner_id", "text", str),
+    ("repo_id", "text", str),
+    ("task_id", "text", str),
+    ("plan_id", "text", str),
+    ("slice_id", "text", str),
+    ("agent_run_id", "text", str),
+    ("stage", "text", str),
+    ("input_digest", "text", str),
+    ("policy_version", "text", str),
+    ("lease_fence", "integer", int),
+    ("max_attempts", "integer", int),
+    ("issued_at", "text", str),
+    ("expires_at", "text", str),
+    ("status", "text", str),
+    ("payload_json", "text", str),
+)
+_COMMIT_EVIDENCE_COLUMN_TYPES = (
+    ("evidence_ref", "text", str),
+    ("scope_key", "text", str),
+    ("owner_id", "text", str),
+    ("repo_id", "text", str),
+    ("task_id", "text", str),
+    ("plan_id", "text", str),
+    ("slice_id", "text", str),
+    ("agent_run_id", "text", str),
+    ("lease_fence", "integer", int),
+    ("verified_at", "text", str),
+    ("payload_json", "text", str),
+)
+_COMMIT_CONTROL_OWNER_COLUMN_TYPES = (
+    ("control_key", "text", str),
+    ("level", "text", str),
+    ("owner_id", "text", str),
+    ("repo_id", "null", type(None)),
+    ("agent_run_id", "null", type(None)),
+    ("paused", "integer", int),
+    ("killed", "integer", int),
+    ("version", "integer", int),
+    ("reason_ref", "text", str),
+    ("updated_at", "text", str),
+)
+_COMMIT_CONTROL_REPO_COLUMN_TYPES = (
+    ("control_key", "text", str),
+    ("level", "text", str),
+    ("owner_id", "text", str),
+    ("repo_id", "text", str),
+    ("agent_run_id", "null", type(None)),
+    ("paused", "integer", int),
+    ("killed", "integer", int),
+    ("version", "integer", int),
+    ("reason_ref", "text", str),
+    ("updated_at", "text", str),
+)
+_COMMIT_CONTROL_RUN_COLUMN_TYPES = (
+    ("control_key", "text", str),
+    ("level", "text", str),
+    ("owner_id", "text", str),
+    ("repo_id", "text", str),
+    ("agent_run_id", "text", str),
+    ("paused", "integer", int),
+    ("killed", "integer", int),
+    ("version", "integer", int),
+    ("reason_ref", "text", str),
+    ("updated_at", "text", str),
+)
+
+
+def _typed_projection(columns: tuple[tuple[str, Any, Any], ...]) -> str:
+    projected = [name for name, _, _ in columns]
+    projected.extend(
+        f"typeof({name}) AS __hwa_type_{name}" for name, _, _ in columns
+    )
+    return ", ".join(projected)
+
+
+_COMMIT_CLAIM_PROJECTION = _typed_projection(_COMMIT_CLAIM_COLUMN_TYPES)
+_COMMIT_CAPABILITY_PROJECTION = _typed_projection(_COMMIT_CAPABILITY_COLUMN_TYPES)
+_COMMIT_EVIDENCE_PROJECTION = _typed_projection(_COMMIT_EVIDENCE_COLUMN_TYPES)
+_COMMIT_CONTROL_PROJECTION = _typed_projection(_COMMIT_CONTROL_RUN_COLUMN_TYPES)
+_COMMIT_BLOB_IDENTITY_PROBES = frozenset(
+    {
+        *(("hwa_claims", name) for name in (
+            "scope_key",
+            "claim_id",
+            "owner_id",
+            "repo_id",
+            "task_id",
+            "plan_id",
+            "slice_id",
+            "agent_run_id",
+        )),
+        *(("hwa_capabilities", name) for name in (
+            "capability_id",
+            "scope_key",
+            "owner_id",
+            "repo_id",
+            "task_id",
+            "plan_id",
+            "slice_id",
+            "agent_run_id",
+        )),
+        *(("hwa_evidence", name) for name in (
+            "evidence_ref",
+            "scope_key",
+            "owner_id",
+            "repo_id",
+            "task_id",
+            "plan_id",
+            "slice_id",
+            "agent_run_id",
+        )),
+        ("hwa_controls", "control_key"),
+        ("hwa_controls", "owner_id"),
+        ("hwa_controls", "repo_id"),
+        ("hwa_controls", "agent_run_id"),
+    }
+)
 
 
 class HeadlessWriteAgentStateError(RuntimeError):
@@ -138,6 +277,13 @@ class CapabilityRecord:
     reservation_id: str | None
     reserved_at: str | None
     consumed_at: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class CommitAuthoritySnapshot:
+    capability: ApprovalCapability
+    evidence: HeadlessCommitEvidence
+    capability_status: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -771,6 +917,266 @@ class HeadlessWriteAgentStateStore:
             ).fetchone()
             return json.loads(row["payload_json"]) if row is not None else None
 
+    def load_commit_authority(
+        self,
+        *,
+        capability_id: str,
+        evidence_ref: str,
+        scope: AuthorityScope,
+        claim_id: str,
+        fence: int,
+    ) -> CommitAuthoritySnapshot:
+        """Load one exact, typed project-commit authority pair."""
+
+        failure_code: str | None = None
+        try:
+            capability_ref = _strict_effect_id(capability_id, "capability_id")
+            evidence_reference = _strict_effect_id(evidence_ref, "evidence_ref")
+            claim_reference = _strict_effect_id(claim_id, "claim_id")
+            checked_scope = _strict_scope(scope)
+            checked_fence = _strict_positive_fence(fence)
+            now = self._now()
+            with self._read() as connection:
+                claim_row = _load_exact_identity_row(
+                    connection,
+                    table="hwa_claims",
+                    identity_column="scope_key",
+                    identity=checked_scope.key,
+                    projection=_COMMIT_CLAIM_PROJECTION,
+                    columns=_COMMIT_CLAIM_COLUMN_TYPES,
+                )
+                if claim_row is None:
+                    _fail("stale_fence", "no active claim owns this scope")
+                _assert_no_blob_identity_aliases(
+                    connection,
+                    (
+                        ("hwa_claims", "claim_id", claim_reference),
+                        ("hwa_claims", "owner_id", checked_scope.owner_id),
+                        ("hwa_claims", "repo_id", checked_scope.repo_id),
+                        ("hwa_claims", "task_id", checked_scope.task_id),
+                        ("hwa_claims", "plan_id", checked_scope.plan_id),
+                        ("hwa_claims", "slice_id", checked_scope.slice_id),
+                        (
+                            "hwa_claims",
+                            "agent_run_id",
+                            checked_scope.agent_run_id,
+                        ),
+                    ),
+                )
+                claim_scope = (
+                    claim_row["owner_id"],
+                    claim_row["repo_id"],
+                    claim_row["task_id"],
+                    claim_row["plan_id"],
+                    claim_row["slice_id"],
+                    claim_row["agent_run_id"],
+                )
+                if claim_scope != self._scope_values(checked_scope):
+                    raise ValueError("claim scope binding is invalid")
+                if claim_row["state"] == "released":
+                    _fail("stale_fence", "no active claim owns this scope")
+                if claim_row["state"] != "active" or claim_row["released_at"] is not None:
+                    raise ValueError("active claim state is invalid")
+                if claim_row["claim_id"] != claim_reference:
+                    _fail("stale_claim", "claim id does not own the current fence")
+                if claim_row["fence"] != checked_fence:
+                    _fail("stale_fence", "fence does not match the active claim")
+                if _parse_time(claim_row["lease_expires_at"]) <= now:
+                    _fail("stale_fence", "claim lease has expired")
+
+                control_specs = (
+                    (
+                        "owner",
+                        _control_key("owner", checked_scope.owner_id, None, None),
+                        None,
+                        None,
+                        _COMMIT_CONTROL_OWNER_COLUMN_TYPES,
+                    ),
+                    (
+                        "repo",
+                        _control_key(
+                            "repo", checked_scope.owner_id, checked_scope.repo_id, None
+                        ),
+                        checked_scope.repo_id,
+                        None,
+                        _COMMIT_CONTROL_REPO_COLUMN_TYPES,
+                    ),
+                    (
+                        "run",
+                        _control_key(
+                            "run",
+                            checked_scope.owner_id,
+                            checked_scope.repo_id,
+                            checked_scope.agent_run_id,
+                        ),
+                        checked_scope.repo_id,
+                        checked_scope.agent_run_id,
+                        _COMMIT_CONTROL_RUN_COLUMN_TYPES,
+                    ),
+                )
+                _assert_no_blob_identity_aliases(
+                    connection,
+                    (
+                        ("hwa_controls", "owner_id", checked_scope.owner_id),
+                        ("hwa_controls", "repo_id", checked_scope.repo_id),
+                        (
+                            "hwa_controls",
+                            "agent_run_id",
+                            checked_scope.agent_run_id,
+                        ),
+                    ),
+                )
+                blocked = False
+                for level, control_key, repo_id, agent_run_id, columns in control_specs:
+                    control_row = _load_exact_identity_row(
+                        connection,
+                        table="hwa_controls",
+                        identity_column="control_key",
+                        identity=control_key,
+                        projection=_COMMIT_CONTROL_PROJECTION,
+                        columns=columns,
+                    )
+                    if control_row is None:
+                        continue
+                    if (
+                        control_row["level"] != level
+                        or control_row["owner_id"] != checked_scope.owner_id
+                        or control_row["repo_id"] != repo_id
+                        or control_row["agent_run_id"] != agent_run_id
+                        or control_row["paused"] not in (0, 1)
+                        or control_row["killed"] not in (0, 1)
+                        or control_row["version"] <= 0
+                    ):
+                        raise ValueError("control binding is invalid")
+                    if control_row["paused"] == 1 or control_row["killed"] == 1:
+                        blocked = True
+                if blocked:
+                    _fail("authority_blocked", "commit authority is blocked")
+
+                _assert_no_blob_identity_aliases(
+                    connection,
+                    tuple(
+                        (table, column, identity)
+                        for table in ("hwa_capabilities", "hwa_evidence")
+                        for column, identity in (
+                            ("scope_key", checked_scope.key),
+                            ("owner_id", checked_scope.owner_id),
+                            ("repo_id", checked_scope.repo_id),
+                            ("task_id", checked_scope.task_id),
+                            ("plan_id", checked_scope.plan_id),
+                            ("slice_id", checked_scope.slice_id),
+                            ("agent_run_id", checked_scope.agent_run_id),
+                        )
+                    ),
+                )
+                capability_row = _load_exact_identity_row(
+                    connection,
+                    table="hwa_capabilities",
+                    identity_column="capability_id",
+                    identity=capability_ref,
+                    projection=_COMMIT_CAPABILITY_PROJECTION,
+                    columns=_COMMIT_CAPABILITY_COLUMN_TYPES,
+                )
+                evidence_row = _load_exact_identity_row(
+                    connection,
+                    table="hwa_evidence",
+                    identity_column="evidence_ref",
+                    identity=evidence_reference,
+                    projection=_COMMIT_EVIDENCE_PROJECTION,
+                    columns=_COMMIT_EVIDENCE_COLUMN_TYPES,
+                )
+                if capability_row is None or evidence_row is None:
+                    failure_code = "commit_authority_not_found"
+                else:
+                    capability_payload = _decode_canonical_object(
+                        capability_row["payload_json"]
+                    )
+                    evidence_payload = _decode_canonical_object(
+                        evidence_row["payload_json"]
+                    )
+                    capability = ApprovalCapability.create(**capability_payload)
+                    evidence = HeadlessCommitEvidence.create(**evidence_payload)
+                    capability_columns = {
+                        "capability_id": capability_row["capability_id"],
+                        "nonce": capability_row["nonce"],
+                        "owner_id": capability_row["owner_id"],
+                        "repo_id": capability_row["repo_id"],
+                        "task_id": capability_row["task_id"],
+                        "plan_id": capability_row["plan_id"],
+                        "slice_id": capability_row["slice_id"],
+                        "agent_run_id": capability_row["agent_run_id"],
+                        "policy_version": capability_row["policy_version"],
+                        "issued_at": capability_row["issued_at"],
+                        "expires_at": capability_row["expires_at"],
+                        "max_attempts": capability_row["max_attempts"],
+                    }
+                    capability_values = {
+                        key: getattr(capability, key) for key in capability_columns
+                    }
+                    evidence_columns = {
+                        "evidence_ref": evidence_row["evidence_ref"],
+                        "owner_id": evidence_row["owner_id"],
+                        "repo_id": evidence_row["repo_id"],
+                        "task_id": evidence_row["task_id"],
+                        "plan_id": evidence_row["plan_id"],
+                        "slice_id": evidence_row["slice_id"],
+                        "agent_run_id": evidence_row["agent_run_id"],
+                        "verified_at": evidence_row["verified_at"],
+                    }
+                    evidence_values = {
+                        key: getattr(evidence, key) for key in evidence_columns
+                    }
+                    if (
+                        capability_columns != capability_values
+                        or evidence_columns != evidence_values
+                        or capability_row["scope_key"] != AuthorityScope.from_capability(capability).key
+                        or evidence_row["scope_key"] != AuthorityScope.from_evidence(evidence).key
+                    ):
+                        failure_code = "commit_authority_corrupt"
+                    binding_mismatch = (
+                        capability.stage.value != "project_commit"
+                        or capability_row["stage"] != capability.stage.value
+                        or capability_row["input_digest"] != capability.input_digest
+                        or capability_row["lease_fence"] != capability.lease_fence
+                        or evidence_row["lease_fence"] != evidence.lease_fence
+                        or AuthorityScope.from_capability(capability) != checked_scope
+                        or AuthorityScope.from_evidence(evidence) != checked_scope
+                        or capability.lease_fence != checked_fence
+                        or evidence.lease_fence != checked_fence
+                        or capability.input_digest != evidence.diff_digest
+                    )
+                    status = capability_row["status"]
+                    if type(status) is not str or status not in {
+                        "issued",
+                        "reserved",
+                        "consumed",
+                    }:
+                        failure_code = "commit_authority_corrupt"
+                    if failure_code is None and binding_mismatch:
+                        failure_code = "commit_authority_binding_mismatch"
+                    if failure_code is None:
+                        return CommitAuthoritySnapshot(
+                            capability=capability,
+                            evidence=evidence,
+                            capability_status=status,
+                        )
+        except HeadlessWriteAgentStateError as error:
+            failure_code = (
+                error.code
+                if error.code
+                in {
+                    "authority_blocked",
+                    "commit_authority_binding_mismatch",
+                    "commit_authority_not_found",
+                    "stale_claim",
+                    "stale_fence",
+                }
+                else "commit_authority_corrupt"
+            )
+        except Exception:
+            failure_code = "commit_authority_corrupt"
+        _fail_commit_authority(failure_code or "commit_authority_corrupt")
+
     def record_promotion(
         self,
         scope: AuthorityScope,
@@ -1155,7 +1561,12 @@ class HeadlessWriteAgentStateStore:
     def _read(self) -> Iterator[sqlite3.Connection]:
         connection = self._connect()
         try:
+            connection.execute("BEGIN")
             yield connection
+            connection.commit()
+        except Exception:
+            connection.rollback()
+            raise
         finally:
             connection.close()
 
@@ -1571,6 +1982,157 @@ def _control_key(level: str, owner: str, repo: str | None, run: str | None) -> s
 
 def _canonical_json(value: Any) -> str:
     return json.dumps(value, ensure_ascii=True, separators=(",", ":"), sort_keys=True)
+
+
+def _decode_canonical_object(encoded: Any) -> dict[str, Any]:
+    if type(encoded) is not str:
+        raise ValueError("stored payload must be text")
+
+    def unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        for key, value in pairs:
+            if type(key) is not str or key in result:
+                raise ValueError("stored payload has duplicate or invalid keys")
+            result[key] = value
+        return result
+
+    value = json.loads(
+        encoded,
+        object_pairs_hook=unique_object,
+        parse_constant=lambda _value: (_ for _ in ()).throw(ValueError()),
+    )
+    if type(value) is not dict or encoded != _canonical_json(value):
+        raise ValueError("stored payload is not a canonical object")
+    return value
+
+
+def _validate_raw_authority_row(
+    row: sqlite3.Row,
+    columns: tuple[tuple[str, Any, Any], ...],
+) -> None:
+    if type(row) is not sqlite3.Row:
+        raise ValueError("authority row type is invalid")
+    expected_keys = {
+        key for name, _, _ in columns for key in (name, f"__hwa_type_{name}")
+    }
+    if set(row.keys()) != expected_keys:
+        raise ValueError("authority row projection is invalid")
+    for name, storage_type, python_type in columns:
+        raw_value = row[name]
+        storage_types = (
+            storage_type if type(storage_type) is tuple else (storage_type,)
+        )
+        python_types = python_type if type(python_type) is tuple else (python_type,)
+        if row[f"__hwa_type_{name}"] not in storage_types:
+            raise ValueError("authority storage type is invalid")
+        if type(raw_value) not in python_types:
+            raise ValueError("authority row value type is invalid")
+
+
+def _load_exact_identity_row(
+    connection: sqlite3.Connection,
+    *,
+    table: str,
+    identity_column: str,
+    identity: str,
+    projection: str,
+    columns: tuple[tuple[str, Any, Any], ...],
+) -> sqlite3.Row | None:
+    rows = connection.execute(
+        f"""
+        SELECT {projection}
+        FROM {table}
+        WHERE {identity_column} = ?
+           OR (
+               typeof({identity_column}) = 'blob'
+               AND {identity_column} = CAST(? AS BLOB)
+           )
+        """,
+        (identity, identity),
+    ).fetchall()
+    if not rows:
+        return None
+    if len(rows) != 1:
+        raise ValueError("authority identity is ambiguous")
+    row = rows[0]
+    _validate_raw_authority_row(row, columns)
+    if row[identity_column] != identity:
+        raise ValueError("authority identity storage is invalid")
+    return row
+
+
+def _assert_no_blob_identity_aliases(
+    connection: sqlite3.Connection,
+    probes: tuple[tuple[str, str, str], ...],
+) -> None:
+    for table, identity_column, identity in probes:
+        if (
+            (table, identity_column) not in _COMMIT_BLOB_IDENTITY_PROBES
+            or type(identity) is not str
+        ):
+            raise ValueError("authority identity probe is invalid")
+        alias = connection.execute(
+            f"""
+            SELECT 1
+            FROM {table}
+            WHERE typeof({identity_column}) = 'blob'
+              AND {identity_column} = CAST(? AS BLOB)
+            LIMIT 1
+            """,
+            (identity,),
+        ).fetchone()
+        if alias is not None:
+            raise ValueError("authority identity storage is invalid")
+
+
+def _strict_effect_id(value: Any, field: str) -> str:
+    if (
+        type(value) is not str
+        or not _EFFECT_ID_RE.fullmatch(value)
+        or ".." in value
+    ):
+        _fail("invalid_identifier", field)
+    return value
+
+
+def _strict_positive_fence(value: Any) -> int:
+    if type(value) is not int or value <= 0:
+        _fail("invalid_fence", "fence must be a positive integer")
+    return value
+
+
+def _strict_scope(value: Any) -> AuthorityScope:
+    if type(value) is not AuthorityScope:
+        _fail("invalid_scope", "AuthorityScope is required")
+    for field in (
+        "owner_id",
+        "repo_id",
+        "task_id",
+        "plan_id",
+        "slice_id",
+        "agent_run_id",
+    ):
+        member = getattr(value, field)
+        if (
+            type(member) is not str
+            or not _OPAQUE_ID_RE.fullmatch(member)
+            or ".." in member
+        ):
+            _fail("invalid_scope", "AuthorityScope is invalid")
+    return value
+
+
+def _fail_commit_authority(code: str) -> None:
+    details = {
+        "authority_blocked": "commit authority is blocked",
+        "commit_authority_binding_mismatch": "commit authority pair is not exactly bound",
+        "commit_authority_not_found": "commit authority pair does not exist",
+        "stale_claim": "claim does not own commit authority",
+        "stale_fence": "claim fence is stale",
+        "commit_authority_corrupt": "persisted commit authority is invalid",
+    }
+    normalized = code if code in details else "commit_authority_corrupt"
+    raise HeadlessWriteAgentStateError(normalized, details[normalized]) from None
 
 
 def _require_scope(value: Any) -> AuthorityScope:

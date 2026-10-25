@@ -182,6 +182,54 @@ def _all_store_ledgers(service):
     }
 
 
+def _staging_ledger(service):
+    return tuple(
+        (table, tuple(tuple(row) for row in service._connection.execute("SELECT * FROM " + table)))
+        for table in (
+            "staging_meta", "staging_reservations", "staging_operations",
+            "staging_completions", "staging_selections",
+        )
+    )
+
+
+def _nested_selected_runtime_guard(service):
+    with service.guard_selected_runtime("alice"):
+        pass
+
+
+class _RollbackFailingConnection:
+    def __init__(self, connection):
+        self.connection = connection
+
+    @property
+    def in_transaction(self):
+        return self.connection.in_transaction
+
+    def execute(self, sql, parameters=()):
+        if sql == "ROLLBACK":
+            raise sqlite3.OperationalError("guard cleanup fault")
+        return self.connection.execute(sql, parameters)
+
+    def close(self):
+        self.connection.close()
+
+
+class _BeginFailingConnection:
+    def __init__(self, connection):
+        self.connection = connection
+        self.begin_attempts = 0
+
+    @property
+    def in_transaction(self):
+        return self.connection.in_transaction
+
+    def execute(self, sql, parameters=()):
+        if sql == "BEGIN IMMEDIATE":
+            self.begin_attempts += 1
+            raise sqlite3.OperationalError("guard begin fault")
+        return self.connection.execute(sql, parameters)
+
+
 def _rollback_pair(tmp_path, service, issuer, name, first_owners=("alice",), second_owners=("alice",)):
     first = _zero_completion(tmp_path, service, issuer, name + "-a", first_owners)
     first_digest = service.select_generation(first, expected_selection_digest="sha256:" + "0" * 64)
@@ -354,6 +402,368 @@ def test_closed_staging_service_denies_selection_queries_with_bounded_error(setu
             callback()
         assert raised.value.code == "staging_destination_denied"
         assert raised.value.__cause__ is None and raised.value.__context__ is None
+
+
+_GUARD_SERVICE_REENTRIES = (
+    "close", "current_selection", "selected_runtime", "select_generation",
+    "rollback_generation", "reserve", "resume_or_reserve", "revoke",
+    "complete_migration", "verify_completion", "seal", "_call",
+    "guard_selected_runtime",
+)
+_GUARD_SESSION_REENTRIES = (
+    "validate_principal_binding", "create_object", "append_revision", "tombstone",
+    "restore", "request_purge", "complete_purge", "get_head", "get_receipt",
+    "read_revision", "read_payload", "changes_since", "session.seal",
+)
+
+
+@pytest.mark.parametrize("entry", _GUARD_SERVICE_REENTRIES + _GUARD_SESSION_REENTRIES)
+def test_guard_selected_runtime_rejects_every_stateful_reentry_before_effect(
+    tmp_path, setup, entry,
+):
+    _clock, issuer, service = setup
+    completion = _zero_completion(tmp_path, service, issuer, "guard-reentry-" + entry)
+    service.select_generation(completion, expected_selection_digest="sha256:" + "0" * 64)
+    session, lease = service.reserve("guard-probe", ("alice",), SNAPSHOT, 300)
+    principal = _principal(issuer, migration="guard-probe")
+    destination = object.__getattribute__(session, "_destination_id")
+    if entry == "close":
+        callback = service.close
+    elif entry == "current_selection":
+        callback = service.current_selection
+    elif entry == "selected_runtime":
+        callback = lambda: service.selected_runtime(object())
+    elif entry == "select_generation":
+        callback = lambda: service.select_generation(None, expected_selection_digest="bad")
+    elif entry == "rollback_generation":
+        callback = lambda: service.rollback_generation(
+            None, expected_selection_digest="bad", target_selection_digest="bad", principals={},
+        )
+    elif entry == "reserve":
+        callback = lambda: service.reserve("bad owner", (), "bad", 0)
+    elif entry == "resume_or_reserve":
+        callback = lambda: service.resume_or_reserve("bad owner", (), "bad", 0)
+    elif entry == "revoke":
+        callback = lambda: service.revoke(None)
+    elif entry == "complete_migration":
+        callback = lambda: service.complete_migration(None, principals={}, expected_operations=[])
+    elif entry == "verify_completion":
+        callback = lambda: service.verify_completion(None)
+    elif entry == "seal":
+        callback = lambda: service.seal(None, completion_digest="bad")
+    elif entry == "_call":
+        callback = lambda: service._call(destination, None, "bad", None, object(), {})
+    elif entry == "guard_selected_runtime":
+        callback = lambda: _nested_selected_runtime_guard(service)
+    elif entry == "validate_principal_binding":
+        callback = lambda: session.validate_principal_binding(lease, principal, owner_id="alice")
+    elif entry in {"create_object", "append_revision", "tombstone", "restore", "request_purge", "complete_purge"}:
+        callback = lambda entry=entry: getattr(session, entry)(lease, principal, owner_id="alice")
+    elif entry == "get_head":
+        callback = lambda: session.get_head(lease, principal, owner_id="alice", knowledge_id="note")
+    elif entry == "get_receipt":
+        callback = lambda: session.get_receipt(lease, principal, owner_id="alice", receipt_id="receipt")
+    elif entry in {"read_revision", "read_payload"}:
+        callback = lambda entry=entry: getattr(session, entry)(
+            lease, principal, owner_id="alice", revision_id="revision",
+        )
+    elif entry == "changes_since":
+        callback = lambda: session.changes_since(
+            lease, principal, owner_id="alice", after_event_seq=0,
+        )
+    elif entry == "session.seal":
+        callback = lambda: session.seal(lease, completion_digest=OTHER)
+    else:
+        raise AssertionError("unhandled reentry case")
+
+    staging_before = _staging_ledger(service)
+    stores_before = _all_store_ledgers(service)
+    with service.guard_selected_runtime("alice") as retained:
+        assert retained is not None
+        assert service._connection.in_transaction
+        paths_retained = tuple(sorted(
+            str(path.relative_to(service._root)) for path in service._root.rglob("*")
+        ))
+        assert service.rollback_authority_context_digest(
+            "sha256:" + "1" * 64, "sha256:" + "2" * 64,
+        ).startswith("sha256:")
+        _closed("staging_destination_denied", callback)
+        assert service._connection.in_transaction
+        assert _staging_ledger(service) == staging_before
+        assert _all_store_ledgers(service) == stores_before
+        assert tuple(sorted(
+            str(path.relative_to(service._root)) for path in service._root.rglob("*")
+        )) == paths_retained
+    assert not service._connection.in_transaction
+    assert _staging_ledger(service) == staging_before
+    assert _all_store_ledgers(service) == stores_before
+    service.close()
+
+
+@pytest.mark.parametrize("selection", ["missing", "foreign"])
+def test_guard_selected_runtime_missing_or_foreign_owner_performs_zero_store_or_anchor_io(
+    tmp_path, setup, monkeypatch, selection,
+):
+    _clock, issuer, service = setup
+    if selection == "foreign":
+        completion = _zero_completion(tmp_path, service, issuer, "guard-foreign")
+        service.select_generation(completion, expected_selection_digest="sha256:" + "0" * 64)
+
+    def unexpected(*_args, **_kwargs):
+        raise AssertionError("Knowledge Store or anchor I/O must not run")
+
+    monkeypatch.setattr(service, "_store", unexpected)
+    monkeypatch.setattr(service, "_selection_anchor_present", unexpected)
+    with service.guard_selected_runtime("mallory") as retained:
+        assert retained is None
+        assert service._connection.in_transaction
+    assert not service._connection.in_transaction
+    service.close()
+
+
+def test_guard_selected_runtime_peer_selection_waits_and_commit_targets_original_generation(tmp_path):
+    clock = Clock()
+    issuer = AuthenticatedPrincipalIssuer(
+        issuer_id="guard-peer", key_id="key", secret=b"g" * 32, clock=clock,
+    )
+    root = tmp_path / "guard-peer"
+    service = HarbourKnowledgeStagingDestinationService(root, trusted_issuers=(issuer,), clock=clock)
+    first = _zero_completion(tmp_path, service, issuer, "guard-peer-a")
+    selection_a = service.select_generation(first, expected_selection_digest="sha256:" + "0" * 64)
+    second = _zero_completion(tmp_path, service, issuer, "guard-peer-b")
+    peer = HarbourKnowledgeStagingDestinationService.open_existing(
+        root, trusted_issuers=(issuer,), clock=clock,
+    )
+    attempted = threading.Event()
+    finished = threading.Event()
+    failures = []
+
+    def switch_selection():
+        attempted.set()
+        try:
+            peer.select_generation(second, expected_selection_digest=selection_a)
+        except BaseException as exc:
+            failures.append(exc)
+        finally:
+            finished.set()
+
+    worker = threading.Thread(target=switch_selection)
+    with service.guard_selected_runtime("alice") as retained:
+        assert retained is not None
+        original_generation, original_store = retained[2], retained[4]
+        worker.start()
+        assert attempted.wait(2)
+        assert not finished.wait(0.05)
+        _advance_selected_store(original_store, issuer, "alice", "guard-retained-commit")
+        assert not finished.is_set()
+    worker.join(5)
+    assert not worker.is_alive() and finished.is_set() and not failures
+    selected_b = service.selected_runtime("alice")
+    assert selected_b is not None and selected_b[2] != original_generation
+    assert original_store._connection.execute("SELECT COUNT(*) FROM knowledge_heads").fetchone()[0] == 1
+    assert selected_b[4]._connection.execute("SELECT COUNT(*) FROM knowledge_heads").fetchone()[0] == 0
+    peer.close()
+    service.close()
+
+
+def test_guard_selected_runtime_blocks_service_and_exact_store_close_until_release(tmp_path, setup):
+    _clock, issuer, service = setup
+    completion = _zero_completion(tmp_path, service, issuer, "guard-concurrent-close")
+    service.select_generation(completion, expected_selection_digest="sha256:" + "0" * 64)
+    service_started = threading.Event()
+    store_started = threading.Event()
+    service_finished = threading.Event()
+    store_finished = threading.Event()
+    failures = []
+
+    def close_service():
+        service_started.set()
+        try:
+            service.close()
+        except BaseException as exc:
+            failures.append(exc)
+        finally:
+            service_finished.set()
+
+    with service.guard_selected_runtime("alice") as retained:
+        assert retained is not None
+        store = retained[4]
+
+        def close_store():
+            store_started.set()
+            try:
+                store.close()
+            except BaseException as exc:
+                failures.append(exc)
+            finally:
+                store_finished.set()
+
+        service_thread = threading.Thread(target=close_service)
+        store_thread = threading.Thread(target=close_store)
+        service_thread.start()
+        store_thread.start()
+        assert service_started.wait(2) and store_started.wait(2)
+        assert not service_finished.wait(0.05)
+        assert not store_finished.wait(0.05)
+    service_thread.join(5)
+    store_thread.join(5)
+    assert not service_thread.is_alive() and not store_thread.is_alive()
+    assert service_finished.is_set() and store_finished.is_set() and not failures
+    assert service._connection is None and not store.available
+
+
+@pytest.mark.parametrize("caller_throws", [False, True])
+def test_guard_selected_runtime_postcommit_cleanup_failure_preserves_result_or_exact_exception(
+    tmp_path, caller_throws,
+):
+    clock = Clock()
+    issuer = AuthenticatedPrincipalIssuer(
+        issuer_id="guard-cleanup", key_id="key", secret=b"c" * 32, clock=clock,
+    )
+    root = tmp_path / ("guard-cleanup-exception" if caller_throws else "guard-cleanup-result")
+    service = HarbourKnowledgeStagingDestinationService(root, trusted_issuers=(issuer,), clock=clock)
+    completion = _zero_completion(tmp_path, service, issuer, "guard-cleanup")
+    service.select_generation(completion, expected_selection_digest="sha256:" + "0" * 64)
+    peer = HarbourKnowledgeStagingDestinationService.open_existing(
+        root, trusted_issuers=(issuer,), clock=clock,
+    )
+    raw_connection = service._connection
+    service._connection = _RollbackFailingConnection(raw_connection)
+    expected_result = object()
+    expected_exception = RuntimeError("caller exception")
+
+    def invoke():
+        with service.guard_selected_runtime("alice") as retained:
+            assert retained is not None
+            _advance_selected_store(retained[4], issuer, "alice", "guard-cleanup-write")
+            if caller_throws:
+                raise expected_exception
+            return expected_result
+
+    if caller_throws:
+        with pytest.raises(RuntimeError) as raised:
+            invoke()
+        assert raised.value is expected_exception
+    else:
+        assert invoke() is expected_result
+    assert service._connection is None
+    _closed("staging_destination_denied", service.current_selection)
+    peer_runtime = peer.selected_runtime("alice")
+    assert peer_runtime is not None
+    assert peer_runtime[4]._connection.execute("SELECT COUNT(*) FROM knowledge_heads").fetchone()[0] == 1
+    peer.close()
+
+
+@pytest.mark.parametrize("fault", ["store", "completion", "anchor", "path"])
+def test_guard_selected_runtime_preyield_failure_is_bounded_and_leaves_no_transaction(
+    tmp_path, setup, monkeypatch, fault,
+):
+    _clock, issuer, service = setup
+    completion = _zero_completion(tmp_path, service, issuer, "guard-preyield-" + fault)
+    service.select_generation(completion, expected_selection_digest="sha256:" + "0" * 64)
+    selected = service.selected_runtime("alice")
+    assert selected is not None
+    store = selected[4]
+    if fault == "store":
+        monkeypatch.setattr(service, "_store", lambda _row: (_ for _ in ()).throw(RuntimeError("store")))
+    elif fault == "completion":
+        monkeypatch.setattr(
+            service, "_verify_completion_snapshot",
+            lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("completion")),
+        )
+    elif fault == "anchor":
+        monkeypatch.setattr(service, "_selection_anchor_present", lambda *_args, **_kwargs: False)
+    else:
+        monkeypatch.setattr(store, "database_path", tmp_path / "wrong.sqlite")
+
+    _closed("staging_destination_denied", lambda: _nested_selected_runtime_guard(service))
+    assert not service._connection.in_transaction
+    if store.available:
+        assert not store._connection.in_transaction
+    service.close()
+
+
+def test_guard_selected_runtime_preserves_preexisting_store_transaction_and_pending_work(
+    tmp_path, setup,
+):
+    _clock, issuer, service = setup
+    completion = _zero_completion(tmp_path, service, issuer, "guard-existing-store-transaction")
+    service.select_generation(completion, expected_selection_digest="sha256:" + "0" * 64)
+    selected = service.selected_runtime("alice")
+    assert selected is not None
+    store = selected[4]
+    connection = store._connection
+    connection.execute("BEGIN")
+    connection.execute(
+        "INSERT INTO knowledge_meta VALUES('guard-borrowed','caller-pending')",
+    )
+
+    _closed("staging_destination_denied", lambda: _nested_selected_runtime_guard(service))
+    assert not service._connection.in_transaction
+    assert connection.in_transaction
+    assert connection.execute(
+        "SELECT value FROM knowledge_meta WHERE key='guard-borrowed'",
+    ).fetchone()[0] == "caller-pending"
+    connection.execute("ROLLBACK")
+    assert connection.execute(
+        "SELECT value FROM knowledge_meta WHERE key='guard-borrowed'",
+    ).fetchone() is None
+    service.close()
+
+
+def test_guard_selected_runtime_store_begin_failure_leaves_no_guard_owned_transaction(
+    tmp_path, setup, monkeypatch,
+):
+    _clock, issuer, service = setup
+    completion = _zero_completion(tmp_path, service, issuer, "guard-store-begin-failure")
+    service.select_generation(completion, expected_selection_digest="sha256:" + "0" * 64)
+    selected = service.selected_runtime("alice")
+    assert selected is not None
+    store = selected[4]
+    connection = store._connection
+    failing = _BeginFailingConnection(connection)
+    monkeypatch.setattr(store, "_conn", lambda: failing)
+
+    _closed("staging_destination_denied", lambda: _nested_selected_runtime_guard(service))
+    assert failing.begin_attempts == 1
+    assert not service._connection.in_transaction
+    assert not connection.in_transaction
+    assert store.available and not store._quarantined
+    service.close()
+
+
+def test_guard_selected_runtime_leaves_ordinary_selected_runtime_result_unchanged(tmp_path, setup):
+    _clock, issuer, service = setup
+    completion = _zero_completion(tmp_path, service, issuer, "guard-ordinary-selected")
+    service.select_generation(completion, expected_selection_digest="sha256:" + "0" * 64)
+    before = service.selected_runtime("alice")
+    assert before is not None
+    assert type(before[0]) is StagingMigrationCompletionReference
+    before_verified = service.verify_completion(before[0])
+    with service.guard_selected_runtime("alice") as retained:
+        assert retained is not None
+        assert type(retained[0]) is StagingMigrationCompletionReference
+        retained_reference = retained[0]
+        assert retained[1:4] == before[1:4]
+        assert retained[4] is before[4]
+    retained_verified = service.verify_completion(retained_reference)
+    for field in (
+        "migration_digest", "source_manifest_digest", "owner_set_digest", "write_count",
+        "receipt_set_digest", "head_manifest_digest",
+    ):
+        assert getattr(retained_verified, field) == getattr(before_verified, field)
+    after = service.selected_runtime("alice")
+    assert after is not None
+    assert type(after[0]) is StagingMigrationCompletionReference
+    assert after[1:4] == before[1:4]
+    assert after[4] is before[4]
+    after_verified = service.verify_completion(after[0])
+    for field in (
+        "migration_digest", "source_manifest_digest", "owner_set_digest", "write_count",
+        "receipt_set_digest", "head_manifest_digest",
+    ):
+        assert getattr(after_verified, field) == getattr(before_verified, field)
+    service.close()
 
 
 def test_fresh_private_generation_opaque_lease_and_guarded_write(setup) -> None:

@@ -1,8 +1,21 @@
 # Unified Source Index Implementation Roadmap
 
-Stand: 2026-08-01
+Stand: 2026-09-07
 
-Status: `USI-14_accepted / USI-15_blocked_by_child_closure / UIR-03_dependency_ready_pending_handoff / runtime_default_off`
+Status: `USI-14_accepted / USI-15_blocked_by_child_closure / UIR-03A_UIR-03B_accepted / later_consumer_cutover_open / runtime_default_off / USI-07A-PRE1A_v2_rejected_join_circuit_breaker`
+
+## USI-07A-PRE1A status 2026-09-07
+
+The v2 process-retirement prerequisite is rejected after independent deep QA.
+An observed child exit permits a replacement launch before the old process wait
+and stream close are consumed. The frozen candidate is preserved; its claim and
+lease are released blocked, with no acceptance or progress increment.
+The existing confirmed-join correction gate has exhausted ordinary retries.
+The 148 focused and 47 dependency passes plus three central validator passes
+do not override that failure. PRE1B, full USI-07A and live activation remain gated.
+Current evidence and candidate identities:
+[ABC Open Work run](handoffs/abc-open-work-5h-run-20260905.json),
+`usi07a_pre1a_v2_deep_qa` and `usi07a_pre1a_v2_circuit_breaker`.
 
 ## Native-System Amendment 2026-08-01
 

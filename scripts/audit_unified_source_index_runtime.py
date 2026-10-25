@@ -55,6 +55,10 @@ AST_MARKERS = (
     b"PersonalDocs",
     b"provider.retrieve",
     b"getattr(",
+    b"build_knowledge_runtime",
+    b"knowledge_runtime",
+    b"bind_knowledge_runtime",
+    b"close_knowledge_runtime",
 )
 EXCLUSIONS = (
     {
@@ -120,6 +124,18 @@ def _symbol(stack: list[str]) -> str:
 
 
 def _classify(path: str, call_type: str, method: str) -> tuple[str, str]:
+    if call_type == "runtime_factory" and method == "build_knowledge_runtime":
+        if path == "src/app_initializer.py":
+            return "composition_startup", "application composes the knowledge runtime"
+        return "unclassified", "knowledge runtime factory has no explicit classification rule"
+    if call_type == "runtime_state_store" and method == "knowledge_runtime":
+        if path == "app.py":
+            return "composition_startup", "application stores the composed runtime by identity"
+        return "unclassified", "knowledge runtime state store has no explicit classification rule"
+    if call_type == "runtime_lifecycle" and method in {"bind_knowledge_runtime", "close_knowledge_runtime"}:
+        if path == "app.py":
+            return "lifecycle_owner", "application owns the knowledge runtime lifecycle transition"
+        return "unclassified", "knowledge runtime lifecycle call has no explicit classification rule"
     if call_type == "dynamic_getattr":
         if path == "routes/auth_user_rename.py":
             return "lifecycle_owner", "account rename owns the personal-source lifecycle transition"
@@ -157,7 +173,7 @@ def _classify(path: str, call_type: str, method: str) -> tuple[str, str]:
     return "unclassified", "recognized runtime caller has no explicit classification rule"
 
 
-def _ownership(path: str, category: str) -> tuple[str, str]:
+def _ownership(path: str, category: str, call_type: str = "") -> tuple[str, str]:
     if category == "unclassified":
         return "unclassified", ""
     if category == "composition_startup":
@@ -175,6 +191,8 @@ def _ownership(path: str, category: str) -> tuple[str, str]:
     if category == "route_admin":
         return "adapt", "canonical:route_admin"
     if category == "lifecycle_owner":
+        if path == "app.py" and call_type == "runtime_lifecycle":
+            return "adapt", "UIR-03"
         return "adapt", "canonical:personal_docs" if path == "src/personal_docs.py" else "UIR-09"
     if category == "compatibility_fallback":
         return "fallback", "UIR-08" if path == "src/chat_processor.py" else "UIR-06/07"
@@ -199,6 +217,52 @@ class _Visitor(ast.NodeVisitor):
 
     visit_AsyncFunctionDef = visit_FunctionDef
 
+    def _append(self, node: ast.AST, call_type: str, receiver: str, method: str) -> None:
+        category, reason = _classify(self.path, call_type, method)
+        decision, owner_track = _ownership(self.path, category, call_type)
+        self.items.append({
+            "path": self.path,
+            "line": node.lineno,
+            "symbol": _symbol(self.stack),
+            "call_type": call_type,
+            "receiver": receiver,
+            "method": method,
+            "category": category,
+            "decision": decision,
+            "owner_track": owner_track,
+            "reason": reason,
+        })
+
+    def visit_Assign(self, node: ast.Assign) -> None:
+        if len(node.targets) == 1:
+            target = node.targets[0]
+            if (
+                isinstance(target, ast.Name)
+                and target.id == "knowledge_runtime"
+                and isinstance(node.value, ast.Call)
+                and isinstance(node.value.func, ast.Name)
+                and node.value.func.id == "build_knowledge_runtime"
+                and len(node.value.args) == 1
+                and isinstance(node.value.args[0], ast.Tuple)
+                and len(node.value.args[0].elts) == 2
+                and _attribute_path(node.value.args[0].elts[0]) == "knowledge_runtime_config.mode.value"
+                and _attribute_path(node.value.args[0].elts[1]) == "knowledge_runtime_config.runtime_enabled"
+                and len(node.value.keywords) == 1
+                and node.value.keywords[0].arg == "planner"
+                and isinstance(node.value.keywords[0].value, ast.Constant)
+                and node.value.keywords[0].value.value is None
+            ):
+                self._append(node.value, "runtime_factory", "", "build_knowledge_runtime")
+            elif (
+                isinstance(target, ast.Attribute)
+                and target.attr == "knowledge_runtime"
+                and _attribute_path(target.value) == "app.state"
+                and isinstance(node.value, ast.Name)
+                and node.value.id == "knowledge_runtime"
+            ):
+                self._append(node, "runtime_state_store", "app.state", "knowledge_runtime")
+        self.generic_visit(node)
+
     def visit_Call(self, node: ast.Call) -> None:
         call_type = ""
         method = ""
@@ -208,6 +272,24 @@ class _Visitor(ast.NodeVisitor):
                 call_type, method = "constructor", node.func.id
             elif node.func.id in FUNCTION_CANDIDATES:
                 call_type, method = "runtime_factory", node.func.id
+            elif (
+                node.func.id == "bind_knowledge_runtime"
+                and len(node.args) == 2
+                and not node.keywords
+                and isinstance(node.args[0], ast.Name)
+                and node.args[0].id == "knowledge_runtime"
+                and isinstance(node.args[1], ast.Name)
+                and node.args[1].id == "set_query_knowledge_planner"
+            ):
+                call_type, method, receiver = "runtime_lifecycle", node.func.id, "knowledge_runtime"
+            elif (
+                node.func.id == "close_knowledge_runtime"
+                and len(node.args) == 1
+                and not node.keywords
+                and isinstance(node.args[0], ast.Name)
+                and node.args[0].id == "knowledge_runtime"
+            ):
+                call_type, method, receiver = "runtime_lifecycle", node.func.id, "knowledge_runtime"
             elif node.func.id == "getattr" and len(node.args) >= 2 and isinstance(node.args[1], ast.Constant):
                 target = str(node.args[1].value)
                 if target in {"rag_manager", "memory_vector", "personal_docs_manager"}:
@@ -225,20 +307,7 @@ class _Visitor(ast.NodeVisitor):
             elif ("personal_docs" in lowered or lowered.endswith("personal_docs_manager")) and method in PERSONAL_DOCS_METHODS:
                 call_type = "personal_docs_call"
         if call_type:
-            category, reason = _classify(self.path, call_type, method)
-            decision, owner_track = _ownership(self.path, category)
-            self.items.append({
-                "path": self.path,
-                "line": node.lineno,
-                "symbol": _symbol(self.stack),
-                "call_type": call_type,
-                "receiver": receiver,
-                "method": method,
-                "category": category,
-                "decision": decision,
-                "owner_track": owner_track,
-                "reason": reason,
-            })
+            self._append(node, call_type, receiver, method)
         self.generic_visit(node)
 
 

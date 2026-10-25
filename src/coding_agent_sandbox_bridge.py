@@ -10,7 +10,13 @@ from src.agent_result_observer import ResultArtifact, ResultEvidenceBundle
 from src.agent_sandbox_contract import SandboxJobRequest, SandboxMount, SandboxResourceLimits
 from src.agent_sandbox_worker import SandboxWorker
 from src.agent_sandbox_worker_api import SandboxWorkerStatus
-from src.coding_agent_backend import CodingCommandResult, CodingTaskPlan, evaluate_coding_quality_gate
+from src.coding_agent_backend import (
+    CodingCommandResult,
+    CodingTaskPlan,
+    CodingToolCapsule,
+    build_coding_tool_capsules,
+    evaluate_coding_quality_gate,
+)
 
 
 class CodingAgentSandboxBridgeError(ValueError):
@@ -24,7 +30,11 @@ class CodingSandboxDispatch:
     statuses: tuple[SandboxWorkerStatus, ...]
     quality_gate: dict[str, Any]
     evidence_bundle: dict[str, Any]
+    dispatch_attempted: bool = False
+    execution_performed: bool = False
+    live_effect_allowed: bool = False
     raw_content_visible: bool = False
+    tool_capsules: tuple[CodingToolCapsule, ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -34,6 +44,10 @@ class CodingSandboxDispatch:
             "statuses": tuple(status.to_dict() for status in self.statuses),
             "quality_gate": self.quality_gate,
             "evidence_bundle": self.evidence_bundle,
+            "tool_capsules": tuple(capsule.to_dict() for capsule in self.tool_capsules),
+            "dispatch_attempted": self.dispatch_attempted,
+            "execution_performed": self.execution_performed,
+            "live_effect_allowed": self.live_effect_allowed,
             "raw_content_visible": False,
         }
 
@@ -47,16 +61,17 @@ def build_sandbox_jobs_for_coding_plan(
         raise CodingAgentSandboxBridgeError("plan must be a CodingTaskPlan")
     if plan.decision not in {"plan_ready", "created", "verified"}:
         raise CodingAgentSandboxBridgeError("coding plan is not ready for sandbox dispatch")
+    capsules = build_coding_tool_capsules(plan)
     mounts = _mounts_for_allowed_paths(plan.allowed_paths)
     jobs: list[SandboxJobRequest] = []
-    for index, check in enumerate(plan.checks, start=1):
+    for index, capsule in enumerate(capsules, start=1):
         jobs.append(
             SandboxJobRequest.create(
                 job_id=f"{plan.task_id}-check-{index}",
-                argv=check.argv,
+                argv=capsule.argv,
                 image=image,
                 mounts=mounts,
-                limits=SandboxResourceLimits.create(timeout_seconds=check.timeout_seconds, memory_mb=1024, cpu_count=1.0),
+                limits=SandboxResourceLimits.create(timeout_seconds=capsule.timeout_seconds, memory_mb=1024, cpu_count=1.0),
                 network_mode="none",
                 secrets_attached=False,
             )
@@ -73,10 +88,13 @@ def dispatch_coding_checks_to_sandbox(
     operator_go: bool = False,
 ) -> CodingSandboxDispatch:
     jobs = build_sandbox_jobs_for_coding_plan(plan)
+    capsules = build_coding_tool_capsules(plan)
     statuses: list[SandboxWorkerStatus] = []
+    execution_performed = False
     for job in jobs:
         result = worker.submit(job, live_enabled=live_enabled, operator_go=operator_go)
         statuses.append(result.status)
+        execution_performed = execution_performed or bool(getattr(result, "executed_live", False))
     check_results = tuple(sandbox_status_to_coding_result(status) for status in statuses)
     quality = evaluate_coding_quality_gate(
         changed_paths=changed_paths,
@@ -90,6 +108,10 @@ def dispatch_coding_checks_to_sandbox(
         statuses=tuple(statuses),
         quality_gate=quality.to_dict(),
         evidence_bundle=_build_dispatch_evidence(plan.task_id, statuses),
+        dispatch_attempted=bool(jobs),
+        execution_performed=execution_performed,
+        live_effect_allowed=bool(live_enabled and operator_go),
+        tool_capsules=capsules,
     )
 
 

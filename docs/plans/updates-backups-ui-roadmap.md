@@ -60,6 +60,16 @@ Build an admin-only Odysseus UI for update and backup operations under Settings 
 
 ## Implementation Slices
 
+### Current Authority Reconciliation
+
+Revision 181 assigns stable source-local IDs to the five historical headings.
+Repository presence is not treated as current UI acceptance, and live host
+actions remain separately gated.
+
+```json
+{"schema_version":1,"kind":"odysseus.updates_backups_ui.source_normalization","normalization_id":"UBU-NORM-01","source_path":"docs/plans/updates-backups-ui-roadmap.md","source_blob":"dd94905872588cea1080ae134a3fc2beaec6346d","authority_snapshot":{"round7_blob":"967c7df4a2c26312c88f06d131515a2ff3915836","open_work_blob":"82b6c75831b522c06d57131fffb508157a8690b5","guidance_blob":"b2248b804801a9b8e9e45bb11cb854c2090b5ecb"},"source_disposition":"mixed_current_status_normalized","units":[{"id":"UBU-01-operator-contract","source":"implementation-slice-1","disposition":"exclude_historical/superseded","class":"safe_offline"},{"id":"UBU-02-backend-read-only-status","source":"implementation-slice-2","disposition":"exclude_historical/superseded","class":"repo_only","historical_evidence":["updater_backend_contract","docs/plans/mvp-roadmap-runner-state.json"]},{"id":"UBU-03-frontend-status-ui","source":"implementation-slice-3","disposition":"design_gate","class":"needs_design","accepted":false},{"id":"UBU-04-safe-actions","source":"implementation-slice-4","disposition":"gates_only","class":"needs_live_go","accepted":false,"current_gate_ids":["updater_server_runtime_evidence","updates_backups_live_smoke"],"action_owner_evidence":["system_backup_now"]},{"id":"UBU-05-production-verification","source":"implementation-slice-5","disposition":"gates_only","class":"needs_live_go","accepted":false,"current_gate_ids":["updater_server_runtime_evidence","updates_backups_live_smoke"]}],"accepted_current_ids":[],"not_verified":["current Debian updater and backup state","UI design acceptance","action-specific host authorization"],"invariants":["no OWM or RCH alias is inferred","normalization grants no host, backup, update, deploy or network authority"]}
+```
+
 1. Roadmap and operator contract
    - Create this roadmap.
    - Document UX copy, operator expectations, status semantics, and go/no-go rules.

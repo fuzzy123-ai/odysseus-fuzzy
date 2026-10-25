@@ -18,6 +18,7 @@ from multiprocessing.connection import Connection
 import os
 from pathlib import Path
 import re
+import tempfile
 import threading
 import time
 from typing import Any
@@ -110,7 +111,12 @@ MIGRATION_MARKDOWN_EXPORT_MAX_BYTES = 8 * 1024 * 1024
 MIGRATION_EXPORT_DTO_OVERHEAD_BYTES = 64 * 1024
 _CANONICAL_SUPPORTING_TARGET_ROADMAP_ID = "abc-roadmap-reconciliation-import"
 _CHUNK_RAW_MAX_BYTES = 8 * 1024 * 1024
-_CHUNK_COUNT_MAX = 8
+_UNBOUNDED_DOCUMENT_REQUEST_OPERATIONS = frozenset({
+    "planning_create_project", "planning_append_revision",
+})
+_UNBOUNDED_DOCUMENT_RESPONSE_OPERATIONS = frozenset({
+    "planning_get_revision_bundle", "read_subject_bound_accepted_migration_bundle",
+})
 _DURABLE_STORE_ERROR_CODES = frozenset({
     "idempotency_conflict", "migration_required", "not_found", "owner_scope_denied",
     "stale_authority", "target_conflict", "unauthenticated", "validation_failed",
@@ -250,13 +256,15 @@ def _canonical_json(value: object) -> bytes:
         _fail("protocol_error")
 
 
-def _walk_json(value: object, *, code: str = "protocol_error") -> None:
+def _walk_json(
+    value: object, *, code: str = "protocol_error", enforce_node_limit: bool = True,
+) -> None:
     nodes = 0
 
     def visit(item: object, depth: int) -> None:
         nonlocal nodes
         nodes += 1
-        if nodes > JSON_NODES_MAX or depth > JSON_DEPTH_MAX:
+        if (enforce_node_limit and nodes > JSON_NODES_MAX) or depth > JSON_DEPTH_MAX:
             _fail(code)
         kind = type(item)
         if kind is dict:
@@ -311,6 +319,25 @@ def _decode_frame(raw: bytes, *, maximum: int) -> object:
     _walk_json(value)
     if _canonical_json(value) != raw:
         _fail("protocol_error")
+    return value
+
+
+def _decode_unbounded_frame(raw: bytes, *, code: str) -> object:
+    if type(raw) is not bytes or not raw:
+        _fail(code)
+    try:
+        value = json.loads(
+            raw.decode("utf-8"),
+            object_pairs_hook=lambda pairs: _object_with_code(pairs, code),
+            parse_constant=lambda _value: _fail(code),
+        )
+    except PlanningProcessError:
+        raise
+    except (UnicodeError, json.JSONDecodeError, TypeError, ValueError, RecursionError):
+        _fail(code)
+    _walk_json(value, code=code)
+    if _canonical_json(value) != raw:
+        _fail(code)
     return value
 
 
@@ -700,59 +727,182 @@ def _response_total_maximum(operation: str) -> int:
     return payload + source + 64 * 1024
 
 
-def _send_response(connection: Connection, response: dict[str, object], *, operation: str) -> None:
-    raw = _encode_frame(response, maximum=_response_total_maximum(operation))
-    if len(raw) <= RESPONSE_MAX_BYTES:
-        _send(connection, response, RESPONSE_MAX_BYTES)
-        return
+def _deadline_check(deadline: float | None) -> None:
+    if deadline is not None and time.monotonic() >= deadline:
+        _fail("deadline_exceeded")
+
+
+def _transfer_count(total_bytes: object, count: object, *, code: str) -> tuple[int, int]:
+    if (type(total_bytes) is not int or total_bytes < 1
+            or type(count) is not int or count < 1):
+        _fail(code)
+    expected = (total_bytes + _CHUNK_RAW_MAX_BYTES - 1) // _CHUNK_RAW_MAX_BYTES
+    if count != expected:
+        _fail(code)
+    return total_bytes, count
+
+
+def _send_chunked(
+    connection: Connection, raw: bytes, *, operation: str, request_id: str,
+    generation: str, claim_id: str, deadline: float | None = None,
+    request_claim: dict[str, object] | None = None, deadline_ms: int | None = None,
+    delivery_started: threading.Event | None = None,
+) -> None:
+    _deadline_check(deadline)
+    total_bytes = len(raw)
+    count = (total_bytes + _CHUNK_RAW_MAX_BYTES - 1) // _CHUNK_RAW_MAX_BYTES
     digest = "sha256:" + hashlib.sha256(raw).hexdigest()
-    count = (len(raw) + _CHUNK_RAW_MAX_BYTES - 1) // _CHUNK_RAW_MAX_BYTES
-    if not 2 <= count <= _CHUNK_COUNT_MAX:
-        _fail("invalid_response")
+    header: dict[str, object] = {
+        "protocol": PROTOCOL, "op": operation + "_header", "request_id": request_id,
+        "generation": generation, "claim_id": claim_id, "total_bytes": total_bytes,
+        "count": count, "payload_sha256": digest,
+    }
+    if request_claim is not None:
+        header["deadline_ms"] = deadline_ms
+        header["claim"] = request_claim
+    _deadline_check(deadline)
+    if delivery_started is not None:
+        delivery_started.set()
+    _send(connection, header, REQUEST_MAX_BYTES)
     for sequence in range(count):
-        chunk = raw[sequence * _CHUNK_RAW_MAX_BYTES:(sequence + 1) * _CHUNK_RAW_MAX_BYTES]
+        _deadline_check(deadline)
+        start = sequence * _CHUNK_RAW_MAX_BYTES
+        chunk = raw[start:start + _CHUNK_RAW_MAX_BYTES]
         frame = {
-            "protocol": response["protocol"], "op": operation + "_chunk",
-            "request_id": response["request_id"], "generation": response["generation"],
-            "claim_id": response["claim_id"], "sequence": sequence, "count": count,
-            "payload_sha256": digest, "chunk_b64": base64.b64encode(chunk).decode("ascii"),
+            "protocol": PROTOCOL, "op": operation + "_chunk", "request_id": request_id,
+            "generation": generation, "claim_id": claim_id, "sequence": sequence,
+            "count": count, "total_bytes": total_bytes, "payload_sha256": digest,
+            "chunk_b64": base64.b64encode(chunk).decode("ascii"),
         }
         _send(connection, frame, RESPONSE_MAX_BYTES)
 
 
-def _receive_response(connection: Connection, *, operation: str, request_id: str, generation: str, claim_id: str) -> object:
-    first = _receive(connection, RESPONSE_MAX_BYTES)
-    if type(first) is not dict or first.get("op") != operation + "_chunk":
-        return first
-    keys = {"protocol", "op", "request_id", "generation", "claim_id", "sequence", "count", "payload_sha256", "chunk_b64"}
-    chunks: list[bytes] = []
-    count: int | None = None
-    digest: str | None = None
-    for sequence in range(_CHUNK_COUNT_MAX):
-        frame = first if sequence == 0 else _receive(connection, RESPONSE_MAX_BYTES)
-        data = _strict_keys(frame, keys, "invalid_response")
-        if (data["protocol"] != PROTOCOL or data["op"] != operation + "_chunk" or data["request_id"] != request_id
-                or data["generation"] != generation or data["claim_id"] != claim_id or data["sequence"] != sequence
-                or type(data["count"]) is not int or not 2 <= data["count"] <= _CHUNK_COUNT_MAX):
-            _fail("invalid_response")
-        if count is None:
-            count = data["count"]
-            digest = _digest(data["payload_sha256"])
-        if data["count"] != count or data["payload_sha256"] != digest or type(data["chunk_b64"]) is not str:
-            _fail("invalid_response")
+def _receive_chunked(
+    connection: Connection, first: object, *, operation: str, request_id: str,
+    generation: str, claim_id: str, code: str, deadline: float | None = None,
+    token: "_GenerationToken | None" = None, request_transfer: bool = False,
+) -> object:
+    header = _strict_keys(first, {
+        "protocol", "op", "request_id", "generation", "claim_id", "total_bytes",
+        "count", "payload_sha256",
+    }, code)
+    total_bytes, count = _transfer_count(header["total_bytes"], header["count"], code=code)
+    digest = _digest(header["payload_sha256"], code)
+    if (header["protocol"] != PROTOCOL or header["op"] != operation + "_header"
+            or header["request_id"] != request_id or header["generation"] != generation
+            or header["claim_id"] != claim_id):
+        _fail(code)
+    if request_transfer and operation not in _UNBOUNDED_DOCUMENT_REQUEST_OPERATIONS:
+        _fail(code)
+    if (not request_transfer
+            and operation not in _UNBOUNDED_DOCUMENT_RESPONSE_OPERATIONS
+            and total_bytes > _response_total_maximum(operation)):
+        _fail(code)
+    spool = None
+    registered = False
+    try:
         try:
-            chunk = base64.b64decode(data["chunk_b64"].encode("ascii"), validate=True)
-        except (UnicodeError, ValueError):
-            _fail("invalid_response")
-        if not 1 <= len(chunk) <= _CHUNK_RAW_MAX_BYTES or base64.b64encode(chunk).decode("ascii") != data["chunk_b64"]:
-            _fail("invalid_response")
-        chunks.append(chunk)
-        if sequence + 1 == count:
-            raw = b"".join(chunks)
-            if len(raw) > _response_total_maximum(operation) or "sha256:" + hashlib.sha256(raw).hexdigest() != digest:
-                _fail("invalid_response")
-            return _decode_frame(raw, maximum=_response_total_maximum(operation))
-    _fail("invalid_response")
+            spool = tempfile.SpooledTemporaryFile(max_size=_CHUNK_RAW_MAX_BYTES, mode="w+b")
+        except (OSError, ValueError, MemoryError):
+            _fail("unavailable")
+        if token is not None:
+            registered = token.track_resource(spool)
+            if not registered:
+                _fail("cancelled")
+        actual = 0
+        actual_digest = hashlib.sha256()
+        sequence = 0
+        while actual < total_bytes:
+            _deadline_check(deadline)
+            if deadline is not None and hasattr(connection, "poll"):
+                remaining = deadline - time.monotonic()
+                if remaining <= 0 or not connection.poll(remaining):
+                    _fail("deadline_exceeded")
+            frame = _receive(connection, RESPONSE_MAX_BYTES)
+            data = _strict_keys(frame, {
+                "protocol", "op", "request_id", "generation", "claim_id", "sequence",
+                "count", "total_bytes", "payload_sha256", "chunk_b64",
+            }, code)
+            if (data["protocol"] != PROTOCOL or data["op"] != operation + "_chunk"
+                    or data["request_id"] != request_id or data["generation"] != generation
+                    or data["claim_id"] != claim_id or type(data["sequence"]) is not int
+                    or data["sequence"] != sequence or type(data["count"]) is not int
+                    or data["count"] != count or type(data["total_bytes"]) is not int
+                    or data["total_bytes"] != total_bytes or data["payload_sha256"] != digest
+                    or type(data["chunk_b64"]) is not str):
+                _fail(code)
+            try:
+                chunk = base64.b64decode(data["chunk_b64"].encode("ascii"), validate=True)
+            except (UnicodeError, ValueError):
+                _fail(code)
+            expected_size = min(_CHUNK_RAW_MAX_BYTES, total_bytes - actual)
+            if (len(chunk) != expected_size
+                    or base64.b64encode(chunk).decode("ascii") != data["chunk_b64"]):
+                _fail(code)
+            try:
+                written = spool.write(chunk)
+            except (OSError, ValueError, MemoryError):
+                _fail("unavailable")
+            if written != len(chunk):
+                _fail("unavailable")
+            actual += len(chunk)
+            actual_digest.update(chunk)
+            sequence += 1
+        if (actual != total_bytes or sequence != count
+                or "sha256:" + actual_digest.hexdigest() != digest):
+            _fail(code)
+        try:
+            spool.flush()
+            spool.seek(0)
+            raw = spool.read()
+        except (OSError, ValueError, MemoryError):
+            _fail("unavailable")
+        if type(raw) is not bytes or len(raw) != total_bytes:
+            _fail("unavailable")
+        _deadline_check(deadline)
+        return _decode_unbounded_frame(raw, code=code)
+    finally:
+        if spool is not None:
+            try:
+                spool.close()
+            except (OSError, ValueError):
+                _fail("unavailable")
+            if token is not None and registered:
+                token.release_resource(spool)
+
+
+def _send_response(
+    connection: Connection, response: dict[str, object], *, operation: str,
+    deadline: float | None = None,
+) -> None:
+    _deadline_check(deadline)
+    raw = _canonical_json(response)
+    _walk_json(response)
+    _deadline_check(deadline)
+    if (operation not in _UNBOUNDED_DOCUMENT_RESPONSE_OPERATIONS
+            and len(raw) > _response_total_maximum(operation)):
+        _fail("invalid_response")
+    if len(raw) <= RESPONSE_MAX_BYTES:
+        _send(connection, response, RESPONSE_MAX_BYTES)
+        return
+    _send_chunked(
+        connection, raw, operation=operation, request_id=response["request_id"],
+        generation=response["generation"], claim_id=response["claim_id"], deadline=deadline,
+    )
+
+
+def _receive_response(
+    connection: Connection, *, operation: str, request_id: str, generation: str,
+    claim_id: str, deadline: float | None = None, token: "_GenerationToken | None" = None,
+) -> object:
+    first = _receive(connection, RESPONSE_MAX_BYTES)
+    if type(first) is not dict or first.get("op") != operation + "_header":
+        return first
+    return _receive_chunked(
+        connection, first, operation=operation, request_id=request_id,
+        generation=generation, claim_id=claim_id, code="invalid_response",
+        deadline=deadline, token=token,
+    )
 
 
 def _migration_subject_wire(subject: PlanningProcessMigrationSubject) -> dict[str, object]:
@@ -994,7 +1144,7 @@ def _strict_keys(value: object, keys: set[str], code: str) -> dict[str, object]:
 
 
 def _parse_durable_payload(payload: object, *, code: str) -> dict[str, object]:
-    if type(payload) is not bytes or not 1 <= len(payload) <= WRITE_PAYLOAD_MAX_BYTES:
+    if type(payload) is not bytes or len(payload) < 1:
         _fail(code)
     try:
         document = json.loads(
@@ -1002,7 +1152,7 @@ def _parse_durable_payload(payload: object, *, code: str) -> dict[str, object]:
             object_pairs_hook=lambda pairs: _object_with_code(pairs, code),
             parse_constant=lambda _value: _fail(code),
         )
-        _walk_json(document, code=code)
+        _walk_json(document, code=code, enforce_node_limit=False)
         canonical = json.dumps(
             document, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False,
         ).encode("utf-8")
@@ -1044,16 +1194,11 @@ def _validate_durable_payload(
             or type(roadmaps[0]) is not dict):
         _fail("invalid_response")
     roadmap = roadmaps[0]
-    try:
-        content_hash = compute_roadmap_content_hash(roadmap)
-    except Exception:
-        _fail("invalid_response")
     if (roadmap.get("project_id") != revision.project_id
             or roadmap.get("roadmap_id") != revision.roadmap_id
             or roadmap.get("revision") != revision.revision
             or roadmap.get("revision_state") != revision.revision_state
-            or roadmap.get("content_hash") != revision.content_sha256
-            or content_hash != revision.content_sha256):
+            or roadmap.get("content_hash") != revision.content_sha256):
         _fail("invalid_response")
 
 
@@ -1177,14 +1322,13 @@ def _receipt_from_wire(value: object) -> PlanningProcessReceipt:
 
 
 def _decode_payload_b64(value: object, *, code: str) -> bytes:
-    if type(value) is not str or not 4 <= len(value) <= WRITE_PAYLOAD_B64_MAX_CHARS:
+    if type(value) is not str or len(value) < 4:
         _fail(code)
     try:
         payload = base64.b64decode(value.encode("ascii"), validate=True)
     except (ValueError, UnicodeError):
         _fail(code)
-    if (not 1 <= len(payload) <= WRITE_PAYLOAD_MAX_BYTES
-            or base64.b64encode(payload).decode("ascii") != value):
+    if len(payload) < 1 or base64.b64encode(payload).decode("ascii") != value:
         _fail(code)
     return payload
 
@@ -1721,7 +1865,7 @@ def _validate_revision(revision: PlanningProcessRevision, *, owner_id: str, proj
         _fail("invalid_response")
     if type(revision.created_at) is not str or not revision.created_at.endswith("Z"):
         _fail("invalid_response")
-    if type(revision.payload) is not bytes or len(revision.payload) > PAYLOAD_MAX_BYTES:
+    if type(revision.payload) is not bytes or len(revision.payload) < 1:
         _fail("invalid_response")
     _digest(revision.payload_sha256)
     _digest(revision.content_sha256)
@@ -1734,7 +1878,7 @@ def _validate_revision(revision: PlanningProcessRevision, *, owner_id: str, proj
             object_pairs_hook=lambda pairs: _object_with_code(pairs, "invalid_response"),
             parse_constant=lambda _value: _fail("invalid_response"),
         )
-        _walk_json(payload, code="invalid_response")
+        _walk_json(payload, code="invalid_response", enforce_node_limit=False)
         canonical_payload = json.dumps(
             payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False,
         ).encode("utf-8")
@@ -1794,13 +1938,9 @@ def _validate_bundle(bundle: PlanningProcessBundle) -> None:
     if set(source_by_roadmap) != {item.roadmap_id for item in bundle.heads}:
         _fail("invalid_response")
     revisions_by_id: dict[str, PlanningProcessRevision] = {}
-    total_payload = 0
     for item in bundle.revisions:
         _validate_revision(item, owner_id=owner_id, project_id=project_id)
         if item.revision_id in revisions_by_id:
-            _fail("invalid_response")
-        total_payload += len(item.payload)
-        if total_payload > AGGREGATE_PAYLOAD_MAX_BYTES:
             _fail("invalid_response")
         revisions_by_id[item.revision_id] = item
     for head in bundle.heads:
@@ -1853,13 +1993,13 @@ def _revision_from_wire(value: object) -> PlanningProcessRevision:
             "created_at", "payload_b64", "principal_digest"}
     data = _strict_keys(value, keys, "invalid_response")
     encoded = data.pop("payload_b64")
-    if type(encoded) is not str or len(encoded) > ((PAYLOAD_MAX_BYTES + 2) // 3) * 4 + 4:
+    if type(encoded) is not str or len(encoded) < 4:
         _fail("invalid_response")
     try:
         payload = base64.b64decode(encoded.encode("ascii"), validate=True)
     except (ValueError, UnicodeError):
         _fail("invalid_response")
-    if len(payload) > PAYLOAD_MAX_BYTES or base64.b64encode(payload).decode("ascii") != encoded:
+    if len(payload) < 1 or base64.b64encode(payload).decode("ascii") != encoded:
         _fail("invalid_response")
     data["payload"] = payload
     try:
@@ -1919,10 +2059,8 @@ def _revision_wire(member: object) -> dict[str, object]:
 def _bundle_wire(bundle: PlanningAcceptedMigrationBundle) -> dict[str, object]:
     if len(bundle.heads) > HEADS_MAX or len(bundle.revisions) > REVISIONS_MAX:
         _fail("invalid_response")
-    total = 0
     for member in bundle.revisions:
-        total += len(member.payload)
-        if len(member.payload) > PAYLOAD_MAX_BYTES or total > AGGREGATE_PAYLOAD_MAX_BYTES:
+        if type(member.payload) is not bytes or len(member.payload) < 1:
             _fail("invalid_response")
     if len(bundle.batch_bytes) > AGGREGATE_PAYLOAD_MAX_BYTES:
         _fail("invalid_response")
@@ -2076,7 +2214,7 @@ class _GenerationToken:
     """Cancellation and helper ownership for exactly one spawned child."""
 
     __slots__ = (
-        "cancelled", "generation", "helpers", "starting_helpers", "lock",
+        "cancelled", "generation", "helpers", "starting_helpers", "resources", "lock",
         "reap_done", "reap_result", "process", "connection",
     )
 
@@ -2085,6 +2223,7 @@ class _GenerationToken:
         self.generation: str | None = None
         self.helpers: set[threading.Thread] = set()
         self.starting_helpers: set[threading.Thread] = set()
+        self.resources: set[object] = set()
         self.lock = threading.Lock()
         self.reap_done = threading.Event()
         self.reap_result = False
@@ -2112,6 +2251,21 @@ class _GenerationToken:
     def active_start_helpers(self) -> tuple[threading.Thread, ...]:
         with self.lock:
             return tuple(self.starting_helpers)
+
+    def track_resource(self, resource: object) -> bool:
+        with self.lock:
+            if self.cancelled.is_set():
+                return False
+            self.resources.add(resource)
+            return True
+
+    def release_resource(self, resource: object) -> None:
+        with self.lock:
+            self.resources.discard(resource)
+
+    def active_resources(self) -> tuple[object, ...]:
+        with self.lock:
+            return tuple(self.resources)
 
 
 def _load_child_issuer() -> AuthenticatedPrincipalIssuer:
@@ -2177,6 +2331,58 @@ def _child_claim_principal(
     return principal, owner_id, project_id
 
 
+def _child_receive_large_request(
+    connection: Connection, header_value: object, *, issuer: AuthenticatedPrincipalIssuer,
+    generation: str, seen_nonces: set[str],
+) -> tuple[str, dict[str, object], object, str, str, float]:
+    header = _strict_keys(header_value, {
+        "protocol", "op", "request_id", "generation", "claim_id", "deadline_ms",
+        "claim", "total_bytes", "count", "payload_sha256",
+    }, "invalid_request")
+    if type(header["op"]) is not str or not header["op"].endswith("_header"):
+        _fail("invalid_request")
+    operation = header["op"][:-7]
+    if operation not in _UNBOUNDED_DOCUMENT_REQUEST_OPERATIONS:
+        _fail("invalid_request")
+    if header["protocol"] != PROTOCOL:
+        _fail("invalid_request")
+    request_id = _wire_id(header["request_id"], "invalid_request")
+    generation_value = _wire_id(header["generation"], "invalid_request")
+    claim_id = _wire_id(header["claim_id"], "invalid_request")
+    _transfer_count(header["total_bytes"], header["count"], code="invalid_request")
+    _digest(header["payload_sha256"], "invalid_request")
+    deadline_ms = header["deadline_ms"]
+    if type(deadline_ms) is not int or not DEADLINE_MIN_MS <= deadline_ms <= DEADLINE_MAX_MS:
+        _fail("invalid_request")
+    principal, owner_id, project_id = _child_claim_principal(
+        header, issuer=issuer, generation=generation, seen_nonces=seen_nonces,
+    )
+    deadline = time.monotonic() + deadline_ms / 1000.0
+    compact_header = {key: header[key] for key in (
+        "protocol", "op", "request_id", "generation", "claim_id", "total_bytes",
+        "count", "payload_sha256",
+    )}
+    request = _receive_chunked(
+        connection, compact_header, operation=operation, request_id=request_id,
+        generation=generation_value, claim_id=claim_id, code="invalid_request",
+        deadline=deadline, request_transfer=True,
+    )
+    keys = {
+        "protocol", "op", "request_id", "generation", "claim_id", "deadline_ms",
+        "claim", "body",
+    }
+    request_data = _strict_keys(request, keys, "invalid_request")
+    if (request_data["protocol"] != PROTOCOL or request_data["op"] != operation
+            or request_data["request_id"] != request_id
+            or request_data["generation"] != generation_value
+            or request_data["claim_id"] != claim_id
+            or request_data["deadline_ms"] != deadline_ms
+            or request_data["claim"] != header["claim"]):
+        _fail("invalid_request")
+    _deadline_check(deadline)
+    return operation, request_data, principal, owner_id, project_id, deadline
+
+
 def _child_durable_operation(
     operation: str, body_value: object, *, principal: object, owner_id: str,
     claim_project_id: str, durable_store: DurablePlanningRevisionStore,
@@ -2202,11 +2408,14 @@ def _child_durable_operation(
         target_id = _revision_id(body["revision_id"], "invalid_request")
         if project_id != claim_project_id:
             _fail("invalid_request")
-        revision = durable_store.read_revision(principal, owner_id=owner_id, revision_id=target_id)
+        member = durable_store.read_revision_bundle(
+            principal, owner_id=owner_id, revision_id=target_id,
+        )
+        revision = member.revision
         if (revision.owner_id != owner_id or revision.project_id != project_id
                 or revision.roadmap_id != roadmap_id or revision.revision_id != target_id):
             _fail("foreign_claim")
-        payload = durable_store.read_payload(principal, owner_id=owner_id, revision_id=target_id)
+        payload = member.payload
         process_revision = _durable_revision_from_wire(_durable_revision_wire(revision))
         PlanningProcessRevisionBundle(process_revision, payload)
         return {
@@ -2246,22 +2455,10 @@ def _child_durable_operation(
             owner_id, project_id, roadmap_id,
         ):
             _fail("invalid_request")
-        replay = durable_store.replay_append_revision(
+        receipt = durable_store.append_revision(
             principal, owner_id=owner_id, project_id=project_id, roadmap_id=roadmap_id,
             payload_bytes=payload, expected_head=expected_head, idempotency_key=key,
         )
-        if replay is not None:
-            receipt = replay
-        else:
-            actual_head = durable_store.get_head(
-                principal, owner_id=owner_id, project_id=project_id, roadmap_id=roadmap_id,
-            )
-            if actual_head != expected_head:
-                raise DurablePlanningStoreError("stale_authority")
-            receipt = durable_store.append_revision(
-                principal, owner_id=owner_id, project_id=project_id, roadmap_id=roadmap_id,
-                payload_bytes=payload, expected_head=expected_head, idempotency_key=key,
-            )
     elif operation == "planning_approve_revision":
         body = _strict_keys(body_value, {
             "project_id", "roadmap_id", "revision_id", "expected_head", "idempotency_key",
@@ -2749,31 +2946,44 @@ def _child_process_main(config: dict[str, str], connection: Connection) -> None:
         seen_nonces: set[str] = set()
         while True:
             try:
-                request = _receive(connection, WRITE_REQUEST_MAX_BYTES)
+                request = _receive(connection, RESPONSE_MAX_BYTES)
             except PlanningProcessError as exc:
                 if exc.code == "child_eof":
                     return
                 raise
             if type(request) is not dict or type(request.get("op")) is not str:
                 return
-            operation = request["op"]
-            if operation == "read_subject_bound_accepted_migration_bundle":
-                keys = {"protocol", "op", "request_id", "generation", "claim_id", "deadline_ms", "claim"}
-            elif operation in _PROCESS_OPERATIONS:
-                keys = {"protocol", "op", "request_id", "generation", "claim_id", "deadline_ms", "claim", "body"}
+            admitted = request["op"].endswith("_header")
+            if admitted:
+                operation, request_data, principal, owner_id, project_id, request_deadline = (
+                    _child_receive_large_request(
+                        connection, request, issuer=issuer, generation=generation,
+                        seen_nonces=seen_nonces,
+                    )
+                )
             else:
-                return
-            request_data = _strict_keys(request, keys, "invalid_request")
-            if request_data["protocol"] != PROTOCOL or len(_canonical_json(request)) > _request_maximum(operation):
-                return
+                operation = request["op"]
+                if operation == "read_subject_bound_accepted_migration_bundle":
+                    keys = {"protocol", "op", "request_id", "generation", "claim_id", "deadline_ms", "claim"}
+                elif operation in _PROCESS_OPERATIONS:
+                    keys = {"protocol", "op", "request_id", "generation", "claim_id", "deadline_ms", "claim", "body"}
+                else:
+                    return
+                request_data = _strict_keys(request, keys, "invalid_request")
+                if request_data["protocol"] != PROTOCOL or len(_canonical_json(request)) > _request_maximum(operation):
+                    return
+                principal = owner_id = project_id = None
+                request_deadline = None
             request_id = _wire_id(request_data["request_id"])
             generation_value = _wire_id(request_data["generation"])
             claim_id = _wire_id(request_data["claim_id"])
             response_op = operation + "_result"
             try:
-                principal, owner_id, project_id = _child_claim_principal(
-                    request_data, issuer=issuer, generation=generation, seen_nonces=seen_nonces,
-                )
+                if not admitted:
+                    principal, owner_id, project_id = _child_claim_principal(
+                        request_data, issuer=issuer, generation=generation, seen_nonces=seen_nonces,
+                    )
+                    request_deadline = time.monotonic() + request_data["deadline_ms"] / 1000.0
                 if operation == "read_subject_bound_accepted_migration_bundle":
                     bundle = durable_store.read_subject_bound_accepted_migration_bundle(
                         principal, project_id=PROJECT_ID,
@@ -2797,6 +3007,7 @@ def _child_process_main(config: dict[str, str], connection: Connection) -> None:
                         claim_project_id=project_id, legacy_store=legacy_store,
                         mcp_service=mcp_service,
                     )
+                _deadline_check(request_deadline)
                 response = {
                     "protocol": PROTOCOL, "op": response_op, "request_id": request_id,
                     "generation": generation_value, "claim_id": claim_id, "status": "ok", **result,
@@ -2830,7 +3041,7 @@ def _child_process_main(config: dict[str, str], connection: Connection) -> None:
                     "request_id": request_id, "generation": generation_value, "claim_id": claim_id,
                     "status": "error", "code": "child_failed",
                 }
-            _send_response(connection, response, operation=operation)
+            _send_response(connection, response, operation=operation, deadline=request_deadline)
     except PlanningProcessError as exc:
         if not handshake_sent:
             try:
@@ -3201,13 +3412,8 @@ class PlanningProcessClient:
             connection=connection, token=token, generation=generation, deadline=deadline,
         )
 
-    def _perform_durable_operation(
-        self, claim: _PlanningProcessOperationClaim, *, operation: str,
-        body: dict[str, object], timeout_seconds: float, result_keys: set[str],
-        parse_result: Any, mutation: bool,
-    ) -> object:
-        if operation not in _PROCESS_OPERATIONS:
-            _fail("invalid_request")
+    @staticmethod
+    def _operation_deadline(timeout_seconds: float) -> float:
         if type(timeout_seconds) is int:
             if not 0 < timeout_seconds <= DEADLINE_MAX_MS // 1000:
                 _fail("invalid_request")
@@ -3218,13 +3424,14 @@ class PlanningProcessClient:
                 _fail("invalid_request")
         else:
             _fail("invalid_request")
-        deadline_ms = max(DEADLINE_MIN_MS, math.ceil(timeout_seconds * 1000))
-        deadline = time.monotonic() + timeout_seconds
+        return time.monotonic() + timeout_seconds
+
+    def _admit_operation_claim(
+        self, claim: _PlanningProcessOperationClaim,
+    ) -> tuple[str, str, multiprocessing.Process, Connection, _GenerationToken]:
         if type(claim) is not _PlanningProcessOperationClaim:
             _fail("invalid_claim")
         _wire_id(claim.claim_id, "invalid_claim")
-        if operation in _DURABLE_OPERATIONS and body.get("project_id") != claim.project_id:
-            _fail("invalid_claim")
         dead_token: _GenerationToken | None = None
         with self._state_lock:
             stored = self._claims.get(claim.claim_id)
@@ -3233,8 +3440,7 @@ class PlanningProcessClient:
             process = self._process
             connection = self._connection
             token = self._token
-            if (claim._client_identity is self._claim_identity
-                    and claim.generation != generation):
+            if claim._client_identity is self._claim_identity and claim.generation != generation:
                 _fail("stale_claim")
             if stored is not claim or claim._client_identity is not self._claim_identity:
                 _fail("unregistered_claim")
@@ -3250,18 +3456,69 @@ class PlanningProcessClient:
                 dead_token = token
             else:
                 self._spent_claims.add(claim.claim_id)
+                return generation, issuer_id, process, connection, token
         if dead_token is not None:
             self._raise_after_natural_child_death(dead_token)
+        _fail("unavailable")
+
+    def _recheck_admitted_claim(
+        self, claim: _PlanningProcessOperationClaim,
+        admitted: tuple[str, str, multiprocessing.Process, Connection, _GenerationToken],
+    ) -> None:
+        generation, issuer_id, process, connection, token = admitted
+        with self._state_lock:
+            if (self._claims.get(claim.claim_id) is not claim
+                    or self._claim_snapshots.get(claim.claim_id) != _claim_snapshot(claim)
+                    or claim.claim_id not in self._spent_claims):
+                _fail("foreign_claim")
+            self._assert_session_locked(
+                process, connection, token, generation=generation,
+            )
+            if self._issuer_id != issuer_id:
+                _fail("stale_claim")
+
+    def _perform_durable_operation(
+        self, claim: _PlanningProcessOperationClaim, *, operation: str,
+        body: dict[str, object], timeout_seconds: float, result_keys: set[str],
+        parse_result: Any, mutation: bool, _deadline: float | None = None,
+        _admitted: tuple[str, str, multiprocessing.Process, Connection, _GenerationToken] | None = None,
+    ) -> object:
+        if operation not in _PROCESS_OPERATIONS:
+            _fail("invalid_request")
+        deadline = self._operation_deadline(timeout_seconds) if _deadline is None else _deadline
+        _deadline_check(deadline)
+        if operation in _DURABLE_OPERATIONS and body.get("project_id") != claim.project_id:
+            _fail("invalid_claim")
+        generation, issuer_id, process, connection, token = (
+            self._admit_operation_claim(claim) if _admitted is None else _admitted
+        )
+        self._recheck_admitted_claim(
+            claim, (generation, issuer_id, process, connection, token),
+        )
+        _deadline_check(deadline)
         try:
             request_id = os.urandom(16).hex()
         except Exception:
             _fail("unavailable")
+        remaining_ms = math.ceil((deadline - time.monotonic()) * 1000)
+        if remaining_ms < DEADLINE_MIN_MS:
+            _fail("deadline_exceeded")
+        deadline_ms = min(DEADLINE_MAX_MS, remaining_ms)
         request = {
             "protocol": PROTOCOL, "op": operation, "request_id": request_id,
             "generation": generation, "claim_id": claim.claim_id, "deadline_ms": deadline_ms,
             "claim": _claim_wire(claim), "body": body,
         }
-        raw = _encode_frame(request, maximum=_request_maximum(operation))
+        _walk_json(request)
+        raw = _canonical_json(request)
+        if (len(raw) > _request_maximum(operation)
+                and operation not in _UNBOUNDED_DOCUMENT_REQUEST_OPERATIONS):
+            _fail("protocol_error")
+        chunked_request = len(raw) > _request_maximum(operation)
+        _deadline_check(deadline)
+        self._recheck_admitted_claim(
+            claim, (generation, issuer_id, process, connection, token),
+        )
         try:
             self._assert_session(process, connection, token, generation=generation)
         except PlanningProcessError as exc:
@@ -3279,15 +3536,24 @@ class PlanningProcessClient:
 
             def exchange() -> object:
                 self._assert_session(process, connection, token, generation=generation)
-                attempted_handoff.set()
-                try:
-                    connection.send_bytes(raw)
-                except (EOFError, OSError, ValueError):
-                    _fail("child_eof")
+                if chunked_request:
+                    _send_chunked(
+                        connection, raw, operation=operation, request_id=request_id,
+                        generation=generation, claim_id=claim.claim_id, deadline=deadline,
+                        request_claim=_claim_wire(claim), deadline_ms=deadline_ms,
+                        delivery_started=attempted_handoff,
+                    )
+                else:
+                    attempted_handoff.set()
+                    try:
+                        connection.send_bytes(raw)
+                    except (EOFError, OSError, ValueError):
+                        _fail("child_eof")
                 self._assert_session(process, connection, token, generation=generation)
                 return _receive_response(
                     connection, operation=operation, request_id=request_id,
-                    generation=generation, claim_id=claim.claim_id,
+                    generation=generation, claim_id=claim.claim_id, deadline=deadline,
+                    token=token,
                 )
 
             response = self._run_io_helper(
@@ -3330,7 +3596,9 @@ class PlanningProcessClient:
                     or response_data["claim_id"] != claim.claim_id
                     or response_data["status"] != "ok"):
                 _fail("invalid_response")
+            _deadline_check(deadline)
             result = parse_result(response_data, issuer_id)
+            _deadline_check(deadline)
             with self._state_lock:
                 self._assert_session_locked(process, connection, token, generation=generation)
             return result
@@ -3375,8 +3643,8 @@ class PlanningProcessClient:
         self, claim: _PlanningProcessOperationClaim, *, project_id: str,
         roadmap_id: str, revision_id: str, timeout_seconds: float = 10.0,
     ) -> PlanningProcessRevisionBundle:
-        if type(claim) is not _PlanningProcessOperationClaim:
-            _fail("invalid_claim")
+        deadline = self._operation_deadline(timeout_seconds)
+        admitted = self._admit_operation_claim(claim)
         if _unambiguous_identifier(project_id, "invalid_request") != PROJECT_ID:
             _fail("invalid_request")
         roadmap = _unambiguous_identifier(roadmap_id, "invalid_request")
@@ -3396,7 +3664,7 @@ class PlanningProcessClient:
         return self._perform_durable_operation(
             claim, operation="planning_get_revision_bundle", body=body,
             timeout_seconds=timeout_seconds, result_keys={"revision", "payload_b64"},
-            parse_result=parse, mutation=False,
+            parse_result=parse, mutation=False, _deadline=deadline, _admitted=admitted,
         )
 
     def planning_create_project(
@@ -3404,8 +3672,8 @@ class PlanningProcessClient:
         roadmap_id: str, payload_bytes: bytes, idempotency_key: str,
         expected_generation: int, timeout_seconds: float = 10.0,
     ) -> PlanningProcessWriteResult:
-        if type(claim) is not _PlanningProcessOperationClaim:
-            _fail("invalid_claim")
+        deadline = self._operation_deadline(timeout_seconds)
+        admitted = self._admit_operation_claim(claim)
         if _unambiguous_identifier(project_id, "invalid_request") != PROJECT_ID:
             _fail("invalid_request")
         roadmap = _unambiguous_identifier(roadmap_id, "invalid_request")
@@ -3415,20 +3683,25 @@ class PlanningProcessClient:
         payload = _validate_write_payload(
             payload_bytes, project_id=project_id, roadmap_id=roadmap,
         )
+        _deadline_check(deadline)
         body = {
             "project_id": project_id, "roadmap_id": roadmap,
             "payload_b64": base64.b64encode(payload).decode("ascii"),
             "idempotency_key": key, "expected_generation": 0,
         }
-        return self._planning_write(claim, "planning_create_project", body, timeout_seconds)
+        _deadline_check(deadline)
+        return self._planning_write(
+            claim, "planning_create_project", body, timeout_seconds,
+            _deadline=deadline, _admitted=admitted,
+        )
 
     def planning_append_revision(
         self, claim: _PlanningProcessOperationClaim, *, project_id: str,
         roadmap_id: str, payload_bytes: bytes, expected_head: PlanningProcessDurableHead,
         idempotency_key: str, timeout_seconds: float = 10.0,
     ) -> PlanningProcessWriteResult:
-        if type(claim) is not _PlanningProcessOperationClaim:
-            _fail("invalid_claim")
+        deadline = self._operation_deadline(timeout_seconds)
+        admitted = self._admit_operation_claim(claim)
         if _unambiguous_identifier(project_id, "invalid_request") != PROJECT_ID:
             _fail("invalid_request")
         roadmap = _unambiguous_identifier(roadmap_id, "invalid_request")
@@ -3439,12 +3712,17 @@ class PlanningProcessClient:
         payload = _validate_write_payload(
             payload_bytes, project_id=project_id, roadmap_id=roadmap,
         )
+        _deadline_check(deadline)
         body = {
             "project_id": project_id, "roadmap_id": roadmap,
             "payload_b64": base64.b64encode(payload).decode("ascii"),
             "expected_head": _durable_head_wire(expected), "idempotency_key": key,
         }
-        return self._planning_write(claim, "planning_append_revision", body, timeout_seconds)
+        _deadline_check(deadline)
+        return self._planning_write(
+            claim, "planning_append_revision", body, timeout_seconds,
+            _deadline=deadline, _admitted=admitted,
+        )
 
     def planning_approve_revision(
         self, claim: _PlanningProcessOperationClaim, *, project_id: str,
@@ -3492,7 +3770,8 @@ class PlanningProcessClient:
 
     def _planning_write(
         self, claim: _PlanningProcessOperationClaim, operation: str,
-        body: dict[str, object], timeout_seconds: float,
+        body: dict[str, object], timeout_seconds: float, *, _deadline: float | None = None,
+        _admitted: tuple[str, str, multiprocessing.Process, Connection, _GenerationToken] | None = None,
     ) -> PlanningProcessWriteResult:
         def parse(response: dict[str, object], issuer_id: str) -> PlanningProcessWriteResult:
             receipt = _receipt_from_wire(response["receipt"])
@@ -3506,6 +3785,7 @@ class PlanningProcessClient:
         return self._perform_durable_operation(
             claim, operation=operation, body=body, timeout_seconds=timeout_seconds,
             result_keys={"receipt", "head"}, parse_result=parse, mutation=True,
+            _deadline=_deadline, _admitted=_admitted,
         )
 
     def _planning_read(
@@ -3677,19 +3957,7 @@ class PlanningProcessClient:
     def read_subject_bound_accepted_migration_bundle(
         self, claim: _PlanningProcessReadClaim, *, timeout_seconds: float = 10.0,
     ) -> PlanningProcessBundle:
-        if type(timeout_seconds) is int:
-            if not 0 < timeout_seconds <= DEADLINE_MAX_MS // 1000:
-                _fail("invalid_request")
-        elif type(timeout_seconds) is float:
-            if (not math.isfinite(timeout_seconds) or timeout_seconds < float(DEADLINE_MIN_MS) / 1000.0
-                    or timeout_seconds > float(DEADLINE_MAX_MS) / 1000.0):
-                _fail("invalid_request")
-        else:
-            _fail("invalid_request")
-        deadline_ms = max(DEADLINE_MIN_MS, math.ceil(timeout_seconds * 1000))
-        if not DEADLINE_MIN_MS <= deadline_ms <= DEADLINE_MAX_MS:
-            _fail("invalid_request")
-        deadline = time.monotonic() + timeout_seconds
+        deadline = self._operation_deadline(timeout_seconds)
         if type(claim) is not _PlanningProcessReadClaim:
             _fail("invalid_claim")
         _wire_id(claim.claim_id, "invalid_claim")
@@ -3719,6 +3987,10 @@ class PlanningProcessClient:
             request_id = os.urandom(16).hex()
         except Exception:
             _fail("unavailable")
+        remaining_ms = math.ceil((deadline - time.monotonic()) * 1000)
+        if remaining_ms < DEADLINE_MIN_MS:
+            _fail("deadline_exceeded")
+        deadline_ms = min(DEADLINE_MAX_MS, remaining_ms)
         request = {
             "protocol": PROTOCOL, "op": "read_subject_bound_accepted_migration_bundle",
             "request_id": request_id, "generation": generation, "claim_id": claim.claim_id,
@@ -3748,7 +4020,12 @@ class PlanningProcessClient:
                 except (EOFError, OSError, ValueError):
                     _fail("child_eof")
                 self._assert_session(process, connection, token, generation=generation)
-                return _receive(connection, RESPONSE_MAX_BYTES)
+                return _receive_response(
+                    connection,
+                    operation="read_subject_bound_accepted_migration_bundle",
+                    request_id=request_id, generation=generation,
+                    claim_id=claim.claim_id, deadline=deadline, token=token,
+                )
 
             response = self._run_io_helper(
                 exchange, process=process, connection=connection, token=token,
@@ -3791,7 +4068,9 @@ class PlanningProcessClient:
                     or response_data["claim_id"] != claim.claim_id
                     or response_data["status"] != "ok"):
                 _fail("invalid_response")
+            _deadline_check(deadline)
             bundle = _bundle_from_wire(response_data["bundle"])
+            _deadline_check(deadline)
             if bundle.owner_id != claim.owner_id or bundle.project_id != claim.project_id:
                 _fail("foreign_claim")
             self._assert_session(process, connection, token, generation=generation)
@@ -3800,7 +4079,10 @@ class PlanningProcessClient:
             code = exc.code
             if code == "child_eof":
                 self._raise_after_natural_child_death(token)
-            if code in {"invalid_response", "protocol_error", "foreign_claim", "stale_claim"}:
+            if code in {
+                "invalid_response", "protocol_error", "foreign_claim", "stale_claim",
+                "deadline_exceeded", "cancelled", "unavailable",
+            }:
                 self._invalidate_and_reap(token=token)
             _fail(code)
         except Exception:
@@ -3904,7 +4186,19 @@ class PlanningProcessClient:
                     helpers_done = False
                 else:
                     token.finished(helper)
-            complete = dead and helpers_done and not token.active_helpers()
+            resources_done = True
+            if helpers_done:
+                for resource in token.active_resources():
+                    try:
+                        resource.close()
+                    except Exception:
+                        resources_done = False
+                    else:
+                        token.release_resource(resource)
+            complete = (
+                dead and helpers_done and resources_done
+                and not token.active_helpers() and not token.active_resources()
+            )
         except Exception:
             complete = False
         token.reap_result = complete

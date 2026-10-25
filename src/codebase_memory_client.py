@@ -161,6 +161,16 @@ class CodebaseMemoryClient:
         self._next_id = 1
         self._handshake: EngineHandshake | None = None
         self._health: EngineHealth | None = None
+        try:
+            self.process._bind_retirement_observer(self._invalidate_ready)
+        except CodebaseMemoryProcessError as exc:
+            raise CodebaseMemoryClientError(
+                "invalid_process", "process cannot bind client retirement"
+            ) from exc
+
+    def _invalidate_ready(self) -> None:
+        self._handshake = None
+        self._health = None
 
     @property
     def handshake(self) -> EngineHandshake | None:
@@ -209,7 +219,12 @@ class CodebaseMemoryClient:
     async def health(self) -> EngineHealth:
         if self._handshake is None:
             raise CodebaseMemoryClientError("client_not_initialized", "client is not initialized")
-        result = await self._request("health", {})
+        try:
+            result = await self._request("health", {})
+        except asyncio.CancelledError:
+            self._handshake = None
+            self._health = None
+            raise
         health = _parse_health(result)
         if (
             health.protocol_version != self._handshake.protocol_version
@@ -225,14 +240,16 @@ class CodebaseMemoryClient:
         return health
 
     async def close(self) -> None:
-        if self._handshake is not None:
-            try:
-                await self._request("shutdown", {})
-            except (CodebaseMemoryClientError, CodebaseMemoryProcessError):
-                pass
-        await self.process.stop(reason="client_closed")
         self._handshake = None
         self._health = None
+        try:
+            snapshot = await self.process.stop(reason="client_closed")
+        except asyncio.CancelledError:
+            raise
+        if snapshot.state.value != "stopped":
+            raise CodebaseMemoryClientError(
+                "retirement_pending", "isolated process retirement is pending"
+            )
 
     async def _request(self, method: str, params: Mapping[str, Any]) -> Mapping[str, Any]:
         if method not in {"initialize", "health", "shutdown"}:

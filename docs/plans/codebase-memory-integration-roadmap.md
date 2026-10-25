@@ -1,8 +1,21 @@
 # Codebase Memory Integration Roadmap
 
-Stand: 2026-07-17
+Stand: 2026-09-07
 
-Status: `CBM-08_accepted / CBM-09_TAX_USI_blocked / engine_default_off`
+Status: `CBM-08_accepted / CBM-07A_planned_dependency_blocked / CBM-09_TAX_USI_blocked / engine_default_off / USI-07A-PRE1A_v2_rejected_join_circuit_breaker`
+
+## USI-07A-PRE1A status 2026-09-07
+
+The v2 process-retirement prerequisite is rejected after independent deep QA.
+An observed child exit permits a replacement launch before the old process wait
+and stream close are consumed. The frozen candidate is preserved; its claim and
+lease are released blocked, with no acceptance or progress increment.
+The existing confirmed-join correction gate has exhausted ordinary retries.
+The 148 focused and 47 dependency passes plus three central validator passes
+do not override that failure. PRE1B, full USI-07A and live activation remain gated.
+Current evidence and candidate identities:
+[ABC Open Work run](handoffs/abc-open-work-5h-run-20260905.json),
+`usi07a_pre1a_v2_deep_qa` and `usi07a_pre1a_v2_circuit_breaker`.
 
 Master-Track: `0.29.x`, `OWM-16`, `L22`
 
@@ -74,6 +87,27 @@ Primary references:
 | Upstream graph UI | reference/fixtures only; no product dependency | Lens Code Graph roadmap |
 | Metrics | emit into the GRO registry | GRO |
 | Tool usage analytics | canonical external query invocation only | TUA |
+
+### 3A. Forge--USI--CBM Generation Boundary
+
+CBM may only consume an immutable, policy-authorized USI code delta that is
+pinned to one Forge repository revision and its coverage manifest.  The delta
+is an input receipt, not an instruction to discover files: it names the Forge
+repository/revision, USI source-version and chunk-manifest identities, the
+coverage state and exclusions, the bounded add/modify/delete/rename set and
+the producing USI job receipt.  Forge remains the sole authoritative exact
+reader; USI remains the index/coverage authority; CBM remains a disposable
+structural projection.
+
+A queryable CBM generation therefore binds one coherent tuple of Forge
+revision, USI code/coverage manifest, parser/extractor configuration and CBM
+projection generation.  It must never merge nodes, edges or freshness claims
+from two tuples.  A newer USI revision while CBM is rebuilding is visible as
+`stale`/`refresh_pending`, not silently treated as current.  Missing, partial,
+failed or policy-excluded coverage is likewise visible and cannot produce a
+complete-code claim.  In all of those cases the hybrid planner retains
+revision-scoped USI lexical search and the existing Forge exact-read path as
+the usable fallback.
 
 ## 4. Mode, Activation And Supply-Chain Policy
 
@@ -564,6 +598,69 @@ The spike must answer these questions with evidence:
   the same projection hash, and measured work stays proportional to the bounded
   change set without a hidden full rebuild.
 
+### CBM-07A - Forge-Pinned Delta And Projection-Generation Correctness
+
+- Class: `repo_only`
+- Owner: Bob
+- Status: `planned_dependency_blocked / productive_indexing_default_off`
+- Dependencies: accepted `CBM-07`; accepted `FCA-05` Forge--USI code-source
+  adapter/coverage/project handoff.  `FCA-05`, rather than a filesystem scan or
+  an upstream CBM watcher, is the only future delta authority.
+- Allowed paths:
+  - `src/codebase_memory_sync.py`
+  - `src/codebase_memory_projection.py`
+  - `src/codebase_memory_query.py`
+  - `src/code_intelligence_retrieval.py`
+  - `src/codebase_memory_generation_consistency.py`
+  - `tests/test_codebase_memory_sync.py`
+  - `tests/test_codebase_memory_projection.py`
+  - `tests/test_codebase_memory_query.py`
+  - `tests/test_code_intelligence_retrieval.py`
+  - `tests/test_codebase_memory_generation_consistency.py`
+  - `docs/plans/codebase-memory-generation-consistency-contract.md`
+- Work:
+  - accept only a bounded, policy-authorized USI delta receipt pinned to one
+    Forge repository/revision, USI source-version/chunk-manifest, coverage
+    manifest, exclusion set and producing job; reject caller-supplied paths,
+    unpinned "latest" revisions and unverifiable coverage;
+  - bind every candidate CBM generation to the complete Forge--USI input tuple
+    plus extractor/parser/configuration version, and expose that tuple and a
+    truthful freshness state in every query/graph receipt;
+  - make compare-and-switch atomic: an active generation is either wholly
+    coherent or unavailable.  Reject mixed-generation nodes/edges, a partial
+    delta, foreign repo/owner/policy evidence, out-of-order successor and
+    changed coverage/exclusions rather than fusing them into a response;
+  - distinguish `current`, `refresh_pending`, `stale`, `partial`, `failed`,
+    `disabled` and `unavailable` states.  A last coherent generation may remain
+    readable only with its older revision and stale reason; it can never claim
+    the newer Forge revision is represented;
+  - route stale, partial, failed, disabled or unavailable structural retrieval
+    through the same revision-scoped USI lexical path and existing Forge exact
+    reader recommendation.  Exact reads remain Forge-owned; CBM must not cache
+    or manufacture source text as an alternative source of truth;
+  - consume explicit USI job completion/delta receipts only.  Opening a query,
+    process start, UI navigation, engine event or upstream watcher must neither
+    register a repository nor create, expand or automatically run an index job;
+  - keep productive engine start, productive indexing, auto-sync and any
+    scheduling outside this slice and behind `CBM-LIVE-ACTIVATION` plus the
+    separately accepted source-adapter lifecycle gates.
+- Tests:
+  - `python -m pytest -q tests/test_codebase_memory_sync.py tests/test_codebase_memory_projection.py tests/test_codebase_memory_query.py tests/test_code_intelligence_retrieval.py tests/test_codebase_memory_generation_consistency.py`
+  - fixture matrix for add/modify/delete/rename, replay and interruption;
+    revision/owner/policy/coverage tampering; partial/failed/excluded coverage;
+    stale-to-current switch; mixed-generation rejection; and lexical/exact
+    fallback with no engine or watcher invocation.
+- Evidence:
+  - deterministic synthetic Forge revision, USI delta and coverage receipts;
+  - a receipt for each accepted/rejected generation transition containing only
+    opaque IDs, state, reason and bounded counts;
+  - focused test readback and scoped `git diff --check`; no source crawl,
+    process, network, watcher, productive repository or live job evidence.
+- Done when: a queryable structural projection proves one coherent
+  Forge--USI--CBM generation, all non-current or incomplete cases are visibly
+  non-complete and fall back without mixed results, and no code path creates an
+  upstream watch or auto-index operation.
+
 ### CBM-08 - Bounded Graph Projection API
 
 - Class: `repo_only`
@@ -761,6 +858,9 @@ Required Go evidence:
   completeness;
 - call-edge precision and recall are reported per sampled language;
 - all returned nodes and edges carry exact USI locators and confidence/method;
+- every queryable CBM generation proves one Forge revision, USI coverage manifest
+  and extractor/configuration tuple; a mismatch, partial coverage or stale
+  successor is labelled and falls back rather than mixing generations;
 - unchanged input produces a deterministic projection manifest;
 - small edits produce bounded incremental updates;
 - cold start and warm reopen have repeatable wall-time, CPU, peak-RAM, database

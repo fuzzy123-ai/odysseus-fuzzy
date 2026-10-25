@@ -1,12 +1,16 @@
 from pathlib import Path
+from types import SimpleNamespace
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from routes.coding_agent_routes import setup_coding_agent_routes
-from src.coding_agent_backend import CodingCheckCommand, build_coding_task_plan
+import pytest
+
+from src.coding_agent_backend import CodingAgentBackendError, CodingCheckCommand, build_coding_task_plan, build_coding_tool_capsules
 from src.coding_agent_sandbox_bridge import build_sandbox_jobs_for_coding_plan, dispatch_coding_checks_to_sandbox
 from src.agent_sandbox_worker import SandboxCommandResult, SandboxWorker
+from src.agent_sandbox_worker_api import SandboxWorkerStatus
 from src.repo_registry import RepoRecord, RepoRegistry
 from src.sandbox_job_ledger import SandboxJobLedger
 
@@ -67,6 +71,50 @@ def test_build_sandbox_jobs_for_coding_plan_uses_allowed_paths(tmp_path: Path):
     assert jobs[0].secrets_attached is False
 
 
+def test_safe_tool_capsule_is_argv_only_and_rejects_scope_escape(tmp_path: Path):
+    plan = _plan(tmp_path)
+
+    capsule = build_coding_tool_capsules(plan)[0]
+
+    assert capsule.network_mode == "none"
+    assert capsule.secrets_allowed is False
+    assert capsule.host_shell_allowed is False
+    assert capsule.execution_allowed is False
+    assert capsule.dispatch_allowed is False
+    assert capsule.timeout_seconds == plan.checks[0].timeout_seconds
+
+    escaped = build_coding_task_plan(
+        registry=_registry(), repo_id="demo", workspace_base=tmp_path,
+        objective="Run an escaped check", allowed_paths=["src"],
+        checks=[CodingCheckCommand.create(argv=["python", "-m", "pytest", "tests/test_demo.py"])],
+        task_id="escaped-check", worktree_base=tmp_path / "worktrees",
+        live_enabled=True, operator_decision="go",
+    )
+    with pytest.raises(CodingAgentBackendError, match="outside allowed_paths"):
+        build_coding_tool_capsules(escaped)
+
+    node_outside = build_coding_task_plan(
+        registry=_registry(), repo_id="demo", workspace_base=tmp_path,
+        objective="Reject an escaped node check", allowed_paths=["src"],
+        checks=[CodingCheckCommand.create(argv=["node", "--check", "tests/outside_scope.py"])],
+        task_id="node-outside", worktree_base=tmp_path / "worktrees",
+        live_enabled=True, operator_decision="go",
+    )
+    with pytest.raises(CodingAgentBackendError, match="outside allowed_paths"):
+        build_coding_tool_capsules(node_outside)
+
+    node_inside = build_coding_task_plan(
+        registry=_registry(), repo_id="demo", workspace_base=tmp_path,
+        objective="Permit an in-scope node check", allowed_paths=["tests"],
+        checks=[CodingCheckCommand.create(argv=["node", "--check", "tests/in_scope.py"])],
+        task_id="node-inside", worktree_base=tmp_path / "worktrees",
+        live_enabled=True, operator_decision="go",
+    )
+    assert build_coding_tool_capsules(node_inside)[0].argv == (
+        "node", "--check", "tests/in_scope.py"
+    )
+
+
 def test_dispatch_coding_checks_to_sandbox_returns_quality_gate(tmp_path: Path):
     plan = _plan(tmp_path)
     worker = SandboxWorker(ledger=SandboxJobLedger(tmp_path / "ledger"))
@@ -105,6 +153,33 @@ def test_dispatch_coding_checks_to_sandbox_turns_live_failures_into_quality_bloc
     assert dispatch.quality_gate["verified"] is False
     assert dispatch.evidence_bundle["verdict"] == "failed"
     assert dispatch.to_dict()["raw_content_visible"] is False
+
+
+def test_dispatch_serialization_truthfully_reports_a_gated_fake_live_execution(tmp_path: Path):
+    plan = _plan(tmp_path)
+
+    class FakeWorker:
+        def submit(self, job, *, live_enabled: bool, operator_go: bool):
+            assert live_enabled is True
+            assert operator_go is True
+            return SimpleNamespace(
+                status=SandboxWorkerStatus.create(job_id=job.job_id, status="succeeded", exit_code=0),
+                executed_live=True,
+            )
+
+    dispatch = dispatch_coding_checks_to_sandbox(
+        plan=plan,
+        worker=FakeWorker(),
+        changed_paths=["src/example.py"],
+        live_enabled=True,
+        operator_go=True,
+    )
+    payload = dispatch.to_dict()
+
+    assert dispatch.statuses[0].status == "succeeded"
+    assert payload["dispatch_attempted"] is True
+    assert payload["execution_performed"] is True
+    assert payload["live_effect_allowed"] is True
 
 
 def test_coding_agent_route_dispatches_sandbox_checks(tmp_path: Path, monkeypatch):

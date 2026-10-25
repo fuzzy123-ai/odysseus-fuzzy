@@ -81,7 +81,7 @@ def test_inventory_covers_mandatory_seams_and_rejects_unowned_callers():
     categories_by_path = {}
     for caller in _callers(inventory):
         categories_by_path.setdefault(caller["path"], set()).add(caller["category"])
-    assert categories_by_path["app.py"] == {"active_read", "composition_startup"}
+    assert categories_by_path["app.py"] == {"active_read", "composition_startup", "lifecycle_owner"}
     assert "composition_startup" in categories_by_path["src/app_initializer.py"]
     assert "active_read" in categories_by_path["src/chat_processor.py"]
     assert "lifecycle_owner" in categories_by_path["src/personal_docs.py"]
@@ -98,3 +98,128 @@ def test_inventory_covers_mandatory_seams_and_rejects_unowned_callers():
     for path, call_type in (("routes/new_runtime_route.py", "rag_call"), ("src/new_dynamic.py", "dynamic_getattr")):
         category, _ = audit._classify(path, call_type, "search")
         assert category == "unclassified"
+
+
+def test_inventory_records_exact_knowledge_runtime_composition_and_lifecycle_seams():
+    audit = _audit_module()
+    inventory = audit.build_inventory(REPO_ROOT)
+    callers = _callers(inventory)
+
+    runtime_seams = [
+        caller
+        for caller in callers
+        if caller["call_type"] in {
+            "runtime_factory",
+            "runtime_state_store",
+            "runtime_lifecycle",
+        }
+        and caller["method"] in {
+            "build_knowledge_runtime",
+            "knowledge_runtime",
+            "bind_knowledge_runtime",
+            "close_knowledge_runtime",
+        }
+    ]
+    assert runtime_seams == [
+        {
+            "path": "app.py",
+            "line": 652,
+            "symbol": "<module>",
+            "call_type": "runtime_state_store",
+            "receiver": "app.state",
+            "method": "knowledge_runtime",
+            "category": "composition_startup",
+            "decision": "adapt",
+            "owner_track": "UIR-03",
+        },
+        {
+            "path": "app.py",
+            "line": 2159,
+            "symbol": "_startup_event",
+            "call_type": "runtime_lifecycle",
+            "receiver": "knowledge_runtime",
+            "method": "bind_knowledge_runtime",
+            "category": "lifecycle_owner",
+            "decision": "adapt",
+            "owner_track": "UIR-03",
+        },
+        {
+            "path": "app.py",
+            "line": 2167,
+            "symbol": "_shutdown_event",
+            "call_type": "runtime_lifecycle",
+            "receiver": "knowledge_runtime",
+            "method": "close_knowledge_runtime",
+            "category": "lifecycle_owner",
+            "decision": "adapt",
+            "owner_track": "UIR-03",
+        },
+        {
+            "path": "src/app_initializer.py",
+            "line": 129,
+            "symbol": "initialize_managers",
+            "call_type": "runtime_factory",
+            "receiver": "",
+            "method": "build_knowledge_runtime",
+            "category": "composition_startup",
+            "decision": "adapt",
+            "owner_track": "UIR-03",
+        },
+    ]
+    assert inventory["summary"]["candidate_count"] == 59
+    assert inventory["summary"]["category_counts"]["composition_startup"] == 8
+    assert inventory["summary"]["category_counts"]["lifecycle_owner"] == 10
+    assert inventory["summary"]["unclassified_count"] == 0
+
+
+def test_knowledge_runtime_seams_fail_closed_for_unknown_paths_and_noncanonical_shapes():
+    audit = _audit_module()
+    unknown = audit._Visitor("src/unknown_runtime_consumer.py")
+    unknown.visit(ast.parse(
+        "knowledge_runtime = build_knowledge_runtime(\n"
+        "    (knowledge_runtime_config.mode.value, knowledge_runtime_config.runtime_enabled),\n"
+        "    planner=None,\n"
+        ")\n"
+        "app.state.knowledge_runtime = knowledge_runtime\n"
+        "bind_knowledge_runtime(knowledge_runtime, set_query_knowledge_planner)\n"
+        "close_knowledge_runtime(knowledge_runtime)\n"
+    ))
+    assert len(unknown.items) == 4
+    assert {item["category"] for item in unknown.items} == {"unclassified"}
+    assert {item["decision"] for item in unknown.items} == {"unclassified"}
+    assert {item["owner_track"] for item in unknown.items} == {""}
+
+    noncanonical_initializer = audit._Visitor("src/app_initializer.py")
+    noncanonical_initializer.visit(ast.parse(
+        "other_runtime = build_knowledge_runtime(\n"
+        "    (knowledge_runtime_config.mode.value, knowledge_runtime_config.runtime_enabled),\n"
+        "    planner=None,\n"
+        ")\n"
+        "knowledge_runtime = build_knowledge_runtime(config, planner=None)\n"
+    ))
+    assert not [
+        item for item in noncanonical_initializer.items
+        if item["category"] != "unclassified"
+        and item["method"] == "build_knowledge_runtime"
+    ]
+
+    noncanonical = audit._Visitor("app.py")
+    noncanonical.visit(ast.parse(
+        "alias = build_knowledge_runtime\n"
+        "knowledge_runtime = alias(config, planner=None)\n"
+        "state.knowledge_runtime = knowledge_runtime\n"
+        "app.state.runtime = knowledge_runtime\n"
+        "runtime_api.bind_knowledge_runtime(knowledge_runtime, binder)\n"
+        "runtime_api.close_knowledge_runtime(knowledge_runtime)\n"
+        "bind_knowledge_runtime(other_runtime, set_query_knowledge_planner)\n"
+        "close_knowledge_runtime(other_runtime)\n"
+    ))
+    assert not [
+        item for item in noncanonical.items
+        if item["category"] != "unclassified"
+        and item["call_type"] in {
+            "runtime_factory",
+            "runtime_state_store",
+            "runtime_lifecycle",
+        }
+    ]

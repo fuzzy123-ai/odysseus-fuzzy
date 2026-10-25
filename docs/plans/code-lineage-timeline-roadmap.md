@@ -2,7 +2,7 @@
 
 Stand: 2026-07-13
 
-Status: `CLT-00_accepted / CLT-01_accepted / CLT-02_accepted / runtime_default_off`
+Status: `CLT-00_accepted / CLT-01_accepted / CLT-02_accepted / CLT-03_recovery_accepted / runtime_default_off`
 
 Master-Track: `0.30.x`, `OWM-17`, `L23`
 
@@ -258,19 +258,62 @@ Planning uses `Standard ABC`; repository-only fixture work may later run in
 
 - Class: `repo_only`
 - Owner: Bob
+- Status: `accepted_released_after_recovery_2026-08-02`
+- Round-6 claim:
+  - claim_id: `ABC-R6C-CLT03-20260802T211217+0200`
+  - owner: `/root/bob_round6c_clt03`
+  - state: `released_rejected`
+  - allowed paths: `src/code_file_lineage.py`, `tests/test_code_file_lineage.py`
+  - automatic evidence: 82 combined CLT/USI/adapter tests passed; compile,
+    deterministic no-I/O and scoped diff checks passed
+  - final independent QA: `FAIL`; a foreign/reused USI `EvidenceRef` can be
+    supplied under a different `(commit, path)` mapping key and still produce
+    an accepted lineage link
+  - correction limit: two material correction cycles consumed; no third claim
+    may start without a fresh architecture handoff
+- Round-6 recovery claim:
+  - claim_id: `ABC-R6C-R-CLT03-20260802T221518+0200`
+  - owner: `/root/clt03_recovery_impl`
+  - state: `accepted_released_2026-08-02T22:53:35+02:00`
+  - architecture: fresh read-only Terra handoff and explicit Sol deep review
+    `PASS`; this supersedes the rejected mapping-based claim
+  - allowed paths: `src/code_file_lineage.py`,
+    `src/code_lineage_contract.py`, `tests/test_code_file_lineage.py`,
+    `tests/test_code_lineage_contract.py`
+  - required contract: derive commit, path and blob from `GitHistorySlice`;
+    require exactly one matching `CodeRangeLocator` plus
+    `SourceVersionRecord.revision_ref` per after-image; persist bijective
+    Git-blob/source-version bindings and include them in canonical bundle
+    identity
+  - released before lease expiry after final acceptance
+  - final evidence: implementer 52 focused / 98 integrated PASS; fresh Terra
+    QA 52 / 98 PASS; Root 98 PASS; explicit Sol re-review 98 PASS
+  - final adversarial evidence: foreign canonical repo/source identity,
+    foreign locator/revision, reused mapping, stale full evidence/version
+    payloads and duplicate commit records all fail closed
 - Dependencies: `CLT-02`, USI-03
 - Allowed paths:
   - `src/code_file_lineage.py`
+  - `src/code_lineage_contract.py`
   - `tests/test_code_file_lineage.py`
+  - `tests/test_code_lineage_contract.py`
 - Work:
   - exact blob/path continuation and Git rename evidence;
   - earliest reachable introduction for current files;
   - directory moves and case-only rename handling;
   - delete/re-add as separate or linked lineage based on evidence;
   - generated/vendor status carried from source policy.
-- Tests: `python -m pytest -q tests/test_code_file_lineage.py`
+- Tests: `python -B -m pytest -q -p no:cacheprovider tests/test_code_file_lineage.py tests/test_code_lineage_contract.py tests/test_code_lineage_git_adapter.py tests/test_unified_source_index_contract.py tests/test_unified_source_index_owner_scope.py`
 - Done when: file sort order cites exact commit/blob evidence and reports
   shallow/import uncertainty.
+- Recovery acceptance:
+  - the caller-provided occurrence mapping API is removed, not patched;
+  - locator path, source IDs and `revision_ref == git:<commit>` match exactly;
+  - missing, duplicate, foreign and unused evidence fails closed;
+  - bundle serialization, registry and identity include canonical commit/blob/
+    source-version bindings while legacy empty optional fields still read;
+  - independent QA must reproduce the old foreign-evidence attack and observe
+    rejection; `CLT-LIVE-ACTIVATION` remains closed.
 
 ### CLT-04 - Copy And One-To-Many Lineage Candidates
 

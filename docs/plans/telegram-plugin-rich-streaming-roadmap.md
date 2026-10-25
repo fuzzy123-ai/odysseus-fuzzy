@@ -19,6 +19,17 @@ Telegram Bot API references:
 
 ## Roadmap
 
+### Current Authority Reconciliation
+
+Revision 181 replaces the unnumbered design headings with stable source-local
+identities. It records current repository evidence without claiming that a
+helper-only rich draft path is production-wired or that any Telegram send is
+authorized.
+
+```json
+{"schema_version":1,"kind":"odysseus.telegram_rich_streaming.source_normalization","source_path":"docs/plans/telegram-plugin-rich-streaming-roadmap.md","source_blob":"7ab23e326d9d35365d2a5a92384f56d49d91bef0","authority_snapshot":{"round7_blob":"967c7df4a2c26312c88f06d131515a2ff3915836","open_work_blob":"82b6c75831b522c06d57131fffb508157a8690b5","guidance_blob":"b2248b804801a9b8e9e45bb11cb854c2090b5ecb"},"source_disposition":"mixed_current_status_normalized","historical_or_superseded":["section-2-telegram-safe-formatting"],"current_units":[{"id":"TRS-01-observability-ledger","source":"section-1-observability","class":"repo_only","status":"planned_nonclaimable","accepted":false,"remaining_contract":["bounded redacted timing and lifecycle projection","one message-correlation record","backward-compatible history and status"]},{"id":"TRS-03-telegram-turn-tool-policy","source":"section-3-tool-understanding","class":"operator_design_gate","status":"waiting_for_explicit_tool_policy","accepted":false,"existing_gate_reference_not_alias":"TGR-BEHAVIOR-CHANGE-GO"},{"id":"TRS-04-async-reply-lifecycle","source":"section-4-async-reply-flow","class":"architecture_gate","status":"waiting_for_durable_background_turn_contract","accepted":false,"depends_on":["TRS-03-telegram-turn-tool-policy"]},{"id":"TRS-05-rich-draft-streaming","source":"section-5-rich-draft-streaming","class":"architecture_and_live_gate","status":"blocked_pending_trs04_and_target_protocol_evidence","accepted":false,"depends_on":["TRS-04-async-reply-lifecycle"],"live_gate":"TRS-RICH-DRAFT-TARGET-PROTOCOL-AND-ONE-ALLOWED-CHAT-SMOKE"}],"accepted_current_ids":[],"invariants":["section 2 creates no new current unit","TRS-01 is not claimable before a fresh exact architecture and path audit","TRS-03 and TRS-04 grant no tool or background-worker authority","TRS-05 grants no endpoint validity or live Telegram send"]}
+```
+
 ### 1. Baseline And Observability
 
 - Add redacted timing metadata for Telegram turns:

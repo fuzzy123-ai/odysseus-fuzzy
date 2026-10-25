@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import difflib
+import json
 import os
 import re
 import subprocess
@@ -38,6 +39,7 @@ _TASK_ID_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{2,79}$")
 _SECRET_RE = re.compile(r"(?i)\b(token|secret|password|passwd|api[_-]?key|bearer)\b\s*[:=]\s*\S+")
 _HARD_BLOCKED_ROOTS = (".git", ".hg", ".svn", ".env", ".venv", "venv", "node_modules")
 _TRUE_VALUES = {"1", "true", "yes", "on"}
+_SHA256_RE = re.compile(r"^sha256:[a-f0-9]{64}$")
 
 
 class CodingAgentBackendError(ValueError):
@@ -169,6 +171,40 @@ def _bounded_diff(value: str) -> str:
     if _SECRET_RE.search(text):
         return "[redacted-secret-diff]"
     return text[:_MAX_DIFF_CHARS]
+
+
+def _sha256(value: str | bytes) -> str:
+    raw = value if isinstance(value, bytes) else str(value).encode("utf-8")
+    return "sha256:" + hashlib.sha256(raw).hexdigest()
+
+
+def _canonical_digest(payload: Mapping[str, Any]) -> str:
+    encoded = json.dumps(payload, ensure_ascii=True, sort_keys=True, separators=(",", ":"))
+    return _sha256(encoded)
+
+
+def _paths_binding_digest(paths: Iterable[str]) -> str:
+    """Match the canonical Planning path digest without importing runner state."""
+
+    return _sha256(json.dumps(tuple(paths), ensure_ascii=False, sort_keys=True, default=str))
+
+
+def _require_sha256(value: Any, *, field_name: str) -> str:
+    text = str(value or "")
+    if not _SHA256_RE.fullmatch(text):
+        raise CodingAgentBackendError(f"{field_name} must be canonical lowercase SHA-256")
+    return text
+
+
+def _normalize_identity(value: Any, *, field_name: str, allow_empty: bool = False) -> str:
+    return _normalize_text(value, field_name=field_name, allow_empty=allow_empty, max_len=80)
+
+
+def _normalize_commit_revision(value: Any, *, field_name: str) -> str:
+    revision = str(value or "").strip().lower()
+    if not re.fullmatch(r"[0-9a-f]{40}", revision):
+        raise CodingAgentBackendError(f"{field_name} must be a 40-character lowercase commit SHA")
+    return revision
 
 
 def _path_has_prefix(path: str, root: str) -> bool:
@@ -338,6 +374,264 @@ class CodingPatchResult:
 
 
 @dataclass(frozen=True, slots=True)
+class CodingWorktreeTransactionReceipt:
+    """Content-free rollback boundary for one isolated coding worktree.
+
+    This is deliberately an evidence receipt, not a second worktree authority.
+    It binds the existing task plan to an exact commit, clean starting diff and
+    bounded implementer identity while retaining no source content or host path.
+    """
+
+    receipt_id: str
+    transaction_id: str
+    repo_id: str
+    task_id: str
+    worktree_ref: str
+    base_revision: str
+    source_status_digest: str
+    allowed_paths_digest: str
+    rollback_boundary: str
+    implementer_id: str
+    execution_allowed: bool = False
+    write_allowed: bool = False
+    dispatch_allowed: bool = False
+    live_effect_allowed: bool = False
+    raw_content_visible: bool = False
+
+    def __post_init__(self) -> None:
+        for field_name in (
+            "receipt_id",
+            "transaction_id",
+            "source_status_digest",
+            "allowed_paths_digest",
+            "rollback_boundary",
+        ):
+            _require_sha256(getattr(self, field_name), field_name=field_name)
+        _normalize_text(self.repo_id, field_name="repo_id", max_len=80)
+        _normalize_task_id(self.task_id, repo_id=self.repo_id, objective="transaction")
+        _normalize_repo_path(self.worktree_ref, field_name="worktree_ref", allow_blocked=True)
+        _normalize_commit_revision(self.base_revision, field_name="base_revision")
+        _normalize_identity(self.implementer_id, field_name="implementer_id")
+        for field_name in (
+            "execution_allowed",
+            "write_allowed",
+            "dispatch_allowed",
+            "live_effect_allowed",
+            "raw_content_visible",
+        ):
+            if getattr(self, field_name) is not False:
+                raise CodingAgentBackendError(f"worktree transaction {field_name} must remain false")
+        if self.receipt_id != _canonical_digest(self.semantic_dict()):
+            raise CodingAgentBackendError("worktree transaction receipt_id does not match canonical facts")
+
+    def semantic_dict(self) -> dict[str, Any]:
+        return {
+            "schema": "odysseus.coding_agent.worktree_transaction_receipt.v1",
+            "transaction_id": self.transaction_id,
+            "repo_id": self.repo_id,
+            "task_id": self.task_id,
+            "worktree_ref": self.worktree_ref,
+            "base_revision": self.base_revision,
+            "source_status_digest": self.source_status_digest,
+            "allowed_paths_digest": self.allowed_paths_digest,
+            "rollback_boundary": self.rollback_boundary,
+            "implementer_id": self.implementer_id,
+            "execution_allowed": False,
+            "write_allowed": False,
+            "dispatch_allowed": False,
+            "live_effect_allowed": False,
+            "raw_content_visible": False,
+        }
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"receipt_id": self.receipt_id, **self.semantic_dict(), "rollback_ready": True}
+
+
+@dataclass(frozen=True, slots=True)
+class CodingExactReadReceipt:
+    """Fresh content-hash receipt required by strict transactional edits."""
+
+    receipt_id: str
+    transaction_id: str
+    worktree_receipt_id: str
+    repo_path: str
+    source_digest: str
+    anchor_digest: str
+    reader_id: str
+    line_count: int
+    execution_allowed: bool = False
+    write_allowed: bool = False
+    raw_content_visible: bool = False
+
+    def __post_init__(self) -> None:
+        for field_name in (
+            "receipt_id",
+            "transaction_id",
+            "worktree_receipt_id",
+            "source_digest",
+            "anchor_digest",
+        ):
+            _require_sha256(getattr(self, field_name), field_name=field_name)
+        _normalize_repo_path(self.repo_path, field_name="repo_path")
+        _normalize_identity(self.reader_id, field_name="reader_id")
+        if isinstance(self.line_count, bool) or not isinstance(self.line_count, int) or self.line_count < 1 or self.line_count > 2_000_000:
+            raise CodingAgentBackendError("line_count must be a bounded positive integer")
+        for field_name in ("execution_allowed", "write_allowed", "raw_content_visible"):
+            if getattr(self, field_name) is not False:
+                raise CodingAgentBackendError(f"exact read {field_name} must remain false")
+        if self.receipt_id != _canonical_digest(self.semantic_dict()):
+            raise CodingAgentBackendError("exact read receipt_id does not match canonical facts")
+
+    def semantic_dict(self) -> dict[str, Any]:
+        return {
+            "schema": "odysseus.coding_agent.exact_read_receipt.v1",
+            "transaction_id": self.transaction_id,
+            "worktree_receipt_id": self.worktree_receipt_id,
+            "repo_path": self.repo_path,
+            "source_digest": self.source_digest,
+            "anchor_digest": self.anchor_digest,
+            "reader_id": self.reader_id,
+            "line_count": self.line_count,
+            "execution_allowed": False,
+            "write_allowed": False,
+            "raw_content_visible": False,
+        }
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"receipt_id": self.receipt_id, **self.semantic_dict()}
+
+
+@dataclass(frozen=True, slots=True)
+class CodingPatchTransactionReport:
+    """Redacted receipt for an all-or-nothing patch attempt."""
+
+    transaction_id: str
+    worktree_receipt_id: str
+    status: str
+    changed_paths: tuple[str, ...]
+    exact_read_receipt_ids: tuple[str, ...]
+    diff_digest: str
+    rollback_boundary: str
+    rollback_ready: bool
+    blockers: tuple[str, ...] = ()
+    raw_content_visible: bool = False
+
+    def __post_init__(self) -> None:
+        _require_sha256(self.transaction_id, field_name="transaction_id")
+        _require_sha256(self.worktree_receipt_id, field_name="worktree_receipt_id")
+        _require_sha256(self.diff_digest, field_name="diff_digest")
+        _require_sha256(self.rollback_boundary, field_name="rollback_boundary")
+        if self.status not in {"applied", "blocked", "rolled_back"}:
+            raise CodingAgentBackendError("patch transaction status is invalid")
+        normalized_paths = _normalize_path_list(
+            self.changed_paths, field_name="changed_path", allow_empty=True
+        )
+        if normalized_paths != self.changed_paths:
+            raise CodingAgentBackendError("patch transaction changed_paths must be canonical")
+        receipt_ids = tuple(
+            _require_sha256(item, field_name="exact_read_receipt_id")
+            for item in self.exact_read_receipt_ids
+        )
+        if len(set(receipt_ids)) != len(receipt_ids):
+            raise CodingAgentBackendError("patch transaction exact read receipt ids must be unique")
+        if type(self.rollback_ready) is not bool:
+            raise CodingAgentBackendError("patch transaction rollback_ready must be a boolean")
+        if self.raw_content_visible is not False:
+            raise CodingAgentBackendError("patch transaction raw_content_visible must remain false")
+        if self.status == "applied" and (
+            not self.changed_paths or len(self.changed_paths) != len(self.exact_read_receipt_ids)
+        ):
+            raise CodingAgentBackendError("applied patch transaction requires one exact receipt per changed path")
+
+    @property
+    def applied(self) -> bool:
+        return self.status == "applied"
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "schema": "odysseus.coding_agent.patch_transaction_report.v1",
+            "transaction_id": self.transaction_id,
+            "worktree_receipt_id": self.worktree_receipt_id,
+            "status": self.status,
+            "changed_paths": list(self.changed_paths),
+            "exact_read_receipt_ids": list(self.exact_read_receipt_ids),
+            "diff_digest": self.diff_digest,
+            "rollback_boundary": self.rollback_boundary,
+            "rollback_ready": self.rollback_ready,
+            "blockers": list(self.blockers),
+            "raw_content_visible": False,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class CodingToolCapsule:
+    """An argv-only, non-executing capability projection for one check."""
+
+    capsule_id: str
+    task_id: str
+    check_index: int
+    argv: tuple[str, ...]
+    allowed_paths: tuple[str, ...]
+    timeout_seconds: int
+    network_mode: str = "none"
+    secrets_allowed: bool = False
+    host_shell_allowed: bool = False
+    execution_allowed: bool = False
+    dispatch_allowed: bool = False
+    live_effect_allowed: bool = False
+    raw_content_visible: bool = False
+
+    def __post_init__(self) -> None:
+        _require_sha256(self.capsule_id, field_name="capsule_id")
+        _normalize_task_id(self.task_id, repo_id="capsule", objective="tool capsule")
+        if isinstance(self.check_index, bool) or not isinstance(self.check_index, int) or self.check_index < 1 or self.check_index > 200:
+            raise CodingAgentBackendError("check_index must be a bounded positive integer")
+        if not isinstance(self.argv, tuple) or not coding_check_command_is_allowed(self.argv):
+            raise CodingAgentBackendError("tool capsule argv is not allowlisted")
+        if not self.allowed_paths:
+            raise CodingAgentBackendError("tool capsule requires explicit allowed_paths")
+        normalized_paths = _normalize_path_list(self.allowed_paths, field_name="allowed_path", allow_empty=False)
+        if normalized_paths != self.allowed_paths:
+            raise CodingAgentBackendError("tool capsule allowed_paths must be canonical")
+        if self.network_mode != "none":
+            raise CodingAgentBackendError("tool capsule network must remain none")
+        if _normalize_timeout(self.timeout_seconds) != self.timeout_seconds:
+            raise CodingAgentBackendError("tool capsule timeout must be canonical")
+        for field_name in (
+            "secrets_allowed",
+            "host_shell_allowed",
+            "execution_allowed",
+            "dispatch_allowed",
+            "live_effect_allowed",
+            "raw_content_visible",
+        ):
+            if getattr(self, field_name) is not False:
+                raise CodingAgentBackendError(f"tool capsule {field_name} must remain false")
+        if self.capsule_id != _canonical_digest(self.semantic_dict()):
+            raise CodingAgentBackendError("tool capsule capsule_id does not match canonical facts")
+
+    def semantic_dict(self) -> dict[str, Any]:
+        return {
+            "schema": "odysseus.coding_agent.tool_capsule.v1",
+            "task_id": self.task_id,
+            "check_index": self.check_index,
+            "argv": self.argv,
+            "allowed_paths": self.allowed_paths,
+            "timeout_seconds": self.timeout_seconds,
+            "network_mode": "none",
+            "secrets_allowed": False,
+            "host_shell_allowed": False,
+            "execution_allowed": False,
+            "dispatch_allowed": False,
+            "live_effect_allowed": False,
+            "raw_content_visible": False,
+        }
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"capsule_id": self.capsule_id, **self.semantic_dict()}
+
+
+@dataclass(frozen=True, slots=True)
 class CodingTaskPlan:
     repo_id: str
     task_id: str
@@ -397,6 +691,27 @@ class CodingWorktreeReport:
 
 
 @dataclass(frozen=True, slots=True)
+class CodingTransactionalWorktreeReport:
+    worktree_report: CodingWorktreeReport
+    transaction: CodingWorktreeTransactionReceipt | None
+    blockers: tuple[str, ...]
+
+    @property
+    def ready(self) -> bool:
+        return self.worktree_report.status == "created" and self.transaction is not None and not self.blockers
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "schema": "odysseus.coding_agent.transactional_worktree_report.v1",
+            "ready": self.ready,
+            "worktree_report": self.worktree_report.to_dict(),
+            "transaction": self.transaction.to_dict() if self.transaction is not None else None,
+            "blockers": list(self.blockers),
+            "raw_content_visible": False,
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class CodingQualityGateReport:
     status: str
     changed_paths: tuple[str, ...]
@@ -427,6 +742,7 @@ class CodingDoneGateReport:
     reviewed_by: str
     content_reviewed: bool
     blockers: tuple[str, ...]
+    implemented_by: str = ""
 
     @property
     def done(self) -> bool:
@@ -439,6 +755,8 @@ class CodingDoneGateReport:
             "quality_gate": self.quality_gate.to_dict(),
             "review_decision": self.review_decision,
             "reviewed_by": self.reviewed_by,
+            "implemented_by": self.implemented_by,
+            "independent_review": bool(self.implemented_by and self.implemented_by != self.reviewed_by),
             "content_reviewed": self.content_reviewed,
             "blockers": list(self.blockers),
         }
@@ -589,6 +907,59 @@ def _check_arg_is_safe(value: str) -> bool:
     return True
 
 
+def build_coding_tool_capsules(plan: CodingTaskPlan) -> tuple[CodingToolCapsule, ...]:
+    """Return non-executing capsules for the plan's pre-approved checks.
+
+    The caller may render these into a sandbox request, but this function does
+    not create a worker, shell, network path, or secret-bearing environment.
+    """
+
+    if not isinstance(plan, CodingTaskPlan):
+        raise CodingAgentBackendError("plan must be a CodingTaskPlan")
+    if not plan.allowed_paths:
+        raise CodingAgentBackendError("safe tool capsules require explicit allowed_paths")
+    capsules: list[CodingToolCapsule] = []
+    for index, check in enumerate(plan.checks, start=1):
+        if not isinstance(check, CodingCheckCommand):
+            raise CodingAgentBackendError("plan checks must be CodingCheckCommand items")
+        for target in _tool_capsule_path_targets(check.argv):
+            if not _path_in_allowed_scope(target, plan.allowed_paths):
+                raise CodingAgentBackendError("tool capsule argv target is outside allowed_paths")
+        semantic = {
+            "schema": "odysseus.coding_agent.tool_capsule.v1",
+            "task_id": plan.task_id,
+            "check_index": index,
+            "argv": check.argv,
+            "allowed_paths": plan.allowed_paths,
+            "timeout_seconds": check.timeout_seconds,
+            "network_mode": "none",
+            "secrets_allowed": False,
+            "host_shell_allowed": False,
+            "execution_allowed": False,
+            "dispatch_allowed": False,
+            "live_effect_allowed": False,
+            "raw_content_visible": False,
+        }
+        capsules.append(CodingToolCapsule(capsule_id=_canonical_digest(semantic), **{key: value for key, value in semantic.items() if key != "schema"}))
+    return tuple(capsules)
+
+
+def _tool_capsule_path_targets(argv: tuple[str, ...]) -> tuple[str, ...]:
+    """Return only command-form-defined repository path arguments.
+
+    The coding-check allowlist admits repo-wide npm/pnpm commands without a
+    target.  Pytest targets begin after its fixed prefix, while node --check
+    carries its one target at argv[2].  Treating every argv position alike
+    would either miss the Node target or accidentally reinterpret flags.
+    """
+
+    if len(argv) >= 3 and argv[:3] == ("python", "-m", "pytest"):
+        return tuple(item for item in argv[3:] if not item.startswith("-"))
+    if len(argv) == 3 and argv[:2] == ("node", "--check"):
+        return (argv[2],)
+    return ()
+
+
 def build_coding_task_plan(
     *,
     registry: RepoRegistry,
@@ -673,6 +1044,253 @@ def build_coding_task_plan(
         decision=_normalize_choice(decision, field_name="decision", choices=_DECISIONS),
         blockers=tuple(blockers),
         next_human_decision=next_decision,
+    )
+
+
+def build_coding_worktree_transaction_receipt(
+    *,
+    plan: CodingTaskPlan,
+    base_revision: Any,
+    source_status: Any = "",
+    implementer_id: Any,
+) -> CodingWorktreeTransactionReceipt:
+    """Bind a clean isolated worktree to a reversible, non-authoritative receipt."""
+
+    if not isinstance(plan, CodingTaskPlan):
+        raise CodingAgentBackendError("plan must be a CodingTaskPlan")
+    if not plan.allowed_paths:
+        raise CodingAgentBackendError("transactional worktree requires explicit allowed_paths")
+    status = str(source_status or "")
+    if status.strip():
+        raise CodingAgentBackendError("transactional worktree requires a clean recorded source status")
+    revision = _normalize_commit_revision(base_revision, field_name="base_revision")
+    implementer = _normalize_identity(implementer_id, field_name="implementer_id")
+    source_status_digest = _sha256(status)
+    allowed_paths_digest = _paths_binding_digest(plan.allowed_paths)
+    transaction_id = _canonical_digest(
+        {
+            "repo_id": plan.repo_id,
+            "task_id": plan.task_id,
+            "worktree_ref": plan.worktree_ref,
+            "base_revision": revision,
+            "source_status_digest": source_status_digest,
+            "allowed_paths_digest": allowed_paths_digest,
+            "implementer_id": implementer,
+        }
+    )
+    rollback_boundary = _canonical_digest(
+        {
+            "transaction_id": transaction_id,
+            "base_revision": revision,
+            "worktree_ref": plan.worktree_ref,
+            "rollback": "discard_isolated_worktree_only",
+        }
+    )
+    semantic = {
+        "schema": "odysseus.coding_agent.worktree_transaction_receipt.v1",
+        "transaction_id": transaction_id,
+        "repo_id": plan.repo_id,
+        "task_id": plan.task_id,
+        "worktree_ref": plan.worktree_ref,
+        "base_revision": revision,
+        "source_status_digest": source_status_digest,
+        "allowed_paths_digest": allowed_paths_digest,
+        "rollback_boundary": rollback_boundary,
+        "implementer_id": implementer,
+        "execution_allowed": False,
+        "write_allowed": False,
+        "dispatch_allowed": False,
+        "live_effect_allowed": False,
+        "raw_content_visible": False,
+    }
+    return CodingWorktreeTransactionReceipt(
+        receipt_id=_canonical_digest(semantic),
+        **{key: value for key, value in semantic.items() if key != "schema"},
+    )
+
+
+def capture_coding_exact_read_receipt(
+    *,
+    plan: CodingTaskPlan,
+    transaction: CodingWorktreeTransactionReceipt,
+    repo_path: Any,
+    reader_id: Any,
+    worktree_base: str | Path | None = None,
+) -> CodingExactReadReceipt:
+    """Capture one hash-only exact read immediately before a strict edit."""
+
+    if not isinstance(plan, CodingTaskPlan) or not isinstance(transaction, CodingWorktreeTransactionReceipt):
+        raise CodingAgentBackendError("plan and transaction must be typed")
+    _validate_transaction_matches_plan(plan=plan, transaction=transaction)
+    path = _normalize_repo_path(repo_path, field_name="repo_path")
+    reader = _normalize_identity(reader_id, field_name="reader_id")
+    if reader != transaction.implementer_id:
+        raise CodingAgentBackendError("exact read reader must be the transaction implementer")
+    if _path_hits_blocked_root(path, plan.blocked_paths) or not _path_in_allowed_scope(path, plan.allowed_paths):
+        raise CodingAgentBackendError("exact read path is outside transactional worktree scope")
+    worktree_path = _worktree_path_from_plan(plan, worktree_base)
+    target = _resolve_child(worktree_path, worktree_path / path, label="exact read path")
+    if not target.is_file():
+        raise CodingAgentBackendError("exact read target does not exist")
+    content = target.read_bytes()
+    line_count = max(1, content.count(b"\n") + (0 if content.endswith(b"\n") else 1))
+    source_digest = _sha256(content)
+    semantic = {
+        "schema": "odysseus.coding_agent.exact_read_receipt.v1",
+        "transaction_id": transaction.transaction_id,
+        "worktree_receipt_id": transaction.receipt_id,
+        "repo_path": path,
+        "source_digest": source_digest,
+        "anchor_digest": source_digest,
+        "reader_id": reader,
+        "line_count": line_count,
+        "execution_allowed": False,
+        "write_allowed": False,
+        "raw_content_visible": False,
+    }
+    return CodingExactReadReceipt(
+        receipt_id=_canonical_digest(semantic),
+        **{key: value for key, value in semantic.items() if key != "schema"},
+    )
+
+
+def apply_coding_patch_transaction(
+    *,
+    plan: CodingTaskPlan,
+    transaction: CodingWorktreeTransactionReceipt,
+    patches: Iterable[CodingPatchOperation],
+    exact_reads: Iterable[CodingExactReadReceipt],
+    worktree_base: str | Path | None = None,
+    live_enabled: bool | None = None,
+    operator_decision: Any = "missing",
+) -> CodingPatchTransactionReport:
+    """Apply a fully preflighted patch set or leave the worktree unchanged.
+
+    Legacy patch execution remains available for compatibility, while this path
+    enforces the ACPR-12 receipt, changed-path, rollback and review handoff
+    prerequisites before any file is written.
+    """
+
+    if not isinstance(plan, CodingTaskPlan) or not isinstance(transaction, CodingWorktreeTransactionReceipt):
+        raise CodingAgentBackendError("plan and transaction must be typed")
+    _validate_transaction_matches_plan(plan=plan, transaction=transaction)
+    patch_tuple = tuple(patches)
+    receipt_tuple = tuple(exact_reads)
+    if not patch_tuple or not all(isinstance(item, CodingPatchOperation) for item in patch_tuple):
+        raise CodingAgentBackendError("transactional patches must contain CodingPatchOperation items")
+    if not receipt_tuple or not all(isinstance(item, CodingExactReadReceipt) for item in receipt_tuple):
+        raise CodingAgentBackendError("transactional exact_reads must contain CodingExactReadReceipt items")
+    duplicate_paths = _duplicate_patch_paths(patch_tuple)
+    if duplicate_paths:
+        return _transaction_report(
+            transaction,
+            status="blocked",
+            blockers=(f"patch transaction contains duplicate paths: {', '.join(duplicate_paths)}",),
+        )
+    receipt_by_path = {receipt.repo_path: receipt for receipt in receipt_tuple}
+    if len(receipt_by_path) != len(receipt_tuple) or set(receipt_by_path) != {patch.path for patch in patch_tuple}:
+        return _transaction_report(transaction, status="blocked", blockers=("exact read receipt coverage does not match patch paths",))
+    normalized_operator = _normalize_choice(operator_decision, field_name="operator_decision", choices=_OPERATOR_DECISIONS)
+    resolved_live = _bool_env(os.getenv("ODYSSEUS_CODING_AGENT_PATCH_LIVE_ENABLED")) if live_enabled is None else bool(live_enabled)
+    if normalized_operator != "go" or not resolved_live:
+        return _transaction_report(transaction, status="blocked", blockers=("patch execution requires live_enabled=true and operator_decision=go",))
+    worktree_path = _worktree_path_from_plan(plan, worktree_base)
+    if not worktree_path.is_dir():
+        raise CodingAgentBackendError("coding worktree does not exist")
+
+    prepared: list[tuple[CodingPatchOperation, CodingExactReadReceipt, Path, bytes, bytes, str]] = []
+    blockers: list[str] = []
+    for patch in patch_tuple:
+        receipt = receipt_by_path[patch.path]
+        if (
+            receipt.transaction_id != transaction.transaction_id
+            or receipt.worktree_receipt_id != transaction.receipt_id
+            or receipt.reader_id != transaction.implementer_id
+        ):
+            blockers.append(f"exact read receipt binding mismatch: {patch.path}")
+            continue
+        if _path_hits_blocked_root(patch.path, plan.blocked_paths) or not _path_in_allowed_scope(patch.path, plan.allowed_paths):
+            blockers.append(f"patch path is outside transactional worktree scope: {patch.path}")
+            continue
+        target = _resolve_child(worktree_path, worktree_path / patch.path, label="patch path")
+        if not target.is_file():
+            blockers.append(f"patch target does not exist: {patch.path}")
+            continue
+        before_bytes = target.read_bytes()
+        if _sha256(before_bytes) != receipt.source_digest or receipt.anchor_digest != receipt.source_digest:
+            blockers.append(f"exact read receipt is stale: {patch.path}")
+            continue
+        before = before_bytes.decode("utf-8")
+        replacements = before.count(patch.find)
+        if replacements != patch.expected_replacements:
+            blockers.append(f"expected {patch.expected_replacements} replacement(s), found {replacements}: {patch.path}")
+            continue
+        after = before.replace(patch.find, patch.replace, patch.expected_replacements)
+        after_bytes = after.encode("utf-8")
+        diff = "".join(difflib.unified_diff(before.splitlines(keepends=True), after.splitlines(keepends=True), fromfile=f"a/{patch.path}", tofile=f"b/{patch.path}"))
+        prepared.append((patch, receipt, target, before_bytes, after_bytes, diff))
+    if blockers:
+        return _transaction_report(transaction, status="blocked", blockers=tuple(dict.fromkeys(blockers)))
+
+    written: list[tuple[Path, bytes]] = []
+    try:
+        for _patch, _receipt, target, before_bytes, after_bytes, _diff in prepared:
+            written.append((target, before_bytes))
+            target.write_bytes(after_bytes)
+    except OSError:
+        rollback_failures = []
+        for target, before_bytes in reversed(written):
+            try:
+                target.write_bytes(before_bytes)
+            except OSError:
+                rollback_failures.append(target.name)
+        code = "patch transaction failed and rollback could not restore every file" if rollback_failures else "patch transaction failed and was rolled back"
+        return _transaction_report(transaction, status="rolled_back" if not rollback_failures else "blocked", blockers=(code,))
+
+    changed = tuple(sorted(item[0].path for item in prepared))
+    diff_digest = _sha256("".join(item[5] for item in prepared))
+    return CodingPatchTransactionReport(
+        transaction_id=transaction.transaction_id,
+        worktree_receipt_id=transaction.receipt_id,
+        status="applied",
+        changed_paths=changed,
+        exact_read_receipt_ids=tuple(sorted(item[1].receipt_id for item in prepared)),
+        diff_digest=diff_digest,
+        rollback_boundary=transaction.rollback_boundary,
+        rollback_ready=True,
+    )
+
+
+def _validate_transaction_matches_plan(*, plan: CodingTaskPlan, transaction: CodingWorktreeTransactionReceipt) -> None:
+    if transaction.repo_id != plan.repo_id or transaction.task_id != plan.task_id or transaction.worktree_ref != plan.worktree_ref:
+        raise CodingAgentBackendError("worktree transaction does not match coding plan")
+    if transaction.allowed_paths_digest != _paths_binding_digest(plan.allowed_paths):
+        raise CodingAgentBackendError("worktree transaction allowed paths do not match coding plan")
+
+
+def _duplicate_patch_paths(patches: Iterable[CodingPatchOperation]) -> tuple[str, ...]:
+    counts: dict[str, int] = {}
+    for patch in patches:
+        counts[patch.path] = counts.get(patch.path, 0) + 1
+    return tuple(sorted(path for path, count in counts.items() if count > 1))
+
+
+def _transaction_report(
+    transaction: CodingWorktreeTransactionReceipt,
+    *,
+    status: str,
+    blockers: tuple[str, ...],
+) -> CodingPatchTransactionReport:
+    return CodingPatchTransactionReport(
+        transaction_id=transaction.transaction_id,
+        worktree_receipt_id=transaction.receipt_id,
+        status=status,
+        changed_paths=(),
+        exact_read_receipt_ids=(),
+        diff_digest=_sha256(""),
+        rollback_boundary=transaction.rollback_boundary,
+        rollback_ready=True,
+        blockers=blockers,
     )
 
 
@@ -855,6 +1473,68 @@ def create_coding_worktree(
     )
 
 
+def create_transactional_coding_worktree(
+    *,
+    registry: RepoRegistry,
+    repo_id: Any,
+    workspace_base: str | Path,
+    objective: Any,
+    implementer_id: Any,
+    allowed_paths: Iterable[Any] = (),
+    blocked_paths: Iterable[Any] = (),
+    checks: Iterable[CodingCheckCommand] = (),
+    base_ref: Any = "",
+    task_id: Any = "",
+    worktree_base: str | Path | None = None,
+    live_enabled: bool | None = None,
+    operator_decision: Any = "missing",
+    clarification_ready_for_plan: bool = True,
+    clarification_id: Any = "",
+    command_runner: CodingCommandRunner | None = None,
+) -> CodingTransactionalWorktreeReport:
+    """Create a normal gated worktree, then record its exact rollback boundary."""
+
+    report = create_coding_worktree(
+        registry=registry,
+        repo_id=repo_id,
+        workspace_base=workspace_base,
+        objective=objective,
+        allowed_paths=allowed_paths,
+        blocked_paths=blocked_paths,
+        checks=checks,
+        base_ref=base_ref,
+        task_id=task_id,
+        worktree_base=worktree_base,
+        live_enabled=live_enabled,
+        operator_decision=operator_decision,
+        clarification_ready_for_plan=clarification_ready_for_plan,
+        clarification_id=clarification_id,
+        command_runner=command_runner,
+    )
+    if report.status != "created":
+        return CodingTransactionalWorktreeReport(worktree_report=report, transaction=None, blockers=report.blockers)
+    runner = command_runner or run_coding_subprocess_command
+    worktree_path = _worktree_path_from_plan(report.plan, worktree_base)
+    revision = runner(("git", "rev-parse", "HEAD"), cwd=worktree_path, timeout_seconds=30, env={})
+    status = runner(("git", "status", "--porcelain"), cwd=worktree_path, timeout_seconds=30, env={})
+    if not revision.ok or not status.ok:
+        return CodingTransactionalWorktreeReport(
+            worktree_report=report,
+            transaction=None,
+            blockers=("transactional worktree boundary could not be inspected",),
+        )
+    try:
+        transaction = build_coding_worktree_transaction_receipt(
+            plan=report.plan,
+            base_revision=revision.stdout.strip(),
+            source_status=status.stdout,
+            implementer_id=implementer_id,
+        )
+    except CodingAgentBackendError as exc:
+        return CodingTransactionalWorktreeReport(worktree_report=report, transaction=None, blockers=(str(exc),))
+    return CodingTransactionalWorktreeReport(worktree_report=report, transaction=transaction, blockers=())
+
+
 def apply_coding_patch_set(
     *,
     plan: CodingTaskPlan,
@@ -882,61 +1562,39 @@ def apply_coding_patch_set(
     if not worktree_path.is_dir():
         raise CodingAgentBackendError("coding worktree does not exist")
 
-    results: list[CodingPatchResult] = []
-    for patch in patches:
+    patch_tuple = tuple(patches)
+    for patch in patch_tuple:
         if not isinstance(patch, CodingPatchOperation):
             raise CodingAgentBackendError("patches must contain CodingPatchOperation items")
+    duplicate_paths = _duplicate_patch_paths(patch_tuple)
+    if duplicate_paths:
+        blocker = f"patch transaction contains duplicate paths: {', '.join(duplicate_paths)}"
+        return tuple(
+            CodingPatchResult(operation=patch, status="blocked", replacements=0, diff="", blocker=blocker)
+            for patch in patch_tuple
+        )
+
+    prepared: list[tuple[CodingPatchOperation, Path, bytes, bytes, str, int]] = []
+    blockers: list[tuple[CodingPatchOperation, str, int]] = []
+    for patch in patch_tuple:
         if _path_hits_blocked_root(patch.path, plan.blocked_paths):
-            results.append(
-                CodingPatchResult(
-                    operation=patch,
-                    status="blocked",
-                    replacements=0,
-                    diff="",
-                    blocker=f"patch path is blocked: {patch.path}",
-                )
-            )
+            blockers.append((patch, f"patch path is blocked: {patch.path}", 0))
             continue
         if not _path_in_allowed_scope(patch.path, plan.allowed_paths):
-            results.append(
-                CodingPatchResult(
-                    operation=patch,
-                    status="blocked",
-                    replacements=0,
-                    diff="",
-                    blocker=f"patch path is outside allowed scope: {patch.path}",
-                )
-            )
+            blockers.append((patch, f"patch path is outside allowed scope: {patch.path}", 0))
             continue
         target = _resolve_child(worktree_path, worktree_path / patch.path, label="patch path")
         if not target.is_file():
-            results.append(
-                CodingPatchResult(
-                    operation=patch,
-                    status="blocked",
-                    replacements=0,
-                    diff="",
-                    blocker=f"patch target does not exist: {patch.path}",
-                )
-            )
+            blockers.append((patch, f"patch target does not exist: {patch.path}", 0))
             continue
-        before = target.read_text(encoding="utf-8")
+        before_bytes = target.read_bytes()
+        before = before_bytes.decode("utf-8")
         count = before.count(patch.find)
         if count != patch.expected_replacements:
-            results.append(
-                CodingPatchResult(
-                    operation=patch,
-                    status="blocked",
-                    replacements=count,
-                    diff="",
-                    blocker=(
-                        f"expected {patch.expected_replacements} replacement(s), "
-                        f"found {count}: {patch.path}"
-                    ),
-                )
-            )
+            blockers.append((patch, f"expected {patch.expected_replacements} replacement(s), found {count}: {patch.path}", count))
             continue
         after = before.replace(patch.find, patch.replace, patch.expected_replacements)
+        after_bytes = after.encode("utf-8")
         diff = "".join(
             difflib.unified_diff(
                 before.splitlines(keepends=True),
@@ -945,16 +1603,42 @@ def apply_coding_patch_set(
                 tofile=f"b/{patch.path}",
             )
         )
-        target.write_text(after, encoding="utf-8")
-        results.append(
+        prepared.append((patch, target, before_bytes, after_bytes, diff, count))
+
+    if blockers:
+        details = {patch.path: (blocker, count) for patch, blocker, count in blockers}
+        return tuple(
             CodingPatchResult(
                 operation=patch,
-                status="applied",
-                replacements=count,
-                diff=diff,
+                status="blocked",
+                replacements=details.get(patch.path, ("patch transaction preflight failed", 0))[1],
+                diff="",
+                blocker=details.get(patch.path, ("patch transaction preflight failed", 0))[0],
             )
+            for patch in patch_tuple
         )
-    return tuple(results)
+
+    written: list[tuple[Path, bytes]] = []
+    try:
+        for _patch, target, before_bytes, after_bytes, _diff, _count in prepared:
+            written.append((target, before_bytes))
+            target.write_bytes(after_bytes)
+    except OSError:
+        rollback_failed = False
+        for target, before_bytes in reversed(written):
+            try:
+                target.write_bytes(before_bytes)
+            except OSError:
+                rollback_failed = True
+        blocker = "patch transaction failed and rollback could not restore every file" if rollback_failed else "patch transaction failed and was rolled back"
+        return tuple(
+            CodingPatchResult(operation=patch, status="blocked", replacements=0, diff="", blocker=blocker)
+            for patch in patch_tuple
+        )
+    return tuple(
+        CodingPatchResult(operation=patch, status="applied", replacements=count, diff=diff)
+        for patch, _target, _before_bytes, _after_bytes, diff, count in prepared
+    )
 
 
 def evaluate_coding_quality_gate(
@@ -1021,12 +1705,14 @@ def evaluate_coding_done_gate(
     quality_gate: CodingQualityGateReport,
     review_decision: Any = "missing",
     reviewed_by: Any = "",
+    implemented_by: Any = "",
     content_reviewed: Any = False,
 ) -> CodingDoneGateReport:
     if not isinstance(quality_gate, CodingQualityGateReport):
         raise CodingAgentBackendError("quality_gate must be a CodingQualityGateReport")
     review = _normalize_choice(review_decision, field_name="review_decision", choices=_REVIEW_DECISIONS)
     reviewer = _normalize_text(reviewed_by, field_name="reviewed_by", allow_empty=True, max_len=80)
+    implementer = _normalize_identity(implemented_by, field_name="implemented_by", allow_empty=True)
     reviewed = _normalize_bool(content_reviewed, field_name="content_reviewed")
     blockers: list[str] = []
     if not quality_gate.verified:
@@ -1035,6 +1721,8 @@ def evaluate_coding_done_gate(
         blockers.append("review decision is not approved")
     if not reviewer:
         blockers.append("reviewer identity is required")
+    if implementer and reviewer == implementer:
+        blockers.append("reviewer identity must differ from implementer")
     if not reviewed:
         blockers.append("content_reviewed must be true")
     return CodingDoneGateReport(
@@ -1044,6 +1732,7 @@ def evaluate_coding_done_gate(
         reviewed_by=reviewer,
         content_reviewed=reviewed,
         blockers=tuple(dict.fromkeys(blockers)),
+        implemented_by=implementer,
     )
 
 
@@ -1082,6 +1771,51 @@ def build_coding_handoff_plan(
         decision="blocked" if blockers else "plan_ready",
         blockers=tuple(dict.fromkeys(blockers)),
         required_operator_action=action,
+    )
+
+
+def build_transactional_coding_handoff_plan(
+    *,
+    plan: CodingTaskPlan,
+    transaction: CodingWorktreeTransactionReceipt,
+    patch_report: CodingPatchTransactionReport,
+    done_gate: CodingDoneGateReport,
+    target_mode: Any = "local",
+) -> CodingHandoffPlan:
+    """Build a review-only handoff after an independently reviewed transaction."""
+
+    if not isinstance(transaction, CodingWorktreeTransactionReceipt):
+        raise CodingAgentBackendError("transaction must be a CodingWorktreeTransactionReceipt")
+    if not isinstance(patch_report, CodingPatchTransactionReport):
+        raise CodingAgentBackendError("patch_report must be a CodingPatchTransactionReport")
+    _validate_transaction_matches_plan(plan=plan, transaction=transaction)
+    blockers: list[str] = []
+    if patch_report.transaction_id != transaction.transaction_id or patch_report.worktree_receipt_id != transaction.receipt_id:
+        blockers.append("patch report is not bound to the worktree transaction")
+    if not patch_report.applied:
+        blockers.extend(patch_report.blockers or ("patch transaction was not applied",))
+    if not patch_report.rollback_ready or patch_report.rollback_boundary != transaction.rollback_boundary:
+        blockers.append("patch transaction rollback boundary is unavailable")
+    if done_gate.implemented_by != transaction.implementer_id:
+        blockers.append("done gate implementer identity is not bound to transaction")
+    if done_gate.reviewed_by == transaction.implementer_id:
+        blockers.append("reviewer identity must differ from implementer")
+    if blockers:
+        return CodingHandoffPlan(
+            repo_id=plan.repo_id,
+            task_id=plan.task_id,
+            source_worktree=plan.worktree_ref,
+            target_mode=_normalize_choice(target_mode, field_name="target_mode", choices=("local", "branch", "archive")),
+            changed_paths=patch_report.changed_paths,
+            decision="blocked",
+            blockers=tuple(dict.fromkeys(blockers)),
+            required_operator_action="Keep the isolated worktree unchanged until receipt binding and independent review are complete.",
+        )
+    return build_coding_handoff_plan(
+        plan=plan,
+        done_gate=done_gate,
+        changed_paths=patch_report.changed_paths,
+        target_mode=target_mode,
     )
 
 
@@ -1259,6 +1993,8 @@ def run_coding_subprocess_command(
 
 def _coding_internal_command_is_allowed(argv: tuple[str, ...]) -> bool:
     if argv == ("git", "status", "--porcelain"):
+        return True
+    if argv == ("git", "rev-parse", "HEAD"):
         return True
     if len(argv) == 6 and argv[:4] == ("git", "worktree", "add", "--detach"):
         target = argv[4]

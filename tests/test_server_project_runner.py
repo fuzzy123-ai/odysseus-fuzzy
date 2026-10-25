@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from src.server_project_runner import build_server_project_runner_plan
+from src.server_project_runner import build_server_project_runner_plan, build_server_project_tool_capsules
 
 
 def test_default_plan_is_hold_until_live_gates_are_supplied():
@@ -33,6 +33,10 @@ def test_complete_dry_run_plan_is_plan_ready_but_not_live_execution():
     assert plan.to_dict()["evidence_summary"]["quality_gate_count"] == 1
     assert plan.to_dict()["evidence_summary"]["planned_step_count"] == len(plan.planned_steps)
     assert plan.blockers == ()
+    assert plan.to_dict()["tool_capsules"][0]["network_mode"] == "none"
+    assert plan.to_dict()["tool_capsules"][0]["secrets_allowed"] is False
+    assert plan.to_dict()["tool_capsules"][0]["host_shell_allowed"] is False
+    assert plan.to_dict()["tool_capsules"][0]["execution_allowed"] is False
     assert [step["step_id"] for step in plan.planned_steps] == [
         "project_intake",
         "project_chat_scope",
@@ -150,6 +154,20 @@ def test_blocked_commands_do_not_become_quality_gates():
 
     assert plan.decision == "blocked"
     assert any("quality gate commands include blocked" in blocker for blocker in plan.blockers)
+    assert plan.tool_capsules == ()
+
+
+def test_server_project_tool_capsule_rejects_network_secret_and_host_shell_inputs():
+    with pytest.raises(ValueError, match="not allowlisted"):
+        build_server_project_tool_capsules(
+            quality_gate_commands=("curl https://example.invalid",),
+            workspace_scope="projects/demo",
+        )
+    with pytest.raises(ValueError, match="project-relative"):
+        build_server_project_tool_capsules(
+            quality_gate_commands=("python -m pytest tests/test_server_project_runner.py -q",),
+            workspace_scope=r"C:\private",
+        )
 
 
 def test_private_paths_and_secrets_are_redacted_in_serialized_plan():

@@ -4,8 +4,8 @@
   "roadmap_id": "live-contextual-layer",
   "title": "Harbor One Live Contextual Layer Roadmap",
   "created_at": "2026-08-02",
-  "updated_at": "2026-08-02",
-  "status": "roadmap_authored_deep_reviewed_and_registered_LCL_01_waiting_CAO_08B",
+  "updated_at": "2026-08-22T21:29:48+02:00",
+  "status": "roadmap_authored_deep_reviewed_and_registered_LCL_deferred_until_system_completion_and_testability",
   "abc_mode": "Standard ABC",
   "authoring_run": "abc-live-contextual-roadmap-20260802",
   "parent_roadmaps": [
@@ -17,6 +17,12 @@
     "docs/plans/temporal-light-agent-execution-roadmap.json"
   ],
   "goal": "Provide a bounded, asynchronous advisory layer parallel to active chat: detect supported structure and trends, emit confidence-labelled hypotheses, and project a redacted global project-status view without creating a second truth, gate, scheduler or write authority.",
+  "operator_sequence_decision": {
+    "authority": "user steering 2026-08-22",
+    "decision": "defer_all_LCL_implementation_until_the_remaining_system_is_complete_enough_for_system_testing",
+    "limits": "This is a sequencing deferral, not a product cancellation. It authorizes no LCL claim, local process, production, UI, provider, deployment or live action.",
+    "reactivation_condition": "After the remaining system is complete and can be tested as a system, re-open LCL through a fresh Root/Sol scoped architecture, dependency readback and claim rather than reviving this roadmap's old preconditions."
+  },
   "handout_alignment": {
     "system_overview": "Harbor One (H1) is the product surface; CAO owns the coding lifecycle/controller, ACPR supplies readiness evidence, TLR owns durable execution/replay, and the existing Nextcloud/Universal Inbox integration remains a bounded source/ingest path.",
     "memory_layer": "NMG, USI and the Memory lifecycle own native truth, source/version/provenance and rebuildable RAPTOR/GraphRAG-derived artifacts respectively; LCL only consumes bounded projections and emits reviewed candidates through their owners.",
@@ -200,9 +206,9 @@
       "id": "LCL-01-observation-and-hypothesis-contract",
       "class": "safe_offline",
       "owner": "Alice/Terra contract authoring; root/Sol deep review",
-      "status": "planned_not_claimable_until_CAO_08B_accepted_and_LCL_registered",
+      "status": "deferred_until_system_completion_and_testability",
       "claimable": false,
-      "claim_blocker": "CAO-08B acceptance and a new explicit implementation goal are required.",
+      "claim_blocker": "Operator sequencing defers LCL until the remaining system is complete enough for system testing. At reactivation, CAO-08B acceptance, a fresh explicit implementation goal, fresh architecture and router/claim readback are also required.",
       "depends_on": ["CAO-08B accepted", "LCL-00 root review accepted", "canonical router registration"],
       "allowed_paths": ["docs/plans/live-contextual-layer-contract.md", "docs/plans/agent-context-transparency-contract.md", "tests/test_live_contextual_layer_contract.py"],
       "tests": ["python -m pytest tests/test_live_contextual_layer_contract.py", "privacy and prohibited-authority contract cases"],
@@ -329,6 +335,15 @@
   ],
   "gate_queue": [
     {
+      "id": "LCL-SYSTEM-COMPLETION-AND-TESTABILITY",
+      "class": "blocked",
+      "gate_kind": "operator_sequence",
+      "status": "deferred_by_operator_2026_08_22",
+      "blocks": ["LCL-01-observation-and-hypothesis-contract", "LCL-02-fake-runtime-and-scheduler-boundary", "LCL-03-candidate-ledger-and-contradiction-state", "LCL-03A-local-background-worker-activation", "LCL-04-reviewed-promotion-adapters", "LCL-05-global-project-status-projection", "LCL-06-harbor-and-act-advisory-surfaces", "LCL-07-security-privacy-and-evaluation", "LCL-08-temporal-soak", "LCL-09-production-activation"],
+      "decision_needed": "No action before the rest of the system is complete enough for system testing. Then define the exact system-test scope and request a fresh LCL implementation activation.",
+      "safe_default": "Keep all LCL implementation, local-process, UI and live activation disabled; preserve the advisory-only non-authority contract."
+    },
+    {
       "id": "LCL-PRODUCT-POLICY-ACCEPTANCE",
       "class": "needs_design",
       "gate_kind": "product_policy",
@@ -416,8 +431,8 @@
     "claim_id": "abc-live-contextual-roadmap-20260802:LCL-00-live-contextual-layer-roadmap-authoring",
     "changed_paths": ["docs/plans/live-contextual-layer-roadmap.json"],
     "tests_run": ["python -m json.tool docs/plans/live-contextual-layer-roadmap.json"],
-    "next_action": "LCL-01 may be claimed only after CAO-08B acceptance and a new explicit implementation goal; deep review and shared-router registration are complete.",
+    "next_action": "LCL-01 is deferred until the remaining system is complete enough for system testing. At that later point it still requires CAO-08B acceptance, a fresh explicit implementation goal, fresh architecture and claim; deep review and shared-router registration from LCL-00 do not revive writer authority.",
     "remaining_limits": ["No implementation, UI, local process, soak, production action or live authority was exercised by LCL-00."]
   },
-  "recommended_next_step": "LCL-01 is the first future frontier only after CAO-08B is accepted and a new explicit implementation goal is created."
+  "recommended_next_step": "Do not start LCL-01 while the operator's system-completion-and-testability deferral is active. After that later reactivation, re-audit CAO-08B and all dependencies, freeze a new architecture and create a new explicit implementation claim."
 }

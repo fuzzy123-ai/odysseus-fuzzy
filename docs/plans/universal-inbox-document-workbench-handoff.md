@@ -1,8 +1,14 @@
 # Universal Inbox Document Workbench Handoff
 
+Current pointer (2026-09-05): `docs/plans/universal-inbox-abc-roadmap.md`
+records the accepted UIX-ABC13 through UIX-ABC24 foundation. The original
+readiness observations and dispatch instructions below are historical and
+must not reopen those slices. Live, privacy and new UI acceptance remain
+separate. Current product authority: `docs/plans/harbour-one-product-roadmap.json`.
+
 Stand: 2026-07-15
 
-Status: ready after explicit design confirmation; implementation not started
+Status: historical implementation handoff; accepted workbench foundation retained. Use the current Inbox roadmap and Harbour H1R-09 for remaining work.
 
 Roadmap: `docs/plans/universal-inbox-abc-roadmap.md`, continuation UIX-ABC13 bis UIX-ABC24
 

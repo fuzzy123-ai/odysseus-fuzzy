@@ -63,7 +63,36 @@ def _partial_response_peer(connection, startup_ready: object, request_seen: obje
         time.sleep(60)
 
 
-def _protocol_response_peer(connection, mode: str, request_seen: object) -> None:
+def _chunk_header_then_block_peer(
+    connection, startup_ready: object, header_sent: object,
+) -> None:
+    startup_ready.set()
+    request = json.loads(
+        connection.recv_bytes(maxlength=process_runtime.REQUEST_MAX_BYTES).decode("ascii")
+    )
+    total_bytes = process_runtime._CHUNK_RAW_MAX_BYTES + 1
+    response = {
+        "protocol": process_runtime.PROTOCOL,
+        "op": request["op"] + "_header",
+        "request_id": request["request_id"],
+        "generation": request["generation"],
+        "claim_id": request["claim_id"],
+        "total_bytes": total_bytes,
+        "count": 2,
+        "payload_sha256": "sha256:" + "0" * 64,
+    }
+    connection.send_bytes(process_runtime._encode_frame(
+        response, maximum=process_runtime.REQUEST_MAX_BYTES,
+    ))
+    header_sent.set()
+    while True:
+        time.sleep(60)
+
+
+def _protocol_response_peer(
+    connection, mode: str, startup_ready: object, request_seen: object,
+) -> None:
+    startup_ready.set()
     raw = connection.recv_bytes(maxlength=process_runtime.REQUEST_MAX_BYTES)
     request = json.loads(raw.decode("utf-8"))
     request_seen.set()
@@ -1907,7 +1936,7 @@ def _aggregate_bundle_with_exact_payloads(expected, target_count: int):
     padded_revisions = []
     for revision in base_revisions:
         payload, content_digest = _pad_canonical_revision_payload(
-            revision.payload, process_runtime.PAYLOAD_MAX_BYTES,
+            revision.payload, process_runtime.PAYLOAD_MAX_BYTES + 64 * 1024,
             f"{revision.roadmap_id}-{revision.revision_id}",
         )
         padded_revisions.append(replace(
@@ -1953,14 +1982,54 @@ def _aggregate_bundle_with_exact_payloads(expected, target_count: int):
     )
     assert len(bundle.heads) == 6
     assert len(bundle.revisions) == target_count
-    assert all(len(revision.payload) == process_runtime.PAYLOAD_MAX_BYTES for revision in bundle.revisions)
+    assert all(
+        len(revision.payload) > process_runtime.PAYLOAD_MAX_BYTES
+        for revision in bundle.revisions
+    )
     return bundle
 
 
-def test_bundle_validator_rejects_aggregate_payload_over_limit(accepted_process_fixture):
+def _accepted_bundle_from_process_bundle(expected, bundle):
+    stored_heads_by_roadmap = {
+        head.roadmap_id: head for head in expected.heads
+    }
+    stored_revisions_by_id = {
+        member.revision.revision_id: member for member in expected.revisions
+    }
+    heads = []
+    for head in bundle.heads:
+        prototype = stored_heads_by_roadmap[head.roadmap_id]
+        heads.append(replace(prototype, **{
+            field.name: getattr(head, field.name)
+            for field in fields(type(prototype))
+        }))
+    revisions = []
+    for revision in bundle.revisions:
+        prototype = stored_revisions_by_id.get(revision.revision_id)
+        if prototype is None:
+            prototype = stored_revisions_by_id[revision.parent_revision_id]
+        assert revision.principal_digest == prototype.revision.principal_ref.principal_digest
+        stored_revision = replace(prototype.revision, **{
+            field.name: getattr(revision, field.name)
+            for field in fields(type(prototype.revision))
+            if field.name != "principal_ref"
+        })
+        revisions.append(replace(
+            prototype, revision=stored_revision, payload=revision.payload,
+        ))
+    return replace(
+        expected,
+        batch_bytes=bundle.batch_bytes,
+        heads=tuple(heads),
+        revisions=tuple(revisions),
+        state_digest=bundle.state_digest,
+    )
+
+
+def test_bundle_validator_accepts_members_and_aggregate_over_old_limits(accepted_process_fixture):
     expected = accepted_process_fixture["expected_bundle"]
     valid_twelve = _aggregate_bundle_with_exact_payloads(expected, 12)
-    assert sum(len(revision.payload) for revision in valid_twelve.revisions) == 12 * process_runtime.PAYLOAD_MAX_BYTES
+    assert sum(len(revision.payload) for revision in valid_twelve.revisions) > process_runtime.AGGREGATE_PAYLOAD_MAX_BYTES
     process_runtime._validate_bundle(valid_twelve)
 
     by_roadmap = {}
@@ -1985,7 +2054,7 @@ def test_bundle_validator_rejects_aggregate_payload_over_limit(accepted_process_
             document, ensure_ascii=False, allow_nan=False,
             sort_keys=True, separators=(",", ":"),
         ).encode("utf-8"),
-        process_runtime.PAYLOAD_MAX_BYTES,
+        process_runtime.PAYLOAD_MAX_BYTES + 64 * 1024,
         f"{predecessor.roadmap_id}-overflow-{roadmap['revision']}",
     )
     overflow_revision = replace(
@@ -2013,10 +2082,39 @@ def test_bundle_validator_rejects_aggregate_payload_over_limit(accepted_process_
     overflow_heads = list(valid_twelve.heads)
     overflow_heads[head_index] = overflow_head
     assert len(overflow_revisions) == 13
-    assert sum(len(revision.payload) for revision in overflow_revisions) == 13 * process_runtime.PAYLOAD_MAX_BYTES
-    with pytest.raises(process_runtime.PlanningProcessError) as error:
-        replace(valid_twelve, heads=tuple(overflow_heads), revisions=overflow_revisions)
-    _assert_error(error, "invalid_response")
+    assert sum(len(revision.payload) for revision in overflow_revisions) > process_runtime.AGGREGATE_PAYLOAD_MAX_BYTES
+    expanded = replace(
+        valid_twelve, heads=tuple(overflow_heads), revisions=overflow_revisions,
+    )
+    process_runtime._validate_bundle(expanded)
+    accepted_expanded = _accepted_bundle_from_process_bundle(expected, expanded)
+    assert type(accepted_expanded) is type(expected)
+    wire = process_runtime._bundle_wire(accepted_expanded)
+    assert process_runtime._bundle_from_wire(deepcopy(wire)) == expanded
+    operation = "read_subject_bound_accepted_migration_bundle"
+    request_id = "a" * 32; generation = "b" * 32; claim_id = "c" * 32
+    response = {
+        "protocol": process_runtime.PROTOCOL, "op": operation + "_result",
+        "request_id": request_id, "generation": generation, "claim_id": claim_id,
+        "status": "ok", "bundle": wire,
+    }
+
+    class Frames:
+        def __init__(self): self.values = []
+        def send_bytes(self, value): self.values.append(value)
+        def recv_bytes(self, maxlength):
+            value = self.values.pop(0)
+            assert len(value) <= maxlength
+            return value
+
+    frames = Frames()
+    process_runtime._send_response(frames, response, operation=operation)
+    assert len(frames.values) > 2
+    received = process_runtime._receive_response(
+        frames, operation=operation, request_id=request_id,
+        generation=generation, claim_id=claim_id,
+    )
+    assert process_runtime._bundle_from_wire(received["bundle"]) == expanded
 
 
 def test_deadline_invalidates_generation_and_reaps_real_child_then_fresh_claim_restarts(
@@ -2329,6 +2427,178 @@ def test_partial_response_deadline_joins_helper_before_fresh_start(
     _assert_exact_bundle(fixture["expected_bundle"], bundle)
 
 
+def test_cancel_closes_and_releases_tracked_chunk_spool_before_generation_restart(
+    accepted_process_fixture, monkeypatch: pytest.MonkeyPatch,
+):
+    fixture = accepted_process_fixture
+    client = fixture["client"]
+    client.start()
+    roadmap_id = "planning-process-cancel-tracked-spool-roadmap"
+    created = client.planning_create_project(
+        _new_operation_claim(fixture), project_id=PROJECT_ID, roadmap_id=roadmap_id,
+        payload_bytes=_durable_definition_payload(roadmap_id, 1, "Tracked spool baseline"),
+        idempotency_key="planning-process-cancel-tracked-spool-create-0001",
+        expected_generation=0, timeout_seconds=10,
+    )
+    token = client._token
+    assert token is not None
+    context = multiprocessing.get_context("spawn")
+    startup_ready = context.Event()
+    header_sent = context.Event()
+    peer = _swap_in_standalone_peer(
+        client, fixture, _chunk_header_then_block_peer, (startup_ready, header_sent),
+    )
+    helpers = _track_runtime_helpers(monkeypatch)
+    result = {}
+
+    def receive_large_response() -> None:
+        try:
+            client.planning_get_revision_bundle(
+                _new_operation_claim(fixture), project_id=PROJECT_ID,
+                roadmap_id=roadmap_id, revision_id=created.head.current_revision_id,
+                timeout_seconds=10,
+            )
+        except process_runtime.PlanningProcessError as error:
+            result["error"] = error
+
+    worker = Thread(target=receive_large_response)
+    worker.start()
+    try:
+        assert startup_ready.wait(10) and header_sent.wait(10)
+        deadline = time.monotonic() + 3
+        while not token.active_resources() and time.monotonic() < deadline:
+            Event().wait(0.001)
+        resources = token.active_resources()
+        assert len(resources) == 1
+        spool = resources[0]
+        assert spool.closed is False
+        assert client.cancel_inflight() is True
+        worker.join(5)
+        assert not worker.is_alive()
+        assert result["error"].code == "cancelled"
+        assert str(result["error"]) == "cancelled"
+        _assert_reaped(peer)
+        _assert_helpers_finished(helpers)
+        assert spool.closed is True
+        assert token.active_resources() == ()
+        assert client._process is None and client._connection is None
+    finally:
+        if peer.is_alive():
+            peer.terminate()
+            peer.join(5)
+        if worker.is_alive():
+            worker.join(5)
+
+    client.start()
+    observed = client.planning_get_head(
+        _new_operation_claim(fixture), project_id=PROJECT_ID,
+        roadmap_id=roadmap_id, timeout_seconds=10,
+    )
+    _assert_durable_head_matches_store(observed, created.head)
+
+
+def test_public_deadline_expiring_during_payload_preparation_never_reaches_ipc(
+    accepted_process_fixture, monkeypatch: pytest.MonkeyPatch,
+):
+    fixture = accepted_process_fixture
+    client = fixture["client"]
+    client.start()
+    claim = _new_operation_claim(fixture)
+    sent, requests = _observe_requests(
+        monkeypatch, client, operation="planning_create_project",
+    )
+    expired = Event()
+    real_monotonic = time.monotonic
+    original_validate = process_runtime._validate_write_payload
+
+    def controlled_monotonic():
+        return real_monotonic() + (20 if expired.is_set() else 0)
+
+    def validation_that_crosses_deadline(*args, **kwargs):
+        value = original_validate(*args, **kwargs)
+        expired.set()
+        return value
+
+    monkeypatch.setattr(process_runtime.time, "monotonic", controlled_monotonic)
+    monkeypatch.setattr(
+        process_runtime, "_validate_write_payload", validation_that_crosses_deadline,
+    )
+    roadmap_id = "planning-process-preparation-deadline-roadmap"
+    with pytest.raises(process_runtime.PlanningProcessError) as error:
+        client.planning_create_project(
+            claim, project_id=PROJECT_ID, roadmap_id=roadmap_id,
+            payload_bytes=_durable_definition_payload(
+                roadmap_id, 1, "deadline expires while validating the document",
+            ),
+            idempotency_key="planning-process-preparation-deadline-create-0001",
+            expected_generation=0, timeout_seconds=10,
+        )
+    _assert_error(error, "deadline_exceeded")
+    assert expired.is_set()
+    assert not sent.is_set() and requests == []
+    assert claim.claim_id in client._spent_claims
+    assert client._process is not None and client._process.is_alive()
+
+
+def test_mutation_deadline_expiring_during_result_parse_never_publishes_late_success(
+    accepted_process_fixture, monkeypatch: pytest.MonkeyPatch,
+):
+    fixture = accepted_process_fixture
+    client = fixture["client"]
+    principal = fixture["principal"]
+    client.start()
+    roadmap_id = "planning-process-result-parse-deadline-roadmap"
+    created = client.planning_create_project(
+        _new_operation_claim(fixture), project_id=PROJECT_ID, roadmap_id=roadmap_id,
+        payload_bytes=_durable_definition_payload(roadmap_id, 1, "parse deadline baseline"),
+        idempotency_key="planning-process-result-parse-deadline-create-0001",
+        expected_generation=0, timeout_seconds=10,
+    )
+    before = fixture["store"].get_head(
+        principal, owner_id=OWNER_ID, project_id=PROJECT_ID, roadmap_id=roadmap_id,
+    )
+    expired = Event()
+    parsed = Event()
+    real_monotonic = time.monotonic
+    original_parse = process_runtime._receipt_from_wire
+
+    def controlled_monotonic():
+        return real_monotonic() + (20 if expired.is_set() else 0)
+
+    def parse_that_crosses_deadline(value):
+        receipt = original_parse(value)
+        parsed.set()
+        expired.set()
+        return receipt
+
+    monkeypatch.setattr(process_runtime.time, "monotonic", controlled_monotonic)
+    monkeypatch.setattr(process_runtime, "_receipt_from_wire", parse_that_crosses_deadline)
+    sent, requests = _observe_requests(
+        monkeypatch, client, operation="planning_append_revision",
+    )
+    old_process = client._process
+    with pytest.raises(process_runtime.PlanningProcessOutcomeUnknown) as error:
+        client.planning_append_revision(
+            _new_operation_claim(fixture), project_id=PROJECT_ID, roadmap_id=roadmap_id,
+            payload_bytes=_durable_definition_payload(
+                roadmap_id, 2, "committed before result publication",
+            ),
+            expected_head=created.head,
+            idempotency_key="planning-process-result-parse-deadline-append-0001",
+            timeout_seconds=10,
+        )
+    assert error.value.code == "outcome_unknown"
+    assert parsed.is_set() and expired.is_set()
+    assert sent.is_set() and len(requests) == 1
+    _assert_reaped(old_process)
+    assert client._process is None and client._connection is None
+    committed = fixture["store"].get_head(
+        principal, owner_id=OWNER_ID, project_id=PROJECT_ID, roadmap_id=roadmap_id,
+    )
+    assert committed.generation == before.generation + 1
+    assert committed.current_content_sha256 != before.current_content_sha256
+
+
 @pytest.mark.parametrize(
     ("mode", "expected_code"),
     [
@@ -2344,13 +2614,16 @@ def test_inflight_protocol_failures_reap_without_resending(
     fixture = accepted_process_fixture
     client = fixture["client"]
     _handshake, claim = _start_and_claim(fixture)
-    request_seen = multiprocessing.get_context("spawn").Event()
+    context = multiprocessing.get_context("spawn")
+    startup_ready = context.Event()
+    request_seen = context.Event()
     peer = _swap_in_standalone_peer(
-        client, fixture, _protocol_response_peer, (mode, request_seen),
+        client, fixture, _protocol_response_peer, (mode, startup_ready, request_seen),
     )
     sent, requests = _observe_requests_after_swap(monkeypatch, client)
     helpers = _track_runtime_helpers(monkeypatch)
     try:
+        assert startup_ready.wait(10)
         with pytest.raises(process_runtime.PlanningProcessError) as error:
             client.read_subject_bound_accepted_migration_bundle(claim, timeout_seconds=2)
         _assert_error(error, expected_code)
@@ -3269,7 +3542,7 @@ def test_durable_response_schema_and_correlation_fail_closed_and_reap_peer(
         _assert_reaped(peer)
 
 
-def test_maximum_canonical_planning_payload_roundtrips_and_plus_one_is_local_rejection(
+def test_canonical_planning_payloads_over_old_cap_roundtrip_restart_and_replay(
     accepted_process_fixture, monkeypatch: pytest.MonkeyPatch,
 ):
     fixture = accepted_process_fixture
@@ -3277,15 +3550,17 @@ def test_maximum_canonical_planning_payload_roundtrips_and_plus_one_is_local_rej
     client.start()
     principal = fixture["principal"]
     roadmap_id = "planning-process-maximum-payload-roadmap"
-    maximum = 4 * 1024 * 1024
+    old_limit = 4 * 1024 * 1024
     payload = _durable_definition_payload(
-        roadmap_id, 1, "Maximum canonical planning payload", exact_size_bytes=maximum,
+        roadmap_id, 1, "Former maximum canonical planning payload", exact_size_bytes=old_limit,
     )
-    assert len(payload) == maximum
+    assert len(payload) == old_limit
     encoded = base64.b64encode(payload).decode("ascii")
     assert len(encoded) == process_runtime.WRITE_PAYLOAD_B64_MAX_CHARS == 5_592_408
     assert base64.b64decode(encoded, validate=True) == payload
-    sent, requests = _observe_requests(monkeypatch, client, operation=None)
+    sent, requests = _observe_requests(
+        monkeypatch, client, operation="planning_create_project",
+    )
     command = {
         "kind": "create_project", "owner_id": OWNER_ID, "project_id": PROJECT_ID,
         "roadmap_id": roadmap_id, "expected_generation": 0,
@@ -3318,21 +3593,234 @@ def test_maximum_canonical_planning_payload_roundtrips_and_plus_one_is_local_rej
         fixture, bundle, principal, roadmap_id, expected_revision_id,
     )
     assert bundle.payload == payload
-    assert len([item for item in requests if item["op"] == "planning_get_revision_bundle"]) == 1
-
-    too_large = _durable_definition_payload(
-        roadmap_id, 2, "One byte above canonical payload limit", exact_size_bytes=maximum + 1,
+    over_old_limit = _durable_definition_payload(
+        roadmap_id, 2, "Document transported beyond the old request ceiling",
+        exact_size_bytes=5 * 1024 * 1024,
     )
-    assert len(too_large) == maximum + 1
-    with pytest.raises(process_runtime.PlanningProcessError) as error:
-        client.planning_append_revision(
-            _new_operation_claim(fixture), project_id=PROJECT_ID, roadmap_id=roadmap_id,
-            payload_bytes=too_large, expected_head=created.head,
-            idempotency_key="planning-process-maximum-append-over-0001", timeout_seconds=10,
-        )
-    assert error.value.code == "invalid_request"
-    assert len(requests) == 2
+    append_key = "planning-process-over-old-cap-append-0001"
+    append_command = {
+        "kind": "append_revision", "owner_id": OWNER_ID, "project_id": PROJECT_ID,
+        "roadmap_id": roadmap_id, "expected_head": _head_command_projection(created.head),
+        "payload_sha256": "sha256:" + hashlib.sha256(over_old_limit).hexdigest(),
+        "principal_identity": _principal_identity(fixture),
+    }
+    expected_append_id = _independent_revision_id(
+        _independent_canonical_digest(append_command), 2,
+    )
+    appended = client.planning_append_revision(
+        _new_operation_claim(fixture), project_id=PROJECT_ID, roadmap_id=roadmap_id,
+        payload_bytes=over_old_limit, expected_head=created.head,
+        idempotency_key=append_key, timeout_seconds=10,
+    )
+    _assert_durable_write_matches_store(
+        fixture, appended, principal, roadmap_id, command=append_command,
+        before_head=created.head, new_revision_id=expected_append_id,
+        restored_revision_id=None,
+    )
+    assert len(over_old_limit) > old_limit
+    client.close()
+    client.start()
+    replayed = client.planning_append_revision(
+        _new_operation_claim(fixture), project_id=PROJECT_ID, roadmap_id=roadmap_id,
+        payload_bytes=over_old_limit, expected_head=created.head,
+        idempotency_key=append_key, timeout_seconds=10,
+    )
+    assert replayed == appended
+    readback = client.planning_get_revision_bundle(
+        _new_operation_claim(fixture), project_id=PROJECT_ID, roadmap_id=roadmap_id,
+        revision_id=expected_append_id, timeout_seconds=10,
+    )
+    assert readback.payload == over_old_limit
+    assert len(requests) == 1
     assert sent.is_set()
+
+
+def _planning_document_over_protocol_node_budget(
+    roadmap_id: str, revision: int, marker: str,
+):
+    document = json.loads(_durable_definition_payload(
+        roadmap_id, revision, "Document node budget is not a document cap",
+    ).decode("utf-8"))
+    roadmap = document["roadmaps"][0]
+    roadmap["assumptions"] = [
+        f"document-node-{marker}-{index:06d}" for index in range(200_001)
+    ]
+    roadmap["content_hash"] = compute_roadmap_content_hash(roadmap)
+    document["project"]["latest_approved_revision"][roadmap_id]["content_hash"] = roadmap["content_hash"]
+    payload = json.dumps(
+        document, ensure_ascii=False, allow_nan=False,
+        separators=(",", ":"), sort_keys=True,
+    ).encode("utf-8")
+    return document, payload
+
+
+def test_valid_planning_document_over_protocol_node_budget_is_document_valid():
+    roadmap_id = "planning-process-over-protocol-node-budget"
+    document, payload = _planning_document_over_protocol_node_budget(
+        roadmap_id, 1, "local",
+    )
+    with pytest.raises(process_runtime.PlanningProcessError) as error:
+        process_runtime._walk_json(document)
+    _assert_error(error, "protocol_error")
+    assert process_runtime._validate_write_payload(
+        payload, project_id=PROJECT_ID, roadmap_id=roadmap_id,
+    ) == payload
+
+
+def test_process_create_append_and_readback_accept_documents_over_protocol_node_budget(
+    accepted_process_fixture,
+):
+    fixture = accepted_process_fixture
+    client = fixture["client"]
+    client.start()
+    roadmap_id = "planning-process-node-budget-roundtrip-roadmap"
+    _created_document, created_payload = _planning_document_over_protocol_node_budget(
+        roadmap_id, 1, "create",
+    )
+    created = client.planning_create_project(
+        _new_operation_claim(fixture), project_id=PROJECT_ID, roadmap_id=roadmap_id,
+        payload_bytes=created_payload,
+        idempotency_key="planning-process-node-budget-create-0001",
+        expected_generation=0, timeout_seconds=10,
+    )
+    _appended_document, appended_payload = _planning_document_over_protocol_node_budget(
+        roadmap_id, 2, "append",
+    )
+    appended = client.planning_append_revision(
+        _new_operation_claim(fixture), project_id=PROJECT_ID, roadmap_id=roadmap_id,
+        payload_bytes=appended_payload, expected_head=created.head,
+        idempotency_key="planning-process-node-budget-append-0001",
+        timeout_seconds=10,
+    )
+    created_readback = client.planning_get_revision_bundle(
+        _new_operation_claim(fixture), project_id=PROJECT_ID, roadmap_id=roadmap_id,
+        revision_id=created.head.current_revision_id, timeout_seconds=10,
+    )
+    appended_readback = client.planning_get_revision_bundle(
+        _new_operation_claim(fixture), project_id=PROJECT_ID, roadmap_id=roadmap_id,
+        revision_id=appended.head.current_revision_id, timeout_seconds=10,
+    )
+    assert created_readback.payload == created_payload
+    assert appended_readback.payload == appended_payload
+    assert appended.head.generation == created.head.generation + 1
+
+
+def test_child_revision_bundle_and_append_use_atomic_store_operations(
+    accepted_process_fixture, monkeypatch: pytest.MonkeyPatch,
+):
+    fixture = accepted_process_fixture
+    store = fixture["store"]
+    principal = fixture["principal"]
+    issuer = fixture["issuer"]
+    roadmap_id = "planning-process-atomic-store-operations"
+    created_payload = _durable_definition_payload(
+        roadmap_id, 1, "Atomic child store source",
+    )
+    created = store.create_project(
+        principal, owner_id=OWNER_ID, project_id=PROJECT_ID, roadmap_id=roadmap_id,
+        payload_bytes=created_payload,
+        idempotency_key="planning-process-atomic-store-create-0001",
+        expected_generation=0,
+    )
+    store_type = type(store)
+    original_bundle = store_type.read_revision_bundle
+    original_append = store_type.append_revision
+    bundle_calls = []
+    append_calls = []
+
+    def counted_bundle(actual_store, actual_principal, **kwargs):
+        bundle_calls.append(kwargs["revision_id"])
+        return original_bundle(actual_store, actual_principal, **kwargs)
+
+    def counted_append(actual_store, actual_principal, **kwargs):
+        append_calls.append(kwargs["idempotency_key"])
+        return original_append(actual_store, actual_principal, **kwargs)
+
+    def forbidden_preflight(*_args, **_kwargs):
+        pytest.fail("child used a superseded multi-read or append preflight")
+
+    monkeypatch.setattr(store_type, "read_revision_bundle", counted_bundle)
+    monkeypatch.setattr(store_type, "append_revision", counted_append)
+    monkeypatch.setattr(store_type, "read_revision", forbidden_preflight)
+    monkeypatch.setattr(store_type, "read_payload", forbidden_preflight)
+    monkeypatch.setattr(store_type, "replay_append_revision", forbidden_preflight)
+    monkeypatch.setattr(store_type, "get_head", forbidden_preflight)
+
+    read_result = process_runtime._child_durable_operation(
+        "planning_get_revision_bundle",
+        {
+            "project_id": PROJECT_ID,
+            "roadmap_id": roadmap_id,
+            "revision_id": created.new_revision_id,
+        },
+        principal=principal, owner_id=OWNER_ID, claim_project_id=PROJECT_ID,
+        durable_store=store, issuer=issuer,
+    )
+    assert bundle_calls == [created.new_revision_id]
+    assert base64.b64decode(read_result["payload_b64"], validate=True) == created_payload
+
+    appended_payload = _durable_definition_payload(
+        roadmap_id, 2, "Atomic child store append",
+    )
+    append_result = process_runtime._child_durable_operation(
+        "planning_append_revision",
+        {
+            "project_id": PROJECT_ID,
+            "roadmap_id": roadmap_id,
+            "payload_b64": base64.b64encode(appended_payload).decode("ascii"),
+            "expected_head": _head_command_projection(created.after_head),
+            "idempotency_key": "planning-process-atomic-store-append-0001",
+        },
+        principal=principal, owner_id=OWNER_ID, claim_project_id=PROJECT_ID,
+        durable_store=store, issuer=issuer,
+    )
+    assert append_calls == ["planning-process-atomic-store-append-0001"]
+    assert append_result["head"]["generation"] == created.after_head.generation + 1
+    assert append_result["receipt"]["new_revision_id"] == append_result["head"]["current_revision_id"]
+
+
+@pytest.mark.parametrize(
+    "tamper",
+    ["document_content", "dto_content_hash"],
+    ids=["document-content", "dto-content-hash"],
+)
+def test_revision_bundle_dto_rejects_document_and_metadata_hash_tamper(
+    accepted_process_fixture, tamper: str,
+):
+    fixture = accepted_process_fixture
+    store = fixture["store"]
+    principal = fixture["principal"]
+    roadmap_id = f"planning-process-bundle-hash-{tamper}"
+    payload = _durable_definition_payload(roadmap_id, 1, "DTO hash binding")
+    created = store.create_project(
+        principal, owner_id=OWNER_ID, project_id=PROJECT_ID, roadmap_id=roadmap_id,
+        payload_bytes=payload,
+        idempotency_key=f"planning-process-bundle-hash-{tamper}-0001",
+        expected_generation=0,
+    )
+    member = store.read_revision_bundle(
+        principal, owner_id=OWNER_ID, revision_id=created.new_revision_id,
+    )
+    revision = process_runtime._durable_revision_from_wire(
+        process_runtime._durable_revision_wire(member.revision)
+    )
+    candidate_payload = member.payload
+    if tamper == "document_content":
+        document = json.loads(candidate_payload.decode("utf-8"))
+        document["roadmaps"][0]["title"] = "Tampered without a content hash update"
+        candidate_payload = json.dumps(
+            document, ensure_ascii=False, allow_nan=False,
+            separators=(",", ":"), sort_keys=True,
+        ).encode("utf-8")
+        revision = replace(
+            revision,
+            payload_sha256="sha256:" + hashlib.sha256(candidate_payload).hexdigest(),
+        )
+    else:
+        revision = replace(revision, content_sha256="sha256:" + "0" * 64)
+    with pytest.raises(process_runtime.PlanningProcessError) as error:
+        process_runtime.PlanningProcessRevisionBundle(revision, candidate_payload)
+    _assert_error(error, "invalid_response")
 
 
 def _canonical_json_frame_of_size(size: int) -> bytes:
@@ -3398,7 +3886,9 @@ def test_real_child_pipe_accepts_exact_migration_response_envelopes_before_dto_r
             peer.join(5)
 
 
-def test_migration_response_chunks_reject_duplicate_missing_and_out_of_order_frames():
+def test_document_response_transfer_enforces_header_order_total_digest_and_canonical_base64(
+    monkeypatch: pytest.MonkeyPatch,
+):
     class Frames:
         def __init__(self, values): self.values = list(values)
         def recv_bytes(self, maxlength):
@@ -3409,25 +3899,335 @@ def test_migration_response_chunks_reject_duplicate_missing_and_out_of_order_fra
 
     operation = "planning_migration_status"
     request_id = "a" * 32; generation = "b" * 32; claim_id = "c" * 32
-    raw = process_runtime._encode_frame({"complete": True}, maximum=1024)
+    monkeypatch.setattr(process_runtime, "_CHUNK_RAW_MAX_BYTES", 5)
+    raw = process_runtime._encode_frame({"complete": "abcdefghijk"}, maximum=1024)
     digest = "sha256:" + hashlib.sha256(raw).hexdigest()
-    def frame(sequence, count, chunk):
-        return process_runtime._encode_frame({
+    count = (len(raw) + 4) // 5
+
+    def header(**changes):
+        value = {
+            "protocol": process_runtime.PROTOCOL, "op": operation + "_header",
+            "request_id": request_id, "generation": generation, "claim_id": claim_id,
+            "total_bytes": len(raw), "count": count, "payload_sha256": digest,
+        }
+        value.update(changes)
+        return process_runtime._encode_frame(
+            value, maximum=process_runtime.RESPONSE_MAX_BYTES,
+        )
+
+    def frame(sequence, chunk, **changes):
+        value = {
             "protocol": process_runtime.PROTOCOL, "op": operation + "_chunk",
             "request_id": request_id, "generation": generation, "claim_id": claim_id,
-            "sequence": sequence, "count": count, "payload_sha256": digest,
+            "sequence": sequence, "count": count, "total_bytes": len(raw),
+            "payload_sha256": digest,
             "chunk_b64": base64.b64encode(chunk).decode("ascii"),
+        }
+        value.update(changes)
+        return process_runtime._encode_frame({
+            **value,
         }, maximum=process_runtime.RESPONSE_MAX_BYTES)
-    good = [frame(0, 2, raw[:5]), frame(1, 2, raw[5:])]
+
+    chunks = [frame(index, raw[index * 5:(index + 1) * 5]) for index in range(count)]
+    good = [header(), *chunks]
     assert process_runtime._receive_response(
         Frames(good), operation=operation, request_id=request_id, generation=generation, claim_id=claim_id,
-    ) == {"complete": True}
-    for values, code in (([good[0], good[0]], "invalid_response"), ([frame(1, 2, raw[:5]), good[1]], "invalid_response"), ([frame(0, 3, raw[:5]), frame(1, 3, raw[5:])], "child_eof")):
+    ) == {"complete": "abcdefghijk"}
+    malformed = (
+        ([header(), chunks[0], chunks[0]], "invalid_response"),
+        ([header(), chunks[1], *chunks[1:]], "invalid_response"),
+        ([header(), *chunks[:-1]], "child_eof"),
+        ([header(total_bytes=len(raw) + 1), *chunks], "invalid_response"),
+        ([header(request_id="0" * 32)], "invalid_response"),
+        ([header(payload_sha256="sha256:" + "0" * 64), *chunks], "invalid_response"),
+        ([header(), frame(0, raw[:5], chunk_b64=base64.b64encode(raw[:5]).decode("ascii") + "=")], "invalid_response"),
+    )
+    for values, code in malformed:
         with pytest.raises(process_runtime.PlanningProcessError) as error:
             process_runtime._receive_response(
                 Frames(values), operation=operation, request_id=request_id, generation=generation, claim_id=claim_id,
             )
         _assert_error(error, code)
+
+
+def test_bounded_response_total_is_rejected_before_spool_or_body_but_exact_limit_is_admitted(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    operation = "planning_migration_status"
+    request_id = "a" * 32; generation = "b" * 32; claim_id = "c" * 32
+    raw_limit = process_runtime._response_total_maximum(operation)
+    spool_calls = []
+
+    def observed_spool(**kwargs):
+        spool_calls.append(kwargs["max_size"])
+        raise OSError("test-only admission sentinel")
+
+    monkeypatch.setattr(process_runtime.tempfile, "SpooledTemporaryFile", observed_spool)
+
+    def header(total_bytes: int, digest: str) -> bytes:
+        return process_runtime._encode_frame({
+            "protocol": process_runtime.PROTOCOL, "op": operation + "_header",
+            "request_id": request_id, "generation": generation, "claim_id": claim_id,
+            "total_bytes": total_bytes,
+            "count": (
+                total_bytes + process_runtime._CHUNK_RAW_MAX_BYTES - 1
+            ) // process_runtime._CHUNK_RAW_MAX_BYTES,
+            "payload_sha256": digest,
+        }, maximum=process_runtime.RESPONSE_MAX_BYTES)
+
+    class HeaderOnly:
+        def __init__(self, value): self.value = value; self.body_reads = 0
+        def recv_bytes(self, maxlength):
+            if self.value is not None:
+                value, self.value = self.value, None
+                return value
+            self.body_reads += 1
+            raise AssertionError("bounded rejection read a body frame")
+
+    oversized = HeaderOnly(header(raw_limit + 1, "sha256:" + "0" * 64))
+    with pytest.raises(process_runtime.PlanningProcessError) as error:
+        process_runtime._receive_response(
+            oversized, operation=operation, request_id=request_id,
+            generation=generation, claim_id=claim_id,
+        )
+    _assert_error(error, "invalid_response")
+    assert oversized.body_reads == 0 and spool_calls == []
+
+    exact = HeaderOnly(header(raw_limit, "sha256:" + "0" * 64))
+    with pytest.raises(process_runtime.PlanningProcessError) as error:
+        process_runtime._receive_response(
+            exact, operation=operation, request_id=request_id,
+            generation=generation, claim_id=claim_id,
+        )
+    _assert_error(error, "unavailable")
+    assert exact.body_reads == 0
+    assert spool_calls == [process_runtime._CHUNK_RAW_MAX_BYTES]
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "protocol", "op", "request_id", "generation", "claim_id", "sequence",
+        "count", "total_bytes", "payload_sha256", "chunk_b64",
+    ],
+)
+def test_each_chunk_frame_binding_mismatch_is_rejected(
+    monkeypatch: pytest.MonkeyPatch, field: str,
+):
+    operation = "planning_migration_status"
+    request_id = "a" * 32; generation = "b" * 32; claim_id = "c" * 32
+    raw = process_runtime._encode_frame({"complete": True}, maximum=1024)
+    digest = "sha256:" + hashlib.sha256(raw).hexdigest()
+    monkeypatch.setattr(process_runtime, "_CHUNK_RAW_MAX_BYTES", len(raw))
+    header = process_runtime._encode_frame({
+        "protocol": process_runtime.PROTOCOL, "op": operation + "_header",
+        "request_id": request_id, "generation": generation, "claim_id": claim_id,
+        "total_bytes": len(raw), "count": 1, "payload_sha256": digest,
+    }, maximum=process_runtime.RESPONSE_MAX_BYTES)
+    frame = {
+        "protocol": process_runtime.PROTOCOL, "op": operation + "_chunk",
+        "request_id": request_id, "generation": generation, "claim_id": claim_id,
+        "sequence": 0, "count": 1, "total_bytes": len(raw),
+        "payload_sha256": digest, "chunk_b64": base64.b64encode(raw).decode("ascii"),
+    }
+    frame[field] = {
+        "protocol": "wrong-protocol", "op": "wrong-op", "request_id": "0" * 32,
+        "generation": "0" * 32, "claim_id": "0" * 32, "sequence": 1,
+        "count": True, "total_bytes": len(raw) + 1,
+        "payload_sha256": "sha256:" + "0" * 64,
+        "chunk_b64": frame["chunk_b64"] + "=",
+    }[field]
+    encoded = process_runtime._encode_frame(
+        frame, maximum=process_runtime.RESPONSE_MAX_BYTES,
+    )
+
+    class Frames:
+        def __init__(self): self.values = [header, encoded]
+        def recv_bytes(self, maxlength): return self.values.pop(0)
+
+    with pytest.raises(process_runtime.PlanningProcessError) as error:
+        process_runtime._receive_response(
+            Frames(), operation=operation, request_id=request_id,
+            generation=generation, claim_id=claim_id,
+        )
+    _assert_error(error, "invalid_response")
+
+
+def test_document_response_over_old_total_limit_roundtrips_in_bounded_frames():
+    operation = "planning_get_revision_bundle"
+    request_id = "a" * 32; generation = "b" * 32; claim_id = "c" * 32
+    response = {
+        "protocol": process_runtime.PROTOCOL, "op": operation + "_result",
+        "request_id": request_id, "generation": generation, "claim_id": claim_id,
+        "status": "ok", "payload": "x" * (16 * 1024 * 1024),
+    }
+
+    class Frames:
+        def __init__(self): self.values = []
+        def send_bytes(self, value):
+            assert len(value) <= process_runtime.RESPONSE_MAX_BYTES
+            self.values.append(value)
+        def recv_bytes(self, maxlength):
+            if not self.values: raise EOFError
+            value = self.values.pop(0)
+            assert len(value) <= maxlength
+            return value
+
+    frames = Frames()
+    process_runtime._send_response(frames, response, operation=operation)
+    first = json.loads(frames.values[0].decode("ascii"))
+    assert first["op"] == operation + "_header"
+    assert first["total_bytes"] > process_runtime.RESPONSE_MAX_BYTES
+    assert first["count"] == (
+        first["total_bytes"] + process_runtime._CHUNK_RAW_MAX_BYTES - 1
+    ) // process_runtime._CHUNK_RAW_MAX_BYTES
+    assert process_runtime._receive_response(
+        frames, operation=operation, request_id=request_id,
+        generation=generation, claim_id=claim_id,
+    ) == response
+
+
+@pytest.mark.parametrize(
+    "operation", sorted(process_runtime._UNBOUNDED_DOCUMENT_REQUEST_OPERATIONS),
+)
+def test_large_request_header_is_admitted_before_body_and_failed_nonce_is_not_reusable(
+    operation: str,
+):
+    generation = "b" * 32
+    claim_id = "c" * 32
+    total_bytes = 10**12
+    assert total_bytes > process_runtime._response_total_maximum(operation)
+    count = (total_bytes + process_runtime._CHUNK_RAW_MAX_BYTES - 1) // process_runtime._CHUNK_RAW_MAX_BYTES
+    claim = {
+        "owner_id": OWNER_ID, "subject_id": "large-request-subject",
+        "project_id": PROJECT_ID, "auth_context_digest": AUTH_CONTEXT_DIGEST,
+        "generation": generation, "claim_id": claim_id,
+    }
+    header = {
+        "protocol": process_runtime.PROTOCOL, "op": operation + "_header",
+        "request_id": "a" * 32, "generation": generation, "claim_id": claim_id,
+        "deadline_ms": 10_000, "claim": claim, "total_bytes": total_bytes,
+        "count": count, "payload_sha256": "sha256:" + "0" * 64,
+    }
+    issuer = AuthenticatedPrincipalIssuer(
+        issuer_id=ISSUER_ID, key_id=KEY_ID, secret=ISSUER_SECRET,
+    )
+
+    class NoBody:
+        def __init__(self): self.reads = 0
+        def recv_bytes(self, maxlength):
+            self.reads += 1
+            raise EOFError
+
+    rejected = dict(header)
+    rejected["protocol"] = "wrong-protocol"
+    unread = NoBody()
+    with pytest.raises(process_runtime.PlanningProcessError) as error:
+        process_runtime._child_receive_large_request(
+            unread, rejected, issuer=issuer, generation=generation, seen_nonces=set(),
+        )
+    _assert_error(error, "invalid_request")
+    assert unread.reads == 0
+
+    seen = set()
+    partial = NoBody()
+    with pytest.raises(process_runtime.PlanningProcessError) as error:
+        process_runtime._child_receive_large_request(
+            partial, header, issuer=issuer, generation=generation, seen_nonces=seen,
+        )
+    _assert_error(error, "child_eof")
+    assert partial.reads == 1 and seen == {claim_id}
+    replay = NoBody()
+    with pytest.raises(process_runtime.PlanningProcessError) as error:
+        process_runtime._child_receive_large_request(
+            replay, header, issuer=issuer, generation=generation, seen_nonces=seen,
+        )
+    _assert_error(error, "single_use_claim")
+    assert replay.reads == 0
+
+
+@pytest.mark.parametrize("failure", ["allocation", "write", "short_write", "read", "close"])
+def test_chunk_spool_failures_are_content_free_and_closed(
+    monkeypatch: pytest.MonkeyPatch, failure: str,
+):
+    raw = process_runtime._encode_frame({"complete": True}, maximum=1024)
+    digest = "sha256:" + hashlib.sha256(raw).hexdigest()
+    operation = "planning_get_revision_bundle"
+    request_id = "a" * 32; generation = "b" * 32; claim_id = "c" * 32
+    header = process_runtime._encode_frame({
+        "protocol": process_runtime.PROTOCOL, "op": operation + "_header",
+        "request_id": request_id, "generation": generation, "claim_id": claim_id,
+        "total_bytes": len(raw), "count": 1, "payload_sha256": digest,
+    }, maximum=process_runtime.RESPONSE_MAX_BYTES)
+    chunk = process_runtime._encode_frame({
+        "protocol": process_runtime.PROTOCOL, "op": operation + "_chunk",
+        "request_id": request_id, "generation": generation, "claim_id": claim_id,
+        "sequence": 0, "count": 1, "total_bytes": len(raw),
+        "payload_sha256": digest, "chunk_b64": base64.b64encode(raw).decode("ascii"),
+    }, maximum=process_runtime.RESPONSE_MAX_BYTES)
+
+    class Frames:
+        def __init__(self): self.values = [header, chunk]
+        def recv_bytes(self, maxlength): return self.values.pop(0)
+
+    close_calls = []
+    if failure == "allocation":
+        monkeypatch.setattr(
+            process_runtime.tempfile, "SpooledTemporaryFile",
+            lambda **_kwargs: (_ for _ in ()).throw(OSError("test-only allocation")),
+        )
+    else:
+        class BrokenSpool:
+            def write(self, value):
+                if failure == "write": raise OSError("test-only disk full")
+                return len(value) - 1 if failure == "short_write" else len(value)
+            def flush(self): return None
+            def seek(self, _offset): return 0
+            def read(self):
+                if failure == "read": raise OSError("test-only spool read")
+                return raw
+            def close(self):
+                close_calls.append(1)
+                if failure == "close": raise OSError("test-only close")
+        monkeypatch.setattr(
+            process_runtime.tempfile, "SpooledTemporaryFile", lambda **_kwargs: BrokenSpool(),
+        )
+    with pytest.raises(process_runtime.PlanningProcessError) as error:
+        process_runtime._receive_response(
+            Frames(), operation=operation, request_id=request_id,
+            generation=generation, claim_id=claim_id,
+        )
+    _assert_error(error, "unavailable")
+    assert close_calls == ([] if failure == "allocation" else [1])
+
+
+def test_generation_spool_cleanup_failure_keeps_restart_gate_permanently_closed(
+    accepted_process_fixture,
+):
+    client = accepted_process_fixture["client"]
+    client.start()
+    token = client._token
+    process = client._process
+    assert token is not None and process is not None
+
+    class UncloseableSpool:
+        def __init__(self): self.close_calls = 0
+        def close(self):
+            self.close_calls += 1
+            raise OSError("test-only spool cleanup failure")
+
+    spool = UncloseableSpool()
+    assert token.track_resource(spool) is True
+    assert client.cancel_inflight() is False
+    _assert_reaped(process)
+    assert spool.close_calls == 1
+    assert token.active_resources() == (spool,)
+    assert client._permanently_unavailable is True
+    assert client._reaping is True and client._reaping_token is token
+    assert client._process is None and client._connection is None
+    with pytest.raises(process_runtime.PlanningProcessError) as error:
+        client.start()
+    _assert_error(error, "permanently_unavailable")
 
 
 def test_child_revert_receipt_verifier_rejects_self_consistent_forged_digest_before_response(

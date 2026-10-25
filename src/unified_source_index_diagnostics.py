@@ -28,6 +28,13 @@ USI_OUTCOMES = frozenset({"success", "blocked", "error", "cancelled"})
 USI_RUNTIMES = frozenset({"app", "worker", "benchmark"})
 USI_RECORD_KINDS = frozenset(MEMORY_RUNTIME_LABEL_ENUMS["record_kind"])
 USI_PHASES = frozenset(MEMORY_RUNTIME_LABEL_ENUMS["phase"])
+USI_FORGE_ERROR_CODES = frozenset({
+    "invalid_occurrence", "occurrence_not_found", "invalid_manifest",
+    "manifest_head_conflict", "selection_head_conflict", "truth_snapshot_mismatch",
+    "terminal_job_mismatch", "selection_missing", "selection_invalidated",
+    "selection_not_current", "selected_scope_mismatch", "selected_authority_mismatch",
+    "durability_corrupt", "coverage_publication_required",
+})
 
 
 @dataclass(frozen=True, slots=True)
@@ -211,6 +218,19 @@ class UnifiedSourceIndexDiagnostics:
             ]
         )
 
+    def record_forge_storage_error(
+        self,
+        error_code: str,
+        *,
+        runtime: str = "worker",
+    ) -> DiagnosticsWriteResult:
+        """Record one bounded error outcome without exporting its code or scope."""
+        if not self._valid_token(error_code, USI_FORGE_ERROR_CODES):
+            return self._rejected("error_code_rejected")
+        if not self._valid_token(runtime, USI_RUNTIMES):
+            return self._rejected("runtime_rejected")
+        return self.record_operation("index", outcome="error", runtime=runtime)
+
     @contextmanager
     def time_operation(
         self,
@@ -348,6 +368,7 @@ __all__ = [
     "USI_DIAGNOSTICS_SCHEMA",
     "USI_OPERATIONS",
     "USI_OUTCOMES",
+    "USI_FORGE_ERROR_CODES",
     "USI_PHASES",
     "USI_RECORD_KINDS",
     "USI_RUNTIMES",

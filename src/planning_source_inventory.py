@@ -227,27 +227,48 @@ def diff_planning_source_inventories(previous: Dict[str, Any], current: Dict[str
 
 def _source_record(abs_path: str, rel_path: str, *, preview_chars: int) -> Dict[str, Any]:
     raw_bytes = _read_bytes(abs_path)
+    stat = os.stat(abs_path)
+    return build_planning_source_record_from_bytes(
+        rel_path,
+        raw_bytes,
+        preview_chars=preview_chars,
+        size_bytes=int(stat.st_size),
+        mtime=stat.st_mtime,
+    )
+
+
+def build_planning_source_record_from_bytes(
+    rel_path: str,
+    raw_bytes: bytes,
+    *,
+    preview_chars: int,
+    size_bytes: int,
+    mtime: float,
+) -> Dict[str, Any]:
+    """Build the established inventory record from one caller-owned snapshot."""
+    if type(raw_bytes) is not bytes:
+        raise TypeError("raw_bytes must be exact bytes")
+    normalized_path = _normalize_path(rel_path)
     raw = raw_bytes.decode("utf-8", errors="replace")
     parsed_json: Optional[Dict[str, Any]] = None
-    if rel_path.lower().endswith(".json"):
+    if normalized_path.lower().endswith(".json"):
         parsed_json = _load_json_object(raw)
-    stat = os.stat(abs_path)
-    title, plan_id = _title_and_plan_id(rel_path, raw, parsed_json)
+    title, plan_id = _title_and_plan_id(normalized_path, raw, parsed_json)
     dependencies, source_refs = _dependency_hints(parsed_json)
-    ext = os.path.splitext(rel_path.lower())[1]
+    ext = os.path.splitext(normalized_path.lower())[1]
     return {
-        "source_id": _stable_source_id(rel_path),
-        "path": rel_path,
-        "kind": _classify_kind(rel_path, parsed_json),
+        "source_id": planning_source_id(normalized_path),
+        "path": normalized_path,
+        "kind": _classify_kind(normalized_path, parsed_json),
         "extension": ext.lstrip("."),
         "title": title,
         "plan_id": plan_id,
         "source_hash": _sha256_bytes(raw_bytes),
-        "size_bytes": int(stat.st_size),
-        "mtime": _mtime_iso(stat.st_mtime),
+        "size_bytes": int(size_bytes),
+        "mtime": _mtime_iso(float(mtime)),
         "dependency_hints": dependencies,
         "source_refs": source_refs,
-        "authority_disposition": _authority_disposition(rel_path, parsed_json),
+        "authority_disposition": _authority_disposition(normalized_path, parsed_json),
         "preview": _bounded_preview(raw, preview_chars),
         "repo_relative": True,
         "absolute_path_recorded": False,
@@ -265,7 +286,7 @@ def _load_json_object(raw: str) -> Optional[Dict[str, Any]]:
 
     try:
         loaded = json.loads(raw, object_pairs_hook=reject_duplicate_keys)
-    except (json.JSONDecodeError, ValueError):
+    except (json.JSONDecodeError, ValueError, RecursionError):
         return None
     return loaded if type(loaded) is dict else None
 
@@ -311,10 +332,15 @@ def _normalize_path(path: str) -> str:
     return str(path or "").replace("\\", "/").strip("/")
 
 
-def _stable_source_id(path: str) -> str:
+def planning_source_id(path: str) -> str:
+    """Return the established path-derived Planning source identifier."""
     normalized = _normalize_path(path).lower()
     digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:16]
     return f"repo-plan:{digest}"
+
+
+def _stable_source_id(path: str) -> str:
+    return planning_source_id(path)
 
 
 def _sha256_bytes(raw: bytes) -> str:

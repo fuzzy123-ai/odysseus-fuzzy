@@ -14,6 +14,7 @@
   let nodes = [];
   let raf = null;
   let wheelOpenPointer = null;
+  let forgeController = null;
 
   function persist() {
     try {
@@ -67,6 +68,168 @@
       group.classList.remove('menu-open');
       group.querySelector('[aria-expanded]')?.setAttribute('aria-expanded', 'false');
     });
+  }
+
+  function forgeRoot() {
+    return document.querySelector('[data-forge-status-root]');
+  }
+
+  function setForgeLoading(root, message) {
+    root.dataset.forgeState = 'loading';
+    root.querySelector('[data-forge-state]').textContent = 'Loading';
+    root.querySelector('[data-forge-message]').textContent = message || 'Reading repository status…';
+    root.querySelector('[data-forge-details]').hidden = true;
+    root.querySelector('[data-forge-retry]').hidden = true;
+  }
+
+  function setForgeError(root, message, error) {
+    root.dataset.forgeState = 'error';
+    root.dataset.forgeError = error?.code || 'request_failed';
+    root.querySelector('[data-forge-state]').textContent = 'Unavailable';
+    root.querySelector('[data-forge-summary]').textContent = 'Status unavailable';
+    root.querySelector('[data-forge-message]').textContent = message;
+    root.querySelector('[data-forge-details]').hidden = true;
+    root.querySelector('[data-forge-retry]').hidden = false;
+  }
+
+  function setForgeEmpty(root) {
+    root.dataset.forgeState = 'empty';
+    root.querySelector('[data-forge-state]').textContent = 'No repository';
+    root.querySelector('[data-forge-branch]').textContent = 'Repository';
+    root.querySelector('[data-forge-summary]').textContent = 'No repository linked';
+    root.querySelector('[data-forge-repo-title]').textContent = 'No repository linked';
+    root.querySelector('[data-forge-message]').textContent = 'No repositories are available for this account.';
+    root.querySelector('[data-forge-details]').hidden = true;
+    root.querySelector('[data-forge-retry]').hidden = true;
+  }
+
+  function setForgeSelectionRequired(root) {
+    root.dataset.forgeState = 'selection';
+    root.querySelector('[data-forge-state]').textContent = 'Choose repository';
+    root.querySelector('[data-forge-branch]').textContent = 'Repository';
+    root.querySelector('[data-forge-summary]').textContent = 'Choose a repository';
+    root.querySelector('[data-forge-repo-title]').textContent = 'Choose a repository';
+    root.querySelector('[data-forge-message]').textContent = 'Select a repository to read its status.';
+    root.querySelector('[data-forge-details]').hidden = true;
+    root.querySelector('[data-forge-retry]').hidden = true;
+  }
+
+  function formatForgeDate(value) {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? '' : new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(date);
+  }
+
+  function renderForgeDetail(root, result) {
+    const repo = result.repo || result.selected;
+    const git = result.git || {};
+    const status = git.status || {};
+    const versions = Array.isArray(result.versions) ? result.versions : [];
+    const version = versions[0] || null;
+    const policy = result.policy || {};
+    const branch = git.current_branch || repo.current_branch || repo.default_branch || 'Unknown branch';
+    const changedCount = Array.isArray(status.entries) ? status.entries.length : 0;
+    const worktree = status.dirty ? `${changedCount} changed ${changedCount === 1 ? 'path' : 'paths'}` : 'Clean';
+    const versionLabel = version ? (version.version_label || version.version_id || 'Verified version') : 'No verified version';
+    const policyLabel = policy.forge_mode ? `${policy.forge_mode}${policy.sync_on_commit === true ? ' · sync on commit' : ''}` : 'Policy unavailable';
+    root.dataset.forgeState = 'ready';
+    root.setAttribute('aria-label', `${repo.title || repo.repo_id} repository status`);
+    root.querySelector('[data-forge-branch]').textContent = branch;
+    root.querySelector('[data-forge-summary]').textContent = worktree;
+    root.querySelector('[data-forge-state]').textContent = status.dirty ? 'Changes' : 'Clean';
+    root.querySelector('[data-forge-repo-title]').textContent = repo.title || repo.repo_id;
+    root.querySelector('[data-forge-message]').textContent = version
+      ? `Read-only status for ${repo.repo_id}.`
+      : `Read-only status for ${repo.repo_id}; no verified version is recorded.`;
+    root.querySelector('[data-forge-detail-branch]').textContent = branch;
+    root.querySelector('[data-forge-detail-worktree]').textContent = worktree;
+    root.querySelector('[data-forge-detail-version]').textContent = version
+      ? `${versionLabel}${formatForgeDate(version.created_at) ? ` · ${formatForgeDate(version.created_at)}` : ''}`
+      : 'No verified version';
+    root.querySelector('[data-forge-detail-policy]').textContent = policyLabel;
+    root.querySelector('[data-forge-details]').hidden = false;
+    root.querySelector('[data-forge-retry]').hidden = true;
+  }
+
+  function populateForgePicker(root, repos, selectedId) {
+    const picker = root.querySelector('[data-forge-repo-picker]');
+    const select = root.querySelector('[data-forge-repo-select]');
+    picker.hidden = repos.length < 2;
+    const options = [];
+    if (!selectedId && repos.length > 1) {
+      const placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = 'Choose a repository';
+      placeholder.disabled = true;
+      placeholder.selected = true;
+      options.push(placeholder);
+    }
+    select.replaceChildren(...options, ...repos.map(repo => {
+      const option = document.createElement('option');
+      option.value = repo.repo_id;
+      option.textContent = repo.title || repo.repo_id;
+      option.selected = repo.repo_id === selectedId;
+      return option;
+    }));
+  }
+
+  async function loadForgeStatus(root, selectedId) {
+    if (!forgeController) return;
+    const requestId = ++forgeController.requestId;
+    setForgeLoading(root, 'Reading repository status…');
+    try {
+      const result = await forgeController.api.load(selectedId);
+      if (requestId !== forgeController.requestId) return;
+      populateForgePicker(root, result.summary.repos, result.selected && result.selected.repo_id);
+      if (result.requiresSelection) {
+        setForgeSelectionRequired(root);
+        return;
+      }
+      if (!result.selected) {
+        setForgeEmpty(root);
+        return;
+      }
+      renderForgeDetail(root, result.detail);
+      forgeController.selectedRepoId = result.selected.repo_id;
+    } catch (error) {
+      if (requestId !== forgeController.requestId) return;
+      const message = error && error.code === 'unauthorized'
+        ? 'Repository access is unavailable for this account.'
+        : 'Repository status is unavailable right now.';
+      setForgeError(root, message, error);
+    }
+  }
+
+  function closeForgeStatus(restoreFocus = false) {
+    const root = forgeRoot();
+    if (!root) return;
+    const toggle = root.querySelector('[data-forge-status-toggle]');
+    const popover = root.querySelector('[data-forge-status-popover]');
+    popover.hidden = true;
+    toggle.setAttribute('aria-expanded', 'false');
+    root.classList.remove('is-open');
+    if (restoreFocus) toggle.focus();
+  }
+
+  function bindForgeStatus() {
+    const root = forgeRoot();
+    if (!root || !window.HarborForgeApi) return;
+    forgeController = { api: new window.HarborForgeApi.ForgeApi(), selectedRepoId: '', requestId: 0 };
+    const toggle = root.querySelector('[data-forge-status-toggle]');
+    const popover = root.querySelector('[data-forge-status-popover]');
+    const select = root.querySelector('[data-forge-repo-select]');
+    const retry = root.querySelector('[data-forge-retry]');
+    toggle.addEventListener('click', event => {
+      event.stopPropagation();
+      const open = popover.hidden;
+      closeMenus();
+      popover.hidden = !open;
+      toggle.setAttribute('aria-expanded', String(open));
+      root.classList.toggle('is-open', open);
+      if (open && select.options.length > 1) select.focus();
+    });
+    select.addEventListener('change', () => loadForgeStatus(root, select.value));
+    retry.addEventListener('click', () => loadForgeStatus(root, forgeController.selectedRepoId));
+    loadForgeStatus(root);
   }
 
   function toggleGroup(group) {
@@ -352,8 +515,9 @@
       });
     });
     document.addEventListener('click', event => {
-      if (!event.target.closest('.workspace-group,.tools-cluster,.undo-cluster,.notification-cluster,.composer-shell')) {
+      if (!event.target.closest('.workspace-group,.tools-cluster,.undo-cluster,.notification-cluster,.composer-shell,.forge-status-chip')) {
         closeMenus();
+        closeForgeStatus();
         document.querySelector('.composer-shell.menu-open')?.classList.remove('menu-open');
       }
     });
@@ -365,6 +529,7 @@
       if (event.key === 'Escape') {
         closeToolwheel();
         closeMenus();
+        if (forgeRoot()?.classList.contains('is-open')) closeForgeStatus(true);
       }
       if (event.ctrlKey && /^[1-4]$/.test(event.key)) {
         event.preventDefault();
@@ -381,4 +546,5 @@
   resizeCanvas();
   drawNetwork();
   bindEvents();
+  bindForgeStatus();
 })();

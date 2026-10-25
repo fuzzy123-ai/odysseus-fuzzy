@@ -1,15 +1,15 @@
-# Odysseus Harbor One Autonomous Workspace Roadmap
+# Harbour One Autonomous Workspace Roadmap (Odysseus Compatibility Track)
 
-Status: historical OAW repo-only/safe-offline foundation complete; H1-28
-autonomy-and-gate-DX extension complete in this roadmap; H1-29 canonical
-Planning projection/reconciliation is the first H1 frontier, blocked until
-its accepted CAO-08A/B and ACPR-11 prerequisite contracts exist.
-User-owned UI, product, security and live-effect decisions remain gated.
+Status: superseded as product authority by
+`docs/plans/harbour-one-product-roadmap.json`; retained as the historical
+Odysseus compatibility, projection and gate-contract track. Accepted OAW and
+H1 evidence remains valid, but native coding-loop, worker and sandbox
+activation are no longer the Harbour One product destination.
 Mode: Standard ABC
 Created: 2026-07-11
-Last updated: 2026-08-01 - H1-28 added the autonomous-versus-user-owned gate
-model and Gate Inbox contract; H1-39 added bounded subagent-delegation
-visibility as a read-only, dependency-gated projection.
+Last updated: 2026-08-29 - product direction aligned around Harbour One as the
+fork/product, Odysseus as the legacy base, and Codex/optional Goose as external
+coding executors.
 
 ## Multi-Agent Execution Guidance
 
@@ -39,11 +39,17 @@ AI dispatch rules:
 
 ## Goal
 
-Odysseus ships the Harbor One frontend as the live operator workspace for autonomous software projects: user intent is clarified without hidden assumptions before any plan is created, then tasks can move to scoped repo work, sandboxed tests, evidence, review, memory upkeep and publish gates without hidden second sources of truth.
+Harbour One provides the operator workspace and control plane for projects: user intent is clarified without hidden assumptions, canonical Planning and knowledge supply Forge context, typed Inbox decisions govern work, and external coding executors return revision-bound evidence without creating a second source of truth.
 
 ## Product Boundary
 
-Harbor One is the prototype name for the new Odysseus frontend. The durable product, API namespace and canonical schemas should be `odysseus.*`. Existing `harbor.*` names may stay temporarily as legacy-compatible aliases, but must not become a second product model.
+Harbour One is the product and fork. Odysseus is its legacy implementation base and compatibility boundary, not the current product name. Existing `odysseus.*` API/schema identifiers and older `harbor.*` aliases may remain during a versioned migration; they must not be mass-renamed or interpreted as competing product models.
+
+Harbour One owns Planning, memory/knowledge, Forge context assembly, Inbox,
+Nextcloud integration, gates and evidence projections. Codex is the primary
+external coding executor; Goose is an optional later provider behind the same
+adapter contract. Harbour One does not own a general coding-agent loop, model
+orchestrator or replacement sandbox runtime.
 
 ## Clarification-First Product Rule
 
@@ -200,7 +206,13 @@ Remaining gate/blocker: `VERSION-1-UI-LIVE`, `CLARIFICATION-UX-ACCEPTANCE`, `UI-
 
 Recommended next action: no remaining ungated repo-only/safe-offline slice is open in this roadmap. The next human decision is `CLARIFICATION-UX-ACCEPTANCE` for the Agent-screen clarification UI, followed by bounded live preview/cutover Go when the design surface is accepted.
 
-## H1-28 Autonomous And User-Owned Gate Extension
+## Historical H1-28 Autonomous And User-Owned Gate Extension
+
+Superseded-direction notice (2026-08-29): this section records the earlier
+bounded-projection ownership model. It remains evidence for gate separation
+and non-self-approval, but its statement that Harbour One owns "only" a
+read-only projection is not current product authority. The current ownership
+boundary is defined in `docs/plans/harbour-one-product-roadmap.json`.
 
 H1-28 is a roadmap-authoring and reconciliation slice only. It does not grant
 a worker start, thread send, commit, push, PR, merge, deployment, plugin
@@ -340,7 +352,13 @@ re-reviewed scope, and the same still-valid user decision; otherwise it
 returns to the Gate Inbox. A worker restart, missed heartbeat or notification
 failure is a recoverable status, not evidence that an effect completed.
 
-### H1 Dependency-Ordered Slice Queue
+### Historical H1 Dependency-Ordered Slice Queue (superseded 2026-08-29)
+
+The following queue records the earlier Odysseus-native projection/runtime
+plan. It is retained for auditability and accepted evidence only. New work is
+defined by `docs/plans/harbour-one-product-roadmap.json`; in particular,
+H1R-12 and H1R-13 replace the runtime direction of historical H1-37 through
+H1-39.
 
 | ID | Class | Owner | Depends on | Objective and boundary | Acceptance evidence |
 | --- | --- | --- | --- | --- | --- |
@@ -353,9 +371,9 @@ failure is a recoverable status, not evidence that an effect completed.
 | H1-34 | repo_only | Alice/Bob, one UI writer | H1-29, H1-31, H1-32, H1-33; accepted ACPR-14/VCL-4 | Implement a read-only Gate Inbox projection and deterministic fixture states in Harbor One. It may render the three action affordances but cannot persist a decision or start work. | Contract/UI tests render accepted ACPR executable browser/a11y/visual receipt references for blocked, review-ready, stale, deferred, machine-pass, failed-review and user-owned states; fixture data is visibly non-authoritative. |
 | H1-35 | needs_design | user only; Alice prepares packet | H1-34 | Perform semantic Gate Inbox UI/UX approval. The user evaluates decision clarity, changed-surface visibility, receipt limits, risk wording and desktop/mobile/200% zoom behavior. | User-recorded Accept/Changes requested/Defer through the existing canonical Planning gate/decision path, not the not-yet-wired UI affordances; screenshots and visual diffs are evidence inputs, never semantic approval by themselves. |
 | H1-36 | repo_only | Bob, Charlie independent review | H1-35 | Wire user actions through the canonical Planning decision adapter with authenticated user-only authorization, versioning, audit and defer/resume rules. No actor may accept its own work. | Tests prove agents/implementers cannot accept, stale cards cannot mutate, duplicate actions are idempotent, Changes requested revises scope, and Defer preserves unrelated lanes. |
-| H1-37 | needs_live_go | Charlie | H1-30, H1-31, H1-33, H1-36; accepted H1-39; accepted CAO-08C/CAO-08D | Integrate a CAO-owned real bounded worker/thread adapter behind one exact operator Go. Harbor projects trusted identity, idempotency/fencing, pause/kill and redacted receipts; it does not implement a second controller. | Fake/live adapter parity, wrong-target rejection, duplicate-send suppression, pause/no-send, lease-loss stop and bounded redacted readback; no broad scheduler activation. |
-| H1-38 | repo_only_then_needs_live_go | Charlie | H1-30, H1-31, H1-36, H1-37 | Add notification, timeout and restart/resume coordination with a dry-run model first. Real cadence or delivery is separately action-gated. | Deterministic tests for dedupe, expiry-without-consent, restart recovery, two-failed-approaches escalation and no notification for routine green work; live proof requires an exact cadence/delivery Go. |
-| H1-39 | repo_only | Alice/Bob, Charlie integration | accepted H1-35; accepted CAO-08B1/CAO-08C1; accepted ACPR-17 evidence | Add the bounded subagent-delegation projection and deterministic Gate Inbox/workspace fixtures. It consumes trusted parent/child, capsule and receipt facts only; it never creates dispatches, claims, capsules, memory, gates or notification truth. Explicitly exclude `ops/**`, `ops/homeserver/**`, OPS-Alert, security-incident and production-host paths. | Contract/UI fixtures prove parent/child identity, revision/freshness/scope-digest, allowed-surface count, state/budget, receipt/reviewer/blocker and cancel/expiry/resume rendering; no raw private context/log can render. Any new visual surface beyond the accepted H1-35 semantics requires the user-only H1-39 semantic gate below. |
+| H1-37 | needs_live_go | Charlie | H1-30, H1-31, H1-33, H1-36; accepted H1-39; accepted CAO-08C/CAO-08D | Historical plan: integrate a CAO-owned real bounded worker/thread adapter behind one exact operator Go. Harbor projects trusted identity, idempotency/fencing, pause/kill and redacted receipts; it does not implement a second controller. Superseded by H1R-12/H1R-13. | Fake/live adapter parity, wrong-target rejection, duplicate-send suppression, pause/no-send, lease-loss stop and bounded redacted readback; no broad scheduler activation. |
+| H1-38 | repo_only_then_needs_live_go | Charlie | H1-30, H1-31, H1-36, H1-37 | Historical plan: add notification, timeout and restart/resume coordination with a dry-run model first. Real cadence or delivery is separately action-gated. Superseded by the external-executor event projection in the new master. | Deterministic tests for dedupe, expiry-without-consent, restart recovery, two-failed-approaches escalation and no notification for routine green work; live proof requires an exact cadence/delivery Go. |
+| H1-39 | repo_only | Alice/Bob, Charlie integration | accepted H1-35; accepted CAO-08B1/CAO-08C1; accepted ACPR-17 evidence | Historical plan: add the bounded subagent-delegation projection and deterministic Gate Inbox/workspace fixtures. It consumes trusted parent/child, capsule and receipt facts only; it never creates dispatches, claims, capsules, memory, gates or notification truth. Explicitly exclude `ops/**`, `ops/homeserver/**`, OPS-Alert, security-incident and production-host paths. Superseded by H1R-12 through H1R-14. | Contract/UI fixtures prove parent/child identity, revision/freshness/scope-digest, allowed-surface count, state/budget, receipt/reviewer/blocker and cancel/expiry/resume rendering; no raw private context/log can render. Any new visual surface beyond the accepted H1-35 semantics requires the user-only H1-39 semantic gate below. |
 
 H1-29 is the first H1 frontier but is not claimable until CAO-08A/08B and
 ACPR-11 are accepted. After H1-29, H1-30 and H1-31 may run in parallel only
@@ -428,7 +446,13 @@ This gate is not opened when H1-39 only reuses the already accepted H1-35
 Gate Inbox surface; automated screenshots, visual diffs and artifact existence
 never close it.
 
-## Main Deficiencies
+## Historical Deficiency Inventory
+
+This inventory is retained as the legacy track's observation snapshot. Some
+items describe the former static prototype and are not normative product
+framing. Current gaps, dependencies and progress are maintained only in
+`docs/plans/harbour-one-product-roadmap.json` and
+`docs/plans/harbour-one-roadmap-realignment-2026-08-29.md`.
 
 1. Harbor One is not connected to the canonical runtime.
    The frontend is a standalone static prototype with demo data and placeholders. It cannot currently show live runner state, sandbox jobs, memory provenance, Gemma queue state or planning gates.
@@ -442,11 +466,11 @@ never close it.
 4. Legacy naming remains as migration debt.
    `odysseus.planning.*` is now canonical and `harbor.planning.*` is an alias, but filenames and older roadmap artifacts still carry the prototype name.
 
-5. Autonomous coding has pieces, not a live operator workflow.
-   The backend can plan, gate and dispatch checks, but Harbor One does not yet drive the full lifecycle from project selection to scoped worktree, sandbox evidence, review and publish gate.
+5. External coding execution is not yet integrated.
+   The legacy backend contains useful planning, safety, receipt and sandbox contracts, but Harbour One still lacks a provider-neutral protocol and Codex adapter that bind tasks and evidence to canonical Planning revisions.
 
-6. Sandbox capability profiles are contract-ready but not live-proven.
-   Python, Node, WebDev/Playwright and planned Godot profiles now exist with artifact policies and gates, but bounded live execution still needs operator Go.
+6. Legacy sandbox capability profiles are compatibility evidence, not a product runtime target.
+   Python, Node, WebDev/Playwright and planned Godot contracts can constrain an external adapter, while execution environment ownership remains with Codex or the selected provider.
 
 7. Live testing evidence is not first-class in the frontend.
    Sandbox logs, quality gates, done gates, publish plans, local-model queue status and memory maintenance status are not combined into one operator-readable evidence timeline.

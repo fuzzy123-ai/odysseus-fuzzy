@@ -876,3 +876,26 @@ remaining_gates:
   - a fresh dependency, ownership and path-collision audit before FCA-00 claim
   - implementation, focused tests, activation packets and action-specific live gates
 ```
+
+## 2026-10-02 source-size prerequisite successor
+
+The current completion run authorizes the scoped
+[`FCA-SOURCE-SIZE-STREAMING-PREREQUISITE-20261002-v1`](abc-fca-source-size-streaming-prerequisite-architecture-20261002.json)
+successor for implementation and verification. Its ten-path manifest includes
+the policy source/test pair: the earlier eight-path proposal would still reject
+large files at policy admission. Historical frozen architecture packets above
+remain historical evidence; this successor replaces only their 16 MiB source
+eligibility ceilings, 17-page maximum, old admission generation and manifest
+for this new prerequisite. Exact type, binding, tamper, hash and redaction
+guards remain required.
+
+Source counts use signed-64 identity representation; page, output, inventory,
+metadata, line, occurrence and time budgets remain separate processing limits.
+Budget exhaustion yields honest partial/failed evidence, never a source-size
+policy exclusion or false completion. The accepted one-shot character splitter
+is preserved; bounded streaming is an additive utility.
+
+Status: architecture normalized; implementation and fresh deep acceptance
+pending. This prerequisite does not complete FCA-03 extraction, FCA-05 SQLite
+publication/resume, FCA-06 query binding, FCA-06A exact reader/dispatch/app, or
+H1R-07. No productive or live action is authorized by this packet.

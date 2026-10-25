@@ -1,4 +1,5 @@
 import json
+from dataclasses import replace
 
 import pytest
 
@@ -9,6 +10,7 @@ from src.code_lineage_contract import (
     FileEvent,
     FileEventKind,
     HistoryState,
+    GitBlobEvidenceRef,
     LineageBundle,
     LineageLink,
     LineageLinkKind,
@@ -16,6 +18,7 @@ from src.code_lineage_contract import (
     LinkStatus,
     UncertaintyReason,
     UncertaintyRecord,
+    SourceVersionEvidenceBinding,
     record_from_json,
 )
 from src.unified_source_index_contract import (
@@ -299,6 +302,76 @@ def test_bundle_is_deterministic_and_cross_validates_references_paths_and_uncert
     incomplete = _occurrence("src/c.py", commit, history_first_observed_at="")
     with pytest.raises(CodeLineageContractError, match="requires uncertainty"):
         LineageBundle("demo", (commit,), (incomplete,), (), (), ())
+
+
+def test_bundle_bijectively_binds_each_occurrence_to_exact_git_blob_and_usi_evidence():
+    commit = _commit(ROOT_SHA)
+    occurrence = _occurrence("src/a.py", commit)
+    source_version = SourceVersionRecord.create(
+        _source("src/a.py"), revision_ref=f"git:{commit.commit_id}", content_hash=content_hash("def f(): pass"),
+        version_observed_at=NOW, indexed_at=LATER,
+    )
+    blob = GitBlobEvidenceRef("demo", commit.commit_ref, commit.commit_id, "src/a.py", "1" * 40)
+    binding = SourceVersionEvidenceBinding(
+        "demo", commit.commit_ref, commit.commit_id, "src/a.py", "1" * 40,
+        blob.git_blob_ref, occurrence.occurrence_ref, occurrence.evidence.source_id,
+        occurrence.evidence.source_version_id, source_version,
+        occurrence.evidence,
+    )
+    bundle = LineageBundle("demo", (commit,), (occurrence,), (), (), (), (blob,), (binding,))
+    assert LineageBundle.from_json(bundle.to_json()) == bundle
+    assert SourceVersionEvidenceBinding.from_json(binding.to_json()) == binding
+    with pytest.raises(CodeLineageContractError, match="match Git path"):
+        SourceVersionEvidenceBinding(
+            "demo", commit.commit_ref, commit.commit_id, "src/b.py", "1" * 40,
+            blob.git_blob_ref, occurrence.occurrence_ref, occurrence.evidence.source_id,
+            source_version.source_version_id, source_version,
+            occurrence.evidence,
+        )
+    foreign_version = SourceVersionRecord.create(
+        _source("src/a.py"), revision_ref=f"git:{LEFT_SHA}", content_hash=content_hash("def f(): pass"),
+        version_observed_at=NOW, indexed_at=LATER,
+    )
+    with pytest.raises(CodeLineageContractError, match="revision must exactly match"):
+        SourceVersionEvidenceBinding(
+            "demo", commit.commit_ref, commit.commit_id, "src/a.py", "1" * 40,
+            blob.git_blob_ref, occurrence.occurrence_ref, foreign_version.source_id,
+            foreign_version.source_version_id, foreign_version, occurrence.evidence,
+        )
+    tampered = binding.to_dict()
+    tampered["source_version"] = foreign_version.to_dict()
+    tampered["source_version_id"] = foreign_version.source_version_id
+    with pytest.raises(CodeLineageContractError, match="revision must exactly match"):
+        SourceVersionEvidenceBinding.from_dict(tampered)
+    later_version = replace(source_version, indexed_at="2026-07-13T12:00:00Z")
+    later_binding = SourceVersionEvidenceBinding(
+        "demo", commit.commit_ref, commit.commit_id, "src/a.py", "1" * 40,
+        blob.git_blob_ref, occurrence.occurrence_ref, occurrence.evidence.source_id,
+        occurrence.evidence.source_version_id, later_version, occurrence.evidence,
+    )
+    later_bundle = LineageBundle("demo", (commit,), (occurrence,), (), (), (), (blob,), (later_binding,))
+    assert later_binding.binding_ref != binding.binding_ref
+    assert later_bundle.bundle_ref != bundle.bundle_ref
+    stale_version_payload = binding.to_dict()
+    stale_version_payload["source_version"]["indexed_at"] = "2026-07-13T12:00:00Z"
+    with pytest.raises(CodeLineageContractError, match="canonical identity"):
+        SourceVersionEvidenceBinding.from_dict(stale_version_payload)
+    stale_evidence_payload = binding.to_dict()
+    stale_evidence_payload["evidence"]["content_hash"] = "9" * 64
+    with pytest.raises(CodeLineageContractError, match="canonical identity"):
+        SourceVersionEvidenceBinding.from_dict(stale_evidence_payload)
+
+
+def test_legacy_bundle_without_optional_blob_arrays_deserializes_as_empty():
+    commit = _commit(ROOT_SHA)
+    occurrence = _occurrence("src/a.py", commit)
+    legacy = LineageBundle("demo", (commit,), (occurrence,), (), (), ())
+    payload = legacy.to_dict()
+    payload.pop("git_blob_evidence")
+    payload.pop("source_version_bindings")
+    restored = LineageBundle.from_dict(payload)
+    assert restored.git_blob_evidence == ()
+    assert restored.source_version_bindings == ()
 
 
 def test_strict_payload_rejects_identity_fields_and_tampered_ids():

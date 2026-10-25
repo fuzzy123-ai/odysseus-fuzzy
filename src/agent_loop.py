@@ -26,6 +26,7 @@ from src.settings import get_setting
 from src.claim_evidence_gate import build_claim_evidence_correction, evaluate_response_claims
 from src.tool_transaction_ledger import transactions_from_tool_events
 from src.todo_transaction_receipts import todo_safe_history_event
+from src.tool_domains.github_issues import _github_issue_duplicate_search_receipt
 from src.effectful_tool_matrix import tool_effect_category
 from src.tool_security import (
     PUBLIC_MCP_SERVER_ALLOWLIST,
@@ -49,6 +50,10 @@ from src.agent_tools import (
     TOOL_TAGS,
     ToolBlock,
     MAX_AGENT_ROUNDS,
+)
+from src.agent_tools.document_tools import (
+    finalize_document_tool_result,
+    validate_document_revision,
 )
 from src.agent_loop_tool_mechanics import (
     _append_tool_results,
@@ -77,6 +82,17 @@ logger = logging.getLogger(__name__)
 def _todo_tool_event_forward(result: object) -> dict:
     """Forward only a closed, content-free Todo event into history."""
     return todo_safe_history_event(result)
+
+
+def _github_issue_tool_event_forward(result: object) -> dict:
+    """Forward only a validated local duplicate-search receipt into history."""
+
+    event = {"tool": "manage_github_issues"}
+    receipt = _github_issue_duplicate_search_receipt(result)
+    if receipt is not None:
+        event["action"] = "duplicate_search"
+        event["github_issue_duplicate_search_receipt"] = receipt
+    return event
 
 
 def _tool_execution_is_effectful(tool: object, result: object) -> bool:
@@ -284,6 +300,8 @@ async def stream_agent_loop(
     audit_doc_id: Optional[str] = None,
     tool_usage_context: Optional[Any] = None,
     tool_usage_instrumentation: Optional[Any] = None,
+    *,
+    document_authority=None,
 ) -> AsyncGenerator[str, None]:
     """Streaming agent loop generator.
 
@@ -296,11 +314,39 @@ async def stream_agent_loop(
       - data: [DONE]                                        (end)
     """
 
+    document_revision_token = None
+    if active_document is not None:
+        try:
+            document_revision_token = (
+                active_document.id,
+                active_document.version_count,
+                active_document.current_content,
+                active_document.is_active,
+                active_document.archived,
+                active_document.session_id,
+                active_document.title,
+                active_document.language,
+            )
+        except AttributeError:
+            # Compatibility callers may supply prompt-only document objects.
+            # Only the route's complete bounded snapshot becomes a mutation token.
+            document_revision_token = None
+
     context_snapshot = await _resolve_agent_context_snapshot(
         endpoint_url,
         model,
         context_length,
     )
+    if document_revision_token is not None:
+        try:
+            if not validate_document_revision(
+                document_authority, owner, document_revision_token
+            ):
+                yield 'data: {"type":"document_conflict","error":"Document changed; retry the request"}\n\n'
+                return
+        except Exception:
+            yield 'data: {"type":"document_conflict","error":"Document access is no longer available"}\n\n'
+            return
     context_length = context_snapshot.context_length
     mcp_mgr = get_mcp_manager()
     bound_tool_usage_instrumentation = _bind_tool_usage_instrumentation(
@@ -616,6 +662,16 @@ async def stream_agent_loop(
         _is_api_model = False
     else:
         _is_api_model = any(h in endpoint_url for h in _API_HOSTS) or _model_supports_tools
+    if document_revision_token is not None:
+        try:
+            if not validate_document_revision(
+                document_authority, owner, document_revision_token
+            ):
+                yield 'data: {"type":"document_conflict","error":"Document changed; retry the request"}\n\n'
+                return
+        except Exception:
+            yield 'data: {"type":"document_conflict","error":"Document access is no longer available"}\n\n'
+            return
     messages, mcp_schemas = _build_system_prompt(
         messages, model, active_document, mcp_mgr, disabled_tools,
         needs_admin=_needs_admin, relevant_tools=_relevant_tools,
@@ -954,6 +1010,16 @@ async def stream_agent_loop(
         # complementary cap for the rare stream that trickles bytes forever and
         # so never trips the inactivity timeout. Generous — only catches runaway.
         _round_deadline = time.time() + max(agent_stream_timeout * 4, 1200)
+        if document_revision_token is not None:
+            try:
+                if not validate_document_revision(
+                    document_authority, owner, document_revision_token
+                ):
+                    yield 'data: {"type":"document_conflict","error":"Document changed; retry the request"}\n\n'
+                    return
+            except Exception:
+                yield 'data: {"type":"document_conflict","error":"Document access is no longer available"}\n\n'
+                return
         async for chunk in stream_llm_with_fallback(
             _candidates,
             messages,
@@ -969,6 +1035,16 @@ async def stream_agent_loop(
             task_id=audit_task_id,
             doc_id=audit_doc_id,
         ):
+            if document_revision_token is not None:
+                try:
+                    if not validate_document_revision(
+                        document_authority, owner, document_revision_token
+                    ):
+                        yield 'data: {"type":"document_conflict","error":"Document changed; retry the request"}\n\n'
+                        return
+                except Exception:
+                    yield 'data: {"type":"document_conflict","error":"Document access is no longer available"}\n\n'
+                    return
             if time.time() > _round_deadline:
                 logger.warning(f"[agent] round {round_num} stream exceeded wall-clock deadline; cutting off")
                 break
@@ -1474,6 +1550,8 @@ async def stream_agent_loop(
                             headers=headers or {},
                             context_length=context_length,
                             tool_usage_instrumentation=bound_tool_usage_instrumentation,
+                            document_authority=document_authority,
+                            document_revision_token=document_revision_token,
                         )
                     finally:
                         # Sentinel so the drainer knows to stop.
@@ -1490,6 +1568,34 @@ async def stream_agent_loop(
                         f'data: {json.dumps({"type": "tool_progress", "tool": block.tool_type, "round": round_num, **evt})}\n\n'
                     )
                 desc, result = await _tool_task
+                if block.tool_type in (
+                    "create_document",
+                    "update_document",
+                    "edit_document",
+                    "suggest_document",
+                    "manage_documents",
+                ):
+                    try:
+                        result, _fresh_revision, _replace_revision = (
+                            finalize_document_tool_result(
+                                result, document_authority, owner
+                            )
+                        )
+                        if _replace_revision:
+                            if (
+                                isinstance(_fresh_revision, tuple)
+                                and len(_fresh_revision) == 8
+                                and _fresh_revision[3] is False
+                            ):
+                                document_revision_token = None
+                            else:
+                                document_revision_token = _fresh_revision
+                    except Exception:
+                        desc = f"{block.tool_type}: error"
+                        result = {
+                            "error": "Document changed or access is no longer available",
+                            "exit_code": 1,
+                        }
 
             # Only the trusted publisher tool may create assistant attachment
             # metadata. Re-resolve the ID with the current owner before it can
@@ -1774,6 +1880,11 @@ async def stream_agent_loop(
             )
             if block.tool_type == "manage_todos":
                 tool_event = {"round": round_num, **_todo_event}
+            elif block.tool_type == "manage_github_issues":
+                tool_event = {
+                    "round": round_num,
+                    **_github_issue_tool_event_forward(result),
+                }
             else:
                 tool_event = {
                     "round": round_num,

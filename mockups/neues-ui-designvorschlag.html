@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Odysseus – Designvorschlag (Wireframe)</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --border: #e4e7ec;
+    --text: #171a1f;
+    --muted: #6b7280;
+    --accent: #4f46e5;
+    --accent-soft: #eef2ff;
+    --danger: #e11d48;
+    --radius: 14px;
+    --shadow: 0 1px 2px rgba(16,24,40,.06), 0 8px 24px rgba(16,24,40,.06);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    padding: 32px 20px 60px;
+  }
+  .frame { max-width: 1080px; margin: 0 auto; }
+
+  h1 { font-size: 22px; font-weight: 650; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); font-size: 14px; margin-top: 4px; }
+
+  .principles {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 22px 0;
+  }
+  .principle {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px;
+  }
+  .principle b { display: block; font-size: 14px; margin-bottom: 4px; }
+  .principle span { color: var(--muted); font-size: 13px; }
+
+  /* ---- App wireframe ---- */
+  .app {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 18px; box-shadow: var(--shadow); overflow: hidden;
+  }
+  .topbar {
+    display: flex; align-items: center; gap: 20px;
+    padding: 12px 18px; border-bottom: 1px solid var(--border);
+  }
+  .brand { display: flex; align-items: center; gap: 9px; font-weight: 650; font-size: 15px; }
+  .brand .dot { width: 22px; height: 22px; border-radius: 7px; background: var(--accent); display: grid; place-items: center; color: #fff; font-size: 12px; }
+  .nav { display: flex; gap: 4px; flex: 1; }
+  .nav .tab {
+    padding: 7px 13px; border-radius: 9px; color: var(--muted);
+    font-size: 14px; cursor: default;
+  }
+  .nav .tab.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  .tools { display: flex; align-items: center; gap: 10px; }
+  .search {
+    display: flex; align-items: center; gap: 8px; color: var(--muted);
+    background: var(--bg); border: 1px solid var(--border); border-radius: 9px;
+    padding: 7px 12px; font-size: 13px; width: 190px;
+  }
+  .search .kbd { border: 1px solid var(--border); border-radius: 5px; padding: 0 5px; font-size: 11px; background: #fff; }
+  .avatar { width: 30px; height: 30px; border-radius: 50%; background: #c7d2fe; color: var(--accent); display: grid; place-items: center; font-weight: 600; font-size: 13px; }
+
+  .body { display: flex; min-height: 460px; }
+  .content { flex: 1; padding: 22px; }
+  .panel {
+    border: 1px dashed var(--border); border-radius: var(--radius);
+    background: var(--bg); min-height: 300px; padding: 20px;
+    display: flex; flex-direction: column;
+  }
+  .panel .title { font-size: 15px; font-weight: 600; margin-bottom: 12px; }
+  .bubbles { display: flex; flex-direction: column; gap: 12px; }
+  .msg { max-width: 66%; padding: 10px 14px; border-radius: 12px; font-size: 13.5px; background: #fff; border: 1px solid var(--border); }
+  .msg.user { align-self: flex-end; background: var(--accent); color: #fff; border: none; }
+  .composer {
+    margin-top: auto; display: flex; gap: 10px; align-items: center;
+    background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px;
+  }
+  .composer .input { flex: 1; color: var(--muted); font-size: 13.5px; }
+  .composer .send { background: var(--accent); color: #fff; border-radius: 9px; padding: 7px 14px; font-size: 13px; font-weight: 600; }
+
+  /* Annotation markers */
+  .mark {
+    position: relative; display: inline-block; width: 18px; height: 18px;
+    background: var(--accent); color: #fff; border-radius: 50%;
+    font-size: 11px; font-weight: 700; text-align: center; line-height: 18px;
+  }
+  .legend { margin-top: 18px; display: grid; gap: 8px; }
+  .legend .row { display: flex; gap: 10px; align-items: baseline; font-size: 13px; color: var(--muted); }
+  .legend .row b { color: var(--text); font-size: 13px; }
+
+  @media (max-width: 720px) {
+    .principles { grid-template-columns: 1fr; }
+    .nav .tab:not(.active) { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="frame">
+
+  <h1>Odysseus · Designvorschlag <span style="color:var(--muted);font-weight:400">(Wireframe, ohne Sidebar)</span></h1>
+  <p class="sub">Nur Struktur &amp; Prinzipien – noch kein vollständiges UI. Kein Bezug zur bestehenden Legacy-Oberfläche.</p>
+
+  <div class="principles">
+    <div class="principle"><b>1 · Keine Sidebar</b><span>Eine horizontale Top-Leiste trägt Marke, Workspace-Tabs und Suche. Der ganze Platz darunter gehört dem Inhalt.</span></div>
+    <div class="principle"><b>2 · Ein Fokus pro Bildschirm</b><span>Keine schwebenden Fenster, kein Andocken. Ein Bereich, klar und ruhig.</span></div>
+    <div class="principle"><b>3 · Schnell wechseln</b><span>Suche bzw. <b>⌘K</b> öffnet einen Wechseldialog – Navigation ohne Sidebar.</span></div>
+  </div>
+
+  <div class="app">
+    <div class="topbar">
+      <div class="brand"><span class="dot">◆</span> Odysseus</div>
+      <nav class="nav">
+        <span class="tab active">Chat</span>
+        <span class="tab">Dokumente</span>
+        <span class="tab">Mail</span>
+        <span class="tab">Notizen</span>
+        <span class="tab">Kalender</span>
+        <span class="tab">Research</span>
+      </nav>
+      <div class="tools">
+        <div class="search">Suchen oder wechseln… <span class="kbd">⌘K</span></div>
+        <div class="avatar">N</div>
+      </div>
+    </div>
+
+    <div class="body">
+      <div class="content">
+        <div class="panel">
+          <div class="title"><span class="mark">1</span> Inhalt – ein fokussierter Arbeitsbereich</div>
+          <div class="bubbles">
+            <div class="msg">Fasse die letzten drei E-Mails zusammen.</div>
+            <div class="msg user">Hier steht die Antwort des Assistenten …</div>
+            <div class="msg">Der aktive Bereich bleibt immer vollständig sichtbar, ohne seitliche Navigation.</div>
+          </div>
+          <div class="composer">
+            <div class="input">Nachricht schreiben …</div>
+            <div class="send">Senden</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <div class="row"><span class="mark">1</span><span><b>Top-Leiste</b> ersetzt die Sidebar: Marke links, Tabs mittig, Suche/Profil rechts.</span></div>
+    <div class="row"><span class="mark">2</span><span><b>Horizontale Tabs</b> = Workspaces (Chat, Dokumente, Mail, Notizen, Kalender, Research).</span></div>
+    <div class="row"><span class="mark">3</span><span><b>⌘K / Suche</b> = schneller Bereichs- und Funktionswechsel.</span></div>
+    <div class="row"><span class="mark">4</span><span><b>Composer/Aktionen</b> unten, kontextbezogen zum aktiven Bereich.</span></div>
+  </div>
+
+</div>
+</body>
+</html>

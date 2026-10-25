@@ -416,3 +416,43 @@ def test_workspace_snapshot_exposes_planning_details_without_enabling_writes():
     assert details["apply_gate_status"] == "policy_gated"
     assert details["writes_supported"] is False
     assert "C:/Users" not in encoded
+
+
+def test_build_default_planning_snapshot_provider(tmp_path):
+    from typing import Mapping
+    from routes.workspace_snapshot_routes import build_default_planning_snapshot_provider
+
+    provider_result = build_default_planning_snapshot_provider()
+    assert isinstance(provider_result, Mapping)
+    assert provider_result["schema"] == "odysseus.workspace_section.v1"
+    assert provider_result["state"] == "live"
+    assert provider_result["status"] == "ok"
+    assert provider_result["roadmaps"]["count"] >= 1
+    assert "abc-roadmap-continuation-runtime" in provider_result["roadmaps"]["ids"]
+    assert provider_result["gates"]["count"] >= 0
+    assert provider_result["proposals"]["count"] >= 0
+    assert "planning:census" in provider_result["source_ref"]
+    assert callable(provider_result)
+    assert provider_result() == provider_result
+
+    # Fallback when directory lacks roadmaps
+    fallback_result = build_default_planning_snapshot_provider(project_root=tmp_path)
+    assert fallback_result["schema"] == "odysseus.workspace_section.v1"
+    assert fallback_result["state"] == "partial"
+    assert fallback_result["roadmaps"]["count"] == 0
+    assert fallback_result["source_ref"] == "planning:fallback"
+
+
+def test_workspace_snapshot_route_uses_default_planning_provider_when_omitted(tmp_path):
+    response = _client(
+        _app(tmp_path,
+            operator_provider=lambda: {"schema": "odysseus.operator.v1", "status": "ok"},
+        )
+    ).get("/api/workspace/snapshot")
+    assert response.status_code == 200
+    payload = response.json()
+    planning = {section["id"]: section for section in payload["snapshot"]["sections"]}["planning"]
+    assert planning["available"] is True
+    assert planning["state"] == "live"
+    assert planning["status"] == "ok"
+    assert planning["status_details"]["roadmap_count"] >= 1
