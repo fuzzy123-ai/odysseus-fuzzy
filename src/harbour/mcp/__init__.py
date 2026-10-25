@@ -163,6 +163,58 @@ HARBOUR_MCP_FIRST_TOOLS: dict[str, dict[str, Any]] = {
             },
         },
     },
+    "harbour_gateway_claim_lease": {
+        "name": "harbour_gateway_claim_lease",
+        "namespace": "harbour_gateway",
+        "description": "Acquire a path-isolated worker execution lease with fencing token",
+        "bound_service": "CodingAgentBackend",
+        "scope": "mcp:harbour:gateway",
+        "input_schema": {
+            "type": "object",
+            "required": ["task_id", "write_paths"],
+            "properties": {
+                "task_id": {"type": "string", "description": "Unique task identifier"},
+                "write_paths": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "File or directory paths claimed for exclusive mutation",
+                },
+                "read_only_paths": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Optional paths read by worker without mutation lock",
+                },
+                "ttl_seconds": {
+                    "type": "integer",
+                    "default": 300,
+                    "description": "Lease duration in seconds",
+                },
+                "claim_id": {
+                    "type": "string",
+                    "description": "Optional durable claim reference",
+                },
+            },
+        },
+    },
+    "harbour_gateway_release_lease": {
+        "name": "harbour_gateway_release_lease",
+        "namespace": "harbour_gateway",
+        "description": "Release an active worker execution lease and record verification receipt",
+        "bound_service": "CodingAgentBackend",
+        "scope": "mcp:harbour:gateway",
+        "input_schema": {
+            "type": "object",
+            "required": ["lease_id"],
+            "properties": {
+                "lease_id": {"type": "string", "description": "Active lease identifier"},
+                "task_id": {"type": "string", "description": "Optional matching task identifier"},
+                "verification_receipt": {
+                    "type": "object",
+                    "description": "Verification outcome or receipt dictionary",
+                },
+            },
+        },
+    },
     # 4. harbour_inbox_*
     "harbour_inbox_list_items": {
         "name": "harbour_inbox_list_items",

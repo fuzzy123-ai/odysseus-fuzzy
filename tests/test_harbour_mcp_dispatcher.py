@@ -27,9 +27,9 @@ def _rpc(method: str, params: dict | None = None, message_id: int = 1) -> dict:
 
 
 def test_build_harbour_mcp_tool_contracts():
-    """Tool contracts builder must cover all 12 tools and support scope filtering."""
+    """Tool contracts builder must cover all 14 tools and support scope filtering."""
     contracts = build_harbour_mcp_tool_contracts()
-    assert len(contracts) == 12
+    assert len(contracts) == 14
     names = {c["name"] for c in contracts}
     assert names == set(HARBOUR_MCP_FIRST_TOOLS.keys())
     for contract in contracts:
@@ -54,11 +54,13 @@ def test_build_harbour_mcp_tool_contracts():
     }
 
     gateway_contracts = build_harbour_mcp_tool_contracts("mcp:harbour:gateway")
-    assert len(gateway_contracts) == 3
+    assert len(gateway_contracts) == 5
     assert {c["name"] for c in gateway_contracts} == {
         "harbour_gateway_dispatch_task",
         "harbour_gateway_get_runner_state",
         "harbour_gateway_evaluate_quality_gate",
+        "harbour_gateway_claim_lease",
+        "harbour_gateway_release_lease",
     }
 
     memory_contracts = build_harbour_mcp_tool_contracts("mcp:harbour:context:read")
@@ -425,3 +427,100 @@ def test_end_to_end_mcp_dispatch_http_payload():
     )
     assert res4["id"] == 4
     assert res4["error"]["code"] == -32001  # Unauthorized
+
+
+def test_dispatcher_gateway_lease_claim_and_release():
+    """Test dispatching harbour_gateway_claim_lease and harbour_gateway_release_lease."""
+    dispatcher = HarbourMcpDispatcher(repo_root=Path(__file__).resolve().parents[1])
+    identity_gateway = McpAuthenticatedIdentity("tok-gw", "admin", "subj-gw", 1, 1, "mcp:harbour:gateway")
+    identity_inbox = McpAuthenticatedIdentity("tok-inbox", "admin", "subj-inbox", 1, 1, "mcp:harbour:inbox")
+
+    # 1. Successful claim
+    claim_res = dispatcher.dispatch(
+        "harbour_gateway_claim_lease",
+        {
+            "task_id": "task-alpha",
+            "write_paths": ["src/harbour/gateway/worker.py"],
+            "read_only_paths": ["src/harbour/core/"],
+            "ttl_seconds": 300,
+            "claim_id": "claim-alpha",
+        },
+        identity=identity_gateway,
+    )
+    assert claim_res["schema"] == "odysseus.harbour.gateway_lease_ticket.v1"
+    assert claim_res["task_id"] == "task-alpha"
+    assert claim_res["claim_id"] == "claim-alpha"
+    assert claim_res["write_paths"] == ["src/harbour/gateway/worker.py"]
+    assert claim_res["is_active"] is True
+    assert claim_res["fence"] >= 1
+    lease_id = claim_res["lease_id"]
+
+    # 2. Scope collision rejection
+    with pytest.raises(HarbourMcpDispatchError) as exc:
+        dispatcher.dispatch(
+            "harbour_gateway_claim_lease",
+            {
+                "task_id": "task-beta",
+                "write_paths": ["src/harbour/gateway/worker.py"],
+            },
+            identity=identity_gateway,
+        )
+    assert exc.value.code == "lease_error"
+    assert "active_scope_collision" in str(exc.value)
+
+    # 3. Invalid params
+    with pytest.raises(HarbourMcpDispatchError) as exc:
+        dispatcher.dispatch("harbour_gateway_claim_lease", {"task_id": ""}, identity=identity_gateway)
+    assert exc.value.code == "invalid_params"
+
+    with pytest.raises(HarbourMcpDispatchError) as exc:
+        dispatcher.dispatch(
+            "harbour_gateway_claim_lease",
+            {"task_id": "task-gamma", "write_paths": []},
+            identity=identity_gateway,
+        )
+    assert exc.value.code == "invalid_params"
+
+    with pytest.raises(HarbourMcpDispatchError) as exc:
+        dispatcher.dispatch(
+            "harbour_gateway_claim_lease",
+            {"task_id": "task-gamma", "write_paths": ["src/valid.py"], "ttl_seconds": "invalid"},
+            identity=identity_gateway,
+        )
+    assert exc.value.code == "invalid_params"
+
+    # 4. Scope denial (caller has inbox scope instead of gateway)
+    with pytest.raises(HarbourMcpDispatchError) as exc:
+        dispatcher.dispatch(
+            "harbour_gateway_claim_lease",
+            {"task_id": "task-delta", "write_paths": ["src/foo.py"]},
+            identity=identity_inbox,
+        )
+    assert exc.value.code == "unauthorized"
+
+    # 5. Successful release
+    rel_res = dispatcher.dispatch(
+        "harbour_gateway_release_lease",
+        {
+            "lease_id": lease_id,
+            "task_id": "task-alpha",
+            "verification_receipt": {"status": "verified", "passed_checks": 4},
+        },
+        identity=identity_gateway,
+    )
+    assert rel_res["schema"] == "odysseus.harbour.gateway_lease_release.v1"
+    assert rel_res["lease_id"] == lease_id
+    assert rel_res["task_id"] == "task-alpha"
+    assert rel_res["status"] == "released"
+    assert rel_res["is_active"] is False
+    assert rel_res["verification_receipt"]["status"] == "verified"
+
+    # 6. Invalid params on release
+    with pytest.raises(HarbourMcpDispatchError) as exc:
+        dispatcher.dispatch("harbour_gateway_release_lease", {"lease_id": ""}, identity=identity_gateway)
+    assert exc.value.code == "invalid_params"
+
+    # 7. Release of non-existent lease
+    with pytest.raises(HarbourMcpDispatchError) as exc:
+        dispatcher.dispatch("harbour_gateway_release_lease", {"lease_id": "nonexistent_lease_123"}, identity=identity_gateway)
+    assert exc.value.code == "lease_error"

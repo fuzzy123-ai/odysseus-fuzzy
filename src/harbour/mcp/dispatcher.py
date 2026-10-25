@@ -338,6 +338,97 @@ class HarbourMcpDispatcher:
                 "quality_gate": eval_res["quality_gate"],
             }
 
+        if name == "harbour_gateway_claim_lease":
+            task_id = arguments.get("task_id")
+            if not isinstance(task_id, str) or not task_id.strip():
+                raise HarbourMcpDispatchError("invalid_params", "task_id is required")
+            task_id = task_id.strip()
+
+            write_paths = arguments.get("write_paths")
+            if not isinstance(write_paths, (list, tuple)) or not write_paths:
+                raise HarbourMcpDispatchError("invalid_params", "write_paths must be a non-empty list of strings")
+            if any(not isinstance(p, str) or not p.strip() for p in write_paths):
+                raise HarbourMcpDispatchError("invalid_params", "write_paths must contain non-empty strings")
+
+            read_only_paths = arguments.get("read_only_paths") or ()
+            if not isinstance(read_only_paths, (list, tuple)):
+                raise HarbourMcpDispatchError("invalid_params", "read_only_paths must be a list of strings")
+            if any(not isinstance(p, str) for p in read_only_paths):
+                raise HarbourMcpDispatchError("invalid_params", "read_only_paths must contain strings")
+
+            ttl_seconds = arguments.get("ttl_seconds", 300)
+            if not isinstance(ttl_seconds, int):
+                raise HarbourMcpDispatchError("invalid_params", "ttl_seconds must be an integer")
+
+            claim_id = arguments.get("claim_id", "")
+            if not isinstance(claim_id, str):
+                raise HarbourMcpDispatchError("invalid_params", "claim_id must be a string")
+
+            owner_subject_id = (
+                getattr(identity, "owner_subject_id", None)
+                or getattr(identity, "principal_id", None)
+                or "subject:anonymous"
+            )
+
+            try:
+                ticket = coordinator.acquire_worker_lease(
+                    task_id=task_id,
+                    claim_id=claim_id,
+                    owner_principal_id=owner_subject_id,
+                    write_paths=write_paths,
+                    read_only_paths=read_only_paths,
+                    ttl_seconds=ttl_seconds,
+                )
+            except WorkerGatewayLeaseError as exc:
+                raise HarbourMcpDispatchError("lease_error", str(exc)) from exc
+            except WorkerGatewayIsolationError as exc:
+                raise HarbourMcpDispatchError("policy_violation", str(exc)) from exc
+
+            return {
+                "schema": "odysseus.harbour.gateway_lease_ticket.v1",
+                "lease_id": ticket.lease_id,
+                "claim_id": ticket.claim_id,
+                "owner_principal_id": ticket.owner_principal_id,
+                "task_id": ticket.task_id,
+                "repo_id": ticket.repo_id,
+                "write_paths": list(ticket.write_paths),
+                "read_only_paths": list(ticket.read_only_paths),
+                "lease_expires_at": ticket.lease_expires_at,
+                "fence": ticket.fence,
+                "is_active": ticket.is_active,
+                "lease": ticket.to_dict(),
+            }
+
+        if name == "harbour_gateway_release_lease":
+            lease_id = arguments.get("lease_id")
+            if not isinstance(lease_id, str) or not lease_id.strip():
+                raise HarbourMcpDispatchError("invalid_params", "lease_id is required")
+            lease_id = lease_id.strip()
+
+            task_id = arguments.get("task_id")
+            if task_id is not None and not isinstance(task_id, str):
+                raise HarbourMcpDispatchError("invalid_params", "task_id must be a string")
+
+            verification_receipt = arguments.get("verification_receipt")
+            if verification_receipt is not None and not isinstance(verification_receipt, dict):
+                raise HarbourMcpDispatchError("invalid_params", "verification_receipt must be an object")
+
+            try:
+                released = coordinator.release_worker_lease(lease_id)
+            except WorkerGatewayLeaseError as exc:
+                raise HarbourMcpDispatchError("lease_error", str(exc)) from exc
+
+            return {
+                "schema": "odysseus.harbour.gateway_lease_release.v1",
+                "lease_id": released.lease_id,
+                "task_id": task_id or released.task_id,
+                "is_active": released.is_active,
+                "status": "released",
+                "fence": released.fence,
+                "verification_receipt": verification_receipt,
+                "released_at": datetime.now(timezone.utc).isoformat(),
+            }
+
         raise HarbourMcpDispatchError("invalid_params", f"Unknown gateway tool: {name}")
 
     def _dispatch_inbox(

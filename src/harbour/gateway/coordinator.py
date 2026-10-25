@@ -56,6 +56,9 @@ class WorkerGatewayQualityGateError(HarbourWorkerGatewayError):
     """Raised when quality gate evaluation fails or blocks execution."""
 
 
+from src.harbour.gateway.worktree_manager import EphemeralWorktreeManager
+
+
 @dataclass(frozen=True, slots=True)
 class WorkerLeaseTicket:
     """Immutable ticket representing a granted execution lease."""
@@ -196,12 +199,35 @@ class HarbourWorkerGatewayCoordinator:
         self,
         workspace_base: str | Path | None = None,
         runner_store: CodingRunnerStateStore | None = None,
+        worktree_manager: EphemeralWorktreeManager | None = None,
     ) -> None:
         self.workspace_base = Path(workspace_base).resolve() if workspace_base is not None else Path.cwd().resolve()
         self.runner_store = runner_store or CodingRunnerStateStore()
+        self.worktree_manager = worktree_manager or EphemeralWorktreeManager(repo_root=self.workspace_base)
         self._active_leases: dict[str, WorkerLeaseTicket] = {}
         self._fence_counter: int = 0
         self._lock = threading.Lock()
+
+    def create_ephemeral_worktree(
+        self,
+        worker_id: str,
+        task_id: str,
+        base_ref: str = "HEAD",
+    ) -> Path:
+        """Create an ephemeral isolated git worktree for a worker and task."""
+        return self.worktree_manager.create_worktree(worker_id=worker_id, task_id=task_id, base_ref=base_ref)
+
+    def teardown_ephemeral_worktree(
+        self,
+        worktree_path: str | Path,
+        delete_branch: bool = True,
+    ) -> bool:
+        """Teardown an ephemeral isolated git worktree and prune associated branch."""
+        return self.worktree_manager.teardown_worktree(worktree_path=worktree_path, delete_branch=delete_branch)
+
+    def list_active_worktrees(self) -> list[dict[str, Any]]:
+        """List active git worktrees."""
+        return self.worktree_manager.list_active_worktrees()
 
     def validate_worktree_isolation(self, worktree_path: str | Path | None = None) -> Path:
         """Validate that worktree is strictly isolated from the main process and workspace_base.
@@ -593,4 +619,5 @@ __all__ = [
     "WorkerExecutionRequest",
     "WorkerExecutionResponse",
     "HarbourWorkerGatewayCoordinator",
+    "EphemeralWorktreeManager",
 ]

@@ -88,6 +88,9 @@ from src.harbour.gateway.coordinator import (
     WorkerGatewayLeaseError,
     WorkerGatewayQualityGateError,
 )
+from src.harbour.gateway.worktree_manager import (
+    EphemeralWorktreeManager,
+)
 
 WORKER_EXECUTION_POLICY: dict[str, Any] = {
     "schema": "odysseus.harbour.worker_execution_policy.v1",
@@ -106,6 +109,7 @@ WORKER_EXECUTION_POLICY: dict[str, Any] = {
 __all__ = [
     # Coordinator & Lease DTOs
     "HarbourWorkerGatewayCoordinator",
+    "EphemeralWorktreeManager",
     "WorkerLeaseTicket",
     "WorkerExecutionRequest",
     "WorkerExecutionResponse",

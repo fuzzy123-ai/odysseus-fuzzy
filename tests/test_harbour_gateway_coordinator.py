@@ -2,11 +2,13 @@
 
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
+import subprocess
 import pytest
 
 from src.coding_agent_backend import CodingCommandResult
 from src.coding_agent_runner_state import CodingRunnerStateStore
 from src.harbour.gateway import (
+    EphemeralWorktreeManager,
     HarbourWorkerGatewayCoordinator,
     HarbourWorkerGatewayError,
     WorkerGatewayIsolationError,
@@ -383,3 +385,126 @@ def test_dto_serialization_and_immutability():
     assert resp_dict["lease_released"] is True
     assert resp_dict["release_outcome"] == "accepted"
     assert resp_dict["lease_ticket"]["lease_id"] == "lease-1"
+
+
+def test_ephemeral_worktree_manager_lifecycle(tmp_path: Path):
+    """Lifecycle test for EphemeralWorktreeManager on a git repository."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "tester@example.com"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.name", "Tester"], cwd=repo, check=True)
+    (repo / "README.md").write_text("initial commit\n", encoding="utf-8")
+    subprocess.run(["git", "add", "README.md"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-m", "init"], cwd=repo, check=True)
+
+    mgr = EphemeralWorktreeManager(repo_root=repo)
+    active_initial = mgr.list_active_worktrees()
+    assert len(active_initial) == 1
+    assert Path(active_initial[0]["worktree"]).resolve() == repo.resolve()
+
+    # 1. Create worktree
+    wt_path = mgr.create_worktree(worker_id="agent-alpha", task_id="task-101")
+    assert wt_path.is_dir()
+    assert (wt_path / "README.md").is_file()
+    assert wt_path.name == "worker_agent-alpha_task-101"
+
+    # Active list now includes worker worktree
+    active_mid = mgr.list_active_worktrees()
+    assert len(active_mid) == 2
+    worker_entries = [w for w in active_mid if w["worktree"] == str(wt_path.resolve())]
+    assert len(worker_entries) == 1
+    assert worker_entries[0]["branch"] == "worker/agent-alpha/task-101"
+
+    # 2. Isolation rules prevent invalid teardowns
+    with pytest.raises(WorkerGatewayIsolationError):
+        mgr.teardown_worktree(repo)
+    with pytest.raises(WorkerGatewayIsolationError):
+        mgr.teardown_worktree(repo / ".git")
+
+    # 3. Teardown worktree and prune branch
+    teardown_ok = mgr.teardown_worktree(wt_path, delete_branch=True)
+    assert teardown_ok is True
+    assert not wt_path.exists()
+
+    # Active list back to 1
+    active_after = mgr.list_active_worktrees()
+    assert len(active_after) == 1
+
+    # Branch is deleted
+    proc_br = subprocess.run(
+        ["git", "branch", "--list", "worker/agent-alpha/task-101"],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert not proc_br.stdout.strip()
+
+    # 4. Coordinator integration methods
+    coordinator = HarbourWorkerGatewayCoordinator(workspace_base=repo)
+    wt_coord = coordinator.create_ephemeral_worktree(worker_id="agent-beta", task_id="task-202")
+    assert wt_coord.is_dir()
+    assert len(coordinator.list_active_worktrees()) == 2
+
+    coordinator.teardown_ephemeral_worktree(wt_coord, delete_branch=True)
+    assert not wt_coord.exists()
+    assert len(coordinator.list_active_worktrees()) == 1
+
+
+def test_parallel_worker_leases_and_isolation(tmp_path: Path):
+    """Enforces concurrent execution for disjoint paths and collision rejection for overlapping paths."""
+    runner_store = CodingRunnerStateStore(tmp_path / "runner_state")
+    coordinator = HarbourWorkerGatewayCoordinator(
+        workspace_base=tmp_path / "repo",
+        runner_store=runner_store,
+    )
+
+    # Worker 1 claims gateway context
+    lease1 = coordinator.acquire_worker_lease(
+        task_id="task-worker-1",
+        write_paths=["src/harbour/gateway/"],
+        ttl_seconds=300,
+    )
+    assert lease1.is_active is True
+    assert lease1.task_id == "task-worker-1"
+
+    # Worker 2 claims memory context (disjoint: parallel execution allowed)
+    lease2 = coordinator.acquire_worker_lease(
+        task_id="task-worker-2",
+        write_paths=["src/harbour/memory/"],
+        ttl_seconds=300,
+    )
+    assert lease2.is_active is True
+    assert lease2.task_id == "task-worker-2"
+
+    # Worker 3 tries to claim coordinator inside gateway (collides with Worker 1: must be rejected)
+    with pytest.raises(WorkerGatewayLeaseError) as exc:
+        coordinator.acquire_worker_lease(
+            task_id="task-worker-3",
+            write_paths=["src/harbour/gateway/coordinator.py"],
+            ttl_seconds=300,
+        )
+    assert "active_scope_collision" in str(exc.value)
+
+    # Worker 4 claims inbox context (disjoint: parallel execution allowed)
+    lease4 = coordinator.acquire_worker_lease(
+        task_id="task-worker-4",
+        write_paths=["src/harbour/inbox/"],
+        ttl_seconds=300,
+    )
+    assert lease4.is_active is True
+    assert lease4.task_id == "task-worker-4"
+
+    # Release Worker 1
+    coordinator.release_worker_lease(lease1.lease_id)
+    assert coordinator.get_lease(lease1.lease_id).is_active is False
+
+    # Worker 3 now re-attempts and succeeds
+    lease3 = coordinator.acquire_worker_lease(
+        task_id="task-worker-3",
+        write_paths=["src/harbour/gateway/coordinator.py"],
+        ttl_seconds=300,
+    )
+    assert lease3.is_active is True
+    assert lease3.task_id == "task-worker-3"

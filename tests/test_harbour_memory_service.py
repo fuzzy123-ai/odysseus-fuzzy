@@ -170,6 +170,7 @@ def test_query_usi_parameter_validation():
 def test_query_usi_census_fallback():
     """When no SQLite store with chunks is active, query_usi uses the deterministic structural census."""
     service = HarbourMemoryService(repo_root=REPO_ROOT)
+    service._store = None
     assert service.store is None
 
     result = service.query_usi("roadmap", limit=5)
