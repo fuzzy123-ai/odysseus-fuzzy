@@ -13,6 +13,7 @@ from core.auth import AuthManager
 from core.database import Base, Session
 from routes import chat_routes
 from routes.auth_routes import SESSION_COOKIE
+from src.mcp_private_context_confirmation import DisclosureReceipt
 from src.private_context_confirmation import ContextManifest, ManifestItem
 from src.private_context_confirmation_app import (
     ContextSelection,
@@ -212,3 +213,128 @@ def test_missing_cookie_cannot_use_local_bypass(route_context, monkeypatch) -> N
         headers={"Origin": "http://testserver"},
     )
     assert response.status_code == 401
+
+
+@pytest.mark.parametrize(
+    ("path", "message"),
+    [
+        ("/api/chat", "/mcp-context-disclose"),
+        ("/api/chat", "/mcp-context-disclose short"),
+        ("/api/chat_stream", "/mcp-context-disclose " + "A" * 42),
+        ("/api/chat_stream", " /mcp-context-disclose " + "A" * 43),
+        ("/api/chat_stream", "/mcp-context-disclose " + "A" * 43 + " "),
+    ],
+    ids=["missing-token", "short-token", "token-42", "leading-space", "trailing-space"],
+)
+def test_mcp_reserved_malformed_variants_are_terminal_before_chat(route_context, path, message) -> None:
+    client, _token = route_context
+    response = client.post(
+        path,
+        json={"message": message, "session": "chat-owned"},
+        headers={"Origin": "http://testserver"},
+    )
+    assert response.status_code == 400
+    assert response.json() == {"detail": "invalid_mcp_context_challenge"}
+
+
+@pytest.mark.parametrize(
+    "path",
+    ["/api/chat", "/api/chat_stream"],
+    ids=["nonstream", "stream"],
+)
+def test_exact_mcp_command_fails_closed_without_composition_before_model(route_context, path) -> None:
+    client, _token = route_context
+    response = client.post(
+        path,
+        json={
+            "message": "/mcp-context-disclose " + "A" * 43,
+            "session": "chat-owned",
+        },
+        headers={"Origin": "http://testserver"},
+    )
+    assert response.status_code == 503
+    assert response.json() == {"detail": "mcp_context_unavailable"}
+
+
+@pytest.mark.parametrize("stream", (False, True), ids=("nonstream", "stream"))
+def test_mcp_disclosure_worker_uses_captured_entry_after_mutable_descriptor_replacement(
+    monkeypatch, stream,
+) -> None:
+    request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace()))
+    principal = chat_routes.SessionPrincipal(
+        owner="alice",
+        creator_subject_id="usr_" + "a" * 32,
+        authority="browser_session",
+    )
+    session_manager = _SessionManager()
+    fake_calls = []
+    captured_calls = []
+
+    def fake_disclosure(*_args, **_kwargs):
+        fake_calls.append(True)
+        raise AssertionError("replacement disclosure executed")
+
+    composition = SimpleNamespace(_disclose_browser_descriptor=fake_disclosure)
+
+    def captured_disclosure(
+        received_composition,
+        received_request,
+        challenge,
+        owner_sid,
+        chat_session_id,
+        raw_command,
+    ):
+        captured_calls.append((received_composition, received_request, owner_sid))
+        composition._disclose_browser_descriptor = fake_disclosure
+        assert challenge == "A" * 43
+        assert chat_session_id == "chat-owned"
+        assert raw_command == "/mcp-context-disclose " + challenge
+        return "request-captured", DisclosureReceipt("request-captured", 11, 12)
+
+    monkeypatch.setattr(
+        chat_routes,
+        "_private_principal",
+        lambda received_request, *, expected=None: expected,
+    )
+    encoded, media_type = chat_routes._mcp_disclose_sync(
+        request,
+        composition,
+        session_manager,
+        principal,
+        "chat-owned",
+        "A" * 43,
+        stream,
+        captured_disclosure,
+    )
+    assert captured_calls == [(composition, request, principal.creator_subject_id)]
+    assert fake_calls == []
+    assert b'"request_id":"request-captured"' in encoded
+    assert media_type == ("text/event-stream" if stream else "application/json")
+
+
+def test_mcp_route_entry_rejects_coordinated_module_and_class_capture_replacement(
+    monkeypatch,
+) -> None:
+    app = SimpleNamespace(state=SimpleNamespace())
+    auth = object()
+    composition = object.__new__(chat_routes._MCP_CONTEXT_APP_TYPE)
+    composition._app = app
+    composition._auth = auth
+    app.state.auth_manager = auth
+    app.state.mcp_context_app = composition
+    request = SimpleNamespace(app=app)
+    fake_calls = []
+
+    def fake_capture(*_args, **_kwargs):
+        fake_calls.append(True)
+        raise AssertionError("replacement route capture executed")
+
+    monkeypatch.setattr(chat_routes, "_MCP_CAPTURE_DISCLOSURE", fake_capture)
+    monkeypatch.setattr(
+        chat_routes._MCP_CONTEXT_APP_TYPE,
+        "capture_browser_disclosure_entry",
+        fake_capture,
+    )
+    with pytest.raises(Exception):
+        chat_routes._mcp_context_composition(request)
+    assert fake_calls == []

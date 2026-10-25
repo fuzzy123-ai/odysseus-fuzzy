@@ -7,13 +7,11 @@ import json
 import time
 import weakref
 
-import bcrypt
 import pytest
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
 
-from core.database import ApiToken
 from routes.auth_routes import SESSION_COOKIE
 from src.mcp_private_context_confirmation import (
     _CODES,
@@ -25,6 +23,7 @@ from src.private_context_confirmation_app import (
     ContextSelection,
 )
 from src.mcp_private_context_confirmation_app import McpPrivateContextConfirmationApp
+import tests.test_mcp_context_metadata as metadata_tests
 from tests.test_mcp_context_metadata import _lease, native_mcp_fixture
 from tests.test_mcp_private_context_confirmation import (
     _entry_snapshot, _entry_unchanged, _entry_fully_scrubbed,
@@ -48,7 +47,7 @@ def _assert_success(response):
 
 
 @pytest.fixture
-def consent_app(tmp_path, monkeypatch, request):
+def consent_app(tmp_path, monkeypatch, request, planning_repo_root=None):
     """Construct every native object inside TestClient's lifespan portal thread."""
     application = FastAPI()
 
@@ -58,21 +57,43 @@ def consent_app(tmp_path, monkeypatch, request):
 
     @asynccontextmanager
     async def lifespan(app):
-        fixture_body = native_mcp_fixture.__wrapped__(tmp_path, monkeypatch)
-        fixture = next(fixture_body)
+        original_install = metadata_tests._install_real_mcp_authority
+        original_gensalt = metadata_tests.bcrypt.gensalt
+        install_calls = 0
+        gensalt_calls = 0
+
+        def install_with_fast_token_hashes(fixture):
+            nonlocal install_calls, gensalt_calls
+            install_calls += 1
+            assert install_calls == 1
+
+            def gensalt_rounds_4():
+                nonlocal gensalt_calls
+                gensalt_calls += 1
+                return original_gensalt(rounds=4)
+
+            with monkeypatch.context() as patch:
+                patch.setattr(metadata_tests.bcrypt, "gensalt", gensalt_rounds_4)
+                return original_install(fixture)
+
+        fixture_body = (
+            native_mcp_fixture.__wrapped__(tmp_path, monkeypatch)
+            if planning_repo_root is None
+            else native_mcp_fixture.__wrapped__(
+                tmp_path,
+                monkeypatch,
+                planning_repo_root,
+            )
+        )
         try:
-            # Keep real bcrypt verification and lease clocks; this functional
-            # fixture does not measure the production bcrypt work factor.
-            with fixture["session_factory"]() as db:
-                for token_id, raw in zip(
-                    ("mcp-metadata-token", "mcp-metadata-token-2"),
-                    fixture["mcp_raw_tokens"], strict=True,
-                ):
-                    row = db.query(ApiToken).filter(ApiToken.id == token_id).one()
-                    row.token_hash = bcrypt.hashpw(
-                        raw.encode("ascii"), bcrypt.gensalt(rounds=4),
-                    ).decode("ascii")
-                db.commit()
+            with monkeypatch.context() as patch:
+                patch.setattr(
+                    metadata_tests, "_install_real_mcp_authority",
+                    install_with_fast_token_hashes,
+                )
+                fixture = next(fixture_body)
+            assert install_calls == 1
+            assert gensalt_calls == 2
         except BaseException:
             try:
                 next(fixture_body)
@@ -654,6 +675,28 @@ def consent_app(tmp_path, monkeypatch, request):
                     ) == original,
                     "challenge_expires_at_matches": original is not None and
                     result.expires_at == original[0]}
+
+        @app.post("/test/resolve_authenticated_challenge")
+        async def resolve_authenticated_challenge(request: Request):
+            body = await request.json()
+            request_id = bridge.resolve_authenticated_challenge(
+                body.get("challenge"),
+                body.get("owner_sid"),
+                body.get("chat_session_id"),
+            )
+            return {"request_id": request_id}
+
+        @app.post("/api/context/mcp/revoke")
+        async def revoke_authenticated(request: Request):
+            await request.body()
+            body = json.loads(request._body)
+            bridge.revoke_authenticated(request, body.get("request_id"))
+            fixture["authority"].recheck_lease(request.app.state.lease)
+            return {
+                "status": "revoked",
+                "entry_absent": body.get("request_id") not in service._entries,
+                "lease_retained": True,
+            }
 
         @app.post("/test/clock_near")
         async def clock_near(request: Request):
@@ -1244,6 +1287,51 @@ def test_challenge_body_rejects_extra_and_duplicate_keys(consent_app):
         )
         assert duplicate.status_code == 403
         assert duplicate.json() == {"error": "invalid_binding"}
+
+
+def test_authenticated_challenge_resolution_and_browser_revoke_keep_native_lease(consent_app):
+    with TestClient(consent_app) as client:
+        fixture = client.app.state.fixture
+        prepared = _assert_success(client.post(
+            "/test/prepare",
+            headers={"Authorization": "Bearer " + fixture["mcp_raw_tokens"][0]},
+        ))
+        request_id = prepared.json()["request_id"]
+        client.cookies.set(SESSION_COOKIE, fixture["cookie"])
+        challenge = _assert_success(client.post(
+            "/api/context/mcp/challenge",
+            json={"request_id": request_id},
+            headers=_headers(),
+        )).json()["token"]
+        owner_sid = fixture["auth"].subject_id_for_username("fuzzy")
+        resolved = _assert_success(client.post(
+            "/test/resolve_authenticated_challenge",
+            json={
+                "challenge": challenge,
+                "owner_sid": owner_sid,
+                "chat_session_id": fixture["chat_id"],
+            },
+        ))
+        assert resolved.json() == {"request_id": request_id}
+        wrong_chat = client.post(
+            "/test/resolve_authenticated_challenge",
+            json={
+                "challenge": challenge,
+                "owner_sid": owner_sid,
+                "chat_session_id": "chat-owned-2",
+            },
+        )
+        assert wrong_chat.status_code == 403
+        revoked = _assert_success(client.post(
+            "/api/context/mcp/revoke",
+            json={"request_id": request_id},
+            headers=_headers(),
+        ))
+        assert revoked.json() == {
+            "status": "revoked",
+            "entry_absent": True,
+            "lease_retained": True,
+        }
 
 
 @pytest.mark.parametrize("kind", [

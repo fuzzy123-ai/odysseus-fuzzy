@@ -255,6 +255,17 @@ app.add_middleware(SecurityHeadersMiddleware)
 import asyncio as _asyncio
 from starlette.middleware.base import BaseHTTPMiddleware as _BaseHTTPMiddleware
 from starlette.responses import JSONResponse as _JSONResponse
+from src.mcp_context_causal_observation import (
+    downstream_timeout as _h7_observation_downstream_timeout,
+    response_start as _h7_observation_response_start,
+    seal as _h7_observation_seal,
+    timeout_context_enter as _h7_observation_timeout_context_enter,
+    wrapper_before_wait as _h7_observation_before_wait,
+    wrapper_cancelled as _h7_observation_cancelled,
+    wrapper_enter as _h7_observation_wrapper_enter,
+    wrapper_exception as _h7_observation_exception,
+    wrapper_timeout_catch as _h7_observation_timeout_catch,
+)
 
 REQUEST_HARD_TIMEOUT = float(os.getenv("REQUEST_HARD_TIMEOUT", "45"))
 _TIMEOUT_EXEMPT_PREFIXES = (
@@ -277,13 +288,53 @@ class _RequestTimeoutMiddleware(_BaseHTTPMiddleware):
         path = request.url.path or ""
         if any(path.startswith(p) for p in _TIMEOUT_EXEMPT_PREFIXES):
             return await call_next(request)
+        observation = _h7_observation_wrapper_enter(
+            request.scope, path, REQUEST_HARD_TIMEOUT,
+        )
+        if observation is None:
+            try:
+                return await _asyncio.wait_for(call_next(request), timeout=REQUEST_HARD_TIMEOUT)
+            except _asyncio.TimeoutError:
+                return _JSONResponse(
+                    {"detail": f"Request exceeded {REQUEST_HARD_TIMEOUT:.0f}s timeout"},
+                    status_code=504,
+                )
+
+        async def observed_call_next():
+            _h7_observation_timeout_context_enter(
+                request.scope, REQUEST_HARD_TIMEOUT,
+            )
+            try:
+                response = await call_next(request)
+            except _asyncio.TimeoutError:
+                _h7_observation_downstream_timeout(request.scope)
+                raise
+            try:
+                status_code = object.__getattribute__(response, "status_code")
+            except BaseException:
+                status_code = None
+            _h7_observation_response_start(request.scope, status_code)
+            return response
+
         try:
-            return await _asyncio.wait_for(call_next(request), timeout=REQUEST_HARD_TIMEOUT)
+            _h7_observation_before_wait(request.scope, REQUEST_HARD_TIMEOUT)
+            return await _asyncio.wait_for(
+                observed_call_next(), timeout=REQUEST_HARD_TIMEOUT,
+            )
         except _asyncio.TimeoutError:
+            _h7_observation_timeout_catch(request.scope)
             return _JSONResponse(
                 {"detail": f"Request exceeded {REQUEST_HARD_TIMEOUT:.0f}s timeout"},
                 status_code=504,
             )
+        except _asyncio.CancelledError:
+            _h7_observation_cancelled(request.scope)
+            raise
+        except BaseException:
+            _h7_observation_exception(request.scope)
+            raise
+        finally:
+            _h7_observation_seal(request.scope)
 
 
 app.add_middleware(_RequestTimeoutMiddleware)
@@ -392,7 +443,11 @@ if AUTH_ENABLED:
             for r in rows:
                 scopes = [s.strip() for s in (getattr(r, "scopes", "") or "chat").split(",") if s.strip()]
                 subject_id = getattr(r, "owner_subject_id", None)
-                if scopes == ["mcp:planning:read"]:
+                if scopes in (
+                    ["mcp:planning:read"],
+                    ["mcp:harbour:inbox"],
+                    ["mcp:harbour:context:read"],
+                ):
                     try:
                         active_identity = auth_manager.active_admin_subject_identity(subject_id=subject_id)
                     except Exception:
@@ -1031,6 +1086,13 @@ context_sources = install_context_sources(
     require_durable_planning=True,
 )
 private_context_confirmation = app.state.private_context_confirmation
+from src.mcp_context_app import install_mcp_context_app
+mcp_context_app = install_mcp_context_app(
+    app,
+    auth_manager=auth_manager,
+    session_factory=SessionLocal,
+    context_sources=context_sources,
+)
 
 # Owner-scoped Temporal Light Agent operations (lazy localhost connection only)
 from routes.agent_operation_routes import setup_default_agent_operation_routes
@@ -2013,6 +2075,7 @@ async def _startup_event():
         load_plugins(app)
     except Exception as e:
         logger.warning(f"Plugin system load skipped: {e}")
+    mcp_context_app.start()
     # Wipe any leftover incognito sessions from previous process — they're
     # ephemeral by design and must not survive a restart.
     try:
@@ -2457,6 +2520,7 @@ async def _shutdown_event():
         egress_task,
         upload_cleanup_task,
     ))
+    mcp_context_app.stop()
     try:
         close_knowledge_runtime(knowledge_runtime)
     except Exception:

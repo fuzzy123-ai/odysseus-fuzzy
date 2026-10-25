@@ -16,14 +16,24 @@ import threading
 import weakref
 from typing import Iterator
 
-from src.mcp_context_authority import McpContextAuthority, McpContextReadLease, McpContextBinding
+from src.mcp_context_authority import (
+    McpContextAuthority,
+    McpContextAuthorityError,
+    McpContextBinding,
+    McpContextReadLease,
+    _McpMetadataAdmissionVerifier,
+    _hold_mcp_metadata_admission_verifier,
+    _new_mcp_metadata_admission_verifier,
+    _open_mcp_metadata_admission_verifier,
+    _poison_active_content_publication,
+)
 
 _SCHEMA = "odysseus.context.mcp_metadata_binding.v1"
 _AUDIENCE = "authenticated_mcp_context_read"
 _SCOPE = "mcp:harbour:context:read"
 _LOCK = threading.RLock()
 _ADMISSION_CAP = 64
-_ROWS: dict[int, tuple[weakref.ReferenceType[object], weakref.ReferenceType[object], weakref.ReferenceType[object], weakref.ReferenceType[object], weakref.ReferenceType[object], weakref.ReferenceType[threading.Thread], object, int, int]] = {}
+_ROWS: dict[int, tuple[weakref.ReferenceType[object], weakref.ReferenceType[object], weakref.ReferenceType[object], weakref.ReferenceType[object], weakref.ReferenceType[object], weakref.ReferenceType[threading.Thread], object, int, int, object, _McpMetadataAdmissionVerifier, weakref.ReferenceType[_McpMetadataAdmissionVerifier]]] = {}
 
 
 class McpContextMetadataAdmissionError(ValueError):
@@ -35,7 +45,11 @@ class McpContextMetadataAdmissionError(ValueError):
         super().__init__("invalid_binding")
 
 
-def _admission_fail() -> None:
+def _admission_fail(
+    _publication_poison=_poison_active_content_publication,
+    /,
+) -> None:
+    _publication_poison()
     raise McpContextMetadataAdmissionError() from None
 
 
@@ -103,19 +117,26 @@ def _row(admission: object, metadata_binding: object) -> tuple[object, ...]:
         row = _ROWS.get(id(admission))
     if row is None or row[0]() is not admission:
         _admission_fail()
-    authority, lease, foundation, metadata, creator, canonical, thread_id, process_id, factory = (row[1](), row[2](), row[3](), row[4](), row[5](), row[6], row[7], row[8], row[9])
+    authority, lease, foundation, metadata, creator, canonical, thread_id, process_id, factory, verifier, verifier_anchor = (row[1](), row[2](), row[3](), row[4](), row[5](), row[6], row[7], row[8], row[9], row[10], row[11])
     if (type(authority) is not McpContextAuthority or type(lease) is not McpContextReadLease
             or type(foundation) is not McpContextBinding or metadata is not metadata_binding
             or creator is not threading.current_thread() or thread_id != threading.get_ident() or process_id != os.getpid()):
         _admission_fail()
     if authority._session_factory is not factory or authority._session_factory_pin is not factory:
         _admission_fail()
-    return authority, lease, foundation, metadata, canonical
+    if (type(verifier) is not _McpMetadataAdmissionVerifier
+            or type(verifier_anchor) is not weakref.ReferenceType
+            or verifier_anchor() is not verifier):
+        _admission_fail()
+    return authority, lease, foundation, metadata, canonical, verifier
 
 
 def _require_mcp_metadata_admission(admission: object, metadata_binding: object) -> McpContextBinding:
-    authority, lease, foundation, metadata, canonical = _row(admission, metadata_binding)
-    live = authority.recheck_lease(lease)
+    authority, lease, foundation, metadata, canonical, verifier = _row(admission, metadata_binding)
+    with _hold_mcp_metadata_admission_verifier(
+        verifier, authority, lease, foundation, admission,
+    ):
+        live = authority.recheck_lease(lease)
     if live is not foundation or lease.binding is not foundation or _canonical(live) != canonical or _metadata(live) != metadata:
         _admission_fail()
     return live
@@ -126,36 +147,57 @@ def _open_mcp_metadata_admission(authority: object, lease: object) -> Iterator[t
     if type(authority) is not McpContextAuthority or type(lease) is not McpContextReadLease:
         _admission_fail()
     admission = _McpMetadataAdmission()
+    live_guard = authority.live_lease(lease)
     factory = authority._session_factory
     if factory is not authority._session_factory_pin:
         _admission_fail()
-    with authority.live_lease(lease) as foundation:
-        if foundation is not lease.binding:
-            _admission_fail()
+    try:
+        foundation = lease.binding
+        authority._binding_snapshot(foundation)
+        if type(foundation) is not McpContextBinding:
+            raise McpContextAuthorityError("unauthorized")
         metadata = _metadata(foundation)
         canonical = _canonical(foundation)
-        with _LOCK:
-            for key, row in tuple(_ROWS.items()):
-                if any(reference() is None for reference in row[:6]):
-                    _ROWS.pop(key, None)
-            if authority._session_factory is not factory or authority._session_factory_pin is not factory:
-                _admission_fail()
-            if len(_ROWS) >= _ADMISSION_CAP or any(row[2]() is lease or row[3]() is foundation for row in _ROWS.values()):
-                _admission_fail()
-            key = id(admission)
-            def cleanup(dead_ref: object, row_key: int = key) -> None:
-                with _LOCK:
-                    row = _ROWS.get(row_key)
-                    if row is not None and row[0] is dead_ref:
-                        _ROWS.pop(row_key, None)
-            _ROWS[key] = (weakref.ref(admission, cleanup), weakref.ref(authority), weakref.ref(lease), weakref.ref(foundation), weakref.ref(metadata), weakref.ref(threading.current_thread()), canonical, threading.get_ident(), os.getpid(), factory)
-        try:
-            _require_mcp_metadata_admission(admission, metadata)
-            yield admission, metadata
-            _require_mcp_metadata_admission(admission, metadata)
-        finally:
+        verifier = _new_mcp_metadata_admission_verifier(
+            authority, lease, foundation, admission, canonical, live_guard,
+        )
+        verifier_anchor = weakref.ref(verifier)
+    except McpContextAuthorityError:
+        raise
+    except Exception:
+        raise McpContextAuthorityError("unauthorized") from None
+    with _LOCK:
+        for key, row in tuple(_ROWS.items()):
+            if any(reference() is None for reference in row[:6]):
+                _ROWS.pop(key, None)
+        if authority._session_factory is not factory or authority._session_factory_pin is not factory:
+            _admission_fail()
+        if len(_ROWS) >= _ADMISSION_CAP or any(row[2]() is lease or row[3]() is foundation for row in _ROWS.values()):
+            _admission_fail()
+        key = id(admission)
+        def cleanup(dead_ref: object, row_key: int = key) -> None:
             with _LOCK:
-                _ROWS.pop(id(admission), None)
+                row = _ROWS.get(row_key)
+                if row is not None and row[0] is dead_ref:
+                    _ROWS.pop(row_key, None)
+        _ROWS[key] = (weakref.ref(admission, cleanup), weakref.ref(authority), weakref.ref(lease), weakref.ref(foundation), weakref.ref(metadata), weakref.ref(threading.current_thread()), canonical, threading.get_ident(), os.getpid(), factory, verifier, verifier_anchor)
+    try:
+        with _open_mcp_metadata_admission_verifier(
+            verifier, authority, lease, foundation, admission,
+        ):
+            with live_guard as live:
+                try:
+                    if live is not foundation:
+                        _admission_fail()
+                    _require_mcp_metadata_admission(admission, metadata)
+                    yield admission, metadata
+                finally:
+                    current = _row(admission, metadata)
+                    if current[5] is not verifier:
+                        _admission_fail()
+    finally:
+        with _LOCK:
+            _ROWS.pop(id(admission), None)
 
 
 def _mcp_recipient_digest(domain: object, metadata_binding: object, body: object) -> str:

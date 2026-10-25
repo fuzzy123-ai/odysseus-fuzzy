@@ -60,6 +60,7 @@ from routes.chat_helpers import (
 )
 from src.action_intents import classify_tool_intent as _classify_tool_intent
 from src.tool_policy import build_effective_tool_policy
+from src.mcp_context_app import McpContextApp as _McpContextApp
 
 logger = logging.getLogger(__name__)
 
@@ -108,6 +109,12 @@ _PRIVATE_DISCLOSE_COMMAND = "/context-disclose"
 _PRIVATE_CHALLENGE_RE = re.compile(r"pc1\.[A-Za-z0-9_-]{43}\.[0-9a-f]{64}\Z")
 _PRIVATE_ACK = "Private context disclosure confirmed."
 _PRIVATE_AUDIENCE = "authenticated_context_download"
+_MCP_DISCLOSE_COMMAND = "/mcp-context-disclose"
+_MCP_CHALLENGE_RE = re.compile(r"[A-Za-z0-9_-]{43}\Z")
+_MCP_ACK = "MCP private context disclosure confirmed."
+_MCP_AUDIENCE = "authenticated_mcp_context_ack"
+_MCP_CONTEXT_APP_TYPE = _McpContextApp
+_MCP_CAPTURE_DISCLOSURE = _McpContextApp.__dict__["capture_browser_disclosure_entry"]
 _PRIVATE_PROXY_HEADERS = (
     "cf-connecting-ip", "cf-ray", "cf-visitor",
     "x-forwarded-for", "x-forwarded-host", "x-real-ip", "forwarded",
@@ -127,6 +134,21 @@ def _private_reserved_challenge(message: object) -> str | None:
     if len(parts) != 2 or _PRIVATE_CHALLENGE_RE.fullmatch(parts[1]) is None:
         raise HTTPException(400, "invalid_context_challenge")
     return parts[1]
+
+
+def _mcp_reserved_challenge(message: object) -> str | None:
+    """Recognize only the exact MCP disclosure command and reserve its prefix."""
+    if type(message) is not str:
+        return None
+    if not message.startswith(_MCP_DISCLOSE_COMMAND):
+        if message.lstrip().startswith(_MCP_DISCLOSE_COMMAND):
+            raise HTTPException(400, "invalid_mcp_context_challenge")
+        return None
+    prefix = _MCP_DISCLOSE_COMMAND + " "
+    token = message[len(prefix):] if message.startswith(prefix) else ""
+    if message != prefix + token or _MCP_CHALLENGE_RE.fullmatch(token) is None:
+        raise HTTPException(400, "invalid_mcp_context_challenge")
+    return token
 
 
 def _private_option_enabled(value: object) -> bool:
@@ -289,6 +311,105 @@ async def _private_disclosure_response(
     except ConfirmationError as error:
         status = 409 if error.code in {"challenge_spent", "challenge_expired", "disclosure_unverified"} else 400
         raise HTTPException(status, error.code) from None
+    return Response(content=encoded, media_type=media_type, status_code=200)
+
+
+def _mcp_context_composition(
+    request: Request,
+    _app_type=_MCP_CONTEXT_APP_TYPE,
+    _capture_disclosure=_MCP_CAPTURE_DISCLOSURE,
+):
+    composition = getattr(request.app.state, "mcp_context_app", None)
+    if (type(composition) is not _app_type
+            or _app_type.__dict__.get("capture_browser_disclosure_entry")
+                is not _capture_disclosure
+            or composition._app is not request.app
+            or composition._auth is not getattr(request.app.state, "auth_manager", None)):
+        raise HTTPException(503, "mcp_context_unavailable")
+    return composition
+
+
+def _mcp_disclose_sync(
+    request: Request,
+    composition: object,
+    session_manager: object,
+    principal: SessionPrincipal,
+    session_id: str,
+    challenge_token: str,
+    stream: bool,
+    disclosure_entry: object,
+) -> tuple[bytes, str]:
+    from src.mcp_private_context_confirmation import (
+        DisclosureReceipt,
+        McpPrivateContextConfirmationError,
+    )
+    try:
+        _private_principal(request, expected=principal)
+        raw_command = _MCP_DISCLOSE_COMMAND + " " + challenge_token
+        request_id, receipt = disclosure_entry(
+            composition,
+            request,
+            challenge_token,
+            principal.creator_subject_id,
+            session_id,
+            raw_command,
+        )
+        if (type(receipt) is not DisclosureReceipt
+                or receipt.request_id != request_id
+                or type(receipt.user_message_id) is not int
+                or type(receipt.acknowledgement_message_id) is not int):
+            raise McpPrivateContextConfirmationError("readback_failed")
+        session_manager.reload_session_after_external_commit(session_id)
+        payload = {
+            "acknowledgement_message_id": receipt.acknowledgement_message_id,
+            "audience": _MCP_AUDIENCE,
+            "disclosure_message_id": receipt.user_message_id,
+            "mode": "read_only",
+            "request_id": request_id,
+            "response": _MCP_ACK,
+        }
+        encoded = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+        if stream:
+            return b"data: " + encoded + b"\n\n" + b"data: [DONE]\n\n", "text/event-stream"
+        return encoded, "application/json"
+    except (McpPrivateContextConfirmationError, HTTPException):
+        raise
+    except Exception:
+        raise McpPrivateContextConfirmationError("invalid_binding") from None
+
+
+async def _mcp_disclosure_response(
+    request: Request,
+    session_manager: object,
+    session_id: str,
+    token: str,
+    *,
+    stream: bool,
+    _composition_entry=_mcp_context_composition,
+    _capture_disclosure=_MCP_CAPTURE_DISCLOSURE,
+) -> Response:
+    from src.mcp_private_context_confirmation import McpPrivateContextConfirmationError
+    composition = _composition_entry(request)
+    principal = _private_principal(request)
+    try:
+        disclosure_entry = _capture_disclosure(
+            composition, request.app,
+        )
+        encoded, media_type = await asyncio.to_thread(
+            _mcp_disclose_sync,
+            request,
+            composition,
+            session_manager,
+            principal,
+            session_id,
+            token,
+            stream,
+            disclosure_entry,
+        )
+    except HTTPException:
+        raise
+    except McpPrivateContextConfirmationError:
+        raise HTTPException(400, "invalid_mcp_context_challenge") from None
     return Response(content=encoded, media_type=media_type, status_code=200)
 
 
@@ -603,6 +724,18 @@ def setup_chat_routes(
         # Without this, any authenticated user can post into another user's chat.
         _verify_session_owner(request, session)
 
+        mcp_token = _mcp_reserved_challenge(message)
+        if mcp_token is not None:
+            if _private_option_enabled(raw_body.get("incognito") if isinstance(raw_body, dict) else None):
+                raise HTTPException(403, "mcp_context_requires_authenticated_chat")
+            return await _mcp_disclosure_response(
+                request,
+                session_manager,
+                session,
+                mcp_token,
+                stream=False,
+            )
+
         private_token = _private_reserved_challenge(message)
         if private_token is not None:
             if _private_option_enabled(raw_body.get("incognito") if isinstance(raw_body, dict) else None):
@@ -782,6 +915,20 @@ def setup_chat_routes(
         _has_atts = bool(body and isinstance(body.get("attachments"), list) and body["attachments"]) or bool(form_data.get("attachments"))
         message, session = coerce_message_and_session(body, message, session, session_manager, allow_empty=_has_atts)
         _verify_session_owner(request, session)
+        mcp_token = _mcp_reserved_challenge(message)
+        if mcp_token is not None:
+            raw_incognito = form_data.get("incognito")
+            if raw_incognito is None and isinstance(body, dict):
+                raw_incognito = body.get("incognito")
+            if _private_option_enabled(raw_incognito):
+                raise HTTPException(403, "mcp_context_requires_authenticated_chat")
+            return await _mcp_disclosure_response(
+                request,
+                session_manager,
+                session,
+                mcp_token,
+                stream=True,
+            )
         private_token = _private_reserved_challenge(message)
         if private_token is not None:
             raw_incognito = form_data.get("incognito")

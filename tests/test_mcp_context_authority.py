@@ -3,6 +3,7 @@ import threading
 import gc
 import weakref
 import copy
+import pickle
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -18,9 +19,11 @@ from src.mcp_context_authority import (
     McpContextBinding,
     McpContextReadLease,
     McpContextBearerProof,
+    _acquire_native_lease_capability,
     issue_mcp_bearer_proof,
 )
 from src.mcp_context_contract import MCP_CONTEXT_SCOPE
+import src.mcp_context_authority as context_authority
 
 
 def _fixture(tmp_path):
@@ -76,6 +79,100 @@ def test_binding_requires_exact_issued_proof_real_row_and_owned_chat(tmp_path):
         authority.issue_binding(identity, None, "chat.1")
     assert error.value.code == "unauthorized"
     assert error.value.__cause__ is None
+
+
+def test_content_publication_expiry_is_terminal_and_clears_private_references(tmp_path):
+    manager, _unused, identity, proof, state = _fixture(tmp_path)
+    clock = [1000.0]
+    authority = McpContextAuthority(
+        manager,
+        SessionLocal,
+        app_state=state,
+        monotonic=lambda: clock[0],
+        wall_time=lambda: clock[0],
+    )
+    binding = authority.issue_binding(identity, proof, "chat.1")
+    lease = authority.issue_read_lease(binding, "content-expiry", ttl_seconds=1)
+    capability = _acquire_native_lease_capability(authority, lease)
+    verifier = None
+    immediate = []
+    with pytest.raises(McpContextAuthorityError):
+        with context_authority._open_mcp_content_publication(
+            authority, lease, binding, capability, object(), object(),
+        ):
+            verifier = context_authority._CONTENT_PUBLICATION_CONTEXT.get()
+            assert repr(verifier) == "<_McpContentPublicationVerifier redacted>"
+            for operation in (copy.copy, copy.deepcopy, pickle.dumps):
+                with pytest.raises(TypeError):
+                    operation(verifier)
+            clock[0] += 2.0
+            try:
+                authority.recheck_lease(lease)
+            except McpContextAuthorityError as error:
+                immediate.append(error.code)
+    assert immediate == ["timeout"]
+    assert context_authority._CONTENT_PUBLICATION_CONTEXT.get() is None
+    assert context_authority._CONTENT_PUBLICATION_OWNER_CONTEXT.get() is None
+    assert id(verifier) not in context_authority._CONTENT_PUBLICATIONS
+    assert object.__getattribute__(
+        verifier, "_McpContentPublicationVerifier__state",
+    ) == "closed"
+    for slot in (
+        "issuer", "authority", "lease", "binding", "capability", "native_state",
+        "native_lock", "native_leases", "native_cancelled_leases", "native_key",
+        "native_row", "wrapper", "native", "proof_issuer", "raw", "call_nonce",
+        "record_claim_token", "values", "thread", "thread_id", "process_id",
+        "token_hash",
+    ):
+        assert object.__getattribute__(
+            verifier, "_McpContentPublicationVerifier__" + slot,
+        ) is None
+    with pytest.raises(TypeError):
+        with context_authority._open_mcp_content_publication(
+            authority, lease, binding, capability, object(), object(),
+            _registry={},
+        ):
+            pytest.fail("publication dependency override entered")
+    authority.close()
+
+
+@pytest.mark.parametrize("failure", ["body", "cancel"])
+def test_content_publication_body_error_and_cancel_clear_private_references(
+        tmp_path, failure):
+    manager, authority, identity, proof, _state = _fixture(tmp_path)
+    binding = authority.issue_binding(identity, proof, "chat.1")
+    lease = authority.issue_read_lease(
+        binding, "content-body-or-cancel", ttl_seconds=30,
+    )
+    capability = _acquire_native_lease_capability(authority, lease)
+    verifier = None
+    expected = RuntimeError if failure == "body" else McpContextAuthorityError
+    with pytest.raises(expected):
+        with context_authority._open_mcp_content_publication(
+            authority, lease, binding, capability, object(), object(),
+        ):
+            verifier = context_authority._CONTENT_PUBLICATION_CONTEXT.get()
+            if failure == "body":
+                raise RuntimeError("test-only body failure")
+            authority.cancel_lease(lease)
+            authority.recheck_lease(lease)
+    assert context_authority._CONTENT_PUBLICATION_CONTEXT.get() is None
+    assert context_authority._CONTENT_PUBLICATION_OWNER_CONTEXT.get() is None
+    assert id(verifier) not in context_authority._CONTENT_PUBLICATIONS
+    for slot in (
+        "issuer", "authority", "lease", "binding", "capability", "native_state",
+        "native_lock", "native_leases", "native_cancelled_leases", "native_key",
+        "native_row", "wrapper", "native", "proof_issuer", "raw", "call_nonce",
+        "record_claim_token", "values", "thread", "thread_id", "process_id",
+        "token_hash",
+    ):
+        assert object.__getattribute__(
+            verifier, "_McpContentPublicationVerifier__" + slot,
+        ) is None
+    assert object.__getattribute__(
+        verifier, "_McpContentPublicationVerifier__state",
+    ) == "closed"
+    authority.close()
 
 
 def test_forged_or_subclassed_binding_and_mutated_fields_fail(tmp_path):
@@ -634,9 +731,15 @@ def test_retained_cancel_markers_are_bounded_and_binding_release_clears_them(tmp
         cancelled.append(lease)
     assert len(authority._leases) == 0 and len(authority._cancelled_leases) == 64
     extra = authority.issue_read_lease(binding, "marker.extra")
+    live_extra = authority.live_lease(extra)
+    assert live_extra.__enter__() is binding
     with pytest.raises(McpContextAuthorityError) as error:
         authority.cancel_lease(extra)
     assert error.value.code == "context_unavailable"
+    with pytest.raises(McpContextAuthorityError) as cancelled_exit:
+        live_extra.__exit__(None, None, None)
+    assert type(cancelled_exit.value) is McpContextAuthorityError
+    assert cancelled_exit.value.code == "cancelled"
     with pytest.raises(McpContextAuthorityError): authority.recheck_lease(extra)
     with pytest.raises(McpContextAuthorityError) as error: authority.recheck_lease(cancelled[0])
     assert error.value.code == "cancelled"
@@ -859,6 +962,57 @@ def test_foreign_release_and_second_live_lease_are_rejected(tmp_path):
     assert authority.require_live_lease(lease) is binding
     with pytest.raises(McpContextAuthorityError) as error: authority.issue_read_lease(binding, "one.2")
     assert error.value.code == "context_unavailable"
+
+
+def test_native_cancellation_capability_ignores_public_shadows_and_preserves_unrelated_lease(
+        tmp_path, monkeypatch):
+    _manager, authority, identity, proof, _state = _fixture(tmp_path)
+    binding = authority.issue_binding(identity, proof, "chat.1")
+    unrelated_binding = authority.issue_binding(
+        identity,
+        issue_mcp_bearer_proof("ody_" + "a" * 43),
+        "chat.1",
+    )
+    affected = authority.issue_read_lease(binding, "native.affected")
+    unrelated = authority.issue_read_lease(unrelated_binding, "native.unrelated")
+    live_affected = authority.live_lease(affected)
+    assert live_affected.__enter__() is binding
+
+    calls: list[str] = []
+
+    def forbidden(*_args, **_kwargs):
+        calls.append("public")
+        raise RuntimeError("public authority path executed")
+
+    class ForbiddenState:
+        def __getattribute__(self, _name):
+            calls.append("state")
+            raise RuntimeError("replacement authority state executed")
+
+    monkeypatch.setattr(McpContextAuthority, "cancel_lease", forbidden)
+    monkeypatch.setattr(McpContextAuthority, "cancel", forbidden)
+    monkeypatch.setattr(McpContextAuthority, "_lease_snapshot", forbidden)
+    monkeypatch.setattr(McpContextAuthority, "recheck_lease", forbidden)
+    monkeypatch.setattr(authority, "cancel_lease", forbidden)
+    monkeypatch.setattr(authority, "cancel", forbidden)
+    monkeypatch.setitem(authority.__dict__, "_lock", ForbiddenState())
+    monkeypatch.setitem(authority.__dict__, "_leases", ForbiddenState())
+    monkeypatch.setitem(authority.__dict__, "_cancelled_leases", ForbiddenState())
+
+    native = _acquire_native_lease_capability(authority, affected)
+    native.cancel()
+    with pytest.raises(McpContextAuthorityError) as cancelled_exit:
+        live_affected.__exit__(None, None, None)
+    assert type(cancelled_exit.value) is McpContextAuthorityError
+    assert cancelled_exit.value.code == "cancelled"
+    assert calls == []
+
+    monkeypatch.undo()
+    with pytest.raises(McpContextAuthorityError) as cancelled:
+        authority.recheck_lease(affected)
+    assert type(cancelled.value) is McpContextAuthorityError
+    assert cancelled.value.code == "cancelled"
+    assert authority.recheck_lease(unrelated) is unrelated_binding
 
 
 def test_live_lease_preserves_body_failure_when_exit_is_valid(tmp_path):

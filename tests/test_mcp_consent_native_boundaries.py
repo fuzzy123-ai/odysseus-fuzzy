@@ -23,7 +23,8 @@ from src.private_context_confirmation_app import (
 import tests.test_app_mcp_private_context_confirmation as consent_tests
 
 
-_CANONICAL_PAYLOAD_LIMIT = 4 * 1024 * 1024
+_OVER_OLD_CANONICAL_CAP = 4 * 1024 * 1024 + 256 * 1024
+_CANONICAL_PAYLOAD_LIMIT = _OVER_OLD_CANONICAL_CAP
 _PAGE_LIMIT = 16_384
 _BASE_NATIVE_MCP_FIXTURE = consent_tests.native_mcp_fixture
 _BASE_CONSENT_APP_FIXTURE = consent_tests.consent_app
@@ -171,7 +172,7 @@ def _seed_exact_limit(fixture: dict[str, object]) -> None:
         roadmap["revision"] + 1,
         "Native canonical payload boundary",
     )
-    payload = _exact_size_constraints(document, _CANONICAL_PAYLOAD_LIMIT)
+    payload = _exact_size_constraints(document, _OVER_OLD_CANONICAL_CAP)
     assert payload == _canonical(document)
     revision_id = _append_and_approve(
         fixture, document, key="native-browser-exact-4mib",
@@ -290,6 +291,22 @@ def _browser_ack(client: TestClient) -> dict[str, object]:
 
 
 def _assert_consumed_lifecycle(client: TestClient) -> None:
+    service = client.app.state.service
+    request_id = client.app.state.request_id
+    entry = service._entries[request_id]
+    lifecycle = consent_tests._assert_success(
+        client.post("/test/substitution_readback")
+    ).json()
+    assert entry.state == "disclosed"
+    assert lifecycle["request_absent"] is False
+    assert lifecycle["all42_scrubbed"] is False
+    assert lifecycle["secondary_unchanged"] is True
+    assert lifecycle["permit_ref_cleared"] is True
+    assert lifecycle["permits_empty"] is True
+    assert lifecycle["exchanges_empty"] is True
+    assert lifecycle["completions_empty"] is True
+
+    service.revoke(request_id)
     lifecycle = consent_tests._assert_success(
         client.post("/test/substitution_readback")
     ).json()
@@ -307,13 +324,13 @@ def _assert_consumed_lifecycle(client: TestClient) -> None:
 
 
 @pytest.mark.parametrize("boundary_consent_app", ["exact-limit"], indirect=True)
-def test_native_browser_pages_exact_four_mib_accepted_canonical_revision(
+def test_native_browser_pages_over_old_four_mib_cap_with_exact_hashes(
     boundary_consent_app,
 ):
     with TestClient(boundary_consent_app) as client:
         fixture = _browser_ack(client)
         oracle = fixture["boundary_oracle"]
-        assert len(oracle) == _CANONICAL_PAYLOAD_LIMIT
+        assert len(oracle) == _OVER_OLD_CANONICAL_CAP
         expected_whole = "sha256:" + hashlib.sha256(oracle).hexdigest()
         consent_tests._assert_success(client.post(
             "/test/arm_page_boundary", json={"mode": "partial"},
@@ -336,6 +353,68 @@ def test_native_browser_pages_exact_four_mib_accepted_canonical_revision(
         assert page["completion_replay"] == "permit_invalid"
         assert page["permit_replay"] == "permit_invalid"
         _assert_consumed_lifecycle(client)
+
+
+@pytest.mark.parametrize("boundary_consent_app", ["exact-limit"], indirect=True)
+def test_native_browser_middle_page_over_old_cap_binds_whole_page_and_manifest(
+    boundary_consent_app,
+):
+    with TestClient(boundary_consent_app) as client:
+        fixture = _browser_ack(client)
+        oracle = fixture["boundary_oracle"]
+        service = client.app.state.service
+        request_id = client.app.state.request_id
+        entry = service._entries[request_id]
+        permit = service.issue_permit(request_id)
+        target_index = next(
+            index for index, item in enumerate(fixture["selection"].items)
+            if item.source == "planning"
+        )
+        offset = len(oracle) // 2
+        capture = service._execute_planning_page(
+            permit, target_index=target_index, offset=offset,
+        )
+        page = capture.page
+        expected = oracle[offset:offset + _PAGE_LIMIT]
+        assert page.total_bytes == len(oracle) == _OVER_OLD_CANONICAL_CAP
+        assert page.offset == offset and page.end == offset + len(expected)
+        assert page.page_bytes == expected
+        assert page.whole_sha256 == "sha256:" + hashlib.sha256(oracle).hexdigest()
+        assert page.page_sha256 == "sha256:" + hashlib.sha256(expected).hexdigest()
+        assert page.manifest_digest == entry.cookie_snapshot.target_manifest_digests[target_index]
+        service._consume_planning_completion(capture)
+
+
+@pytest.mark.parametrize("boundary_consent_app", ["exact-limit"], indirect=True)
+def test_native_browser_eof_page_over_old_cap_and_tamper_stale_rejection(
+    boundary_consent_app,
+):
+    with TestClient(boundary_consent_app) as client:
+        fixture = _browser_ack(client)
+        oracle = fixture["boundary_oracle"]
+        consent_tests._assert_success(client.post(
+            "/test/arm_page_boundary", json={"mode": "eof"},
+        ))
+        page = consent_tests._assert_success(client.post("/test/consume")).json()
+        assert page["total_bytes"] == len(oracle) == _OVER_OLD_CANONICAL_CAP
+        assert page["offset"] == page["end"] == len(oracle)
+        assert page["page_bytes"] == 0
+        assert page["whole_sha256"] == "sha256:" + hashlib.sha256(oracle).hexdigest()
+        assert page["page_sha256"] == "sha256:" + hashlib.sha256(b"").hexdigest()
+        assert page["manifest_equal"] is True
+
+
+
+@pytest.mark.parametrize("boundary_consent_app", ["exact-limit"], indirect=True)
+def test_native_browser_over_old_cap_tamper_is_stale(boundary_consent_app):
+    with TestClient(boundary_consent_app) as client:
+        _browser_ack(client)
+        consent_tests._assert_success(client.post(
+            "/test/arm_page_tamper", json={"field": "whole_sha256"},
+        ))
+        denied = client.post("/test/consume")
+        assert denied.status_code == 403
+        assert denied.json() == {"error": "context_stale"}
 
 
 @pytest.mark.parametrize("boundary_consent_app", ["deep-ancestry"], indirect=True)

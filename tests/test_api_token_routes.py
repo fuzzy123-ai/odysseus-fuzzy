@@ -831,8 +831,13 @@ def test_ordinary_noauth_update_holds_shared_lock_through_commit(monkeypatch, to
 
 @pytest.mark.parametrize("operation", ["downgrade", "delete"])
 @pytest.mark.parametrize("owner_subject_id", [None, "owner_ffffffffffffffffffffffffffffffff"])
+@pytest.mark.parametrize(
+    "special_scope",
+    ["mcp:harbour:inbox", "mcp:harbour:context:read"],
+    ids=["inbox", "context"],
+)
 def test_special_token_with_missing_or_stale_sid_cannot_be_mutated(
-    monkeypatch, token_routes_mod, tmp_path, operation, owner_subject_id,
+    monkeypatch, token_routes_mod, tmp_path, operation, owner_subject_id, special_scope,
 ):
     from core.auth import AuthManager
     mod = token_routes_mod
@@ -841,7 +846,7 @@ def test_special_token_with_missing_or_stale_sid_cannot_be_mutated(
     assert manager.create_user("admin", "password", is_admin=True)
     token = SimpleNamespace(
         id="special-id", owner="admin", name="special", token_prefix="redacted",
-        scopes="mcp:harbour:inbox", owner_subject_id=owner_subject_id,
+        scopes=special_scope, owner_subject_id=owner_subject_id,
     )
     deleted = []
     class Query:
@@ -869,6 +874,31 @@ def test_special_token_with_missing_or_stale_sid_cannot_be_mutated(
     with pytest.raises(HTTPException) as denied:
         invoke()
     assert denied.value.status_code == 403
-    assert token.scopes == "mcp:harbour:inbox"
+    assert token.scopes == special_scope
     assert token.owner_subject_id == owner_subject_id
     assert deleted == []
+
+
+@pytest.mark.parametrize(
+    "requested",
+    [
+        ["mcp:harbour:context:read", "chat"],
+        ["mcp:planning:read", "mcp:harbour:context:read"],
+        ["mcp:harbour:inbox", "mcp:harbour:context:read"],
+    ],
+    ids=["context-plus-chat", "context-plus-planning", "context-plus-inbox"],
+)
+def test_mcp_context_scope_is_known_but_must_be_the_only_grant(token_routes_mod, requested):
+    mod = token_routes_mod
+    assert mod._normalize_scopes(["mcp:harbour:context:read"]) == [
+        "mcp:harbour:context:read",
+    ]
+    assert "mcp:harbour:context:read" in mod.ALLOWED_SCOPES
+    assert all(
+        "mcp:harbour:context:read" not in scopes
+        for scopes in mod.TOKEN_PROFILES.values()
+    )
+    with pytest.raises(HTTPException) as denied:
+        mod._normalize_scopes(requested)
+    assert denied.value.status_code == 400
+    assert denied.value.detail == "MCP scope must be granted by itself"

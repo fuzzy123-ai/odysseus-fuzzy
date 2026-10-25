@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+from contextlib import contextmanager
 from copy import deepcopy
 from datetime import datetime, timezone
 import hashlib
@@ -51,8 +52,19 @@ from src.planning_context_reader import (
 )
 from src.planning_definition_contract import compute_roadmap_content_hash
 from src.planning_mcp_service import PlanningMcpService
-from src.planning_revision_store import DurablePlanningRevisionStore, PlanningRevisionStore
-from src.planning_roadmap_migration import build_h1r03_migration_manifest
+from src.planning_revision_store import (
+    DurablePlanningRevisionStore,
+    DurablePlanningStoreError,
+    PlanningRevisionStore,
+)
+from src.planning_roadmap_migration import (
+    FROZEN_MEMBERS,
+    PRODUCT_READINESS_AUTHORITY_PINS,
+    SUPPORTING_PATH,
+    accept_h1r03_migration,
+    build_h1r03_migration_manifest,
+    prepare_h1r03_migration,
+)
 from src.mcp_authenticated_dispatch import AppOwnedPlanningRuntime
 from src.private_context_confirmation import ConfirmationError
 from src.private_context_confirmation_app import (
@@ -111,6 +123,23 @@ def _commit_sha(work: Path, output_path: Path) -> str:
     if len(raw) > 128 or re.fullmatch(rb"[0-9a-f]{40}(?:[0-9a-f]{24})?\r?\n", raw) is None:
         raise AssertionError("git commit identity was not a closed SHA")
     return raw.strip().decode("ascii")
+
+
+def _compact_planning_fixture_root(
+    destination: Path,
+) -> Path:
+    source = Path(__file__).resolve().parents[1]
+    fixture_root = Path(destination).resolve()
+    required_paths = (
+        set(PRODUCT_READINESS_AUTHORITY_PINS)
+        | {path for path, *_rest in FROZEN_MEMBERS}
+        | {SUPPORTING_PATH}
+    )
+    for relative in sorted(required_paths):
+        target = fixture_root / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes((source / relative).read_bytes())
+    return fixture_root
 
 
 def _knowledge_issuer(key: bytes) -> AuthenticatedPrincipalIssuer:
@@ -251,8 +280,16 @@ def _build_knowledge(
     return composition, target
 
 
-def _real_three_domain_context_body(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-    repo_root = Path(__file__).resolve().parents[1]
+def _real_three_domain_context_body(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    planning_repo_root: Path | None = None,
+):
+    repo_root = (
+        Path(__file__).resolve().parents[1]
+        if planning_repo_root is None
+        else Path(planning_repo_root).resolve(strict=True)
+    )
     auth = AuthManager(str(tmp_path / "auth.json"))
     assert auth.create_user("fuzzy", "Password-123", is_admin=True)
     cookie = auth.create_session("fuzzy", "Password-123")
@@ -429,6 +466,186 @@ def real_three_domain_context(monkeypatch: pytest.MonkeyPatch) -> dict[str, obje
     scratch_root.mkdir(exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="ctx-", dir=scratch_root) as raw:
         yield from _real_three_domain_context_body(Path(raw), monkeypatch)
+
+
+def test_compact_planning_fixture_preserves_semantic_migration_inputs(
+    tmp_path: Path,
+) -> None:
+    actual_root = Path(__file__).resolve().parents[1]
+    compact_root = _compact_planning_fixture_root(tmp_path / "compact")
+
+    actual = build_h1r03_migration_manifest(actual_root)
+    compact = build_h1r03_migration_manifest(compact_root)
+
+    for field in (
+        "normalized_payloads",
+        "source_items",
+        "authority_pins",
+        "supporting_relations",
+    ):
+        assert compact[field] == actual[field]
+    assert len(compact["structural_census"]) == 14
+    assert len(actual["structural_census"]) > len(compact["structural_census"])
+    assert compact["structural_census"] != actual["structural_census"]
+    assert compact["supporting_observation"] != actual["supporting_observation"]
+    assert compact["manifest_digest"] != actual["manifest_digest"]
+    assert compact["batch_id"] != actual["batch_id"]
+
+
+def test_compact_planning_roots_and_accepted_stores_are_independent(
+    tmp_path: Path,
+) -> None:
+    roots = (
+        _compact_planning_fixture_root(tmp_path / "first-input"),
+        _compact_planning_fixture_root(tmp_path / "second-input"),
+    )
+    issuer = AuthenticatedPrincipalIssuer(
+        issuer_id="odysseus-auth",
+        key_id="compact-fixture-key",
+        secret=b"compact-planning-fixture-secret-0001",
+    )
+    principals = tuple(
+        issuer.issue(
+            subject_id=f"owner_{index:032x}",
+            owner_id="fuzzy",
+            auth_context_digest="sha256:" + str(index) * 64,
+            ttl_seconds=3600,
+            nonce=f"compact-fixture-{index}",
+        )
+        for index in (1, 2)
+    )
+    store_roots = tuple(tmp_path / f"store-{index}" for index in (1, 2))
+    stores = tuple(
+        DurablePlanningRevisionStore(
+            store_root,
+            trusted_issuers=(issuer,),
+        )
+        for store_root in store_roots
+    )
+    manifests = tuple(build_h1r03_migration_manifest(root) for root in roots)
+    assert manifests[0] == manifests[1]
+    for store, principal, root, manifest in zip(
+        stores, principals, roots, manifests, strict=True,
+    ):
+        prepared = prepare_h1r03_migration(store, principal, repo_root=root)
+        accepted = accept_h1r03_migration(
+            store,
+            principal,
+            repo_root=root,
+            batch_id=manifest["batch_id"],
+        )
+        assert prepared.batch_id == accepted.batch_id == manifest["batch_id"]
+        assert prepared.phase == "prepare"
+        assert accepted.phase == "accept"
+
+    second_bundle_before = stores[1].read_subject_bound_accepted_migration_bundle(
+        principals[1], project_id="harbour-one",
+    )
+    second_state_before = stores[1].get_migration_batch(
+        principals[1],
+        owner_id="fuzzy",
+        batch_id=manifests[1]["batch_id"],
+    )
+    first_item = manifests[0]["source_items"][0]
+    roadmap_id = first_item["roadmap_id"]
+    next_document = json.loads(manifests[0]["normalized_payloads"][roadmap_id])
+    next_roadmap = next_document["roadmaps"][0]
+    next_roadmap["revision"] = 2
+    next_roadmap["title"] = "Independent compact store mutation"
+    next_roadmap["content_hash"] = compute_roadmap_content_hash(next_roadmap)
+    next_document["project"]["latest_approved_revision"][roadmap_id] = {
+        "revision": 2,
+        "content_hash": next_roadmap["content_hash"],
+    }
+    first_head = stores[0].get_head(
+        principals[0],
+        owner_id="fuzzy",
+        project_id="harbour-one",
+        roadmap_id=roadmap_id,
+    )
+    appended = stores[0].append_revision(
+        principals[0],
+        owner_id="fuzzy",
+        project_id="harbour-one",
+        roadmap_id=roadmap_id,
+        payload_bytes=json.dumps(
+            next_document,
+            ensure_ascii=False,
+            allow_nan=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8"),
+        expected_head=first_head,
+        idempotency_key="compact-store-one-append",
+    )
+
+    drifted = roots[0] / next(iter(PRODUCT_READINESS_AUTHORITY_PINS))
+    drifted.write_bytes(drifted.read_bytes() + b"\n")
+    with pytest.raises(DurablePlanningStoreError) as stale:
+        build_h1r03_migration_manifest(roots[0])
+    assert stale.value.code == "stale_authority"
+    assert build_h1r03_migration_manifest(roots[1]) == manifests[1]
+    reopened_stores = tuple(
+        DurablePlanningRevisionStore(
+            store_root,
+            trusted_issuers=(issuer,),
+        )
+        for store_root in store_roots
+    )
+    reopened_first_head = reopened_stores[0].get_head(
+        principals[0],
+        owner_id="fuzzy",
+        project_id="harbour-one",
+        roadmap_id=roadmap_id,
+    )
+    assert reopened_first_head.current_revision_id == appended.new_revision_id
+    assert reopened_first_head.generation == first_head.generation + 1
+    first_bundle_after = reopened_stores[0].read_subject_bound_accepted_migration_bundle(
+        principals[0], project_id="harbour-one",
+    )
+    assert len(first_bundle_after.revisions) == len(second_bundle_before.revisions) + 1
+    assert any(
+        member.revision.revision_id == appended.new_revision_id
+        and json.loads(member.payload)["roadmaps"][0]["title"]
+        == "Independent compact store mutation"
+        for member in first_bundle_after.revisions
+    )
+    assert reopened_stores[1].read_subject_bound_accepted_migration_bundle(
+        principals[1], project_id="harbour-one",
+    ) == second_bundle_before
+    assert reopened_stores[1].get_migration_batch(
+        principals[1],
+        owner_id="fuzzy",
+        batch_id=manifests[1]["batch_id"],
+    ) == second_state_before
+
+
+@pytest.mark.parametrize(
+    ("relative", "mutation"),
+    [
+        pytest.param(
+            next(iter(PRODUCT_READINESS_AUTHORITY_PINS)),
+            "missing",
+            id="missing-authority",
+        ),
+        pytest.param(FROZEN_MEMBERS[0][0], "drift", id="drifted-frozen-member"),
+    ],
+)
+def test_compact_planning_fixture_rejects_missing_or_drifted_pinned_bytes(
+    tmp_path: Path,
+    relative: str,
+    mutation: str,
+) -> None:
+    compact_root = _compact_planning_fixture_root(tmp_path / "compact")
+    target = compact_root / relative
+    if mutation == "missing":
+        target.unlink()
+    else:
+        target.write_bytes(target.read_bytes() + b"\n")
+
+    with pytest.raises(DurablePlanningStoreError) as stale:
+        build_h1r03_migration_manifest(compact_root)
+    assert stale.value.code == "stale_authority"
 
 
 def test_real_three_domain_metadata_and_private_foundation(real_three_domain_context) -> None:
@@ -621,3 +838,304 @@ def test_combined_capture_rejects_native_knowledge_drift(
             fixture["combined"].capture_metadata(binding, fixture["selection"])
     assert mutation["done"] is True
     assert error.value.code in {"context_stale", "capture_unavailable"}
+
+
+def test_dual_snapshot_mandates_mixed_selection_and_reads_one_planning_image(
+    real_three_domain_context, monkeypatch,
+):
+    from src.planning_durable_context_source import (
+        DEFAULT_DURABLE_PLANNING_CONTEXT_POLICY,
+        DurablePlanningContextSource,
+    )
+    from tests.test_mcp_context_metadata import _install_real_mcp_authority, _lease
+    from tests.test_planning_durable_context_source import _append_clean_descendants
+
+    fixture = real_three_domain_context
+    auth = fixture["auth"]
+    runtime = fixture["planning_producer"]._runtime
+    owner_sid = auth.subject_id_for_username("fuzzy")
+    principal = runtime.issuer.issue(
+        subject_id=owner_sid,
+        owner_id="fuzzy",
+        auth_context_digest="sha256:" + "9" * 64,
+        ttl_seconds=3600,
+        nonce="combined-dual-sample-0001",
+    )
+    with CookieConfirmationAuthority(auth).hold(
+        fixture["cookie"], fixture["chat_id"],
+    ) as setup_binding:
+        _append_clean_descendants(
+            {"store": runtime.durable_store, "principal": principal}, setup_binding,
+        )
+        durable_source = DurablePlanningContextSource(
+            runtime=runtime,
+            auth_manager=auth,
+            project_id="harbour-one",
+            policy=DEFAULT_DURABLE_PLANNING_CONTEXT_POLICY,
+        )
+        planning_items = durable_source.discover(setup_binding)
+    native_planning = PlanningContextManifestProducer(
+        runtime, auth, None, "harbour-one", durable_source=durable_source,
+    )
+    authority = _install_real_mcp_authority(fixture)
+    fixture["authority"] = authority
+    lease = _lease(fixture, "combined-dual-sample")
+    combined = CombinedContextManifestProducer(
+        auth_manager=auth,
+        forge=fixture["forge"],
+        planning=native_planning,
+        knowledge=fixture["knowledge_producer"],
+        mcp_authority=authority,
+    )
+    selection = ContextSelection(tuple(sorted(
+        (fixture["forge_selection"], *planning_items, fixture["knowledge_target"]),
+        key=lambda item: (item.source, item.selection_ref, item.revision_ref),
+    )))
+    original_materialize = runtime.durable_store._materialize_accepted_migration_locked
+    forge_type = type(fixture["forge"])
+    knowledge_type = type(fixture["knowledge_producer"])
+    original_cookie_forge = forge_type.capture_version_metadata
+    original_mcp_forge = forge_type.capture_version_metadata_mcp
+    original_cookie_knowledge = knowledge_type.capture_metadata
+    original_mcp_knowledge = knowledge_type.capture_metadata_mcp
+    original_admin_guard = CombinedContextManifestProducer.__dict__["_admin_guard"]
+    original_native_dual = CombinedContextManifestProducer.__dict__["_capture_native_dual"]
+    original_reader_dual = PlanningContextManifestProducer.__dict__["capture_metadata_dual"]
+    materializations, callbacks, transient_calls = [], [], []
+
+    def hostile_native_dual(*_args, **_kwargs):
+        transient_calls.append("capture_native_dual")
+        raise AssertionError("transient hostile native helper executed")
+
+    def hostile_reader_dual(*_args, **_kwargs):
+        transient_calls.append("capture_metadata_dual")
+        raise AssertionError("transient hostile reader helper executed")
+
+    @contextmanager
+    def admin_guard_with_transient_replacement(self, binding):
+        with original_admin_guard(self, binding) as alias:
+            monkeypatch.setattr(
+                CombinedContextManifestProducer,
+                "_capture_native_dual",
+                hostile_native_dual,
+            )
+            yield alias
+
+    def materialize(**kwargs):
+        if (
+            PlanningContextManifestProducer.__dict__.get("capture_metadata_dual")
+            is hostile_reader_dual
+        ):
+            monkeypatch.setattr(
+                PlanningContextManifestProducer,
+                "capture_metadata_dual",
+                original_reader_dual,
+            )
+        materializations.append(kwargs["batch"]["batch_id"])
+        return original_materialize(**kwargs)
+
+    def cookie_forge(self, *args, **kwargs):
+        if (
+            CombinedContextManifestProducer.__dict__.get("_capture_native_dual")
+            is hostile_native_dual
+        ):
+            monkeypatch.setattr(
+                CombinedContextManifestProducer,
+                "_capture_native_dual",
+                original_native_dual,
+            )
+        callbacks.append("cookie_forge")
+        return original_cookie_forge(self, *args, **kwargs)
+
+    def cookie_knowledge(self, *args, **kwargs):
+        callbacks.append("cookie_knowledge")
+        result = original_cookie_knowledge(self, *args, **kwargs)
+        monkeypatch.setattr(
+            PlanningContextManifestProducer,
+            "capture_metadata_dual",
+            hostile_reader_dual,
+        )
+        return result
+
+    def mcp_forge(self, *args, **kwargs):
+        callbacks.append("mcp_forge")
+        return original_mcp_forge(self, *args, **kwargs)
+
+    def mcp_knowledge(self, *args, **kwargs):
+        callbacks.append("mcp_knowledge")
+        return original_mcp_knowledge(self, *args, **kwargs)
+
+    monkeypatch.setattr(
+        runtime.durable_store, "_materialize_accepted_migration_locked", materialize,
+    )
+    monkeypatch.setattr(forge_type, "capture_version_metadata", cookie_forge)
+    monkeypatch.setattr(knowledge_type, "capture_metadata", cookie_knowledge)
+    monkeypatch.setattr(forge_type, "capture_version_metadata_mcp", mcp_forge)
+    monkeypatch.setattr(knowledge_type, "capture_metadata_mcp", mcp_knowledge)
+    monkeypatch.setattr(
+        CombinedContextManifestProducer,
+        "_admin_guard",
+        admin_guard_with_transient_replacement,
+    )
+    cookie_authority = CookieConfirmationAuthority(auth)
+    try:
+        with cookie_authority.hold(
+            fixture["cookie"], fixture["chat_id"],
+        ) as binding:
+            cookie, mcp = combined.capture_dual_snapshot(binding, lease, selection)
+            with pytest.raises(ContextManifestProducerError) as nonmixed:
+                combined.capture_dual_snapshot(
+                    binding, lease, ContextSelection((planning_items[0],)),
+                )
+        assert len(materializations) == 1
+        assert callbacks == [
+            "cookie_forge", "cookie_knowledge", "mcp_forge", "mcp_knowledge",
+        ]
+        assert transient_calls == []
+        assert {item.source for item in cookie.items} == {
+            "forge", "planning", "knowledge",
+        }
+        selected_keys = tuple(
+            (item.source, item.selection_ref, item.revision_ref)
+            for item in selection.items
+        )
+        cookie_by_key = {
+            (item.source, item.selection_ref, item.revision_ref): item
+            for item in cookie.items
+        }
+        mcp_by_key = {
+            (item.source, item.selection_ref, item.revision_ref): item
+            for item in mcp.items
+        }
+        assert len(cookie.items) == len(mcp.items) == len(selected_keys)
+        assert len(cookie_by_key) == len(mcp_by_key) == len(selected_keys)
+        assert set(cookie_by_key) == set(mcp_by_key) == set(selected_keys)
+        assert len(cookie.target_manifest_digests) == len(selected_keys)
+        assert len(mcp.target_manifest_digests) == len(selected_keys)
+        for key in selected_keys:
+            cookie_item = cookie_by_key[key]
+            mcp_item = mcp_by_key[key]
+            assert (
+                cookie_item.payload_sha256,
+                cookie_item.classification,
+                cookie_item.provenance_ref,
+            ) == (
+                mcp_item.payload_sha256,
+                mcp_item.classification,
+                mcp_item.provenance_ref,
+            )
+            assert cookie_item.boundary_sha256 != mcp_item.boundary_sha256
+            assert cookie_item.record_sha256 != mcp_item.record_sha256
+        assert nonmixed.value.code == "invalid_context"
+
+        target = planning_items[0]
+        with cookie_authority.hold(
+            fixture["cookie"], fixture["chat_id"],
+        ) as content_binding:
+            content_cookie, content_mcp, cookie_payload, mcp_payload = (
+                combined.capture_dual_snapshot_content(
+                    content_binding, lease, selection, target,
+                )
+            )
+            expected_payload = durable_source.read_document(content_binding, target)
+        assert cookie_payload == mcp_payload == expected_payload
+        assert content_cookie == cookie
+        assert content_mcp == mcp
+        assert content_cookie.__slots__ == (
+            "items", "target_manifest_digests", "mcp_metadata_binding",
+        )
+        assert all(
+            type(getattr(snapshot, name)) is not bytes
+            for snapshot in (content_cookie, content_mcp)
+            for name in snapshot.__slots__
+        )
+        assert hashlib.sha256(cookie_payload).hexdigest() == next(
+            item.payload_sha256
+            for item in content_mcp.items
+            if item.source == "planning"
+            and item.selection_ref == target.selection_ref
+            and item.revision_ref == target.revision_ref
+        )
+
+        monkeypatch.setattr(
+            CombinedContextManifestProducer, "_admin_guard", original_admin_guard,
+        )
+        context_operation = type(fixture["knowledge_composition"]).__dict__["_context_operation"]
+        provider_assertion = CombinedContextManifestProducer.__dict__[
+            "_assert_mcp_provider_pins"
+        ]
+        context_fake_calls, assertion_calls = [], []
+
+        def hostile_context_operation(*_args, **_kwargs):
+            context_fake_calls.append("context_operation")
+            raise AssertionError("transient hostile context operation executed")
+
+        def transient_provider_assertion(self):
+            assertion_calls.append("assert")
+            if len(assertion_calls) == 2:
+                monkeypatch.setattr(
+                    type(fixture["knowledge_composition"]),
+                    "_context_operation",
+                    context_operation,
+                )
+            provider_assertion(self)
+            if len(assertion_calls) == 1:
+                monkeypatch.setattr(
+                    type(fixture["knowledge_composition"]),
+                    "_context_operation",
+                    hostile_context_operation,
+                )
+
+        with monkeypatch.context() as transient:
+            transient.setattr(
+                CombinedContextManifestProducer,
+                "_assert_mcp_provider_pins",
+                transient_provider_assertion,
+            )
+            with CookieConfirmationAuthority(auth).hold(
+                fixture["cookie"], fixture["chat_id"],
+            ) as binding:
+                with combined._dual_sample_pair():
+                    combined.capture_dual_snapshot(binding, lease, selection)
+                    combined.capture_dual_snapshot(binding, lease, selection)
+        assert context_fake_calls == []
+        assert len(assertion_calls) >= 2
+
+        fake_calls = []
+
+        def hostile_dual(*_args, **_kwargs):
+            fake_calls.append("capture_native_dual")
+            raise AssertionError("hostile dual helper executed")
+
+        with monkeypatch.context() as hostile:
+            hostile.setattr(
+                CombinedContextManifestProducer,
+                "_capture_native_dual",
+                hostile_dual,
+            )
+            with pytest.raises(ContextManifestProducerError) as substituted:
+                combined.capture_dual_snapshot(binding, lease, selection)
+            assert substituted.value.code == "invalid_provider"
+            assert fake_calls == []
+
+        content_fake_calls = []
+
+        def hostile_content_adapter(*_args, **_kwargs):
+            content_fake_calls.append("capture_metadata_dual_content")
+            raise AssertionError("hostile content adapter executed")
+
+        with monkeypatch.context() as hostile:
+            hostile.setattr(
+                PlanningContextManifestProducer,
+                "capture_metadata_dual_content",
+                hostile_content_adapter,
+            )
+            with pytest.raises(ContextManifestProducerError) as substituted:
+                combined.capture_dual_snapshot_content(
+                    binding, lease, selection, planning_items[0],
+                )
+            assert substituted.value.code == "invalid_provider"
+            assert content_fake_calls == []
+    finally:
+        authority.release_read_lease(lease)
+        authority.close()

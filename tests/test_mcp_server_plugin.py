@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from fastapi import FastAPI
+from fastapi.responses import Response
 from fastapi.testclient import TestClient
 
 from core.auth import AuthManager
@@ -15,6 +16,7 @@ from src.mcp_authenticated_dispatch import (
     AppOwnedPlanningRuntime,
     MCP_BATCH_MAX,
     MCP_BODY_MAX_BYTES,
+    MCP_CONTEXT_SCOPE,
     McpAuthenticatedIdentity,
 )
 from src.planning_revision_store import PlanningRevisionStore
@@ -329,3 +331,103 @@ def test_audit_arguments_store_only_shape_and_hash(tmp_path):
     assert event["argument_hash"].startswith("sha256:")
     assert "secret-value" not in serialized
     assert "roadmap.json" not in serialized
+
+
+def test_context_config_snapshot_requires_exact_persisted_gates_and_pinned_owner(
+    tmp_path, monkeypatch,
+):
+    monkeypatch.delenv("ODYSSEUS_MCP_SERVER_ENABLED", raising=False)
+    app = FastAPI()
+    state = mcp_plugin.McpServerState(tmp_path, logging.getLogger("test.context-config"))
+    state.bind_context_app(app)
+    assert state.context_snapshot()[:2] == (False, False)
+    saved = state.save_config({"enabled": 1, "allow_context_reads": True})
+    assert saved["enabled"] is False
+    assert saved["allow_context_reads"] is True
+    assert state.context_snapshot()[:2] == (False, True)
+    monkeypatch.setenv("ODYSSEUS_MCP_SERVER_ENABLED", "true")
+    assert state.load_config()["enabled"] is True
+    assert state.context_snapshot()[:2] == (False, True)
+    assert state.save_config({"allow_context_reads": True})["enabled"] is False
+    assert state.context_snapshot()[:2] == (False, True)
+    state.config_path.write_text(json.dumps({
+        "enabled": True,
+        "allow_context_reads": True,
+    }), encoding="utf-8")
+    enabled = state.context_snapshot()
+    assert enabled[:2] == (True, True)
+    state.config_path.write_text(json.dumps({
+        "enabled": True,
+        "allow_context_reads": "true",
+    }), encoding="utf-8")
+    malformed = state.context_snapshot()
+    assert malformed[:2] == (True, False)
+    assert malformed[2] != enabled[2]
+    with monkeypatch.context() as changed:
+        changed.setattr(state, "data_dir", tmp_path / "substituted")
+        with pytest.raises(ValueError, match="configuration owner"):
+            state.context_snapshot()
+    with monkeypatch.context() as changed:
+        changed.setattr(state, "_config_path_pin", Path(str(state.config_path)))
+        with pytest.raises(ValueError, match="configuration owner"):
+            state.context_snapshot()
+    with monkeypatch.context() as changed:
+        changed.setattr(
+            mcp_plugin.McpServerState,
+            "_load_persisted_context_unlocked",
+            lambda _self: (True, True),
+        )
+        with pytest.raises(ValueError, match="configuration owner"):
+            state.context_snapshot()
+    with monkeypatch.context() as changed:
+        changed.setattr(
+            mcp_plugin.McpServerState,
+            "config_path",
+            property(lambda _self: tmp_path / "substituted.json"),
+        )
+        with pytest.raises(ValueError, match="configuration owner"):
+            state.context_snapshot()
+
+
+def test_context_scope_branches_before_generic_body_parse_and_returns_original_response(tmp_path):
+    class Composition:
+        def __init__(self):
+            self.bound = None
+            self.body_was_cached = None
+            self.response = Response(
+                content=b"",
+                status_code=418,
+                headers={"Cache-Control": "no-store"},
+            )
+
+        def bind_plugin_context(self, app, owner):
+            self.bound = (app, owner)
+
+        async def handle_mcp_request(self, request):
+            self.body_was_cached = hasattr(request, "_body")
+            return self.response
+
+    app = FastAPI()
+    composition = Composition()
+    app.state.mcp_context_app = composition
+
+    @app.middleware("http")
+    async def context_identity(request, call_next):
+        request.state.api_token_scopes = (MCP_CONTEXT_SCOPE,)
+        return await call_next(request)
+
+    setup(_PluginContext(app=app, data_dir=tmp_path))
+    async def substituted_handler(_request):
+        raise AssertionError("post-setup handler substitution ran")
+    composition.handle_mcp_request = substituted_handler
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/plugins/mcp",
+            content=b"not-json-and-must-not-be-read",
+            headers={"Authorization": "Bearer malformed-is-owned-by-context"},
+        )
+    assert composition.bound is not None
+    assert composition.body_was_cached is False
+    assert response.status_code == 418
+    assert response.content == b""
+    assert response.headers["cache-control"] == "no-store"

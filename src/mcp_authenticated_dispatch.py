@@ -30,7 +30,10 @@ from src.planning_revision_store import (
 
 MCP_PLANNING_SCOPE = "mcp:planning:read"
 MCP_HARBOUR_INBOX_SCOPE = "mcp:harbour:inbox"
-MCP_AUTHENTICATED_SCOPES = frozenset((MCP_PLANNING_SCOPE, MCP_HARBOUR_INBOX_SCOPE))
+MCP_CONTEXT_SCOPE = "mcp:harbour:context:read"
+MCP_AUTHENTICATED_SCOPES = frozenset(
+    (MCP_PLANNING_SCOPE, MCP_HARBOUR_INBOX_SCOPE, MCP_CONTEXT_SCOPE)
+)
 MCP_BODY_MAX_BYTES = 256 * 1024
 MCP_BATCH_MAX = 8
 MCP_JSON_DEPTH_MAX = 16
@@ -558,6 +561,8 @@ async def dispatch_http_payload(
     fence: Any = None,
     planning_reads_enabled: bool = True,
 ) -> dict[str, Any] | list[dict[str, Any]] | None:
+    if identity.scope == MCP_CONTEXT_SCOPE:
+        raise McpDispatchFailure("invalid_request")
     is_batch = type(payload) is list
     messages = payload if is_batch else [payload]
     if is_batch and (not messages or len(messages) > MCP_BATCH_MAX):
@@ -824,7 +829,7 @@ def _validate_projection(name: str, payload: dict[str, Any]) -> None:
             _require_text(filters["kind"], 100)
             _require_text(filters["status"], 80)
             rows = payload["roadmaps"]
-            _validate_record_rows(rows, 100)
+            _validate_record_rows(rows, 100, allow_unhashed_invalid=True)
             summary = payload["summary"]
             if type(summary) is not dict or set(summary) != {"total_roadmaps", "total_matches", "returned", "clipped"}:
                 raise ValueError
@@ -838,7 +843,7 @@ def _validate_projection(name: str, payload: dict[str, Any]) -> None:
         elif name == "planning_search_roadmaps":
             _require_text(payload["query"], 200)
             rows = payload["results"]
-            _validate_record_rows(rows, 100)
+            _validate_record_rows(rows, 100, allow_unhashed_invalid=True)
             summary = payload["summary"]
             if type(summary) is not dict or set(summary) != {"matches", "returned", "clipped"}:
                 raise ValueError
@@ -1026,20 +1031,47 @@ def _require_score(value: Any) -> None:
         raise ValueError
 
 
-def _validate_record_rows(rows: Any, maximum: int) -> None:
+def _validate_record_rows(
+    rows: Any,
+    maximum: int,
+    *,
+    allow_unhashed_invalid: bool = False,
+) -> None:
     if type(rows) is not list or len(rows) > maximum:
         raise ValueError
     for row in rows:
-        _validate_record_summary(row)
+        _validate_record_summary(
+            row,
+            allow_unhashed_invalid=allow_unhashed_invalid,
+        )
 
 
-def _validate_record_summary(value: dict[str, Any]) -> None:
+def _validate_record_summary(
+    value: dict[str, Any],
+    *,
+    allow_unhashed_invalid: bool = False,
+) -> None:
     fields = {"source_id", "source_ref", "source_hash", "project_id", "roadmap_id", "ids_derived", "title", "goal", "kind", "status", "size_bytes", "valid_json", "preview", "repo_relative", "absolute_path_recorded"}
     if type(value) is not dict or set(value) != fields:
         raise ValueError
     _require_text(value["source_id"], 120, allow_empty=False)
     _require_repo_ref(value["source_ref"], 240)
-    _require_hash(value["source_hash"])
+    unhashed_invalid = (
+        allow_unhashed_invalid
+        and type(value["source_hash"]) is str
+        and value["source_hash"] == ""
+    )
+    if unhashed_invalid:
+        if (
+            value["valid_json"] is not False
+            or value["preview"] != ""
+            or value["ids_derived"] is not True
+            or value["goal"] != ""
+            or value["status"] != "unknown"
+        ):
+            raise ValueError
+    else:
+        _require_hash(value["source_hash"])
     _require_project_id(value["project_id"])
     _require_project_id(value["roadmap_id"])
     if type(value["ids_derived"]) is not bool:
@@ -1333,6 +1365,7 @@ __all__ = [
     "MCP_AGGREGATE_MAX_BYTES",
     "MCP_ARGUMENTS_MAX_BYTES",
     "MCP_BODY_MAX_BYTES",
+    "MCP_CONTEXT_SCOPE",
     "MCP_PLANNING_SCOPE",
     "MCP_RESULT_MAX_BYTES",
     "MCP_TOTAL_BUDGET_SECONDS",

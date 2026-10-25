@@ -14,6 +14,7 @@ import re
 import threading
 import types
 
+import src.mcp_context_authority as _authority_module
 import src.mcp_context_contract as _contract_module
 import src.mcp_context_native_page as _native_module
 import src.mcp_context_planning_page as _planning_module
@@ -29,7 +30,14 @@ from src.mcp_context_contract import (
     encode_context_jsonrpc_response,
 )
 from src.mcp_context_cursor_authority import McpContextCursorAuthority
-from src.mcp_private_context_confirmation import McpPrivateContextConfirmationService
+from src.mcp_private_context_confirmation import (
+    McpPrivateContextConfirmationError,
+    McpPrivateContextConfirmationService,
+)
+from src.mcp_context_causal_observation import (
+    span_begin as _observation_span_begin,
+    span_end as _observation_span_end,
+)
 from src.private_context_confirmation import ManifestItem
 from src.private_context_confirmation_app import (
     ContextSelection,
@@ -44,6 +52,7 @@ _RAW_SHA256 = re.compile(r"^[0-9a-f]{64}$\Z")
 _SHA256 = re.compile(r"^sha256:[0-9a-f]{64}$\Z")
 
 _TRUSTED_SERVICE_CLASS = McpPrivateContextConfirmationService
+_TRUSTED_CONFIRMATION_ERROR_CLASS = McpPrivateContextConfirmationError
 _TRUSTED_PRODUCER_CLASS = CombinedContextManifestProducer
 _TRUSTED_CURSOR_CLASS = McpContextCursorAuthority
 _TRUSTED_LEASE_CLASS = McpContextReadLease
@@ -57,6 +66,8 @@ _TRUSTED_METADATA_CLASS = McpContextMetadataBinding
 _TRUSTED_CAPTURE = CombinedContextManifestProducer.capture_mcp_snapshot
 _TRUSTED_SERVICE_ASSERT_PINS = McpPrivateContextConfirmationService._assert_pins
 _TRUSTED_ISSUE_PERMIT = McpPrivateContextConfirmationService.issue_permit
+_TRUSTED_ISSUE_CAPTURED_PERMIT = McpPrivateContextConfirmationService._issue_captured_permit
+_TRUSTED_REJECT_NATIVE_PERMIT = McpPrivateContextConfirmationService._reject_native_permit
 _TRUSTED_FENCE = McpPrivateContextConfirmationService._fence_disclosed_publication
 _TRUSTED_REVOKE = McpPrivateContextConfirmationService.revoke
 _TRUSTED_ISSUE_MANIFEST = McpContextCursorAuthority.issue_manifest_cursor
@@ -98,12 +109,52 @@ _METADATA_FIELDS = (
     "cache_generation", "security_revision", "app_epoch",
 )
 _SERVICE_DEPENDENCY_FIELDS = ("_authority", "_producer")
+_CONFIRMATION_ERROR_FIELDS = ("code", "__getattribute__", "__getattr__")
 _PRODUCER_DEPENDENCY_FIELDS = ("_mcp_authority",)
 _CURSOR_DEPENDENCY_FIELDS = ("_authority",)
-_LEASE_FIELDS = ("binding",)
+_LEASE_FIELDS = (
+    "binding", "request_id", "expires_at", "_McpContextReadLease__issuer",
+    "_McpContextReadLease__authority", "_McpContextReadLease__binding",
+    "_McpContextReadLease__request_id",
+    "_McpContextReadLease__issued_monotonic",
+    "_McpContextReadLease__deadline_monotonic",
+    "_McpContextReadLease__issued_wall",
+    "_McpContextReadLease__deadline_wall", "__getattribute__", "__getattr__",
+)
+_BINDING_FIELDS = (
+    "token_id", "owner_alias", "owner_subject_id", "scope", "cache_generation",
+    "security_action_revision", "chat_session_id", "process_epoch", "audience",
+    "bearer_proof", "_McpContextBinding__issuer",
+    "_McpContextBinding__authority", "_McpContextBinding__proof",
+    "_McpContextBinding__token_id", "_McpContextBinding__owner_alias",
+    "_McpContextBinding__owner_subject_id", "_McpContextBinding__scope",
+    "_McpContextBinding__cache_generation",
+    "_McpContextBinding__security_action_revision",
+    "_McpContextBinding__chat_session_id",
+    "_McpContextBinding__process_epoch", "_McpContextBinding__audience",
+    "__getattribute__", "__getattr__",
+)
+_WRAPPER_FIELDS = (
+    "_McpContextBearerProof__native", "_McpContextBearerProof__issuer",
+    "__getattribute__", "__getattr__",
+)
+_NATIVE_PROOF_FIELDS = (
+    "_McpBearerProof__raw", "_McpBearerProof__issuer", "__getattribute__",
+    "__getattr__", "_is_issued",
+)
 _CURSOR_ENVELOPE_FIELDS = (
     "request_id", "pack_id", "recipient", "chat", "process_epoch", "selection",
     "snapshot", "kind", "target_index", "offset", "page_bytes", "expiry", "schema",
+)
+_NATIVE_LEASE_STATE_FIELDS = (
+    "lock", "leases", "cancelled_leases", "__getattribute__", "__getattr__",
+)
+_NATIVE_LEASE_STATE_SLOT_FIELDS = (
+    "_NativeLeaseStateSlot__native_lease_state", "__getattribute__", "__getattr__",
+)
+_NATIVE_LEASE_CAPABILITY_FIELDS = (
+    "state", "lease", "key", "record", "terminal_reason", "require_live", "cancel",
+    "__init__", "__new__", "__getattribute__", "__getattr__",
 )
 
 
@@ -128,6 +179,73 @@ _TRUSTED_TYPE_GETATTRIBUTE = type.__getattribute__
 _TRUSTED_STATICMETHOD_TYPE = staticmethod
 _TRUSTED_STATICMETHOD_GET = staticmethod.__get__
 _TRUSTED_MEMBER_DESCRIPTOR_TYPE = types.MemberDescriptorType
+_TRUSTED_MODULE_TYPE = types.ModuleType
+_TRUSTED_MODULE_GETATTRIBUTE = types.ModuleType.__getattribute__
+_TRUSTED_MISSING = object()
+_TRUSTED_AUTHORITY_MODULE = _authority_module
+_TRUSTED_AUTHORITY_NAMESPACE = _TRUSTED_MODULE_GETATTRIBUTE(
+    _TRUSTED_AUTHORITY_MODULE, "__dict__",
+)
+_TRUSTED_NATIVE_LEASE_STATE_CLASS = dict.__getitem__(
+    _TRUSTED_AUTHORITY_NAMESPACE, "_NativeLeaseState",
+)
+_TRUSTED_BINDING_CLASS = dict.__getitem__(
+    _TRUSTED_AUTHORITY_NAMESPACE, "McpContextBinding",
+)
+_TRUSTED_WRAPPER_CLASS = dict.__getitem__(
+    _TRUSTED_AUTHORITY_NAMESPACE, "McpContextBearerProof",
+)
+_TRUSTED_NATIVE_PROOF_CLASS = dict.__getitem__(
+    _TRUSTED_AUTHORITY_NAMESPACE, "McpBearerProof",
+)
+_TRUSTED_NATIVE_LEASE_CAPABILITY_CLASS = dict.__getitem__(
+    _TRUSTED_AUTHORITY_NAMESPACE, "_NativeLeaseCapability",
+)
+_TRUSTED_NATIVE_LEASE_STATE_SLOT_CLASS = dict.__getitem__(
+    _TRUSTED_AUTHORITY_NAMESPACE, "_NativeLeaseStateSlot",
+)
+_TRUSTED_ACQUIRE_NATIVE_LEASE_CAPABILITY = dict.__getitem__(
+    _TRUSTED_AUTHORITY_NAMESPACE, "_acquire_native_lease_capability",
+)
+_TRUSTED_READ_NATIVE_LEASE_STATE = dict.__getitem__(
+    _TRUSTED_AUTHORITY_NAMESPACE, "_read_native_lease_state",
+)
+_TRUSTED_NATIVE_LEASE_STATE_DESCRIPTOR = dict.__getitem__(
+    _TRUSTED_AUTHORITY_NAMESPACE, "_NATIVE_LEASE_STATE_SLOT",
+)
+_TRUSTED_NATIVE_LEASE_CANCELLED = dict.__getitem__(
+    _TRUSTED_AUTHORITY_NAMESPACE, "_NATIVE_LEASE_CANCELLED",
+)
+_TRUSTED_ACQUIRE_NATIVE_LEASE_CAPABILITY_CODE = (
+    _TRUSTED_ACQUIRE_NATIVE_LEASE_CAPABILITY.__code__
+)
+_TRUSTED_ACQUIRE_NATIVE_LEASE_CAPABILITY_DEFAULTS = (
+    _TRUSTED_ACQUIRE_NATIVE_LEASE_CAPABILITY.__defaults__
+)
+_TRUSTED_READ_NATIVE_LEASE_STATE_CODE = _TRUSTED_READ_NATIVE_LEASE_STATE.__code__
+_TRUSTED_READ_NATIVE_LEASE_STATE_DEFAULTS = (
+    _TRUSTED_READ_NATIVE_LEASE_STATE.__defaults__
+)
+_TRUSTED_NATIVE_LEASE_CAPABILITY_INIT = (
+    _TRUSTED_NATIVE_LEASE_CAPABILITY_CLASS.__dict__["__init__"]
+)
+_TRUSTED_NATIVE_LEASE_CAPABILITY_INIT_CODE = (
+    _TRUSTED_NATIVE_LEASE_CAPABILITY_INIT.__code__
+)
+_TRUSTED_NATIVE_LEASE_TERMINAL_REASON = (
+    _TRUSTED_NATIVE_LEASE_CAPABILITY_CLASS.__dict__["terminal_reason"]
+)
+_TRUSTED_NATIVE_LEASE_TERMINAL_REASON_CODE = (
+    _TRUSTED_NATIVE_LEASE_TERMINAL_REASON.__code__
+)
+_TRUSTED_NATIVE_LEASE_TERMINAL_REASON_DEFAULTS = (
+    _TRUSTED_NATIVE_LEASE_TERMINAL_REASON.__defaults__
+)
+_TRUSTED_NATIVE_LEASE_CANCEL = (
+    _TRUSTED_NATIVE_LEASE_CAPABILITY_CLASS.__dict__["cancel"]
+)
+_TRUSTED_NATIVE_LEASE_CANCEL_CODE = _TRUSTED_NATIVE_LEASE_CANCEL.__code__
+_TRUSTED_NATIVE_LEASE_CANCEL_DEFAULTS = _TRUSTED_NATIVE_LEASE_CANCEL.__defaults__
 
 
 def _raw_effective_special(
@@ -164,9 +282,10 @@ def _class_state(
     _type_getattribute: object = type.__getattribute__,
     _effective: object = _TRUSTED_RAW_EFFECTIVE_SPECIAL,
     _member_descriptor_type: type = types.MemberDescriptorType,
+    _missing: object = _TRUSTED_MISSING,
 ) -> tuple[object, ...]:
     namespace = _type_getattribute(value_class, "__dict__")
-    field_slots = tuple(namespace.get(name) for name in fields)
+    field_slots = tuple(namespace.get(name, _missing) for name in fields)
     if (type(require_member_fields) is not bool
             or (require_member_fields
                 and any(type(slot) is not _member_descriptor_type for slot in field_slots))):
@@ -183,9 +302,17 @@ def _class_state(
 
 _TRUSTED_CLASS_STATE = _class_state
 _TRUSTED_SERVICE_STATE = _class_state(_TRUSTED_SERVICE_CLASS, _SERVICE_DEPENDENCY_FIELDS)
+_TRUSTED_CONFIRMATION_ERROR_STATE = _class_state(
+    _TRUSTED_CONFIRMATION_ERROR_CLASS, _CONFIRMATION_ERROR_FIELDS,
+)
 _TRUSTED_PRODUCER_STATE = _class_state(_TRUSTED_PRODUCER_CLASS, _PRODUCER_DEPENDENCY_FIELDS)
 _TRUSTED_CURSOR_STATE = _class_state(_TRUSTED_CURSOR_CLASS, _CURSOR_DEPENDENCY_FIELDS)
 _TRUSTED_LEASE_STATE = _class_state(_TRUSTED_LEASE_CLASS, _LEASE_FIELDS)
+_TRUSTED_BINDING_STATE = _class_state(_TRUSTED_BINDING_CLASS, _BINDING_FIELDS)
+_TRUSTED_WRAPPER_STATE = _class_state(_TRUSTED_WRAPPER_CLASS, _WRAPPER_FIELDS)
+_TRUSTED_NATIVE_PROOF_STATE = _class_state(
+    _TRUSTED_NATIVE_PROOF_CLASS, _NATIVE_PROOF_FIELDS,
+)
 _TRUSTED_SELECTION_STATE = _class_state(_TRUSTED_SELECTION_CLASS, _SELECTION_FIELDS, True)
 _TRUSTED_SOURCE_STATE = _class_state(_TRUSTED_SOURCE_CLASS, _SOURCE_FIELDS, True)
 _TRUSTED_LOCATOR_STATE = _class_state(_TRUSTED_LOCATOR_CLASS, _LOCATOR_FIELDS, True)
@@ -195,6 +322,15 @@ _TRUSTED_METADATA_STATE = _class_state(_TRUSTED_METADATA_CLASS, _METADATA_FIELDS
 _TRUSTED_CURSOR_ENVELOPE_CLASS = McpContextCursorEnvelope
 _TRUSTED_CURSOR_ENVELOPE_STATE = _class_state(
     _TRUSTED_CURSOR_ENVELOPE_CLASS, _CURSOR_ENVELOPE_FIELDS, True,
+)
+_TRUSTED_NATIVE_LEASE_STATE = _class_state(
+    _TRUSTED_NATIVE_LEASE_STATE_CLASS, _NATIVE_LEASE_STATE_FIELDS,
+)
+_TRUSTED_NATIVE_LEASE_STATE_SLOT_STATE = _class_state(
+    _TRUSTED_NATIVE_LEASE_STATE_SLOT_CLASS, _NATIVE_LEASE_STATE_SLOT_FIELDS,
+)
+_TRUSTED_NATIVE_LEASE_CAPABILITY_STATE = _class_state(
+    _TRUSTED_NATIVE_LEASE_CAPABILITY_CLASS, _NATIVE_LEASE_CAPABILITY_FIELDS,
 )
 
 
@@ -552,15 +688,27 @@ _TRUSTED_PARSE_INNER = _parse_inner
 
 
 def _static_pin_guard() -> None:
+    if (globals().get("_authority_module") is not _TRUSTED_AUTHORITY_MODULE
+            or type(_TRUSTED_AUTHORITY_MODULE) is not _TRUSTED_MODULE_TYPE):
+        _fail()
+    authority_namespace = _TRUSTED_MODULE_GETATTRIBUTE(
+        _TRUSTED_AUTHORITY_MODULE, "__dict__",
+    )
     service_namespace = _TRUSTED_SERVICE_CLASS.__dict__
     producer_namespace = _TRUSTED_PRODUCER_CLASS.__dict__
     cursor_namespace = _TRUSTED_CURSOR_CLASS.__dict__
     coordinator_namespace = _TRUSTED_COORDINATOR_CLASS.__dict__
     class_pins = (
         (_TRUSTED_SERVICE_CLASS, _SERVICE_DEPENDENCY_FIELDS, _TRUSTED_SERVICE_STATE),
+        (_TRUSTED_CONFIRMATION_ERROR_CLASS, _CONFIRMATION_ERROR_FIELDS,
+         _TRUSTED_CONFIRMATION_ERROR_STATE),
         (_TRUSTED_PRODUCER_CLASS, _PRODUCER_DEPENDENCY_FIELDS, _TRUSTED_PRODUCER_STATE),
         (_TRUSTED_CURSOR_CLASS, _CURSOR_DEPENDENCY_FIELDS, _TRUSTED_CURSOR_STATE),
         (_TRUSTED_LEASE_CLASS, _LEASE_FIELDS, _TRUSTED_LEASE_STATE),
+        (_TRUSTED_BINDING_CLASS, _BINDING_FIELDS, _TRUSTED_BINDING_STATE),
+        (_TRUSTED_WRAPPER_CLASS, _WRAPPER_FIELDS, _TRUSTED_WRAPPER_STATE),
+        (_TRUSTED_NATIVE_PROOF_CLASS, _NATIVE_PROOF_FIELDS,
+         _TRUSTED_NATIVE_PROOF_STATE),
         (_TRUSTED_SELECTION_CLASS, _SELECTION_FIELDS, _TRUSTED_SELECTION_STATE),
         (_TRUSTED_SOURCE_CLASS, _SOURCE_FIELDS, _TRUSTED_SOURCE_STATE),
         (_TRUSTED_LOCATOR_CLASS, _LOCATOR_FIELDS, _TRUSTED_LOCATOR_STATE),
@@ -569,9 +717,80 @@ def _static_pin_guard() -> None:
         (_TRUSTED_METADATA_CLASS, _METADATA_FIELDS, _TRUSTED_METADATA_STATE),
         (_TRUSTED_CURSOR_ENVELOPE_CLASS, _CURSOR_ENVELOPE_FIELDS,
          _TRUSTED_CURSOR_ENVELOPE_STATE),
+        (_TRUSTED_NATIVE_LEASE_STATE_CLASS, _NATIVE_LEASE_STATE_FIELDS,
+         _TRUSTED_NATIVE_LEASE_STATE),
+        (_TRUSTED_NATIVE_LEASE_STATE_SLOT_CLASS, _NATIVE_LEASE_STATE_SLOT_FIELDS,
+         _TRUSTED_NATIVE_LEASE_STATE_SLOT_STATE),
+        (_TRUSTED_NATIVE_LEASE_CAPABILITY_CLASS, _NATIVE_LEASE_CAPABILITY_FIELDS,
+         _TRUSTED_NATIVE_LEASE_CAPABILITY_STATE),
     )
     if (globals().get("_static_pin_guard") is not _TRUSTED_STATIC_PIN_GUARD
+            or globals().get("_TRUSTED_ISSUE_CAPTURED_PERMIT")
+                is not _TRUSTED_SERVICE_CLASS.__dict__.get("_issue_captured_permit")
+            or globals().get("_TRUSTED_REJECT_NATIVE_PERMIT")
+                is not _TRUSTED_SERVICE_CLASS.__dict__.get("_reject_native_permit")
+            or authority_namespace is not _TRUSTED_AUTHORITY_NAMESPACE
+            or dict.get(authority_namespace, "_NativeLeaseState")
+                is not _TRUSTED_NATIVE_LEASE_STATE_CLASS
+            or dict.get(authority_namespace, "McpContextReadLease")
+                is not _TRUSTED_LEASE_CLASS
+            or dict.get(authority_namespace, "McpContextBinding")
+                is not _TRUSTED_BINDING_CLASS
+            or dict.get(authority_namespace, "McpContextBearerProof")
+                is not _TRUSTED_WRAPPER_CLASS
+            or dict.get(authority_namespace, "McpBearerProof")
+                is not _TRUSTED_NATIVE_PROOF_CLASS
+            or dict.get(authority_namespace, "_NativeLeaseCapability")
+                is not _TRUSTED_NATIVE_LEASE_CAPABILITY_CLASS
+            or dict.get(authority_namespace, "_NativeLeaseStateSlot")
+                is not _TRUSTED_NATIVE_LEASE_STATE_SLOT_CLASS
+            or dict.get(authority_namespace, "_acquire_native_lease_capability")
+                is not _TRUSTED_ACQUIRE_NATIVE_LEASE_CAPABILITY
+            or dict.get(authority_namespace, "_read_native_lease_state")
+                is not _TRUSTED_READ_NATIVE_LEASE_STATE
+            or dict.get(authority_namespace, "_NATIVE_LEASE_STATE_SLOT")
+                is not _TRUSTED_NATIVE_LEASE_STATE_DESCRIPTOR
+            or dict.get(authority_namespace, "_NATIVE_LEASE_CANCELLED")
+                is not _TRUSTED_NATIVE_LEASE_CANCELLED
+            or _TRUSTED_ACQUIRE_NATIVE_LEASE_CAPABILITY.__code__
+                is not _TRUSTED_ACQUIRE_NATIVE_LEASE_CAPABILITY_CODE
+            or _TRUSTED_ACQUIRE_NATIVE_LEASE_CAPABILITY.__defaults__
+                is not _TRUSTED_ACQUIRE_NATIVE_LEASE_CAPABILITY_DEFAULTS
+            or type(_TRUSTED_ACQUIRE_NATIVE_LEASE_CAPABILITY_DEFAULTS) is not tuple
+            or len(_TRUSTED_ACQUIRE_NATIVE_LEASE_CAPABILITY_DEFAULTS) != 1
+            or _TRUSTED_ACQUIRE_NATIVE_LEASE_CAPABILITY_DEFAULTS[0]
+                is not _TRUSTED_READ_NATIVE_LEASE_STATE
+            or _TRUSTED_READ_NATIVE_LEASE_STATE.__code__
+                is not _TRUSTED_READ_NATIVE_LEASE_STATE_CODE
+            or _TRUSTED_READ_NATIVE_LEASE_STATE.__defaults__
+                is not _TRUSTED_READ_NATIVE_LEASE_STATE_DEFAULTS
+            or type(_TRUSTED_READ_NATIVE_LEASE_STATE_DEFAULTS) is not tuple
+            or len(_TRUSTED_READ_NATIVE_LEASE_STATE_DEFAULTS) != 1
+            or _TRUSTED_READ_NATIVE_LEASE_STATE_DEFAULTS[0]
+                is not _TRUSTED_NATIVE_LEASE_STATE_DESCRIPTOR
+            or type(_TRUSTED_NATIVE_LEASE_STATE_DESCRIPTOR)
+                is not _TRUSTED_MEMBER_DESCRIPTOR_TYPE
+            or _TRUSTED_NATIVE_LEASE_STATE_DESCRIPTOR.__objclass__
+                is not _TRUSTED_NATIVE_LEASE_STATE_SLOT_CLASS
+            or _TRUSTED_NATIVE_LEASE_CAPABILITY_CLASS.__dict__.get("__init__")
+                is not _TRUSTED_NATIVE_LEASE_CAPABILITY_INIT
+            or _TRUSTED_NATIVE_LEASE_CAPABILITY_INIT.__code__
+                is not _TRUSTED_NATIVE_LEASE_CAPABILITY_INIT_CODE
+            or _TRUSTED_NATIVE_LEASE_TERMINAL_REASON.__code__
+                is not _TRUSTED_NATIVE_LEASE_TERMINAL_REASON_CODE
+            or _TRUSTED_NATIVE_LEASE_TERMINAL_REASON.__defaults__
+                is not _TRUSTED_NATIVE_LEASE_TERMINAL_REASON_DEFAULTS
+            or _TRUSTED_NATIVE_LEASE_TERMINAL_REASON_DEFAULTS is not None
+            or _TRUSTED_NATIVE_LEASE_CANCEL.__code__
+                is not _TRUSTED_NATIVE_LEASE_CANCEL_CODE
+            or _TRUSTED_NATIVE_LEASE_CANCEL.__defaults__
+                is not _TRUSTED_NATIVE_LEASE_CANCEL_DEFAULTS
+            or type(_TRUSTED_NATIVE_LEASE_CANCEL_DEFAULTS) is not tuple
+            or len(_TRUSTED_NATIVE_LEASE_CANCEL_DEFAULTS) != 1
+            or _TRUSTED_NATIVE_LEASE_CANCEL_DEFAULTS[0] is not None
             or globals().get("McpPrivateContextConfirmationService") is not _TRUSTED_SERVICE_CLASS
+            or globals().get("McpPrivateContextConfirmationError")
+                is not _TRUSTED_CONFIRMATION_ERROR_CLASS
             or globals().get("CombinedContextManifestProducer") is not _TRUSTED_PRODUCER_CLASS
             or globals().get("McpContextCursorAuthority") is not _TRUSTED_CURSOR_CLASS
             or globals().get("McpContextReadLease") is not _TRUSTED_LEASE_CLASS
@@ -591,6 +810,10 @@ def _static_pin_guard() -> None:
             or producer_namespace.get("capture_mcp_snapshot") is not _TRUSTED_CAPTURE
             or service_namespace.get("_assert_pins") is not _TRUSTED_SERVICE_ASSERT_PINS
             or service_namespace.get("issue_permit") is not _TRUSTED_ISSUE_PERMIT
+            or service_namespace.get("_issue_captured_permit")
+                is not _TRUSTED_ISSUE_CAPTURED_PERMIT
+            or service_namespace.get("_reject_native_permit")
+                is not _TRUSTED_REJECT_NATIVE_PERMIT
             or service_namespace.get("_fence_disclosed_publication") is not _TRUSTED_FENCE
             or service_namespace.get("revoke") is not _TRUSTED_REVOKE
             or cursor_namespace.get("issue_manifest_cursor") is not _TRUSTED_ISSUE_MANIFEST
@@ -611,7 +834,7 @@ class McpContextPackCoordinator:
 
     __slots__ = (
         "_service", "_producer", "_cursor", "_authority", "_lock", "_closed",
-        "_generation", "_active",
+        "_generation", "_active", "_abort_pin", "_reject_native_permit_pin",
     )
 
     def __init__(
@@ -643,6 +866,10 @@ class McpContextPackCoordinator:
         self._closed = False
         self._generation = 0
         self._active: dict[str, tuple[object, int, int, int]] = {}
+        self._abort_pin = type(self).__dict__.get("_abort")
+        self._reject_native_permit_pin = type(service).__dict__.get(
+            "_reject_native_permit",
+        )
         _TRUSTED_COORDINATOR_ASSERT_PINS(self)
 
     def __init_subclass__(cls, **_kwargs: object) -> None:
@@ -660,7 +887,11 @@ class McpContextPackCoordinator:
         if (type(self) is not _TRUSTED_COORDINATOR_CLASS
                 or any(coordinator_namespace.get(name) is not descriptor
                        for name, descriptor in _TRUSTED_COORDINATOR_NAMESPACE)
+                or self._abort_pin is not _TRUSTED_COORDINATOR_ABORT
+                or self._reject_native_permit_pin is not _TRUSTED_REJECT_NATIVE_PERMIT
                 or globals().get("McpPrivateContextConfirmationService") is not _TRUSTED_SERVICE_CLASS
+                or globals().get("McpPrivateContextConfirmationError")
+                    is not _TRUSTED_CONFIRMATION_ERROR_CLASS
                 or globals().get("CombinedContextManifestProducer") is not _TRUSTED_PRODUCER_CLASS
                 or globals().get("McpContextCursorAuthority") is not _TRUSTED_CURSOR_CLASS
                 or globals().get("McpContextReadLease") is not _TRUSTED_LEASE_CLASS
@@ -673,6 +904,10 @@ class McpContextPackCoordinator:
                 or producer_namespace.get("capture_mcp_snapshot") is not _TRUSTED_CAPTURE
                 or service_namespace.get("_assert_pins") is not _TRUSTED_SERVICE_ASSERT_PINS
                 or service_namespace.get("issue_permit") is not _TRUSTED_ISSUE_PERMIT
+                or service_namespace.get("_issue_captured_permit")
+                    is not _TRUSTED_ISSUE_CAPTURED_PERMIT
+                or service_namespace.get("_reject_native_permit")
+                    is not _TRUSTED_REJECT_NATIVE_PERMIT
                 or service_namespace.get("_fence_disclosed_publication") is not _TRUSTED_FENCE
                 or service_namespace.get("revoke") is not _TRUSTED_REVOKE
                 or cursor_namespace.get("issue_manifest_cursor") is not _TRUSTED_ISSUE_MANIFEST
@@ -783,15 +1018,26 @@ class McpContextPackCoordinator:
             _fail()
         return value
 
-    def _begin(self, consent_request_id: object) -> tuple[str, tuple[object, int, int, int]]:
+    def _begin(
+        self,
+        consent_request_id: object,
+        _revoke: object = _TRUSTED_REVOKE,
+    ) -> tuple[str, tuple[object, int, int, int]]:
         request_id = _TRUSTED_SAFE_OPAQUE(consent_request_id)
-        _TRUSTED_COORDINATOR_ASSERT_PINS(self)
-        with self._lock:
-            if self._closed or request_id in self._active:
-                _fail()
-            token = (object(), self._generation, _TRUSTED_GET_IDENT(), _TRUSTED_GETPID())
-            self._active[request_id] = token
-        return request_id, token
+        try:
+            _TRUSTED_COORDINATOR_ASSERT_PINS(self)
+            with self._lock:
+                if self._closed or request_id in self._active:
+                    _fail()
+                token = (object(), self._generation, _TRUSTED_GET_IDENT(), _TRUSTED_GETPID())
+                self._active[request_id] = token
+            return request_id, token
+        except BaseException:
+            try:
+                _revoke(self._service, request_id)
+            except BaseException:
+                pass
+            raise
 
     def _check_active(self, request_id: str, token: tuple[object, int, int, int]) -> None:
         with self._lock:
@@ -868,23 +1114,36 @@ class McpContextPackCoordinator:
         request_id: object = consent_request_id
         token: object | None = None
         try:
-            request_id, token = _TRUSTED_COORDINATOR_BEGIN(self, consent_request_id)
+            observation_span = _observation_span_begin("manifest.begin")
+            try:
+                request_id, token = _TRUSTED_COORDINATOR_BEGIN(self, consent_request_id)
+            finally:
+                _observation_span_end(observation_span)
             rpc_id = _TRUSTED_COORDINATOR_RPC_ID(rpc_request_id)
             if type(page_bytes) is not int or not 1 <= page_bytes <= _TRUSTED_RAW_PAGE_MAX_BYTES:
                 _fail()
-            (snapshot, selection_projection, snapshot_projection, ordered, pack_id,
-             selection_digest, snapshot_digest) = _TRUSTED_COORDINATOR_CAPTURE(
-                self,
-                lease, original_selection, request_id,
-            )
+            observation_span = _observation_span_begin("manifest.capture")
+            try:
+                (snapshot, selection_projection, snapshot_projection, ordered, pack_id,
+                 selection_digest, snapshot_digest) = _TRUSTED_COORDINATOR_CAPTURE(
+                    self,
+                    lease, original_selection, request_id,
+                )
+            finally:
+                _observation_span_end(observation_span)
             _TRUSTED_COORDINATOR_CHECK_ACTIVE(self, request_id, token)
             if cursor is None:
                 index = 0
             else:
-                envelope = _TRUSTED_VERIFY_MANIFEST(
-                    self._cursor, cursor, lease, pack_id=pack_id, selection=selection_digest,
-                    snapshot=snapshot_digest, page_bytes=page_bytes,
-                )
+                observation_span = _observation_span_begin("manifest.cursor_verify")
+                try:
+                    envelope = _TRUSTED_VERIFY_MANIFEST(
+                        self._cursor, cursor, lease, pack_id=pack_id,
+                        selection=selection_digest, snapshot=snapshot_digest,
+                        page_bytes=page_bytes,
+                    )
+                finally:
+                    _observation_span_end(observation_span)
                 envelope_values = _TRUSTED_SLOTS(
                     envelope, _TRUSTED_CURSOR_ENVELOPE_CLASS,
                     _TRUSTED_CURSOR_ENVELOPE_STATE,
@@ -901,11 +1160,15 @@ class McpContextPackCoordinator:
             complete = end == len(ordered)
             next_cursor = None
             if not complete:
-                next_cursor = _TRUSTED_ISSUE_MANIFEST(
-                    self._cursor, lease, pack_id=pack_id, selection=selection_digest,
-                    snapshot=snapshot_digest, target_index=end, offset=0,
-                    page_bytes=page_bytes,
-                )
+                observation_span = _observation_span_begin("manifest.cursor_issue")
+                try:
+                    next_cursor = _TRUSTED_ISSUE_MANIFEST(
+                        self._cursor, lease, pack_id=pack_id,
+                        selection=selection_digest, snapshot=snapshot_digest,
+                        target_index=end, offset=0, page_bytes=page_bytes,
+                    )
+                finally:
+                    _observation_span_end(observation_span)
             result = {
                 "schema": _TRUSTED_PACK_SCHEMA,
                 "pack_id": pack_id,
@@ -916,17 +1179,35 @@ class McpContextPackCoordinator:
                 "authority_granted": False,
                 "send_performed": False,
             }
-            _TRUSTED_COORDINATOR_FENCE(
-                self, request_id, lease, original_selection, snapshot, page_bytes,
-            )
+            observation_span = _observation_span_begin("manifest.fence_1")
+            try:
+                _TRUSTED_COORDINATOR_FENCE(
+                    self, request_id, lease, original_selection, snapshot, page_bytes,
+                )
+            finally:
+                _observation_span_end(observation_span)
             _TRUSTED_COORDINATOR_CHECK_ACTIVE(self, request_id, token)
-            frozen = _TRUSTED_COORDINATOR_ENCODE(self, rpc_id, result)
+            observation_span = _observation_span_begin("manifest.encode")
+            try:
+                frozen = _TRUSTED_COORDINATOR_ENCODE(self, rpc_id, result)
+            finally:
+                _observation_span_end(observation_span)
             _TRUSTED_COORDINATOR_CHECK_ACTIVE(self, request_id, token)
-            _TRUSTED_COORDINATOR_FENCE(
-                self, request_id, lease, original_selection, snapshot, page_bytes,
-            )
+            observation_span = _observation_span_begin("manifest.fence_2")
+            try:
+                _TRUSTED_COORDINATOR_FENCE(
+                    self, request_id, lease, original_selection, snapshot, page_bytes,
+                )
+            finally:
+                _observation_span_end(observation_span)
             _TRUSTED_COORDINATOR_CHECK_ACTIVE(self, request_id, token)
-            return _TRUSTED_COORDINATOR_FINISH(self, request_id, token, frozen, revoke=False)
+            observation_span = _observation_span_begin("manifest.finish")
+            try:
+                return _TRUSTED_COORDINATOR_FINISH(
+                    self, request_id, token, frozen, revoke=False,
+                )
+            finally:
+                _observation_span_end(observation_span)
         except BaseException:
             _TRUSTED_COORDINATOR_ABORT(self, request_id, token)
             _fail()
@@ -942,16 +1223,31 @@ class McpContextPackCoordinator:
     ) -> bytes:
         request_id: object = consent_request_id
         token: object | None = None
+        permit: object | None = None
+        reject_native_permit: object | None = None
+        abort_publication: object | None = None
         try:
             request_id, token = _TRUSTED_COORDINATOR_BEGIN(self, consent_request_id)
+            candidate_reject = self._reject_native_permit_pin
+            candidate_abort = self._abort_pin
+            if (candidate_reject is not _TRUSTED_REJECT_NATIVE_PERMIT
+                    or candidate_abort is not _TRUSTED_COORDINATOR_ABORT):
+                _fail()
+            reject_native_permit = candidate_reject
+            abort_publication = candidate_abort
             rpc_id = _TRUSTED_COORDINATOR_RPC_ID(rpc_request_id)
             if type(page_bytes) is not int or not 1 <= page_bytes <= _TRUSTED_RAW_PAGE_MAX_BYTES:
                 _fail()
-            (snapshot, selection_projection, snapshot_projection, ordered, pack_id,
-             selection_digest, snapshot_digest) = _TRUSTED_COORDINATOR_CAPTURE(
-                self,
-                lease, original_selection, request_id,
+            permit, snapshot = _TRUSTED_ISSUE_CAPTURED_PERMIT(
+                self._service, request_id, lease, original_selection, page_bytes,
             )
+            selection_projection = _TRUSTED_SELECTION_PROJECTION(original_selection)
+            snapshot_projection = _TRUSTED_SNAPSHOT_PROJECTION(snapshot)
+            ordered = _TRUSTED_ORDERED_ITEMS(selection_projection, snapshot_projection)
+            pack_id, selection_digest, snapshot_digest = _TRUSTED_IDENTITY(
+                request_id, selection_projection, snapshot_projection,
+            )
+            _TRUSTED_COORDINATOR_ASSERT_PINS(self)
             _TRUSTED_COORDINATOR_CHECK_ACTIVE(self, request_id, token)
             if cursor is None:
                 target_index, offset = 0, 0
@@ -973,7 +1269,6 @@ class McpContextPackCoordinator:
             source = selection_projection[target_index][0]
             if type(source) is not str or source != ordered[target_index]["source"]:
                 _fail()
-            permit = _TRUSTED_ISSUE_PERMIT(self._service, request_id)
             if source == "forge":
                 inner = _TRUSTED_PUBLISH_FORGE(
                     self._service, permit, request_id=rpc_id,
@@ -996,9 +1291,6 @@ class McpContextPackCoordinator:
             page = _TRUSTED_PARSE_INNER(
                 inner, source=source, rpc_request_id=rpc_id, target_index=target_index,
                 offset=offset, expected_item=ordered[target_index], page_bytes=page_bytes,
-            )
-            _TRUSTED_COORDINATOR_FENCE(
-                self, request_id, lease, original_selection, snapshot, page_bytes,
             )
             _TRUSTED_COORDINATOR_CHECK_ACTIVE(self, request_id, token)
             end = page["end"]
@@ -1036,7 +1328,16 @@ class McpContextPackCoordinator:
             _TRUSTED_COORDINATOR_CHECK_ACTIVE(self, request_id, token)
             return _TRUSTED_COORDINATOR_FINISH(self, request_id, token, frozen, revoke=complete)
         except BaseException:
-            _TRUSTED_COORDINATOR_ABORT(self, request_id, token)
+            native_cleanup_ok = permit is None
+            if permit is not None:
+                native_cleanup_ok = (
+                    reject_native_permit is not None
+                    and reject_native_permit(self._service, permit) is True
+                )
+            if abort_publication is not None:
+                abort_publication(self, request_id, token)
+            if permit is not None and not native_cleanup_ok:
+                _fail()
             _fail()
 
     def cancel(self, request_id: str) -> None:
@@ -1045,7 +1346,19 @@ class McpContextPackCoordinator:
             _TRUSTED_COORDINATOR_ASSERT_PINS(self)
             with self._lock:
                 dict.pop(self._active, exact, None)
-                _TRUSTED_REVOKE(self._service, exact)
+                try:
+                    _TRUSTED_REVOKE(self._service, exact)
+                except BaseException as error:
+                    if (type(error) is not _TRUSTED_CONFIRMATION_ERROR_CLASS
+                            or not _TRUSTED_CLASS_MATCHES(
+                                _TRUSTED_CONFIRMATION_ERROR_CLASS,
+                                _CONFIRMATION_ERROR_FIELDS,
+                                _TRUSTED_CONFIRMATION_ERROR_STATE,
+                            )):
+                        raise
+                    code = object.__getattribute__(error, "code")
+                    if type(code) is not str or code != "invalid_request":
+                        raise
             _TRUSTED_COORDINATOR_ASSERT_PINS(self)
         except BaseException:
             _fail()

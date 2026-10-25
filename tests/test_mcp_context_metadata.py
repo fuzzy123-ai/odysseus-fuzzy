@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import copy
+import contextvars
 import gc
 import json
 import pickle
+import tempfile
 import threading
 import weakref
 from dataclasses import replace
+from pathlib import Path
 from types import SimpleNamespace
 
 import bcrypt
@@ -16,7 +19,7 @@ from sqlalchemy.orm import sessionmaker
 from core.database import ApiToken, Base, Session as DbSession
 from src.context_manifest_producer import CombinedContextManifestProducer, ContextManifestProducerError
 from src.forge_context_metadata import ForgeContextMetadataError
-from src.mcp_authenticated_dispatch import McpAuthenticatedIdentity
+from src.mcp_authenticated_dispatch import McpAuthenticatedIdentity, McpBearerProof
 from src.mcp_context_authority import (
     McpContextAuthority,
     McpContextAuthorityError,
@@ -32,6 +35,7 @@ from src.context_metadata_binding import (
     _require_mcp_metadata_admission,
 )
 import src.context_metadata_binding as context_metadata_binding
+import src.mcp_context_authority as context_authority
 from src.planning_context_reader import PlanningContextManifestProducer
 from src.planning_durable_context_source import (
     DEFAULT_DURABLE_PLANNING_CONTEXT_POLICY,
@@ -83,54 +87,61 @@ def _install_real_mcp_authority(fixture: dict[str, object]) -> McpContextAuthori
 
 
 @pytest.fixture
-def native_mcp_fixture(tmp_path, monkeypatch):
-    body = _real_three_domain_context_body(tmp_path, monkeypatch)
-    fixture = next(body)
-    authority = None
-    try:
-        auth = fixture["auth"]
-        runtime = fixture["planning_producer"]._runtime
-        owner_sid = auth.subject_id_for_username("fuzzy")
-        principal = runtime.issuer.issue(
-            subject_id=owner_sid, owner_id="fuzzy", auth_context_digest="sha256:" + "5" * 64,
-            ttl_seconds=3600, nonce="native-mcp-test-principal",
+def native_mcp_fixture(tmp_path, monkeypatch, planning_repo_root=None):
+    scratch_root = Path(__file__).resolve().parents[1] / ".abc-test-tmp"
+    scratch_root.mkdir(exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="mcm-", dir=scratch_root) as raw:
+        body = _real_three_domain_context_body(
+            Path(raw),
+            monkeypatch,
+            planning_repo_root,
         )
-        with CookieConfirmationAuthority(auth).hold(fixture["cookie"], fixture["chat_id"]) as setup_binding:
-            _append_clean_descendants(
-                {"store": runtime.durable_store, "principal": principal}, setup_binding,
-            )
-            durable_source = DurablePlanningContextSource(
-                runtime=runtime, auth_manager=auth, project_id="harbour-one",
-                policy=DEFAULT_DURABLE_PLANNING_CONTEXT_POLICY,
-            )
-            planning_items = durable_source.discover(setup_binding)
-        native_planning = PlanningContextManifestProducer(
-            runtime, auth, None, "harbour-one", durable_source=durable_source,
-        )
-        selection = ContextSelection(tuple(sorted(
-            (fixture["forge_selection"], *planning_items, fixture["knowledge_target"]),
-            key=lambda item: (item.source, item.selection_ref, item.revision_ref),
-        )))
-        authority = _install_real_mcp_authority(fixture)
-        combined = CombinedContextManifestProducer(
-            auth_manager=auth, forge=fixture["forge"], planning=native_planning,
-            knowledge=fixture["knowledge_producer"], mcp_authority=authority,
-        )
-        fixture.update({
-            "authority": authority, "planning_producer": native_planning,
-            "selection": selection, "principal": principal, "durable_source": durable_source,
-            "combined": combined,
-        })
-        yield fixture
-    finally:
-        # This fixture owns only the MCP authority it installs.  The generator
-        # retains ownership of its stores and must perform its own teardown.
-        if authority is not None:
-            authority.close()
+        fixture = next(body)
+        authority = None
         try:
-            next(body)
-        except StopIteration:
-            pass
+            auth = fixture["auth"]
+            runtime = fixture["planning_producer"]._runtime
+            owner_sid = auth.subject_id_for_username("fuzzy")
+            principal = runtime.issuer.issue(
+                subject_id=owner_sid, owner_id="fuzzy", auth_context_digest="sha256:" + "5" * 64,
+                ttl_seconds=3600, nonce="native-mcp-test-principal",
+            )
+            with CookieConfirmationAuthority(auth).hold(fixture["cookie"], fixture["chat_id"]) as setup_binding:
+                _append_clean_descendants(
+                    {"store": runtime.durable_store, "principal": principal}, setup_binding,
+                )
+                durable_source = DurablePlanningContextSource(
+                    runtime=runtime, auth_manager=auth, project_id="harbour-one",
+                    policy=DEFAULT_DURABLE_PLANNING_CONTEXT_POLICY,
+                )
+                planning_items = durable_source.discover(setup_binding)
+            native_planning = PlanningContextManifestProducer(
+                runtime, auth, None, "harbour-one", durable_source=durable_source,
+            )
+            selection = ContextSelection(tuple(sorted(
+                (fixture["forge_selection"], *planning_items, fixture["knowledge_target"]),
+                key=lambda item: (item.source, item.selection_ref, item.revision_ref),
+            )))
+            authority = _install_real_mcp_authority(fixture)
+            combined = CombinedContextManifestProducer(
+                auth_manager=auth, forge=fixture["forge"], planning=native_planning,
+                knowledge=fixture["knowledge_producer"], mcp_authority=authority,
+            )
+            fixture.update({
+                "authority": authority, "planning_producer": native_planning,
+                "selection": selection, "principal": principal, "durable_source": durable_source,
+                "combined": combined,
+            })
+            yield fixture
+        finally:
+            # This fixture owns only the MCP authority it installs.  The generator
+            # retains ownership of its stores and must perform its own teardown.
+            if authority is not None:
+                authority.close()
+            try:
+                next(body)
+            except StopIteration:
+                pass
 
 
 def _lease(fixture: dict[str, object], request_id: str = "metadata-request", *, token_index: int = 0):
@@ -502,16 +513,18 @@ def test_real_metadata_admission_global_cap_releases_only_an_exited_slot(native_
                 auth.security_action_revision(), "mcp:harbour:context:read")
             binding = authority.issue_binding(identity, issue_mcp_bearer_proof(raw), chat_id)
             lease = authority.issue_read_lease(binding, "metadata-cap-" + str(number))
+            handles.append((binding, lease))
+        assert len(handles) == 64
+        assert all(authority.recheck_lease(lease) is binding for binding, lease in handles)
+        for binding, lease in handles:
             manager = _open_mcp_metadata_admission(authority, lease)
             admission, metadata = manager.__enter__()
             assert _require_mcp_metadata_admission(admission, metadata) is binding
             managers.append(manager)
-            handles.append((binding, lease))
         assert len(handles) == len(managers) == 64
         with pytest.raises(McpContextAuthorityError) as error:
             issue_mcp_bearer_proof("ody_" + "z" * 43)
         assert error.value.code == "context_unavailable"
-        assert all(authority.recheck_lease(lease) is binding for binding, lease in handles)
         managers.pop().__exit__(None, None, None)
         reopened = _open_mcp_metadata_admission(authority, handles[-1][1])
         admission, metadata = reopened.__enter__()
@@ -620,6 +633,923 @@ def test_real_metadata_admission_copy_and_pickle_are_rejected(native_mcp_fixture
         with pytest.raises(TypeError):
             operation(admission)
         assert _require_mcp_metadata_admission(admission, metadata) is lease.binding
+    fixture["authority"].release_read_lease(lease)
+
+
+def test_metadata_admission_performs_two_full_proof_checks_and_second_admission_owns_its_fence(
+        native_mcp_fixture, monkeypatch):
+    fixture = native_mcp_fixture
+    first = _lease(fixture, "admission-proof-count-first", token_index=0)
+    second = _lease(fixture, "admission-proof-count-second", token_index=1)
+    original = McpBearerProof.matches_hash
+    calls = 0
+
+    def counted(proof, persisted_hash):
+        nonlocal calls
+        calls += 1
+        return original(proof, persisted_hash)
+
+    monkeypatch.setattr(McpBearerProof, "matches_hash", counted)
+    assert context_authority._METADATA_ADMISSION_CONTEXT.get() is None
+    with _open_mcp_metadata_admission(fixture["authority"], first) as (first_admission, first_metadata):
+        for _ in range(12):
+            assert _require_mcp_metadata_admission(first_admission, first_metadata) is first.binding
+        assert calls == 1
+        with _open_mcp_metadata_admission(fixture["authority"], second) as (second_admission, second_metadata):
+            for _ in range(12):
+                assert _require_mcp_metadata_admission(second_admission, second_metadata) is second.binding
+        assert calls == 3
+        assert _require_mcp_metadata_admission(first_admission, first_metadata) is first.binding
+    assert calls == 4
+    assert context_authority._METADATA_ADMISSION_CONTEXT.get() is None
+    fixture["authority"].release_read_lease(first)
+    fixture["authority"].release_read_lease(second)
+
+
+def test_metadata_admission_verifier_is_redacted_noncopyable_and_row_bound(native_mcp_fixture):
+    fixture = native_mcp_fixture
+    lease = _lease(fixture, "admission-verifier-attacks")
+    with _open_mcp_metadata_admission(fixture["authority"], lease) as (admission, metadata):
+        key = id(admission)
+        row = context_metadata_binding._ROWS[key]
+        verifier = row[10]
+        assert repr(verifier) == "<_McpMetadataAdmissionVerifier redacted>"
+        for operation in (copy.copy, copy.deepcopy, pickle.dumps):
+            with pytest.raises(TypeError):
+                operation(verifier)
+        with pytest.raises(TypeError):
+            type("ForgedMetadataVerifier", (type(verifier),), {})
+
+        forged = object.__new__(type(verifier))
+        context_metadata_binding._ROWS[key] = row[:10] + (forged, row[11])
+        try:
+            with pytest.raises(McpContextMetadataAdmissionError):
+                _require_mcp_metadata_admission(admission, metadata)
+        finally:
+            context_metadata_binding._ROWS[key] = row
+
+        clone = object.__new__(type(verifier))
+        for slot in type(verifier).__slots__:
+            if slot != "__weakref__":
+                name = "_McpMetadataAdmissionVerifier" + slot
+                object.__setattr__(clone, name, object.__getattribute__(verifier, name))
+        context_metadata_binding._ROWS[key] = row[:10] + (clone, row[11])
+        try:
+            with pytest.raises(McpContextMetadataAdmissionError):
+                _require_mcp_metadata_admission(admission, metadata)
+        finally:
+            context_metadata_binding._ROWS[key] = row
+
+        context_metadata_binding._ROWS[key] = row[:10] + (clone, weakref.ref(clone))
+        try:
+            with pytest.raises(McpContextAuthorityError) as alias_error:
+                _require_mcp_metadata_admission(admission, metadata)
+            assert alias_error.value.code == "unauthorized"
+        finally:
+            context_metadata_binding._ROWS[key] = row
+
+        object.__setattr__(clone, "_McpMetadataAdmissionVerifier__depth", 0)
+        object.__setattr__(clone, "_McpMetadataAdmissionVerifier__state", "entry")
+        object.__setattr__(clone, "_McpMetadataAdmissionVerifier__token_hash", None)
+        context_metadata_binding._ROWS[key] = row[:10] + (clone, weakref.ref(clone))
+        try:
+            with pytest.raises(McpContextAuthorityError) as fresh_clone_error:
+                _require_mcp_metadata_admission(admission, metadata)
+            assert fresh_clone_error.value.code == "unauthorized"
+        finally:
+            context_metadata_binding._ROWS[key] = row
+        assert _require_mcp_metadata_admission(admission, metadata) is lease.binding
+    fixture["authority"].release_read_lease(lease)
+
+
+@pytest.mark.parametrize("alias", [
+    "authority_opener", "metadata_opener", "captured_hold_open",
+])
+def test_metadata_admission_opener_aliases_cannot_hide_outer_admission(alias, native_mcp_fixture):
+    fixture = native_mcp_fixture
+    first = _lease(fixture, "admission-opener-alias-first", token_index=0)
+    second = _lease(fixture, "admission-opener-alias-second", token_index=1)
+    with _open_mcp_metadata_admission(fixture["authority"], first) as (first_admission, first_metadata):
+        first_key = id(first_admission)
+        first_row = context_metadata_binding._ROWS[first_key]
+        original = first_row[10]
+        clone = object.__new__(type(original))
+        for slot in type(original).__slots__:
+            if slot != "__weakref__":
+                name = "_McpMetadataAdmissionVerifier" + slot
+                object.__setattr__(clone, name, object.__getattribute__(original, name))
+        object.__setattr__(clone, "_McpMetadataAdmissionVerifier__depth", 0)
+        object.__setattr__(clone, "_McpMetadataAdmissionVerifier__state", "entry")
+        object.__setattr__(clone, "_McpMetadataAdmissionVerifier__token_hash", None)
+        context_metadata_binding._ROWS[first_key] = first_row[:10] + (clone, weakref.ref(clone))
+        try:
+            with _open_mcp_metadata_admission(fixture["authority"], second) as (second_admission, second_metadata):
+                if alias == "authority_opener":
+                    attack = context_authority._open_mcp_metadata_admission_verifier(
+                        clone, fixture["authority"], first, first.binding, first_admission,
+                    )
+                elif alias == "metadata_opener":
+                    attack = context_metadata_binding._open_mcp_metadata_admission_verifier(
+                        clone, fixture["authority"], first, first.binding, first_admission,
+                    )
+                else:
+                    attack = context_authority._hold_mcp_metadata_admission_verifier(
+                        clone, fixture["authority"], first, first.binding, first_admission,
+                        _mode=context_authority._METADATA_VERIFIER_OPEN,
+                    )
+                with pytest.raises(McpContextAuthorityError) as error:
+                    with attack:
+                        pytest.fail("forged verifier opener entered")
+                assert error.value.code == "unauthorized"
+                assert _require_mcp_metadata_admission(second_admission, second_metadata) is second.binding
+        finally:
+            context_metadata_binding._ROWS[first_key] = first_row
+        assert _require_mcp_metadata_admission(first_admission, first_metadata) is first.binding
+    assert context_authority._METADATA_ADMISSION_CONTEXT.get() is None
+    fixture["authority"].release_read_lease(first)
+    fixture["authority"].release_read_lease(second)
+
+
+@pytest.mark.parametrize("target,keyword", [
+    ("hold", "_context"),
+    ("hold", "_handles_match"),
+    ("hold", "_field"),
+    ("hold", "_require_mode"),
+    ("hold", "_open_mode"),
+    ("hold", "_verifier_type"),
+    ("open", "_hold"),
+    ("open", "_ancestry"),
+])
+def test_metadata_admission_verifier_helpers_reject_dependency_overrides(
+        target, keyword, native_mcp_fixture):
+    fixture = native_mcp_fixture
+    lease = _lease(fixture, "admission-verifier-dependency-" + keyword.lstrip("_"))
+    with _open_mcp_metadata_admission(fixture["authority"], lease) as (admission, metadata):
+        verifier = context_metadata_binding._ROWS[id(admission)][10]
+        helper = (
+            context_authority._hold_mcp_metadata_admission_verifier
+            if target == "hold"
+            else context_authority._open_mcp_metadata_admission_verifier
+        )
+        with pytest.raises(TypeError):
+            helper(
+                verifier, fixture["authority"], lease, lease.binding, admission,
+                **{keyword: object()},
+            )
+        assert _require_mcp_metadata_admission(admission, metadata) is lease.binding
+    fixture["authority"].release_read_lease(lease)
+
+
+def test_metadata_admission_ordinary_hold_exception_restores_nested_context(native_mcp_fixture):
+    fixture = native_mcp_fixture
+    lease = _lease(fixture, "admission-verifier-ordinary-exception")
+    with _open_mcp_metadata_admission(fixture["authority"], lease) as (admission, metadata):
+        verifier = context_metadata_binding._ROWS[id(admission)][10]
+        frame = context_authority._METADATA_ADMISSION_CONTEXT.get()
+        depth_name = "_McpMetadataAdmissionVerifier__depth"
+        prior_depth = object.__getattribute__(verifier, depth_name)
+        with pytest.raises(RuntimeError, match="^ordinary hold failed$"):
+            with context_authority._hold_mcp_metadata_admission_verifier(
+                    verifier, fixture["authority"], lease, lease.binding, admission):
+                assert context_authority._METADATA_ADMISSION_CONTEXT.get() is frame
+                assert object.__getattribute__(verifier, depth_name) == prior_depth + 1
+                raise RuntimeError("ordinary hold failed")
+        assert context_authority._METADATA_ADMISSION_CONTEXT.get() is frame
+        assert object.__getattribute__(verifier, depth_name) == prior_depth
+        assert _require_mcp_metadata_admission(admission, metadata) is lease.binding
+    assert context_authority._METADATA_ADMISSION_CONTEXT.get() is None
+    fixture["authority"].release_read_lease(lease)
+
+
+def test_metadata_admission_rejects_foreign_verifier_row_transplant(native_mcp_fixture):
+    fixture = native_mcp_fixture
+    first = _lease(fixture, "admission-verifier-transplant-first", token_index=0)
+    second = _lease(fixture, "admission-verifier-transplant-second", token_index=1)
+    with _open_mcp_metadata_admission(fixture["authority"], first) as (first_admission, first_metadata):
+        with _open_mcp_metadata_admission(fixture["authority"], second) as (second_admission, second_metadata):
+            first_key = id(first_admission)
+            first_row = context_metadata_binding._ROWS[first_key]
+            second_row = context_metadata_binding._ROWS[id(second_admission)]
+            context_metadata_binding._ROWS[first_key] = first_row[:10] + second_row[10:]
+            try:
+                with pytest.raises(McpContextAuthorityError) as error:
+                    _require_mcp_metadata_admission(first_admission, first_metadata)
+                assert error.value.code == "unauthorized"
+            finally:
+                context_metadata_binding._ROWS[first_key] = first_row
+            assert _require_mcp_metadata_admission(second_admission, second_metadata) is second.binding
+        assert _require_mcp_metadata_admission(first_admission, first_metadata) is first.binding
+    fixture["authority"].release_read_lease(first)
+    fixture["authority"].release_read_lease(second)
+
+
+def test_metadata_admission_exception_cleans_verifier_and_reopens(native_mcp_fixture):
+    fixture = native_mcp_fixture
+    lease = _lease(fixture, "admission-verifier-exception")
+    with pytest.raises(RuntimeError, match="^body failed$"):
+        with _open_mcp_metadata_admission(fixture["authority"], lease) as (admission, metadata):
+            assert _require_mcp_metadata_admission(admission, metadata) is lease.binding
+            raise RuntimeError("body failed")
+    assert context_metadata_binding._ROWS == {}
+    with _open_mcp_metadata_admission(fixture["authority"], lease) as (admission, metadata):
+        assert _require_mcp_metadata_admission(admission, metadata) is lease.binding
+    fixture["authority"].release_read_lease(lease)
+
+
+def test_metadata_admission_exit_rejects_same_secret_persisted_hash_replacement(native_mcp_fixture):
+    fixture = native_mcp_fixture
+    lease = _lease(fixture, "admission-exact-hash-exit")
+    with pytest.raises(McpContextAuthorityError) as error:
+        with _open_mcp_metadata_admission(fixture["authority"], lease):
+            with fixture["session_factory"]() as db:
+                row = db.query(ApiToken).filter(ApiToken.id == "mcp-metadata-token").one()
+                row.token_hash = bcrypt.hashpw(
+                    fixture["mcp_raw_tokens"][0].encode("ascii"), bcrypt.gensalt(),
+                ).decode("ascii")
+                db.commit()
+    assert error.value.code == "unauthorized"
+    fixture["authority"].release_read_lease(lease)
+
+
+@pytest.mark.parametrize("mutation,code", [
+    ("token_id", "unauthorized"),
+    ("token_owner", "unauthorized"),
+    ("token_owner_sid", "unauthorized"),
+    ("token_scope", "unauthorized"),
+    ("token_missing", "unauthorized"),
+    ("token_inactive", "unauthorized"),
+    ("token_hash", "unauthorized"),
+    ("chat_missing", "unauthorized"),
+    ("chat_owner", "unauthorized"),
+    ("cache_generation", "stale_authentication"),
+    ("cache_dirty", "stale_authentication"),
+    ("security_revision", "stale_authentication"),
+    ("process_epoch", "stale_authentication"),
+    ("allow_gate", "disabled"),
+    ("plugin_gate", "disabled"),
+    ("cancel", "cancelled"),
+])
+def test_cached_metadata_admission_rechecks_post_entry_mutation(native_mcp_fixture, mutation, code):
+    fixture = native_mcp_fixture
+    lease = _lease(fixture, "admission-post-entry-" + mutation)
+    with pytest.raises(McpContextAuthorityError) as error:
+        with _open_mcp_metadata_admission(fixture["authority"], lease) as (admission, metadata):
+            assert _require_mcp_metadata_admission(admission, metadata) is lease.binding
+            if mutation.startswith("token_") or mutation.startswith("chat_"):
+                with fixture["session_factory"]() as db:
+                    token = db.query(ApiToken).filter(ApiToken.id == "mcp-metadata-token").one()
+                    if mutation == "token_id":
+                        token.id = "mcp-metadata-token-mutated"
+                    elif mutation == "token_owner":
+                        token.owner = "mallory"
+                    elif mutation == "token_owner_sid":
+                        token.owner_subject_id = "owner_" + "d" * 32
+                    elif mutation == "token_scope":
+                        token.scopes = "mcp:other:scope"
+                    elif mutation == "token_missing":
+                        db.delete(token)
+                    elif mutation == "token_inactive":
+                        token.is_active = False
+                    elif mutation == "token_hash":
+                        token.token_hash = bcrypt.hashpw(b"ody_" + b"z" * 43, bcrypt.gensalt()).decode("ascii")
+                    else:
+                        chat = db.query(DbSession).filter(DbSession.id == "chat-owned").one()
+                        if mutation == "chat_missing":
+                            db.delete(chat)
+                        else:
+                            chat.owner = "mallory"
+                    db.commit()
+            elif mutation == "cache_generation":
+                fixture["mcp_state"]._token_cache_generation += 1
+            elif mutation == "cache_dirty":
+                fixture["mcp_state"]._token_cache_dirty = True
+            elif mutation == "security_revision":
+                fixture["auth"]._bump_security_action_revision()
+            elif mutation == "process_epoch":
+                fixture["mcp_state"]._process_epoch = "epoch_" + "d" * 32
+            elif mutation == "allow_gate":
+                fixture["mcp_state"].allow_context_reads = False
+            elif mutation == "plugin_gate":
+                fixture["mcp_state"].mcp_context_plugin_enabled = False
+            else:
+                fixture["authority"].cancel_lease(lease)
+            _require_mcp_metadata_admission(admission, metadata)
+    assert error.value.code == code
+    fixture["authority"].release_read_lease(lease)
+
+
+def test_cached_metadata_admission_rechecks_expiry_after_entry(native_mcp_fixture):
+    fixture = native_mcp_fixture
+    clock = [1000.0]
+    authority = McpContextAuthority(
+        fixture["auth"], fixture["session_factory"], app_state=fixture["mcp_state"],
+        monotonic=lambda: clock[0], wall_time=lambda: clock[0],
+    )
+    identity = McpAuthenticatedIdentity(
+        "mcp-metadata-token", "fuzzy", fixture["auth"].subject_id_for_username("fuzzy"),
+        fixture["mcp_state"]._token_cache_generation,
+        fixture["auth"].security_action_revision(), "mcp:harbour:context:read",
+    )
+    binding = authority.issue_binding(
+        identity, issue_mcp_bearer_proof(fixture["mcp_raw_tokens"][0]), "chat-owned",
+    )
+    lease = authority.issue_read_lease(binding, "admission-post-entry-expiry", ttl_seconds=1)
+    try:
+        with pytest.raises(McpContextAuthorityError) as error:
+            with _open_mcp_metadata_admission(authority, lease) as (admission, metadata):
+                assert _require_mcp_metadata_admission(admission, metadata) is binding
+                clock[0] += 2.0
+                _require_mcp_metadata_admission(admission, metadata)
+        assert error.value.code == "timeout"
+    finally:
+        authority.close()
+
+
+def test_cached_metadata_admission_rejects_mutated_proof_at_mandatory_exit(native_mcp_fixture):
+    fixture = native_mcp_fixture
+    lease = _lease(fixture, "admission-post-entry-proof-bytes")
+    wrapper = lease.binding.bearer_proof
+    native = object.__getattribute__(wrapper, "_McpContextBearerProof__native")
+    original = object.__getattribute__(native, "_McpBearerProof__raw")
+
+    def would_return_output():
+        with _open_mcp_metadata_admission(fixture["authority"], lease) as (admission, metadata):
+            assert _require_mcp_metadata_admission(admission, metadata) is lease.binding
+            object.__setattr__(native, "_McpBearerProof__raw", b"ody_" + b"z" * 43)
+            assert _require_mcp_metadata_admission(admission, metadata) is lease.binding
+            return object()
+
+    result = None
+    try:
+        with pytest.raises(McpContextAuthorityError) as error:
+            result = would_return_output()
+        assert error.value.code == "unauthorized"
+        assert result is None
+    finally:
+        object.__setattr__(native, "_McpBearerProof__raw", original)
+    fixture["authority"].release_read_lease(lease)
+
+
+def test_content_publication_has_one_full_proof_pair_and_each_scope_is_fresh(
+        native_mcp_fixture, monkeypatch):
+    fixture = native_mcp_fixture
+    authority = fixture["authority"]
+    lease = _lease(fixture, "content-publication-proof-count")
+    capability = context_authority._acquire_native_lease_capability(authority, lease)
+    original = McpBearerProof.matches_hash
+    calls = []
+
+    def counted(proof, persisted_hash):
+        calls.append(id(proof))
+        return original(proof, persisted_hash)
+
+    monkeypatch.setattr(McpBearerProof, "matches_hash", counted)
+    for expected in (2, 4):
+        with context_authority._open_mcp_content_publication(
+            authority, lease, lease.binding, capability, object(), object(),
+        ):
+            with _open_mcp_metadata_admission(authority, lease) as (admission, metadata):
+                for _ in range(16):
+                    assert _require_mcp_metadata_admission(admission, metadata) is lease.binding
+        assert len(calls) == expected
+        assert context_authority._CONTENT_PUBLICATION_CONTEXT.get() is None
+
+    with _open_mcp_metadata_admission(authority, lease) as (admission, metadata):
+        assert _require_mcp_metadata_admission(admission, metadata) is lease.binding
+    assert len(calls) == 6
+    authority.release_read_lease(lease)
+
+
+def test_content_publication_same_secret_new_hash_poison_never_falls_back_to_bcrypt(
+        native_mcp_fixture, monkeypatch):
+    fixture = native_mcp_fixture
+    authority = fixture["authority"]
+    lease = _lease(fixture, "content-publication-same-secret-new-hash")
+    capability = context_authority._acquire_native_lease_capability(authority, lease)
+    original_matches_hash = McpBearerProof.matches_hash
+    calls = []
+
+    def counted(proof, persisted_hash):
+        calls.append(id(proof))
+        return original_matches_hash(proof, persisted_hash)
+
+    monkeypatch.setattr(McpBearerProof, "matches_hash", counted)
+    original_hash = None
+    original_cached_hash = None
+    immediate = []
+    try:
+        with pytest.raises(McpContextAuthorityError):
+            with context_authority._open_mcp_content_publication(
+                authority, lease, lease.binding, capability, object(), object(),
+            ):
+                verifier = context_authority._CONTENT_PUBLICATION_CONTEXT.get()
+                original_cached_hash = object.__getattribute__(
+                    verifier, "_McpContentPublicationVerifier__token_hash",
+                )
+                with _open_mcp_metadata_admission(authority, lease) as (admission, metadata):
+                    assert _require_mcp_metadata_admission(admission, metadata) is lease.binding
+                    with fixture["session_factory"]() as db:
+                        token = db.query(ApiToken).filter(
+                            ApiToken.id == "mcp-metadata-token",
+                        ).one()
+                        original_hash = token.token_hash
+                        replacement_hash = bcrypt.hashpw(
+                            fixture["mcp_raw_tokens"][0].encode("ascii"),
+                            bcrypt.gensalt(),
+                        ).decode("ascii")
+                        token.token_hash = replacement_hash
+                        db.commit()
+                    object.__setattr__(
+                        verifier,
+                        "_McpContentPublicationVerifier__token_hash",
+                        replacement_hash,
+                    )
+                    try:
+                        _require_mcp_metadata_admission(admission, metadata)
+                    except McpContextAuthorityError as error:
+                        immediate.append(error.code)
+                    finally:
+                        object.__setattr__(
+                            verifier,
+                            "_McpContentPublicationVerifier__token_hash",
+                            original_cached_hash,
+                        )
+                        object.__setattr__(
+                            verifier,
+                            "_McpContentPublicationVerifier__state",
+                            "reuse",
+                        )
+                        with fixture["session_factory"]() as db:
+                            token = db.query(ApiToken).filter(
+                                ApiToken.id == "mcp-metadata-token",
+                            ).one()
+                            token.token_hash = original_hash
+                            db.commit()
+    finally:
+        if original_hash is not None:
+            with fixture["session_factory"]() as db:
+                token = db.query(ApiToken).filter(
+                    ApiToken.id == "mcp-metadata-token",
+                ).one_or_none()
+                if token is not None:
+                    token.token_hash = original_hash
+                    db.commit()
+    assert immediate == ["unauthorized"]
+    assert len(calls) == 1
+    assert context_authority._CONTENT_PUBLICATION_CONTEXT.get() is None
+    authority.release_read_lease(lease)
+
+
+def test_content_publication_combined_cache_hash_and_raw_reseed_is_terminal(
+        native_mcp_fixture):
+    fixture = native_mcp_fixture
+    authority = fixture["authority"]
+    lease = _lease(fixture, "content-publication-combined-reseed")
+    capability = context_authority._acquire_native_lease_capability(authority, lease)
+    native = object.__getattribute__(
+        lease.binding.bearer_proof, "_McpContextBearerProof__native",
+    )
+    original_raw = object.__getattribute__(native, "_McpBearerProof__raw")
+    original_cache = fixture["mcp_state"]._token_cache_generation
+    original_hash = None
+    verifier = None
+    immediate = []
+    replacement_raw = b"ody_" + b"r" * 43
+    replacement_hash = bcrypt.hashpw(
+        replacement_raw, bcrypt.gensalt(),
+    ).decode("ascii")
+    try:
+        with pytest.raises(McpContextAuthorityError):
+            with context_authority._open_mcp_content_publication(
+                authority, lease, lease.binding, capability, object(), object(),
+            ):
+                verifier = context_authority._CONTENT_PUBLICATION_CONTEXT.get()
+                cached_hash = object.__getattribute__(
+                    verifier, "_McpContentPublicationVerifier__token_hash",
+                )
+                with _open_mcp_metadata_admission(authority, lease) as (admission, metadata):
+                    assert _require_mcp_metadata_admission(admission, metadata) is lease.binding
+                    with fixture["session_factory"]() as db:
+                        token = db.query(ApiToken).filter(
+                            ApiToken.id == "mcp-metadata-token",
+                        ).one()
+                        original_hash = token.token_hash
+                        token.token_hash = replacement_hash
+                        db.commit()
+                    fixture["mcp_state"]._token_cache_generation = original_cache + 1
+                    object.__setattr__(native, "_McpBearerProof__raw", replacement_raw)
+                    object.__setattr__(
+                        verifier, "_McpContentPublicationVerifier__raw",
+                        replacement_raw,
+                    )
+                    object.__setattr__(
+                        verifier, "_McpContentPublicationVerifier__token_hash",
+                        replacement_hash,
+                    )
+                    try:
+                        _require_mcp_metadata_admission(admission, metadata)
+                    except McpContextAuthorityError as error:
+                        immediate.append(error.code)
+                    finally:
+                        fixture["mcp_state"]._token_cache_generation = original_cache
+                        object.__setattr__(native, "_McpBearerProof__raw", original_raw)
+                        object.__setattr__(
+                            verifier, "_McpContentPublicationVerifier__raw",
+                            original_raw,
+                        )
+                        object.__setattr__(
+                            verifier,
+                            "_McpContentPublicationVerifier__token_hash",
+                            cached_hash,
+                        )
+                        object.__setattr__(
+                            verifier, "_McpContentPublicationVerifier__state", "reuse",
+                        )
+                        with fixture["session_factory"]() as db:
+                            token = db.query(ApiToken).filter(
+                                ApiToken.id == "mcp-metadata-token",
+                            ).one()
+                            token.token_hash = original_hash
+                            db.commit()
+    finally:
+        fixture["mcp_state"]._token_cache_generation = original_cache
+        object.__setattr__(native, "_McpBearerProof__raw", original_raw)
+        if original_hash is not None:
+            with fixture["session_factory"]() as db:
+                token = db.query(ApiToken).filter(
+                    ApiToken.id == "mcp-metadata-token",
+                ).one_or_none()
+                if token is not None:
+                    token.token_hash = original_hash
+                    db.commit()
+    assert immediate == ["stale_authentication"]
+    assert context_authority._CONTENT_PUBLICATION_CONTEXT.get() is None
+    assert context_authority._CONTENT_PUBLICATION_OWNER_CONTEXT.get() is None
+    authority.release_read_lease(lease)
+
+
+@pytest.mark.parametrize("field,bad_value", [
+    ("_token_cache_dirty", True),
+    ("_process_epoch", "epoch_" + "f" * 32),
+])
+def test_content_publication_transient_state_drift_poison_survives_restore(
+        native_mcp_fixture, field, bad_value):
+    fixture = native_mcp_fixture
+    authority = fixture["authority"]
+    lease = _lease(fixture, "content-publication-transient-" + field)
+    capability = context_authority._acquire_native_lease_capability(authority, lease)
+    original = getattr(fixture["mcp_state"], field)
+    immediate = []
+    with pytest.raises(McpContextAuthorityError):
+        with context_authority._open_mcp_content_publication(
+            authority, lease, lease.binding, capability, object(), object(),
+        ):
+            verifier = context_authority._CONTENT_PUBLICATION_CONTEXT.get()
+            registry_row = context_authority._CONTENT_PUBLICATIONS[id(verifier)]
+            cached_hash = registry_row[2][1]
+            with _open_mcp_metadata_admission(authority, lease) as (admission, metadata):
+                setattr(fixture["mcp_state"], field, bad_value)
+                try:
+                    _require_mcp_metadata_admission(admission, metadata)
+                except McpContextAuthorityError as error:
+                    immediate.append(error.code)
+                finally:
+                    setattr(fixture["mcp_state"], field, original)
+                    registry_row[2][0] = context_authority._CONTENT_PUBLICATION_REUSE
+                    registry_row[2][1] = cached_hash
+                    object.__setattr__(
+                        verifier, "_McpContentPublicationVerifier__state", "reuse",
+                    )
+                    object.__setattr__(
+                        verifier,
+                        "_McpContentPublicationVerifier__token_hash",
+                        cached_hash,
+                    )
+    assert immediate == ["stale_authentication"]
+    authority.release_read_lease(lease)
+
+
+@pytest.mark.parametrize("attack", ["row", "admission", "canonical"])
+def test_content_publication_caught_metadata_admission_corruption_is_terminal(
+        native_mcp_fixture, attack):
+    fixture = native_mcp_fixture
+    authority = fixture["authority"]
+    lease = _lease(fixture, "content-publication-admission-" + attack)
+    capability = context_authority._acquire_native_lease_capability(authority, lease)
+    immediate = []
+    with pytest.raises(McpContextAuthorityError):
+        with context_authority._open_mcp_content_publication(
+            authority, lease, lease.binding, capability, object(), object(),
+        ):
+            verifier = context_authority._CONTENT_PUBLICATION_CONTEXT.get()
+            with _open_mcp_metadata_admission(authority, lease) as (admission, metadata):
+                key = id(admission)
+                original_row = context_metadata_binding._ROWS[key]
+                if attack == "row":
+                    context_metadata_binding._ROWS.pop(key)
+                elif attack == "admission":
+                    changed = list(original_row)
+                    changed[0] = weakref.ref(lease)
+                    context_metadata_binding._ROWS[key] = tuple(changed)
+                else:
+                    changed = list(original_row)
+                    changed[6] = tuple(reversed(changed[6]))
+                    context_metadata_binding._ROWS[key] = tuple(changed)
+                try:
+                    _require_mcp_metadata_admission(admission, metadata)
+                except McpContextMetadataAdmissionError as error:
+                    immediate.append(str(error))
+                finally:
+                    context_metadata_binding._ROWS[key] = original_row
+                    object.__setattr__(
+                        verifier, "_McpContentPublicationVerifier__state", "reuse",
+                    )
+    assert immediate == ["invalid_binding"]
+    authority.release_read_lease(lease)
+
+
+@pytest.mark.parametrize("shadow", [
+    "_CONTENT_PUBLICATION_CONTEXT", "_CONTENT_PUBLICATION_OWNER_CONTEXT",
+    "_McpContentPublicationVerifier", "_CONTENT_PUBLICATIONS",
+    "_poison_active_registered_content_publication",
+    "_content_publication_proof_mode",
+    "_record_content_publication_hash",
+])
+def test_content_publication_transient_module_shadow_cannot_escape_poison(
+        native_mcp_fixture, shadow):
+    fixture = native_mcp_fixture
+    authority = fixture["authority"]
+    lease = _lease(fixture, "content-publication-shadow-" + shadow)
+    capability = context_authority._acquire_native_lease_capability(authority, lease)
+    original_shadow = getattr(context_authority, shadow)
+    original_gate = fixture["mcp_state"].allow_context_reads
+    immediate = []
+    with pytest.raises(McpContextAuthorityError):
+        with context_authority._open_mcp_content_publication(
+            authority, lease, lease.binding, capability, object(), object(),
+        ):
+            verifier = context_authority._CONTENT_PUBLICATION_CONTEXT.get()
+            replacement = (
+                contextvars.ContextVar("test_content_publication_shadow", default=None)
+                if shadow.endswith("CONTEXT") else object()
+            )
+            setattr(context_authority, shadow, replacement)
+            fixture["mcp_state"].allow_context_reads = False
+            try:
+                authority.recheck_lease(lease)
+            except McpContextAuthorityError as error:
+                immediate.append(error.code)
+            finally:
+                fixture["mcp_state"].allow_context_reads = original_gate
+                setattr(context_authority, shadow, original_shadow)
+                object.__setattr__(
+                    verifier, "_McpContentPublicationVerifier__state", "reuse",
+                )
+    assert immediate == ["disabled"]
+    assert context_authority._CONTENT_PUBLICATION_CONTEXT.get() is None
+    assert context_authority._CONTENT_PUBLICATION_OWNER_CONTEXT.get() is None
+    authority.release_read_lease(lease)
+
+
+@pytest.mark.parametrize("mutation", [
+    "token_hash", "token_missing", "token_inactive", "token_scope",
+    "token_owner", "token_owner_sid", "chat_owner", "cache_generation",
+    "cache_dirty", "process_epoch", "security_revision", "allow_gate",
+    "plugin_gate", "native_cancel",
+])
+def test_content_publication_rechecks_every_live_authority_field_and_poison_is_terminal(
+        native_mcp_fixture, mutation):
+    fixture = native_mcp_fixture
+    authority = fixture["authority"]
+    lease = _lease(fixture, "content-publication-drift-" + mutation)
+    capability = context_authority._acquire_native_lease_capability(authority, lease)
+    immediate = []
+    with pytest.raises(McpContextAuthorityError):
+        with context_authority._open_mcp_content_publication(
+            authority, lease, lease.binding, capability, object(), object(),
+        ):
+            with _open_mcp_metadata_admission(authority, lease) as (admission, metadata):
+                assert _require_mcp_metadata_admission(admission, metadata) is lease.binding
+                if mutation.startswith("token_") or mutation == "chat_owner":
+                    with fixture["session_factory"]() as db:
+                        token = db.query(ApiToken).filter(
+                            ApiToken.id == "mcp-metadata-token",
+                        ).one()
+                        if mutation == "token_hash":
+                            token.token_hash = bcrypt.hashpw(
+                                fixture["mcp_raw_tokens"][0].encode("ascii"),
+                                bcrypt.gensalt(),
+                            ).decode("ascii")
+                        elif mutation == "token_missing":
+                            db.delete(token)
+                        elif mutation == "token_inactive":
+                            token.is_active = False
+                        elif mutation == "token_scope":
+                            token.scopes = "mcp:other:scope"
+                        elif mutation == "token_owner":
+                            token.owner = "mallory"
+                        elif mutation == "token_owner_sid":
+                            token.owner_subject_id = "owner_" + "d" * 32
+                        else:
+                            chat = db.query(DbSession).filter(
+                                DbSession.id == "chat-owned",
+                            ).one()
+                            chat.owner = "mallory"
+                        db.commit()
+                elif mutation == "cache_generation":
+                    fixture["mcp_state"]._token_cache_generation += 1
+                elif mutation == "cache_dirty":
+                    fixture["mcp_state"]._token_cache_dirty = True
+                elif mutation == "process_epoch":
+                    fixture["mcp_state"]._process_epoch = "epoch_" + "e" * 32
+                elif mutation == "security_revision":
+                    fixture["auth"]._bump_security_action_revision()
+                elif mutation == "allow_gate":
+                    fixture["mcp_state"].allow_context_reads = False
+                elif mutation == "plugin_gate":
+                    fixture["mcp_state"].mcp_context_plugin_enabled = False
+                else:
+                    authority.cancel_lease(lease)
+                try:
+                    _require_mcp_metadata_admission(admission, metadata)
+                except McpContextAuthorityError as error:
+                    immediate.append(error.code)
+    assert immediate
+    assert context_authority._CONTENT_PUBLICATION_CONTEXT.get() is None
+    authority.release_read_lease(lease)
+
+
+def test_content_publication_transient_proof_mutation_poison_survives_restore(
+        native_mcp_fixture):
+    fixture = native_mcp_fixture
+    authority = fixture["authority"]
+    lease = _lease(fixture, "content-publication-transient-proof")
+    capability = context_authority._acquire_native_lease_capability(authority, lease)
+    wrapper = lease.binding.bearer_proof
+    native = object.__getattribute__(wrapper, "_McpContextBearerProof__native")
+    original = object.__getattribute__(native, "_McpBearerProof__raw")
+    replacement = b"ody_" + b"z" * 43
+    inner = []
+    verifier = None
+    try:
+        with pytest.raises(McpContextAuthorityError):
+            with context_authority._open_mcp_content_publication(
+                authority, lease, lease.binding, capability, object(), object(),
+            ):
+                verifier = context_authority._CONTENT_PUBLICATION_CONTEXT.get()
+                try:
+                    with _open_mcp_metadata_admission(authority, lease):
+                        object.__setattr__(
+                            native, "_McpBearerProof__raw", replacement,
+                        )
+                        object.__setattr__(
+                            verifier,
+                            "_McpContentPublicationVerifier__raw",
+                            replacement,
+                        )
+                except McpContextAuthorityError as error:
+                    inner.append(error.code)
+                finally:
+                    object.__setattr__(native, "_McpBearerProof__raw", original)
+                    object.__setattr__(
+                        verifier, "_McpContentPublicationVerifier__raw", original,
+                    )
+                    object.__setattr__(
+                        verifier, "_McpContentPublicationVerifier__state", "reuse",
+                    )
+    finally:
+        object.__setattr__(native, "_McpBearerProof__raw", original)
+    assert inner == ["unauthorized"]
+    assert context_authority._CONTENT_PUBLICATION_CONTEXT.get() is None
+    assert object.__getattribute__(
+        verifier, "_McpContentPublicationVerifier__state",
+    ) == "closed"
+    assert object.__getattribute__(
+        verifier, "_McpContentPublicationVerifier__raw",
+    ) is None
+    authority.release_read_lease(lease)
+
+
+@pytest.mark.parametrize("attack", [
+    "nested", "foreign_lease", "thread", "process", "handle",
+])
+def test_content_publication_rejects_nested_and_transplanted_execution(
+        native_mcp_fixture, monkeypatch, attack):
+    fixture = native_mcp_fixture
+    authority = fixture["authority"]
+    first = _lease(fixture, "content-publication-owner", token_index=0)
+    second = _lease(fixture, "content-publication-foreign", token_index=1)
+    capability = context_authority._acquire_native_lease_capability(authority, first)
+    transplanted = None
+    if attack == "handle":
+        second_capability = context_authority._acquire_native_lease_capability(
+            authority, second,
+        )
+        with context_authority._open_mcp_content_publication(
+            authority, second, second.binding, second_capability, object(), object(),
+        ):
+            transplanted = context_authority._CONTENT_PUBLICATION_CONTEXT.get()
+    immediate = []
+    with pytest.raises(McpContextAuthorityError):
+        with context_authority._open_mcp_content_publication(
+            authority, first, first.binding, capability, object(), object(),
+        ):
+            if attack == "nested":
+                try:
+                    with context_authority._open_mcp_content_publication(
+                        authority, first, first.binding, capability, object(), object(),
+                    ):
+                        pytest.fail("nested publication entered")
+                except McpContextAuthorityError as error:
+                    immediate.append(error.code)
+            elif attack == "foreign_lease":
+                try:
+                    with _open_mcp_metadata_admission(authority, second):
+                        pytest.fail("foreign admission entered")
+                except McpContextAuthorityError as error:
+                    immediate.append(error.code)
+            elif attack == "thread":
+                copied = contextvars.copy_context()
+                errors = []
+
+                def cross_thread():
+                    try:
+                        copied.run(authority.recheck_lease, first)
+                    except McpContextAuthorityError as error:
+                        errors.append(error.code)
+
+                worker = threading.Thread(target=cross_thread)
+                worker.start()
+                worker.join()
+                immediate.extend(errors)
+            elif attack == "process":
+                original = context_authority.os.getpid
+                with monkeypatch.context() as patch:
+                    patch.setattr(context_authority.os, "getpid", lambda: original() + 1)
+                    try:
+                        authority.recheck_lease(first)
+                    except McpContextAuthorityError as error:
+                        immediate.append(error.code)
+            else:
+                owner_token = context_authority._CONTENT_PUBLICATION_OWNER_CONTEXT.set(
+                    transplanted,
+                )
+                public_token = context_authority._CONTENT_PUBLICATION_CONTEXT.set(
+                    transplanted,
+                )
+                try:
+                    authority.recheck_lease(first)
+                except McpContextAuthorityError as error:
+                    immediate.append(error.code)
+                finally:
+                    context_authority._CONTENT_PUBLICATION_CONTEXT.reset(public_token)
+                    context_authority._CONTENT_PUBLICATION_OWNER_CONTEXT.reset(owner_token)
+    assert immediate == ["unauthorized"]
+    assert context_authority._CONTENT_PUBLICATION_CONTEXT.get() is None
+    authority.release_read_lease(first)
+    authority.release_read_lease(second)
+
+
+def test_content_publication_rejects_aliased_tokens_and_closed_context_replay(
+        native_mcp_fixture):
+    fixture = native_mcp_fixture
+    authority = fixture["authority"]
+    lease = _lease(fixture, "content-publication-closed-replay")
+    capability = context_authority._acquire_native_lease_capability(authority, lease)
+    alias = object()
+    with pytest.raises(McpContextAuthorityError):
+        with context_authority._open_mcp_content_publication(
+            authority, lease, lease.binding, capability, alias, alias,
+        ):
+            pytest.fail("aliased publication entered")
+    copied = None
+    with context_authority._open_mcp_content_publication(
+        authority, lease, lease.binding, capability, object(), object(),
+    ):
+        copied = contextvars.copy_context()
+    with pytest.raises(McpContextAuthorityError) as replay:
+        copied.run(authority.recheck_lease, lease)
+    assert replay.value.code == "unauthorized"
+    with context_authority._open_mcp_content_publication(
+        authority, lease, lease.binding, capability, object(), object(),
+    ):
+        assert authority.recheck_lease(lease) is lease.binding
+    authority.release_read_lease(lease)
+
+
+def test_genuine_lease_with_mutated_binding_slot_fails_fixed_authority_error(native_mcp_fixture):
+    fixture = native_mcp_fixture
+    lease = _lease(fixture, "admission-mutated-binding-preflight")
+    binding = lease.binding
+    name = "_McpContextBinding__token_id"
+    original = object.__getattribute__(binding, name)
+    object.__setattr__(binding, name, object())
+    try:
+        with pytest.raises(McpContextAuthorityError) as error:
+            fixture["combined"].capture_mcp_snapshot(lease, fixture["selection"])
+        assert error.value.code == "unauthorized"
+    finally:
+        object.__setattr__(binding, name, original)
     fixture["authority"].release_read_lease(lease)
 
 

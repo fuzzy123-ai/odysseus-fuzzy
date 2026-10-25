@@ -8,7 +8,9 @@ tool exposure is filtered through ``src.mcp_server_tool_policy``.
 from __future__ import annotations
 
 import json
+import hashlib
 import os
+import threading
 import time
 from pathlib import Path
 from typing import Any, Mapping
@@ -16,6 +18,7 @@ from typing import Any, Mapping
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 from src.mcp_authenticated_dispatch import (
+    MCP_CONTEXT_SCOPE,
     MCP_HARBOUR_INBOX_SCOPE,
     MCP_TOTAL_BUDGET_SECONDS,
     McpDispatchFailure,
@@ -65,6 +68,7 @@ DEFAULT_CONFIG = {
     "allow_generic_api": False,
     "allow_planning_reads": False,
     "allow_upload_inbox_reads": False,
+    "allow_context_reads": False,
 }
 
 
@@ -127,16 +131,27 @@ class McpServerState:
     def __init__(self, data_dir: str | Path, logger: Any) -> None:
         self.data_dir = Path(data_dir)
         self.logger = logger
+        self._config_lock = threading.RLock()
+        self._context_app = None
+        self._data_dir_pin = self.data_dir
+        self._config_path_pin = self.data_dir / "config.json"
+        self._context_read_pin = type(self).__dict__["_load_persisted_context_unlocked"]
+        self._config_path_descriptor_pin = type(self).__dict__["config_path"]
+        self._context_binding_pin = None
 
     @property
     def config_path(self) -> Path:
-        return self.data_dir / "config.json"
+        return self._config_path_pin
 
     @property
     def audit_path(self) -> Path:
         return self.data_dir / "mcp_audit.jsonl"
 
     def load_config(self) -> dict[str, Any]:
+        with self._config_lock:
+            return self._load_config_unlocked()
+
+    def _load_config_unlocked(self) -> dict[str, Any]:
         config = dict(DEFAULT_CONFIG)
         try:
             loaded = json.loads(self.config_path.read_text(encoding="utf-8"))
@@ -144,9 +159,10 @@ class McpServerState:
                 config.update({
                     key: loaded.get(key, value)
                     for key, value in DEFAULT_CONFIG.items()
-                    if key != "allow_upload_inbox_reads"
+                    if key not in {"allow_upload_inbox_reads", "allow_context_reads"}
                 })
                 config["allow_upload_inbox_reads"] = loaded.get("allow_upload_inbox_reads") is True
+                config["allow_context_reads"] = loaded.get("allow_context_reads") is True
         except Exception:
             pass
         if _bool_env("ODYSSEUS_MCP_SERVER_ENABLED"):
@@ -154,17 +170,88 @@ class McpServerState:
         return config
 
     def save_config(self, incoming: Mapping[str, Any]) -> dict[str, Any]:
-        config = self.load_config()
-        for key in DEFAULT_CONFIG:
-            if key in incoming:
-                config[key] = (
-                    incoming[key] is True
-                    if key == "allow_upload_inbox_reads"
-                    else bool(incoming[key])
+        with self._config_lock:
+            config = self._load_config_unlocked()
+            persisted_enabled, persisted_context = self._context_read_pin(self)
+            config["enabled"] = persisted_enabled
+            config["allow_context_reads"] = persisted_context
+            for key in DEFAULT_CONFIG:
+                if key in incoming:
+                    config[key] = (
+                        incoming[key] is True
+                        if key in {"enabled", "allow_upload_inbox_reads", "allow_context_reads"}
+                        else bool(incoming[key])
+                    )
+            self.data_dir.mkdir(parents=True, exist_ok=True)
+            self.config_path.write_text(json.dumps(config, indent=2), encoding="utf-8")
+            return config
+
+    def bind_context_app(self, app: object) -> None:
+        with self._config_lock:
+            if self._context_app is not None and self._context_app is not app:
+                raise ValueError("MCP context configuration app already bound")
+            self._context_app = app
+            if self._context_binding_pin is None:
+                self._context_binding_pin = (
+                    app,
+                    self._data_dir_pin,
+                    self._config_path_pin,
+                    self._context_read_pin,
+                    self._config_path_descriptor_pin,
                 )
-        self.data_dir.mkdir(parents=True, exist_ok=True)
-        self.config_path.write_text(json.dumps(config, indent=2), encoding="utf-8")
-        return config
+
+    def context_owner_pins(self) -> tuple[object, Path, Path, object, object]:
+        with self._config_lock:
+            binding = self._context_binding_pin
+            if (
+                type(binding) is not tuple
+                or len(binding) != 5
+                or self._context_app is not binding[0]
+                or self.data_dir is not binding[1]
+                or self._data_dir_pin is not binding[1]
+                or self._config_path_pin is not binding[2]
+                or self._context_read_pin is not binding[3]
+                or self._config_path_descriptor_pin is not binding[4]
+                or self._config_path_pin != self._data_dir_pin / "config.json"
+                or type(self).__dict__.get("_load_persisted_context_unlocked")
+                is not self._context_read_pin
+                or type(self).__dict__.get("config_path")
+                is not self._config_path_descriptor_pin
+            ):
+                raise ValueError("invalid MCP context configuration owner")
+            return binding
+
+    def _load_persisted_context_unlocked(self) -> tuple[bool, bool]:
+        def unique(pairs):
+            value = {}
+            for key, item in pairs:
+                if type(key) is not str or key in value:
+                    raise ValueError("invalid MCP context configuration")
+                value[key] = item
+            return value
+
+        try:
+            loaded = json.loads(
+                self._config_path_pin.read_text(encoding="utf-8"),
+                object_pairs_hook=unique,
+            )
+        except FileNotFoundError:
+            return False, False
+        if type(loaded) is not dict:
+            raise ValueError("invalid MCP context configuration")
+        return loaded.get("enabled") is True, loaded.get("allow_context_reads") is True
+
+    def context_snapshot(self) -> tuple[bool, bool, str]:
+        """Return the exact context gates and their deterministic version."""
+        with self._config_lock:
+            self.context_owner_pins()
+            enabled, allowed = self._context_read_pin(self)
+            version = hashlib.sha256(json.dumps(
+                {"allow_context_reads": allowed, "enabled": enabled},
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("ascii")).hexdigest()
+            return enabled, allowed, version
 
     def policy_options(self, config: Mapping[str, Any]) -> McpToolPolicyOptions:
         return McpToolPolicyOptions(
@@ -532,6 +619,13 @@ def _app_html(config: Mapping[str, Any], nonce: str) -> str:
 def setup(ctx):
     router = APIRouter(prefix="/api/plugins/mcp", tags=["plugin:mcp_server"])
     state = McpServerState(ctx.data_dir, ctx.logger)
+    state.bind_context_app(ctx.app)
+    context_composition = getattr(ctx.app.state, "mcp_context_app", None)
+    bind_context = getattr(context_composition, "bind_plugin_context", None)
+    context_handler = getattr(context_composition, "handle_mcp_request", None)
+    context_synchronize = getattr(context_composition, "synchronize", None)
+    if callable(bind_context):
+        bind_context(ctx.app, state)
 
     def _require_admin(request: Request) -> None:
         gate = getattr(ctx, "require_admin", None) or _core_require_admin
@@ -568,6 +662,14 @@ def setup(ctx):
     @router.post("/")
     async def mcp_endpoint(request: Request):
         started = time.monotonic()
+        if tuple(getattr(request.state, "api_token_scopes", ()) or ()) == (MCP_CONTEXT_SCOPE,):
+            if not callable(context_handler):
+                return Response(
+                    content=b"",
+                    status_code=503,
+                    headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},
+                )
+            return await context_handler(request)
         try:
             identity = authenticate_mcp_request(request)
             bearer_proof = getattr(request.state, "_mcp_bearer_proof", None)
@@ -710,7 +812,10 @@ def setup(ctx):
             body = await request.json()
         except Exception:
             body = {}
-        return state.save_config(body if isinstance(body, dict) else {})
+        saved = state.save_config(body if isinstance(body, dict) else {})
+        if callable(context_synchronize):
+            context_synchronize()
+        return saved
 
     @router.get("/app")
     async def app_page(request: Request):

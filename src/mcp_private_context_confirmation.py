@@ -1,6 +1,7 @@
-"""Inactive, process-local private-context consent for authenticated MCP reads.
+"""Process-local private-context consent for authenticated MCP reads.
 
-The service remains unwired to routes or dispatchers. It supports a cookie-free
+The service can be wired via `src/mcp_context_app.py` (`install_mcp_context_app`)
+and `routes/chat_routes.py` (`/mcp-context-disclose`). It supports a cookie-free
 MCP intent, a later authenticated browser attachment, the paired acknowledgement,
 and private guarded Planning, Forge, or Knowledge page completion receipts.
 """
@@ -37,6 +38,10 @@ from src.mcp_context_authority import (
     McpContextAuthorityError,
     McpContextBinding,
     McpContextReadLease,
+)
+from src.mcp_context_causal_observation import (
+    span_begin as _observation_span_begin,
+    span_end as _observation_span_end,
 )
 from src.private_context_confirmation import ConfirmationError, ManifestItem
 
@@ -768,6 +773,19 @@ class McpPrivateContextConfirmationService:
         self._auth_pin = auth_manager; self._authority_pin = authority
         self._producer_pin = producer; self._cookie_authority_pin = cookie_authority
         self._planning_reader_pin = type(producer._planning).read_document
+        self._dual_snapshot_pin = type(producer).__dict__.get("capture_dual_snapshot")
+        self._dual_content_snapshot_pin = type(producer).__dict__.get(
+            "capture_dual_snapshot_content",
+        )
+        self._dual_pair_pin = type(producer).__dict__.get("_dual_sample_pair")
+        self._pair_pin = type(self)._pair
+        self._fresh_pair_pin = type(self)._fresh_pair
+        self._capture_dual_content_pin = type(self)._capture_dual_content
+        self._planning_content_revalidation_pin = (
+            type(self)._revalidate_planning_content_under_guard
+        )
+        self._issue_captured_permit_pin = type(self)._issue_captured_permit
+        self._page_request_descriptor_pin = type(self).__dict__.get("_page_request_descriptor")
         self._session_factory_pin = session_factory
         try:
             forge_metadata = producer._forge; local_forge = forge_metadata._local_forge
@@ -798,6 +816,7 @@ class McpPrivateContextConfirmationService:
     def prepare(self, lease: McpContextReadLease, cookie: str, selection: ContextSelection, *, page_bytes: int = 16384) -> PreparedRequest:
         self._reject_authority_reentry()
         self._assert_pins()
+        pair = self._pair_pin
         _, ContextSelection = _app_types()
         if (type(lease) is not McpContextReadLease or type(selection) is not ContextSelection
                 or type(cookie) is not str or type(page_bytes) is not int or not 1 <= page_bytes <= 16384):
@@ -810,13 +829,12 @@ class McpPrivateContextConfirmationService:
             lease_ttl = float(lease_expiry) - now.timestamp()
             ttl = min(900.0, lease_ttl)
             if not math.isfinite(ttl) or ttl <= 0: _fail("expired")
-            with self._guards(lease, cookie) as binding:
-                cookie_first = self._capture_cookie(binding, selection)
-                cookie_last = self._capture_cookie(binding, selection)
-                mcp_first = self._capture_mcp(lease, selection)
-                mcp_last = self._capture_mcp(lease, selection)
-            if cookie_first != cookie_last or mcp_first != mcp_last: _fail("context_stale")
-            self._pair(cookie_first, mcp_first, selection)
+            with self._dual_pair_pin(self._producer):
+                with self._guards(lease, cookie) as binding:
+                    cookie_first, mcp_first = self._capture_dual(binding, lease, selection)
+                    cookie_last, mcp_last = self._capture_dual(binding, lease, selection)
+                if cookie_first != cookie_last or mcp_first != mcp_last: _fail("context_stale")
+                pair(cookie_first, mcp_first, selection)
             foundation = self._authority.recheck_lease(lease)
             end_wall, end_mono = self._clock()
             self._assert_pins()
@@ -844,12 +862,20 @@ class McpPrivateContextConfirmationService:
             self._entries[request_id].page_request_sha256 = self._page_request_descriptor(selection, page_bytes).digest
         return PreparedRequest(request_id, True, len(selection.items))
 
-    def prepare_intent(self, lease: McpContextReadLease, selection: ContextSelection, *, page_bytes: int = 16384) -> PreparedRequest:
+    def prepare_intent(
+        self,
+        lease: McpContextReadLease,
+        selection: ContextSelection,
+        *,
+        page_bytes: int = 16384,
+        _return_origin: bool = False,
+    ) -> PreparedRequest | tuple[PreparedRequest, tuple[object, ...]]:
         self._reject_authority_reentry()
         self._assert_pins()
         _, ContextSelection = _app_types()
         if (type(lease) is not McpContextReadLease or type(selection) is not ContextSelection
-                or type(page_bytes) is not int or not 1 <= page_bytes <= 16384):
+                or type(page_bytes) is not int or not 1 <= page_bytes <= 16384
+                or type(_return_origin) is not bool):
             _fail("invalid_request")
         now, mono = self._clock()
         try:
@@ -879,12 +905,88 @@ class McpPrivateContextConfirmationService:
                 _fail("capacity")
             request_id = "r." + secrets.token_urlsafe(32)
             if request_id in self._entries: _fail("capacity")
-            entry = _Entry(request_id, weakref.ref(lease), weakref.ref(lease.binding), owner_sid,
+            binding = lease.binding
+            entry = _Entry(request_id, weakref.ref(lease), weakref.ref(binding), owner_sid,
                 selection, "", page_bytes, None, first, first.mcp_metadata_binding, wall,
                 deadline, mono_deadline)
             entry.intent = True; entry.state = "intent"; entry.page_request_sha256 = descriptor.digest
+            entry_values = tuple(
+                _NATIVE_MEMBER_GET(slot, entry, _Entry)
+                for slot in _PRISTINE_INTENT_ENTRY_SLOTS
+            )
+            selection_projection = _TRUSTED_SERVICE_SELECTION_PROJECTION(
+                selection, self._selection_types_pin, self._selection_states_pin,
+            )
+            item_rows, target_digests, metadata_row = (
+                _TRUSTED_SERVICE_SNAPSHOT_PROJECTION(first)
+            )
+            recipient = tuple(
+                _NATIVE_MEMBER_GET(slot, binding, McpContextBinding)
+                for slot in _BINDING_RECIPIENT_SLOTS
+            )
+            lease_id = _NATIVE_MEMBER_GET(
+                _REQUEST_REJECTION_LEASE_REQUEST_ID_SLOT,
+                lease,
+                McpContextReadLease,
+            )
+            metadata = _NATIVE_MEMBER_GET(
+                _PRISTINE_INTENT_SNAPSHOT_METADATA_SLOT,
+                first,
+                CombinedContextSnapshot,
+            )
+            prepared = PreparedRequest(request_id, True, len(selection_projection))
+            prepared_values = tuple(
+                _NATIVE_MEMBER_GET(slot, prepared, PreparedRequest)
+                for slot in _PRISTINE_INTENT_PREPARED_SLOTS
+            )
+            origin = (
+                entry, first, metadata, selection, lease, binding,
+                request_id, lease_id, owner_sid, recipient,
+                selection_projection, page_bytes, descriptor.digest,
+                item_rows, target_digests, metadata_row,
+                wall, deadline, mono_deadline,
+                (self._selection_types_pin, self._selection_states_pin),
+            )
+            if (
+                type(origin) is not tuple
+                or len(origin) != _PRISTINE_INTENT_ORIGIN_SIZE
+                or type(entry) is not _Entry
+                or type(first) is not CombinedContextSnapshot
+                or type(metadata) is not McpContextMetadataBinding
+                or type(selection_projection) is not tuple
+                or type(item_rows) is not tuple
+                or type(target_digests) is not tuple
+                or type(metadata_row) is not tuple
+                or type(recipient) is not tuple
+                or type(lease_id) is not str
+                or type(descriptor.digest) is not str
+                or len(descriptor.digest) != 64
+                or any(character not in "0123456789abcdef"
+                       for character in descriptor.digest)
+                or prepared_values != (request_id, True, len(selection_projection))
+                or tuple(
+                    _NATIVE_MEMBER_GET(slot, entry, _Entry)
+                    for slot in _PRISTINE_INTENT_ENTRY_SLOTS
+                ) != entry_values
+                or _TRUSTED_SERVICE_SELECTION_PROJECTION(
+                    selection, self._selection_types_pin, self._selection_states_pin,
+                ) != selection_projection
+                or _TRUSTED_SERVICE_SNAPSHOT_PROJECTION(first)
+                    != (item_rows, target_digests, metadata_row)
+                or _NATIVE_MEMBER_GET(
+                    _LEASE_AUTHORITY_SLOT, lease, McpContextReadLease,
+                ) is not self._authority
+                or _NATIVE_MEMBER_GET(
+                    _LEASE_BINDING_SLOT, lease, McpContextReadLease,
+                ) is not binding
+                or tuple(
+                    _NATIVE_MEMBER_GET(slot, binding, McpContextBinding)
+                    for slot in _BINDING_RECIPIENT_SLOTS
+                ) != recipient
+            ):
+                _fail("context_stale")
             self._entries[request_id] = entry
-        return PreparedRequest(request_id, True, len(selection.items))
+        return (prepared, origin) if _return_origin else prepared
 
     @staticmethod
     def _page_request_descriptor(selection: object, page_bytes: int) -> _PageRequestDescriptor:
@@ -919,6 +1021,7 @@ class McpPrivateContextConfirmationService:
         """Attach one real browser cookie to a cookie-free MCP intent."""
         self._reject_authority_reentry()
         self._assert_request_pins(request_id)
+        pair = self._pair_pin
         if type(cookie) is not str or not cookie: _fail("invalid_binding")
         now, mono = self._clock()
         with self._lock:
@@ -933,7 +1036,7 @@ class McpPrivateContextConfirmationService:
         try:
             app = self._app_ref() if self._app_ref is not None else None
             if app is None: _fail("invalid_binding")
-            with self._guards(lease, cookie) as binding:
+            with self._dual_pair_pin(self._producer), self._guards(lease, cookie) as binding:
                 if binding is not lease.binding: _fail("invalid_binding")
                 cookie_binding = self._cookie_authority.current_binding()
                 self._cookie_authority.recheck(cookie_binding)
@@ -943,14 +1046,16 @@ class McpPrivateContextConfirmationService:
                         or cookie_binding.security_revision != binding.security_action_revision):
                     _fail("invalid_binding")
                 self._registered_app_method("_assert_owned_chat")(app, cookie_binding)
-                cookie_first = self._capture_cookie(binding, entry.selection)
-                cookie_last = self._capture_cookie(binding, entry.selection)
-                mcp_first = self._capture_mcp(lease, entry.selection)
-                mcp_last = self._capture_mcp(lease, entry.selection)
+                cookie_first, mcp_first = self._capture_dual(
+                    binding, lease, entry.selection,
+                )
+                cookie_last, mcp_last = self._capture_dual(
+                    binding, lease, entry.selection,
+                )
                 if (cookie_first != cookie_last or mcp_first != mcp_last
                         or entry.mcp_snapshot is None or mcp_first != entry.mcp_snapshot):
                     _fail("context_stale")
-                self._pair(cookie_first, mcp_first, entry.selection)
+                pair(cookie_first, mcp_first, entry.selection)
             final_clock = self._clock()
             self._assert_pins()
         except (McpPrivateContextConfirmationError, McpContextAuthorityError):
@@ -1051,8 +1156,77 @@ class McpPrivateContextConfirmationService:
         return receipt
 
     def issue_permit(self, request_id: str) -> Permit:
+        captured_issue = self._issue_captured_permit_pin
+        if (type(self).__dict__.get("_issue_captured_permit") is not captured_issue
+                or "_issue_captured_permit" in vars(self)):
+            self._assert_request_pins(request_id)
+            _fail("invalid_binding")
+        permit, _fresh_snapshot = captured_issue(self, request_id, None, None, None)
+        return permit
+
+    def _issue_captured_permit(
+        self,
+        request_id: str,
+        lease: McpContextReadLease | None,
+        original_selection: object | None,
+        page_bytes: int | None,
+    ) -> tuple[Permit, CombinedContextSnapshot]:
+        """Issue one permit together with the exact fresh MCP sample that admitted it."""
+        content_admission = lease is not None or original_selection is not None or page_bytes is not None
+        if content_admission:
+            if (type(lease) is not McpContextReadLease
+                    or type(original_selection) is not self._selection_types_pin[0]
+                    or type(page_bytes) is not int or not 1 <= page_bytes <= 16384):
+                _fail("invalid_request")
+            with self._lock:
+                early_entry = dict.get(self._entries, request_id) if type(request_id) is str else None
+                early_lease = early_entry.lease_ref() if type(early_entry) is _Entry else None
+                if (type(early_entry) is not _Entry
+                        or type(early_entry.state) is not str
+                        or early_entry.state != "disclosed"
+                        or type(early_entry.request_id) is not str
+                        or early_entry.request_id != request_id or early_lease is not lease
+                        or early_entry.binding_ref() is not lease.binding
+                        or early_entry.selection is not original_selection
+                        or type(early_entry.page_bytes) is not int
+                        or early_entry.page_bytes != page_bytes):
+                    if type(early_entry) is _Entry:
+                        self._terminate(early_entry)
+                    _fail("invalid_binding")
+            descriptor_slot = self._page_request_descriptor_pin
+            if (type(descriptor_slot) is not staticmethod
+                    or type(self).__dict__.get("_page_request_descriptor") is not descriptor_slot
+                    or "_page_request_descriptor" in vars(self)):
+                with self._lock:
+                    if self._entries.get(request_id) is early_entry:
+                        self._terminate(early_entry)
+                _fail("invalid_binding")
+            try:
+                descriptor = staticmethod.__get__(
+                    descriptor_slot, None, type(self),
+                )(original_selection, page_bytes)
+            except BaseException:
+                with self._lock:
+                    if self._entries.get(request_id) is early_entry:
+                        self._terminate(early_entry)
+                raise
+            if early_entry.page_request_sha256 != descriptor.digest:
+                with self._lock:
+                    if self._entries.get(request_id) is early_entry:
+                        self._terminate(early_entry)
+                _fail("invalid_binding")
+        else:
+            descriptor = None
         self._reject_authority_reentry()
         self._assert_request_pins(request_id)
+        fresh_pair = self._fresh_pair_pin
+        if (type(self).__dict__.get("_fresh_pair") is not fresh_pair
+                or "_fresh_pair" in vars(self)):
+            with self._lock:
+                pinned_entry = self._entries.get(request_id) if type(request_id) is str else None
+                if type(pinned_entry) is _Entry:
+                    self._terminate(pinned_entry)
+            _fail("invalid_binding")
         now, mono = self._clock()
         with self._lock:
             entry = self._entry(request_id, now, mono, "disclosed")
@@ -1076,16 +1250,23 @@ class McpPrivateContextConfirmationService:
             if wall_deadline <= now or mono_deadline <= mono:
                 self._terminate(entry); _fail("expired")
             if entry.permit_ref is not None and entry.permit_ref() is not None: _fail("permit_spent")
-            lease = entry.lease_ref(); binding = entry.binding_ref()
-            if lease is None or binding is None: self._terminate(entry); _fail("invalid_binding")
+            retained_lease = entry.lease_ref(); binding = entry.binding_ref()
+            if retained_lease is None or binding is None:
+                self._terminate(entry); _fail("invalid_binding")
+            if (content_admission
+                    and (retained_lease is not lease or entry.binding_ref() is not lease.binding
+                         or entry.selection is not original_selection
+                         or entry.page_bytes != page_bytes
+                         or descriptor is None
+                         or entry.page_request_sha256 != descriptor.digest)):
+                self._terminate(entry); _fail("invalid_binding")
             entry.state = "permit_issuing"; entry.generation += 1
             service_generation = entry.generation; service_nonce = secrets.randbits(63)
             entry.permit_operation_nonce = service_nonce
         try:
             app = self._app_ref() if self._app_ref is not None else None
             if app is None: _fail("invalid_binding")
-            self._fresh_pair(entry, lease)
-            self._registered_app_method("_readback_ack")(app, entry)
+            fresh_snapshot = fresh_pair(self, entry, retained_lease)
             self._assert_pins()
         except (McpPrivateContextConfirmationError, McpContextAuthorityError):
             with self._lock: self._terminate(entry)
@@ -1127,9 +1308,9 @@ class McpPrivateContextConfirmationService:
                          binding.process_epoch)
             self._permits[key] = _PermitRow(
                 permit_ref, weakref.ref(entry), weakref.ref(self), weakref.ref(self._authority),
-                weakref.ref(lease), weakref.ref(binding), recipient, weakref.ref(thread),
+                weakref.ref(retained_lease), weakref.ref(binding), recipient, weakref.ref(thread),
                 threading.get_ident(), os.getpid(), entry.request_id, generation, nonce)
-            return handle
+            return handle, fresh_snapshot
 
     @contextmanager
     def verify(self, permit: Permit) -> Iterator[DetachedCaptureMaterial]:
@@ -1390,6 +1571,7 @@ class McpPrivateContextConfirmationService:
             return False
 
     def _revalidate_under_guard(self, entry: _Entry, lease: McpContextReadLease, binding: object) -> None:
+        pair = self._pair_pin
         now, mono = self._clock()
         if getattr(self._execution_local, "violation", False): _fail("revoked")
         if (now >= entry.deadline or mono >= entry.mono_deadline or now >= entry.permit_deadline
@@ -1397,18 +1579,115 @@ class McpPrivateContextConfirmationService:
                 or entry.cookie_snapshot is None or entry.mcp_snapshot is None): _fail("expired")
         if lease is not entry.lease_ref() or binding is not lease.binding or entry.binding_ref() is not binding:
             _fail("invalid_binding")
-        c1 = self._capture_cookie(binding, entry.selection); c2 = self._capture_cookie(binding, entry.selection)
-        m1 = self._capture_mcp(lease, entry.selection); m2 = self._capture_mcp(lease, entry.selection)
-        if c1 != c2 or m1 != m2 or c1 != entry.cookie_snapshot or m1 != entry.mcp_snapshot:
-            _fail("context_stale")
-        self._pair(c1, m1, entry.selection)
-        if (c1.mcp_metadata_binding is not None or m1.mcp_metadata_binding is None
-                or m1.mcp_metadata_binding.canonical() != entry.metadata_binding.canonical()): _fail("context_stale")
-        app = self._app_ref() if self._app_ref is not None else None
-        if app is None: _fail("readback_failed")
-        self._registered_app_method("_readback_ack_under_guard")(app, entry, binding)
+        with self._dual_pair_pin(self._producer):
+            c1, m1 = self._capture_dual(binding, lease, entry.selection)
+            app = self._app_ref() if self._app_ref is not None else None
+            if app is None: _fail("readback_failed")
+            self._registered_app_method("_readback_ack_under_guard")(app, entry, binding)
+            c2, m2 = self._capture_dual(binding, lease, entry.selection)
+            if c1 != c2 or m1 != m2 or c1 != entry.cookie_snapshot or m1 != entry.mcp_snapshot:
+                _fail("context_stale")
+            pair(c1, m1, entry.selection)
+            if (c1.mcp_metadata_binding is not None or m1.mcp_metadata_binding is None
+                    or m1.mcp_metadata_binding.canonical() != entry.metadata_binding.canonical()): _fail("context_stale")
         self._assert_pins()
         if getattr(self._execution_local, "violation", False): _fail("revoked")
+
+    def _revalidate_planning_content_under_guard(
+        self,
+        entry: _Entry,
+        lease: McpContextReadLease,
+        binding: object,
+        target: object,
+    ) -> bytes:
+        pair = self._pair_pin
+        capture_content = self._capture_dual_content_pin
+        now, mono = self._clock()
+        if getattr(self._execution_local, "violation", False):
+            _fail("revoked")
+        if (
+            now >= entry.deadline
+            or mono >= entry.mono_deadline
+            or now >= entry.permit_deadline
+            or mono >= entry.permit_mono_deadline
+            or entry.selection is None
+            or entry.cookie_snapshot is None
+            or entry.mcp_snapshot is None
+        ):
+            _fail("expired")
+        if (
+            lease is not entry.lease_ref()
+            or binding is not lease.binding
+            or entry.binding_ref() is not binding
+        ):
+            _fail("invalid_binding")
+        with self._dual_pair_pin(self._producer):
+            first = capture_content(self, binding, lease, entry.selection, target)
+            app = self._app_ref() if self._app_ref is not None else None
+            if app is None:
+                _fail("readback_failed")
+            self._registered_app_method("_readback_ack_under_guard")(
+                app, entry, binding,
+            )
+            final = capture_content(self, binding, lease, entry.selection, target)
+            if (
+                type(first) is not tuple
+                or type(final) is not tuple
+                or len(first) != 4
+                or len(final) != 4
+            ):
+                _fail("context_stale")
+            c1, m1, cookie_payload1, mcp_payload1 = first
+            c2, m2, cookie_payload2, mcp_payload2 = final
+            if (
+                c1 != c2
+                or m1 != m2
+                or c1 != entry.cookie_snapshot
+                or m1 != entry.mcp_snapshot
+            ):
+                _fail("context_stale")
+            pair(c1, m1, entry.selection)
+            if (
+                c1.mcp_metadata_binding is not None
+                or m1.mcp_metadata_binding is None
+                or m1.mcp_metadata_binding.canonical()
+                    != entry.metadata_binding.canonical()
+                or type(cookie_payload1) is not bytes
+                or type(mcp_payload1) is not bytes
+                or type(cookie_payload2) is not bytes
+                or type(mcp_payload2) is not bytes
+                or cookie_payload1 != mcp_payload1
+                or cookie_payload1 != cookie_payload2
+                or cookie_payload1 != mcp_payload2
+            ):
+                _fail("context_stale")
+            selected = next(
+                (
+                    item for item in m1.items
+                    if (
+                        item.source,
+                        item.selection_ref,
+                        item.revision_ref,
+                    ) == (
+                        target.source,
+                        target.selection_ref,
+                        target.revision_ref,
+                    )
+                ),
+                None,
+            )
+            if (
+                selected is None
+                or selected.payload_sha256 is None
+                or hashlib.sha256(cookie_payload1).hexdigest()
+                    != selected.payload_sha256
+            ):
+                _fail("context_stale")
+            payload = cookie_payload1
+        self._assert_pins()
+        if getattr(self._execution_local, "violation", False):
+            _fail("revoked")
+        return payload
 
     def _execute_planning_page(self, opaquePermit: object, *, target_index: int, offset: int,
                                validate_detached: object = None) -> VerifiedPlanningCapture:
@@ -1420,7 +1699,7 @@ class McpPrivateContextConfirmationService:
                     or inspect.isgeneratorfunction(validate_detached)
                     or inspect.isasyncgenfunction(validate_detached))):
             _fail("invalid_request")
-        from src.planning_context_reader import PlanningContextManifestProducer, PlanningContextPage, PlanningContextReaderError
+        from src.planning_context_reader import PlanningContextPage, PlanningContextReaderError
         entry, lease, binding, generation, nonce = self._reserve_permit(opaquePermit, "executing")
         self._execution_local.active = True; self._execution_local.violation = False
         try:
@@ -1435,21 +1714,21 @@ class McpPrivateContextConfirmationService:
                     or entry.page_bytes > 16384): _fail("invalid_request")
             target = selection.items[target_index]
             if target.source != "planning": _fail("invalid_request")
+            content_revalidation = self._planning_content_revalidation_pin
             native_item = next((item for item in entry.mcp_snapshot.items
                                 if (item.source, item.selection_ref, item.revision_ref) ==
                                    (target.source, target.selection_ref, target.revision_ref)), None)
             if native_item is None or native_item.payload_sha256 is None: _fail("context_stale")
             with self._guards(lease, entry.cookie) as held_binding:
                 if held_binding is not binding: _fail("invalid_binding")
-                self._revalidate_under_guard(entry, lease, held_binding)
                 cookie_binding = self._cookie_authority.current_binding()
                 self._cookie_authority.recheck(cookie_binding)
                 if (cookie_binding.chat_session_id != binding.chat_session_id
                         or cookie_binding.owner_sid != binding.owner_subject_id): _fail("invalid_binding")
-                planning = self._producer._planning
-                if type(planning) is not PlanningContextManifestProducer: _fail("invalid_binding")
                 self._assert_pins()
-                payload = planning.read_document(cookie_binding, target)
+                payload = content_revalidation(
+                    self, entry, lease, held_binding, target,
+                )
                 self._cookie_authority.recheck(cookie_binding)
                 self._authority.recheck_lease(lease)
                 if type(payload) is not bytes: _fail("context_stale")
@@ -2007,50 +2286,74 @@ class McpPrivateContextConfirmationService:
             for source in sources:
                 if source in {"forge", "knowledge"}:
                     _TRUSTED_ASSERT_NATIVE_BODY_PINS(self, source, binding)
-            with _TRUSTED_FENCE_GUARDS(self, lease, entry.cookie) as held_binding:
-                if held_binding is not binding or entry.binding_ref() is not binding:
-                    _fail("invalid_binding")
-                cookie_first = _TRUSTED_FENCE_CAPTURE_COOKIE(self, held_binding, original_selection)
-                cookie_last = _TRUSTED_FENCE_CAPTURE_COOKIE(self, held_binding, original_selection)
-                mcp_first = _TRUSTED_FENCE_CAPTURE_MCP(self, lease, original_selection)
-                mcp_last = _TRUSTED_FENCE_CAPTURE_MCP(self, lease, original_selection)
-                cookie_first_projection = _TRUSTED_SERVICE_SNAPSHOT_PROJECTION(
-                    cookie_first, require_metadata=False,
-                )
-                cookie_last_projection = _TRUSTED_SERVICE_SNAPSHOT_PROJECTION(
-                    cookie_last, require_metadata=False,
-                )
-                mcp_first_projection = _TRUSTED_SERVICE_SNAPSHOT_PROJECTION(mcp_first)
-                mcp_last_projection = _TRUSTED_SERVICE_SNAPSHOT_PROJECTION(mcp_last)
-                if (cookie_first_projection != cookie_last_projection
-                        or cookie_first_projection != retained_cookie
-                        or mcp_first_projection != mcp_last_projection
-                        or mcp_first_projection != retained_mcp
-                        or mcp_first_projection != supplied_mcp):
-                    _fail("context_stale")
-                cookie_by_key = {row[:3]: row for row in cookie_first_projection[0]}
-                mcp_by_key = {row[:3]: row for row in mcp_first_projection[0]}
-                if (len(cookie_by_key) != len(selected_keys)
-                        or len(mcp_by_key) != len(selected_keys)
-                        or set(cookie_by_key) != set(selected_keys)
-                        or set(mcp_by_key) != set(selected_keys)):
-                    _fail("context_stale")
-                for key in selected_keys:
-                    cookie_row = cookie_by_key[key]
-                    mcp_row = mcp_by_key[key]
-                    if ((cookie_row[0], cookie_row[1], cookie_row[2], cookie_row[5],
-                            cookie_row[6], cookie_row[7])
-                            != (mcp_row[0], mcp_row[1], mcp_row[2], mcp_row[5],
-                                mcp_row[6], mcp_row[7])):
+            observation_span = _observation_span_begin("fence.guards_scope")
+            try:
+                with _TRUSTED_FENCE_GUARDS(self, lease, entry.cookie) as held_binding:
+                    if held_binding is not binding or entry.binding_ref() is not binding:
+                        _fail("invalid_binding")
+                    capture_span = _observation_span_begin("fence.cookie_first")
+                    try:
+                        cookie_first = _TRUSTED_FENCE_CAPTURE_COOKIE(self, held_binding, original_selection)
+                    finally:
+                        _observation_span_end(capture_span)
+                    capture_span = _observation_span_begin("fence.cookie_last")
+                    try:
+                        cookie_last = _TRUSTED_FENCE_CAPTURE_COOKIE(self, held_binding, original_selection)
+                    finally:
+                        _observation_span_end(capture_span)
+                    capture_span = _observation_span_begin("fence.mcp_first")
+                    try:
+                        mcp_first = _TRUSTED_FENCE_CAPTURE_MCP(self, lease, original_selection)
+                    finally:
+                        _observation_span_end(capture_span)
+                    capture_span = _observation_span_begin("fence.mcp_last")
+                    try:
+                        mcp_last = _TRUSTED_FENCE_CAPTURE_MCP(self, lease, original_selection)
+                    finally:
+                        _observation_span_end(capture_span)
+                    cookie_first_projection = _TRUSTED_SERVICE_SNAPSHOT_PROJECTION(
+                        cookie_first, require_metadata=False,
+                    )
+                    cookie_last_projection = _TRUSTED_SERVICE_SNAPSHOT_PROJECTION(
+                        cookie_last, require_metadata=False,
+                    )
+                    mcp_first_projection = _TRUSTED_SERVICE_SNAPSHOT_PROJECTION(mcp_first)
+                    mcp_last_projection = _TRUSTED_SERVICE_SNAPSHOT_PROJECTION(mcp_last)
+                    if (cookie_first_projection != cookie_last_projection
+                            or cookie_first_projection != retained_cookie
+                            or mcp_first_projection != mcp_last_projection
+                            or mcp_first_projection != retained_mcp
+                            or mcp_first_projection != supplied_mcp):
                         _fail("context_stale")
-                app = self._app_ref() if self._app_ref is not None else None
-                if app is None:
-                    _fail("readback_failed")
-                readback = _TRUSTED_FENCE_APP_METHOD(self, "_readback_ack_under_guard")
-                readback(app, entry, held_binding)
-                for source in sources:
-                    if source in {"forge", "knowledge"}:
-                        _TRUSTED_ASSERT_NATIVE_BODY_PINS(self, source, held_binding)
+                    cookie_by_key = {row[:3]: row for row in cookie_first_projection[0]}
+                    mcp_by_key = {row[:3]: row for row in mcp_first_projection[0]}
+                    if (len(cookie_by_key) != len(selected_keys)
+                            or len(mcp_by_key) != len(selected_keys)
+                            or set(cookie_by_key) != set(selected_keys)
+                            or set(mcp_by_key) != set(selected_keys)):
+                        _fail("context_stale")
+                    for key in selected_keys:
+                        cookie_row = cookie_by_key[key]
+                        mcp_row = mcp_by_key[key]
+                        if ((cookie_row[0], cookie_row[1], cookie_row[2], cookie_row[5],
+                                cookie_row[6], cookie_row[7])
+                                != (mcp_row[0], mcp_row[1], mcp_row[2], mcp_row[5],
+                                    mcp_row[6], mcp_row[7])):
+                            _fail("context_stale")
+                    app = self._app_ref() if self._app_ref is not None else None
+                    if app is None:
+                        _fail("readback_failed")
+                    readback = _TRUSTED_FENCE_APP_METHOD(self, "_readback_ack_under_guard")
+                    readback_span = _observation_span_begin("fence.readback")
+                    try:
+                        readback(app, entry, held_binding)
+                    finally:
+                        _observation_span_end(readback_span)
+                    for source in sources:
+                        if source in {"forge", "knowledge"}:
+                            _TRUSTED_ASSERT_NATIVE_BODY_PINS(self, source, held_binding)
+            finally:
+                _observation_span_end(observation_span)
             _TRUSTED_SERVICE_ASSERT_PINS(self)
             final_now, final_mono = _TRUSTED_FENCE_CLOCK(self)
             with self._lock:
@@ -2182,6 +2485,26 @@ class McpPrivateContextConfirmationService:
                 or self._producer._auth_manager is not self._auth_pin
                 or self._producer._mcp_authority is not self._authority_pin
                 or type(self._producer._planning).__dict__.get("read_document") is not self._planning_reader_pin
+                or type(self._producer).__dict__.get("capture_dual_snapshot") is not self._dual_snapshot_pin
+                or type(self._producer).__dict__.get("capture_dual_snapshot_content")
+                    is not self._dual_content_snapshot_pin
+                or type(self._producer).__dict__.get("_dual_sample_pair") is not self._dual_pair_pin
+                or type(self)._pair is not self._pair_pin
+                or "_pair" in vars(self)
+                or type(self).__dict__.get("_issue_captured_permit")
+                    is not self._issue_captured_permit_pin
+                or "_issue_captured_permit" in vars(self)
+                or type(self).__dict__.get("_fresh_pair") is not self._fresh_pair_pin
+                or "_fresh_pair" in vars(self)
+                or type(self).__dict__.get("_capture_dual_content")
+                    is not self._capture_dual_content_pin
+                or "_capture_dual_content" in vars(self)
+                or type(self).__dict__.get("_revalidate_planning_content_under_guard")
+                    is not self._planning_content_revalidation_pin
+                or "_revalidate_planning_content_under_guard" in vars(self)
+                or type(self).__dict__.get("_page_request_descriptor")
+                    is not self._page_request_descriptor_pin
+                or "_page_request_descriptor" in vars(self)
                 or self._cookie_authority._auth_manager is not self._auth_pin
                 or self._authority._session_factory is not self._session_factory_pin
                 or self._authority._session_factory is not self._authority._session_factory_pin
@@ -2352,33 +2675,42 @@ class McpPrivateContextConfirmationService:
         if (now >= entry.deadline or mono >= entry.mono_deadline or entry.selection is None
                 or entry.cookie_snapshot is None or entry.mcp_snapshot is None): _fail("expired")
         if entry.permit_deadline is not None and (now >= entry.permit_deadline or mono >= (entry.permit_mono_deadline or float("inf"))): _fail("expired")
-        with self._guards(lease, entry.cookie) as binding:
+        with self._dual_pair_pin(self._producer), self._guards(lease, entry.cookie) as binding:
             if entry.binding_ref() is not binding: _fail("invalid_binding")
-            cookie_first = self._capture_cookie(binding, entry.selection)
-            cookie_last = self._capture_cookie(binding, entry.selection)
-            mcp_first = self._capture_mcp(lease, entry.selection)
-            mcp_last = self._capture_mcp(lease, entry.selection)
+            cookie_first, mcp_first = self._capture_dual(
+                binding, lease, entry.selection,
+            )
+            app = self._app_ref() if self._app_ref is not None else None
+            if app is None: _fail("readback_failed")
+            self._registered_app_method("_readback_ack_under_guard")(app, entry, binding)
+            cookie_last, mcp_last = self._capture_dual(
+                binding, lease, entry.selection,
+            )
             if (cookie_first != cookie_last or mcp_first != mcp_last
                     or cookie_first != entry.cookie_snapshot or mcp_first != entry.mcp_snapshot): _fail("context_stale")
             if (not callable(getattr(entry.metadata_binding, "canonical", None))
                     or not callable(getattr(entry.mcp_snapshot.mcp_metadata_binding, "canonical", None))
                     or entry.mcp_snapshot.mcp_metadata_binding.canonical() != entry.metadata_binding.canonical()): _fail("context_stale")
         if entry.receipt is None: _fail("readback_failed")
-        app = self._app_ref() if self._app_ref is not None else None
-        if app is None: _fail("readback_failed")
-        self._registered_app_method("_readback_ack")(app, entry)
 
-    def _fresh_pair(self, entry: _Entry, lease: McpContextReadLease) -> None:
+    def _fresh_pair(
+        self, entry: _Entry, lease: McpContextReadLease,
+    ) -> CombinedContextSnapshot:
         selection = entry.selection
         if selection is None: _fail("context_stale")
-        with self._guards(lease, entry.cookie) as binding:
+        pair = self._pair_pin
+        with self._dual_pair_pin(self._producer), self._guards(lease, entry.cookie) as binding:
             if entry.binding_ref() is not binding: _fail("invalid_binding")
-            c1 = self._capture_cookie(binding, selection); c2 = self._capture_cookie(binding, selection)
-            m1 = self._capture_mcp(lease, selection); m2 = self._capture_mcp(lease, selection)
+            c1, m1 = self._capture_dual(binding, lease, selection)
+            app = self._app_ref() if self._app_ref is not None else None
+            if app is None: _fail("readback_failed")
+            self._registered_app_method("_readback_ack_under_guard")(app, entry, binding)
+            c2, m2 = self._capture_dual(binding, lease, selection)
             if c1 != c2 or m1 != m2 or c1 != entry.cookie_snapshot or m1 != entry.mcp_snapshot:
                 _fail("context_stale")
-            self._pair(c1, m1, selection)
+            pair(c1, m1, selection)
         self._assert_pins()
+        return m1
 
     def _seal_ack_attestation(self, entry: _Entry, operation: _PendingAckOperation,
                               before: tuple[datetime, float], returned: tuple[datetime, float]) -> None:
@@ -2447,6 +2779,113 @@ class McpPrivateContextConfirmationService:
         if (not callable(getattr(metadata, "canonical", None))
                 or metadata.canonical() != {"schema": "odysseus.context.mcp_metadata_binding.v1", "audience": "authenticated_mcp_context_read", "owner_sid": foundation.owner_subject_id, "chat_session_id": foundation.chat_session_id, "recipient_token_id": foundation.token_id, "scope": foundation.scope, "cache_generation": foundation.cache_generation, "security_revision": foundation.security_action_revision, "app_epoch": foundation.process_epoch}): _fail("invalid_binding")
         return value
+
+    def _capture_dual(
+        self,
+        binding: object,
+        lease: McpContextReadLease,
+        selection: object,
+    ) -> tuple[CombinedContextSnapshot, CombinedContextSnapshot]:
+        capture_dual = self._dual_snapshot_pin
+        if (
+            type(self._producer).__dict__.get("capture_dual_snapshot")
+            is not capture_dual
+        ):
+            _fail("invalid_binding")
+        cookie_binding = self._cookie_authority.current_binding()
+        self._cookie_authority.recheck(cookie_binding)
+        if (
+            cookie_binding.owner_sid != binding.owner_subject_id
+            or cookie_binding.chat_session_id != binding.chat_session_id
+            or cookie_binding.security_revision != binding.security_action_revision
+        ):
+            _fail("invalid_binding")
+        values = capture_dual(
+            self._producer, cookie_binding, lease, selection,
+        )
+        if type(values) is not tuple or len(values) != 2:
+            _fail("context_stale")
+        cookie, mcp = values
+        if (
+            type(cookie) is not CombinedContextSnapshot
+            or cookie.mcp_metadata_binding is not None
+            or type(mcp) is not CombinedContextSnapshot
+            or mcp.mcp_metadata_binding is None
+        ):
+            _fail("context_stale")
+        foundation = self._authority.recheck_lease(lease)
+        metadata = mcp.mcp_metadata_binding
+        if (
+            not callable(getattr(metadata, "canonical", None))
+            or metadata.canonical() != {
+                "schema": "odysseus.context.mcp_metadata_binding.v1",
+                "audience": "authenticated_mcp_context_read",
+                "owner_sid": foundation.owner_subject_id,
+                "chat_session_id": foundation.chat_session_id,
+                "recipient_token_id": foundation.token_id,
+                "scope": foundation.scope,
+                "cache_generation": foundation.cache_generation,
+                "security_revision": foundation.security_action_revision,
+                "app_epoch": foundation.process_epoch,
+            }
+        ):
+            _fail("invalid_binding")
+        return cookie, mcp
+
+    def _capture_dual_content(
+        self,
+        binding: object,
+        lease: McpContextReadLease,
+        selection: object,
+        target: object,
+    ) -> tuple[CombinedContextSnapshot, CombinedContextSnapshot, bytes, bytes]:
+        capture_dual = self._dual_content_snapshot_pin
+        if (
+            type(self._producer).__dict__.get("capture_dual_snapshot_content")
+            is not capture_dual
+        ):
+            _fail("invalid_binding")
+        cookie_binding = self._cookie_authority.current_binding()
+        self._cookie_authority.recheck(cookie_binding)
+        if (
+            cookie_binding.owner_sid != binding.owner_subject_id
+            or cookie_binding.chat_session_id != binding.chat_session_id
+            or cookie_binding.security_revision != binding.security_action_revision
+        ):
+            _fail("invalid_binding")
+        values = capture_dual(
+            self._producer, cookie_binding, lease, selection, target,
+        )
+        if type(values) is not tuple or len(values) != 4:
+            _fail("context_stale")
+        cookie, mcp, cookie_payload, mcp_payload = values
+        if (
+            type(cookie) is not CombinedContextSnapshot
+            or cookie.mcp_metadata_binding is not None
+            or type(mcp) is not CombinedContextSnapshot
+            or mcp.mcp_metadata_binding is None
+            or type(cookie_payload) is not bytes
+            or type(mcp_payload) is not bytes
+        ):
+            _fail("context_stale")
+        foundation = self._authority.recheck_lease(lease)
+        metadata = mcp.mcp_metadata_binding
+        if (
+            not callable(getattr(metadata, "canonical", None))
+            or metadata.canonical() != {
+                "schema": "odysseus.context.mcp_metadata_binding.v1",
+                "audience": "authenticated_mcp_context_read",
+                "owner_sid": foundation.owner_subject_id,
+                "chat_session_id": foundation.chat_session_id,
+                "recipient_token_id": foundation.token_id,
+                "scope": foundation.scope,
+                "cache_generation": foundation.cache_generation,
+                "security_revision": foundation.security_action_revision,
+                "app_epoch": foundation.process_epoch,
+            }
+        ):
+            _fail("invalid_binding")
+        return cookie, mcp, cookie_payload, mcp_payload
     @staticmethod
     def _pair(cookie: CombinedContextSnapshot, mcp: CombinedContextSnapshot, selection: object) -> None:
         if (len(cookie.items) != len(mcp.items) or len(cookie.items) != len(selection.items)
@@ -2771,6 +3210,1016 @@ def _terminate_anchored_publication(
         return False
 
 
+_REQUEST_REJECTION_SERVICE_PIN_NAMES = (
+    "_reject_authority_reentry", "_registered_request_app_method",
+    "_registered_app_method", "_assert_pins", "_terminate", "_scrub",
+)
+_REQUEST_REJECTION_SERVICE_DESCRIPTORS = tuple(
+    (name, McpPrivateContextConfirmationService.__dict__[name])
+    for name in _REQUEST_REJECTION_SERVICE_PIN_NAMES
+)
+_REQUEST_REJECTION_HUMAN_ROW_SLOTS = tuple(
+    _HumanExchangeRow.__dict__[name]
+    for name in (
+        "exchange_ref", "app_ref", "service_ref", "authority_ref", "lease_ref",
+        "binding_ref", "thread_ref", "request_id", "challenge", "chat_session_id",
+        "generation", "nonce", "raw_user_command", "recipient9", "thread_ident", "pid",
+    )
+)
+_REQUEST_REJECTION_COMPLETION_ROW_SLOTS = tuple(
+    _CompletionRow.__dict__[name]
+    for name in (
+        "receipt_ref", "capture_ref", "entry_ref", "service_ref", "authority_ref",
+        "lease_ref", "binding_ref", "thread_ref", "request_id", "generation", "nonce",
+        "pid", "recipient", "page_sha256",
+    )
+)
+_REQUEST_REJECTION_NATIVE_COMPLETION_ROW_SLOTS = tuple(
+    _NativeCompletionRow.__dict__[name]
+    for name in (
+        "receipt_ref", "capture_ref", "entry_ref", "service_ref", "authority_ref",
+        "lease_ref", "binding_ref", "thread_ref", "request_id", "generation", "nonce",
+        "pid", "recipient", "source", "page_sha256",
+    )
+)
+_REQUEST_REJECTION_PLANNING_CAPTURE_RECEIPT_SLOT = (
+    VerifiedPlanningCapture.__dict__["receipt"]
+)
+_REQUEST_REJECTION_NATIVE_CAPTURE_SOURCE_SLOT = VerifiedNativeCapture.__dict__["source"]
+_REQUEST_REJECTION_NATIVE_CAPTURE_RECEIPT_SLOT = VerifiedNativeCapture.__dict__["receipt"]
+_REQUEST_REJECTION_LEASE_REQUEST_ID_SLOT = (
+    McpContextReadLease.__dict__["_McpContextReadLease__request_id"]
+)
+_NATIVE_LOCAL_DICT_GET = _NATIVE_LOCAL_TYPE.__dict__["__getattribute__"]
+_PRISTINE_INTENT_SENTINEL = object()
+_PRISTINE_INTENT_ENTRY_NAMES = (
+    "request_id", "lease_ref", "binding_ref", "owner_sid", "selection",
+    "cookie", "page_bytes", "cookie_snapshot", "mcp_snapshot",
+    "metadata_binding", "issued", "deadline", "mono_deadline", "generation",
+    "state", "challenge", "challenge_deadline", "challenge_mono_deadline",
+    "receipt", "ack_wall_time", "ack_mono_time", "exchange_nonce",
+    "ack_deadline", "ack_mono_deadline", "ack_descriptor", "ack_attestation",
+    "ack_role_hmacs", "disclosure_generation", "disclosure_nonce",
+    "disclosure_operation_id", "pending_ack_operation", "permit_operation_nonce",
+    "permit_ref", "permit_nonce", "permit_deadline", "permit_mono_deadline",
+    "page_request_sha256", "intent", "execution_nonce", "execution_thread_ref",
+    "execution_thread_ident", "execution_pid",
+)
+_PRISTINE_INTENT_ENTRY_SLOTS = tuple(
+    _Entry.__dict__[name] for name in _PRISTINE_INTENT_ENTRY_NAMES
+)
+_PRISTINE_INTENT_BINDING_AUTHORITY_SLOT = (
+    McpContextBinding.__dict__["_McpContextBinding__authority"]
+)
+_PRISTINE_INTENT_BINDING_ISSUER_SLOT = (
+    McpContextBinding.__dict__["_McpContextBinding__issuer"]
+)
+_PRISTINE_INTENT_AUTHORITY_DICT_SLOT = McpContextAuthority.__dict__["__dict__"]
+_PRISTINE_INTENT_AUTHORITY_DICT_GET = type(_PRISTINE_INTENT_AUTHORITY_DICT_SLOT).__get__
+_PRISTINE_INTENT_SNAPSHOT_METADATA_SLOT = (
+    CombinedContextSnapshot.__dict__["mcp_metadata_binding"]
+)
+_PRISTINE_INTENT_SNAPSHOT_SLOTS = tuple(
+    CombinedContextSnapshot.__dict__[name] for name in _SNAPSHOT_FIELDS
+)
+_PRISTINE_INTENT_MANIFEST_ITEM_SLOTS = tuple(
+    ManifestItem.__dict__[name] for name in _MANIFEST_ITEM_FIELDS
+)
+_PRISTINE_INTENT_METADATA_SLOTS = tuple(
+    McpContextMetadataBinding.__dict__[name] for name in _MCP_METADATA_FIELDS
+)
+_PRISTINE_INTENT_PREPARED_SLOTS = tuple(
+    PreparedRequest.__dict__[name]
+    for name in ("request_id", "private_required", "item_count")
+)
+_PRISTINE_INTENT_ORIGIN_SIZE = 20
+_PRISTINE_INTENT_NATIVE_DESCRIPTOR_PINS = (
+    (
+        "_NativePermitRejectionCapsule", _NativePermitRejectionCapsule,
+        tuple(zip(
+            (
+                "service_ref", "lock", "entries", "permits", "exchanges",
+                "completions", "native_completions", "authority", "execution_local",
+            ),
+            _CAPSULE_SLOTS,
+        )),
+    ),
+    (
+        "_Entry", _Entry,
+        tuple(zip(_PRISTINE_INTENT_ENTRY_NAMES, _PRISTINE_INTENT_ENTRY_SLOTS)),
+    ),
+    ("_PermitRow", _PermitRow, (("entry_ref", _PERMIT_ROW_ENTRY_REF_SLOT),)),
+    (
+        "_HumanExchangeRow", _HumanExchangeRow,
+        (("request_id", _HUMAN_ROW_REQUEST_ID_SLOT),),
+    ),
+    (
+        "_CompletionRow", _CompletionRow,
+        (("entry_ref", _COMPLETION_ROW_ENTRY_REF_SLOT),),
+    ),
+    (
+        "_NativeCompletionRow", _NativeCompletionRow,
+        (("entry_ref", _NATIVE_COMPLETION_ROW_ENTRY_REF_SLOT),),
+    ),
+    (
+        "McpContextReadLease", McpContextReadLease,
+        (
+            ("_McpContextReadLease__authority", _LEASE_AUTHORITY_SLOT),
+            ("_McpContextReadLease__binding", _LEASE_BINDING_SLOT),
+            ("_McpContextReadLease__request_id", _REQUEST_REJECTION_LEASE_REQUEST_ID_SLOT),
+        ),
+    ),
+    (
+        "McpContextBinding", McpContextBinding,
+        (
+            ("_McpContextBinding__authority", _PRISTINE_INTENT_BINDING_AUTHORITY_SLOT),
+            ("_McpContextBinding__issuer", _PRISTINE_INTENT_BINDING_ISSUER_SLOT),
+            *tuple(zip(
+                (
+                    "_McpContextBinding__owner_subject_id",
+                    "_McpContextBinding__chat_session_id",
+                    "_McpContextBinding__token_id",
+                    "_McpContextBinding__scope",
+                    "_McpContextBinding__cache_generation",
+                    "_McpContextBinding__security_action_revision",
+                    "_McpContextBinding__process_epoch",
+                ),
+                _BINDING_RECIPIENT_SLOTS,
+            )),
+        ),
+    ),
+    (
+        "CombinedContextSnapshot", CombinedContextSnapshot,
+        tuple(zip(_SNAPSHOT_FIELDS, _PRISTINE_INTENT_SNAPSHOT_SLOTS)),
+    ),
+    (
+        "ManifestItem", ManifestItem,
+        tuple(zip(_MANIFEST_ITEM_FIELDS, _PRISTINE_INTENT_MANIFEST_ITEM_SLOTS)),
+    ),
+    (
+        "McpContextMetadataBinding", McpContextMetadataBinding,
+        tuple(zip(_MCP_METADATA_FIELDS, _PRISTINE_INTENT_METADATA_SLOTS)),
+    ),
+    (
+        "PreparedRequest", PreparedRequest,
+        tuple(zip(
+            ("request_id", "private_required", "item_count"),
+            _PRISTINE_INTENT_PREPARED_SLOTS,
+        )),
+    ),
+    (
+        "McpContextAuthority", McpContextAuthority,
+        (("__dict__", _PRISTINE_INTENT_AUTHORITY_DICT_SLOT),),
+    ),
+)
+
+
+def _acquire_request_rejection_capability(
+    service: object,
+    _service_type: type = McpPrivateContextConfirmationService,
+    _capsule_type: type = _NativePermitRejectionCapsule,
+    _authority_type: type = McpContextAuthority,
+    _weakref_type: type = _NATIVE_WEAKREF_TYPE,
+    _rlock_type: type = _NATIVE_RLOCK_TYPE,
+    _local_type: type = _NATIVE_LOCAL_TYPE,
+    _weakref_call: object = _NATIVE_WEAKREF_CALL,
+    _member_get: object = _NATIVE_MEMBER_GET,
+    _instance_dict_slot: object = _SERVICE_INSTANCE_DICT_SLOT,
+    _instance_dict_get: object = _SERVICE_INSTANCE_DICT_GET,
+    _authority_dict_slot: object = _PRISTINE_INTENT_AUTHORITY_DICT_SLOT,
+    _authority_dict_get: object = _PRISTINE_INTENT_AUTHORITY_DICT_GET,
+    _capsule_slots: tuple[object, ...] = _CAPSULE_SLOTS,
+    _method_descriptors: tuple[tuple[str, object], ...] = _REQUEST_REJECTION_SERVICE_DESCRIPTORS,
+    _error_type: type = McpPrivateContextConfirmationError,
+) -> tuple[object, ...]:
+    """Capture the original storage needed to reject one drifted browser request."""
+    try:
+        if type(service) is not _service_type:
+            raise _error_type("invalid_context")
+        class_state = _service_type.__dict__
+        instance = _instance_dict_get(_instance_dict_slot, service, _service_type)
+        if (type(instance) is not dict
+                or any(type(key) is not str for key in tuple(dict.keys(instance)))
+                or class_state.get("__getattribute__") is not None
+                or class_state.get("__getattr__") is not None
+                or any(class_state.get(name) is not descriptor or name in instance
+                       for name, descriptor in _method_descriptors)):
+            raise _error_type("invalid_context")
+        capsule = dict.get(instance, "_native_rejection_capsule")
+        if type(capsule) is not _capsule_type:
+            raise _error_type("invalid_context")
+        (service_ref, lock, entries, permits, exchanges, completions,
+         native_completions, authority, execution_local) = tuple(
+            _member_get(slot, capsule, _capsule_type) for slot in _capsule_slots
+        )
+        if (type(service_ref) is not _weakref_type
+                or _weakref_call(service_ref) is not service
+                or type(lock) is not _rlock_type
+                or type(entries) is not dict or type(permits) is not dict
+                or type(exchanges) is not dict or type(completions) is not dict
+                or type(native_completions) is not dict
+                or type(authority) is not _authority_type
+                or type(execution_local) is not _local_type
+                or dict.get(instance, "_lock") is not lock
+                or dict.get(instance, "_entries") is not entries
+                or dict.get(instance, "_permits") is not permits
+                or dict.get(instance, "_exchanges") is not exchanges
+                or dict.get(instance, "_completions") is not completions
+                or dict.get(instance, "_native_completions") is not native_completions
+                or dict.get(instance, "_authority") is not authority
+                or dict.get(instance, "_execution_local") is not execution_local):
+            raise _error_type("invalid_context")
+        if _authority_type.__dict__.get("__dict__") is not _authority_dict_slot:
+            raise _error_type("invalid_context")
+        authority_instance = _authority_dict_get(
+            _authority_dict_slot, authority, _authority_type,
+        )
+        if (type(authority_instance) is not dict
+                or any(type(key) is not str for key in tuple(dict.keys(authority_instance)))):
+            raise _error_type("invalid_context")
+        binding_issuer = dict.get(authority_instance, "_binding_issuer")
+        if type(binding_issuer) is not object:
+            raise _error_type("invalid_context")
+        return (
+            service, capsule, lock, entries, permits, exchanges, completions,
+            native_completions, authority, execution_local, binding_issuer,
+        )
+    except _error_type:
+        raise
+    except BaseException:
+        raise _error_type("invalid_context") from None
+
+
+def _classify_pristine_intent(
+    capability: object,
+    request_id: object,
+    lease_id: object,
+    lease: object,
+    binding: object,
+    owner_sid: object,
+    recipient: object,
+    selection: object,
+    page_bytes: object,
+    origin: object,
+    _sentinel: object = _PRISTINE_INTENT_SENTINEL,
+    _native_descriptor_pins: tuple[tuple[str, type, tuple[tuple[str, object], ...]], ...]
+        = _PRISTINE_INTENT_NATIVE_DESCRIPTOR_PINS,
+    _service_type: type = McpPrivateContextConfirmationService,
+    _capsule_type: type = _NativePermitRejectionCapsule,
+    _entry_type: type = _Entry,
+    _permit_row_type: type = _PermitRow,
+    _exchange_row_type: type = _HumanExchangeRow,
+    _completion_row_type: type = _CompletionRow,
+    _native_completion_row_type: type = _NativeCompletionRow,
+    _lease_type: type = McpContextReadLease,
+    _binding_type: type = McpContextBinding,
+    _snapshot_type: type = CombinedContextSnapshot,
+    _metadata_type: type = McpContextMetadataBinding,
+    _authority_type: type = McpContextAuthority,
+    _weakref_type: type = _NATIVE_WEAKREF_TYPE,
+    _rlock_type: type = _NATIVE_RLOCK_TYPE,
+    _local_type: type = _NATIVE_LOCAL_TYPE,
+    _weakref_call: object = _NATIVE_WEAKREF_CALL,
+    _member_get: object = _NATIVE_MEMBER_GET,
+    _instance_dict_slot: object = _SERVICE_INSTANCE_DICT_SLOT,
+    _instance_dict_get: object = _SERVICE_INSTANCE_DICT_GET,
+    _authority_dict_slot: object = _PRISTINE_INTENT_AUTHORITY_DICT_SLOT,
+    _authority_dict_get: object = _PRISTINE_INTENT_AUTHORITY_DICT_GET,
+    _capsule_slots: tuple[object, ...] = _CAPSULE_SLOTS,
+    _entry_slots: tuple[object, ...] = _PRISTINE_INTENT_ENTRY_SLOTS,
+    _lease_authority_slot: object = _LEASE_AUTHORITY_SLOT,
+    _lease_binding_slot: object = _LEASE_BINDING_SLOT,
+    _lease_request_id_slot: object = _REQUEST_REJECTION_LEASE_REQUEST_ID_SLOT,
+    _binding_authority_slot: object = _PRISTINE_INTENT_BINDING_AUTHORITY_SLOT,
+    _binding_issuer_slot: object = _PRISTINE_INTENT_BINDING_ISSUER_SLOT,
+    _binding_recipient_slots: tuple[object, ...] = _BINDING_RECIPIENT_SLOTS,
+    _snapshot_metadata_slot: object = _PRISTINE_INTENT_SNAPSHOT_METADATA_SLOT,
+    _permit_row_entry_ref_slot: object = _PERMIT_ROW_ENTRY_REF_SLOT,
+    _human_row_request_id_slot: object = _HUMAN_ROW_REQUEST_ID_SLOT,
+    _completion_row_entry_ref_slot: object = _COMPLETION_ROW_ENTRY_REF_SLOT,
+    _native_completion_row_entry_ref_slot: object = _NATIVE_COMPLETION_ROW_ENTRY_REF_SLOT,
+    _origin_size: int = _PRISTINE_INTENT_ORIGIN_SIZE,
+    _selection_projection: object = _TRUSTED_SERVICE_SELECTION_PROJECTION,
+    _snapshot_projection: object = _TRUSTED_SERVICE_SNAPSHOT_PROJECTION,
+    _error_type: type = McpPrivateContextConfirmationError,
+) -> object | None:
+    """Identify only an untouched prepare-intent row without calling service code."""
+    try:
+        module_state = globals()
+        for global_name, value_type, descriptor_pins in _native_descriptor_pins:
+            namespace = value_type.__dict__
+            if (module_state.get(global_name) is not value_type
+                    or any(namespace.get(name) is not descriptor
+                           for name, descriptor in descriptor_pins)):
+                return None
+        if type(capability) is not tuple or len(capability) != 11:
+            return None
+        (service, capsule, lock, entries, permits, exchanges, completions,
+         native_completions, authority, execution_local, binding_issuer) = capability
+        if (type(service) is not _service_type or type(capsule) is not _capsule_type
+                or type(lock) is not _rlock_type or type(entries) is not dict
+                or type(permits) is not dict or type(exchanges) is not dict
+                or type(completions) is not dict or type(native_completions) is not dict
+                or type(authority) is not _authority_type
+                or type(execution_local) is not _local_type
+                or type(binding_issuer) is not object):
+            return None
+        instance = _instance_dict_get(_instance_dict_slot, service, _service_type)
+        authority_instance = _authority_dict_get(
+            _authority_dict_slot, authority, _authority_type,
+        )
+        capsule_values = tuple(
+            _member_get(slot, capsule, _capsule_type) for slot in _capsule_slots
+        )
+        if (type(instance) is not dict
+                or type(authority_instance) is not dict
+                or any(type(key) is not str for key in tuple(dict.keys(authority_instance)))
+                or dict.get(authority_instance, "_binding_issuer") is not binding_issuer
+                or len(capsule_values) != 9
+                or type(capsule_values[0]) is not _weakref_type
+                or _weakref_call(capsule_values[0]) is not service
+                or any(current is not retained for current, retained in zip(
+                    capsule_values[1:], capability[2:10],
+                ))
+                or dict.get(instance, "_native_rejection_capsule") is not capsule
+                or dict.get(instance, "_lock") is not lock
+                or dict.get(instance, "_entries") is not entries
+                or dict.get(instance, "_permits") is not permits
+                or dict.get(instance, "_exchanges") is not exchanges
+                or dict.get(instance, "_completions") is not completions
+                or dict.get(instance, "_native_completions") is not native_completions
+                or dict.get(instance, "_authority") is not authority
+                or dict.get(instance, "_execution_local") is not execution_local):
+            return None
+        closed = dict.get(instance, "_closed")
+        if type(closed) is not bool:
+            return None
+        if closed:
+            raise _error_type("closed")
+        if type(origin) is not tuple or len(origin) != _origin_size:
+            return None
+        (
+            origin_entry, origin_snapshot, origin_metadata, origin_selection,
+            origin_lease, origin_binding, origin_request_id, origin_lease_id,
+            origin_owner_sid, origin_recipient, origin_selection_projection,
+            origin_page_bytes, origin_page_digest, origin_item_rows,
+            origin_target_digests, origin_metadata_row, origin_issued,
+            origin_deadline, origin_mono_deadline, origin_selection_pins,
+        ) = origin
+        selection_types_pin = dict.get(instance, "_selection_types_pin")
+        selection_states_pin = dict.get(instance, "_selection_states_pin")
+        if (type(request_id) is not str or type(lease_id) is not str
+                or type(lease) is not _lease_type or type(binding) is not _binding_type
+                or type(owner_sid) is not str or not owner_sid
+                or type(recipient) is not tuple or len(recipient) != 7
+                or tuple(type(value) for value in recipient)
+                    != (str, str, str, str, int, int, str)
+                or type(page_bytes) is not int or isinstance(page_bytes, bool)
+                or not 1 <= page_bytes <= 16_384
+                or type(origin_entry) is not _entry_type
+                or type(origin_snapshot) is not _snapshot_type
+                or type(origin_metadata) is not _metadata_type
+                or origin_selection is not selection
+                or origin_lease is not lease or origin_binding is not binding
+                or type(origin_request_id) is not str
+                or type(origin_lease_id) is not str
+                or type(origin_owner_sid) is not str or not origin_owner_sid
+                or type(origin_recipient) is not tuple
+                or len(origin_recipient) != 7
+                or tuple(type(value) for value in origin_recipient)
+                    != (str, str, str, str, int, int, str)
+                or type(origin_selection_projection) is not tuple
+                or not origin_selection_projection
+                or type(origin_page_bytes) is not int
+                or isinstance(origin_page_bytes, bool)
+                or not 1 <= origin_page_bytes <= 16_384
+                or type(origin_page_digest) is not str
+                or len(origin_page_digest) != 64
+                or any(character not in "0123456789abcdef"
+                       for character in origin_page_digest)
+                or type(origin_item_rows) is not tuple or not origin_item_rows
+                or type(origin_target_digests) is not tuple
+                or len(origin_target_digests) != len(origin_item_rows)
+                or type(origin_metadata_row) is not tuple
+                or len(origin_metadata_row) != len(_MCP_METADATA_FIELDS)
+                or type(origin_issued) is not datetime
+                or type(origin_deadline) is not datetime
+                or type(origin_mono_deadline) is not float
+                or type(origin_selection_pins) is not tuple
+                or len(origin_selection_pins) != 2
+                or type(selection_types_pin) is not tuple
+                or len(selection_types_pin) != 3
+                or type(selection_states_pin) is not tuple
+                or len(selection_states_pin) != 3
+                or origin_selection_pins[0] is not selection_types_pin
+                or origin_selection_pins[1] is not selection_states_pin
+                or origin_request_id != request_id
+                or origin_lease_id != lease_id
+                or origin_owner_sid != owner_sid
+                or origin_recipient != recipient
+                or origin_page_bytes != page_bytes):
+            return None
+
+        with lock:
+            entry = dict.get(entries, request_id)
+            if (type(entry) is not _entry_type or entry is not origin_entry
+                    or dict.get(entries, request_id) is not entry):
+                return None
+            values = tuple(
+                _member_get(slot, entry, _entry_type) for slot in _entry_slots
+            )
+            (
+                entry_request_id, lease_ref, binding_ref, entry_owner_sid,
+                entry_selection, cookie, entry_page_bytes, cookie_snapshot,
+                mcp_snapshot, metadata_binding, issued, deadline, mono_deadline,
+                generation, state, challenge, challenge_deadline,
+                challenge_mono_deadline, receipt, ack_wall_time, ack_mono_time,
+                exchange_nonce, ack_deadline, ack_mono_deadline, ack_descriptor,
+                ack_attestation, ack_role_hmacs, disclosure_generation,
+                disclosure_nonce, disclosure_operation_id, pending_ack_operation,
+                permit_operation_nonce, permit_ref, permit_nonce, permit_deadline,
+                permit_mono_deadline, page_request_sha256, intent, execution_nonce,
+                execution_thread_ref, execution_thread_ident, execution_pid,
+            ) = values
+            if (
+                type(entry_request_id) is not str
+                or type(lease_ref) is not _weakref_type
+                or type(binding_ref) is not _weakref_type
+                or type(entry_owner_sid) is not str
+                or type(cookie) is not str
+                or type(entry_page_bytes) is not int
+                or isinstance(entry_page_bytes, bool)
+                or type(mcp_snapshot) is not _snapshot_type
+                or type(metadata_binding) is not _metadata_type
+                or type(issued) is not datetime
+                or type(deadline) is not datetime
+                or type(mono_deadline) is not float
+                or type(generation) is not int
+                or isinstance(generation, bool)
+                or type(state) is not str
+                or type(page_request_sha256) is not str
+            ):
+                return None
+            try:
+                current_selection_projection = _selection_projection(
+                    selection, selection_types_pin, selection_states_pin,
+                )
+                current_item_rows, current_target_digests, current_metadata_row = (
+                    _snapshot_projection(mcp_snapshot)
+                )
+            except BaseException:
+                return None
+            optional_values = (
+                challenge, challenge_deadline, challenge_mono_deadline, receipt,
+                ack_wall_time, ack_mono_time, exchange_nonce, ack_deadline,
+                ack_mono_deadline, ack_descriptor, ack_attestation, ack_role_hmacs,
+                disclosure_generation, disclosure_nonce, disclosure_operation_id,
+                pending_ack_operation, permit_operation_nonce, permit_ref,
+                permit_nonce, permit_deadline, permit_mono_deadline, execution_nonce,
+                execution_thread_ref, execution_thread_ident, execution_pid,
+            )
+            if (entry_request_id != request_id
+                    or _weakref_call(lease_ref) is not lease
+                    or _weakref_call(binding_ref) is not binding
+                    or entry_owner_sid != owner_sid
+                    or entry_selection is not selection
+                    or selection is not origin_selection
+                    or cookie != ""
+                    or entry_page_bytes != page_bytes
+                    or cookie_snapshot is not None
+                    or mcp_snapshot is not origin_snapshot
+                    or metadata_binding is not origin_metadata
+                    or _member_get(
+                        _snapshot_metadata_slot, mcp_snapshot, _snapshot_type,
+                    ) is not metadata_binding
+                    or issued is not origin_issued
+                    or deadline is not origin_deadline
+                    or mono_deadline != origin_mono_deadline
+                    or generation != 0
+                    or state != "intent" or intent is not True
+                    or any(value is not None for value in optional_values)
+                    or len(page_request_sha256) != 64
+                    or any(character not in "0123456789abcdef"
+                           for character in page_request_sha256)
+                    or page_request_sha256 != origin_page_digest
+                    or current_selection_projection != origin_selection_projection
+                    or current_item_rows != origin_item_rows
+                    or current_target_digests != origin_target_digests
+                    or current_metadata_row != origin_metadata_row
+                    or _member_get(_lease_authority_slot, lease, _lease_type)
+                        is not authority
+                    or _member_get(_lease_binding_slot, lease, _lease_type)
+                        is not binding
+                    or _member_get(_lease_request_id_slot, lease, _lease_type)
+                        != lease_id
+                    or _member_get(_binding_authority_slot, binding, _binding_type)
+                        is not binding_issuer
+                    or _member_get(_binding_issuer_slot, binding, _binding_type)
+                        is not binding_issuer
+                    or tuple(_member_get(slot, binding, _binding_type)
+                             for slot in _binding_recipient_slots) != recipient):
+                return None
+            for candidate in tuple(dict.values(permits)):
+                if type(candidate) is not _permit_row_type:
+                    return None
+                entry_ref = _member_get(
+                    _permit_row_entry_ref_slot, candidate, _permit_row_type,
+                )
+                if type(entry_ref) is not _weakref_type:
+                    return None
+                if _weakref_call(entry_ref) is entry:
+                    return None
+            for candidate in tuple(dict.values(exchanges)):
+                if type(candidate) is not _exchange_row_type:
+                    return None
+                candidate_request_id = _member_get(
+                    _human_row_request_id_slot, candidate, _exchange_row_type,
+                )
+                if type(candidate_request_id) is not str:
+                    return None
+                if candidate_request_id == request_id:
+                    return None
+            for candidates, row_type, entry_ref_slot in (
+                (completions, _completion_row_type, _completion_row_entry_ref_slot),
+                (
+                    native_completions, _native_completion_row_type,
+                    _native_completion_row_entry_ref_slot,
+                ),
+            ):
+                for candidate in tuple(dict.values(candidates)):
+                    if type(candidate) is not row_type:
+                        return None
+                    entry_ref = _member_get(entry_ref_slot, candidate, row_type)
+                    if type(entry_ref) is not _weakref_type:
+                        return None
+                    if _weakref_call(entry_ref) is entry:
+                        return None
+            try:
+                final_selection_projection = _selection_projection(
+                    selection, selection_types_pin, selection_states_pin,
+                )
+                final_snapshot_projection = _snapshot_projection(mcp_snapshot)
+            except BaseException:
+                return None
+            if (dict.get(entries, request_id) is not entry
+                    or tuple(_member_get(slot, entry, _entry_type)
+                             for slot in _entry_slots) != values
+                    or final_selection_projection != origin_selection_projection
+                    or final_snapshot_projection != (
+                        origin_item_rows, origin_target_digests, origin_metadata_row,
+                    )):
+                return None
+            return _sentinel
+    except _error_type:
+        raise
+    except BaseException:
+        return None
+
+
+def _reject_request_binding_drift(
+    capability: object,
+    request_id: object,
+    app_binding_valid: object,
+    _service_type: type = McpPrivateContextConfirmationService,
+    _capsule_type: type = _NativePermitRejectionCapsule,
+    _entry_type: type = _Entry,
+    _permit_row_type: type = _PermitRow,
+    _exchange_row_type: type = _HumanExchangeRow,
+    _completion_row_type: type = _CompletionRow,
+    _native_completion_row_type: type = _NativeCompletionRow,
+    _permit_type: type = Permit,
+    _exchange_type: type = HumanExchange,
+    _planning_receipt_type: type = _PlanningCompletionReceipt,
+    _native_receipt_type: type = _NativeCompletionReceipt,
+    _planning_capture_type: type = VerifiedPlanningCapture,
+    _native_capture_type: type = VerifiedNativeCapture,
+    _lease_type: type = McpContextReadLease,
+    _authority_type: type = McpContextAuthority,
+    _weakref_type: type = _NATIVE_WEAKREF_TYPE,
+    _rlock_type: type = _NATIVE_RLOCK_TYPE,
+    _local_type: type = _NATIVE_LOCAL_TYPE,
+    _weakref_call: object = _NATIVE_WEAKREF_CALL,
+    _member_get: object = _NATIVE_MEMBER_GET,
+    _member_set: object = _NATIVE_MEMBER_SET,
+    _instance_dict_slot: object = _SERVICE_INSTANCE_DICT_SLOT,
+    _instance_dict_get: object = _SERVICE_INSTANCE_DICT_GET,
+    _capsule_slots: tuple[object, ...] = _CAPSULE_SLOTS,
+    _method_descriptors: tuple[tuple[str, object], ...] = _REQUEST_REJECTION_SERVICE_DESCRIPTORS,
+    _permit_row_slots: tuple[object, ...] = _PERMIT_ROW_SLOTS,
+    _human_row_slots: tuple[object, ...] = _REQUEST_REJECTION_HUMAN_ROW_SLOTS,
+    _completion_row_slots: tuple[object, ...] = _REQUEST_REJECTION_COMPLETION_ROW_SLOTS,
+    _native_completion_row_slots: tuple[object, ...] = _REQUEST_REJECTION_NATIVE_COMPLETION_ROW_SLOTS,
+    _binding_recipient_slots: tuple[object, ...] = _BINDING_RECIPIENT_SLOTS,
+    _binding_type: type = McpContextBinding,
+    _lease_authority_slot: object = _LEASE_AUTHORITY_SLOT,
+    _lease_binding_slot: object = _LEASE_BINDING_SLOT,
+    _lease_request_id_slot: object = _REQUEST_REJECTION_LEASE_REQUEST_ID_SLOT,
+    _planning_capture_receipt_slot: object = _REQUEST_REJECTION_PLANNING_CAPTURE_RECEIPT_SLOT,
+    _native_capture_source_slot: object = _REQUEST_REJECTION_NATIVE_CAPTURE_SOURCE_SLOT,
+    _native_capture_receipt_slot: object = _REQUEST_REJECTION_NATIVE_CAPTURE_RECEIPT_SLOT,
+    _local_dict_get: object = _NATIVE_LOCAL_DICT_GET,
+    _permit_row_entry_ref_slot: object = _PERMIT_ROW_ENTRY_REF_SLOT,
+    _human_row_request_id_slot: object = _HUMAN_ROW_REQUEST_ID_SLOT,
+    _completion_row_entry_ref_slot: object = _COMPLETION_ROW_ENTRY_REF_SLOT,
+    _native_completion_row_entry_ref_slot: object = _NATIVE_COMPLETION_ROW_ENTRY_REF_SLOT,
+    _entry_request_id_slot: object = _ENTRY_REQUEST_ID_SLOT,
+    _entry_state_slot: object = _ENTRY_STATE_SLOT,
+    _entry_lease_ref_slot: object = _ENTRY_LEASE_REF_SLOT,
+    _entry_binding_ref_slot: object = _ENTRY_BINDING_REF_SLOT,
+    _entry_permit_ref_slot: object = _ENTRY_PERMIT_REF_SLOT,
+    _entry_generation_slot: object = _ENTRY_GENERATION_SLOT,
+    _entry_scrub_slot_values: tuple[tuple[object, object], ...] = _ENTRY_SCRUB_SLOT_VALUES,
+    _error_type: type = McpPrivateContextConfirmationError,
+) -> None:
+    """Reject drift without consulting replaceable service behavior."""
+    if type(capability) is not tuple or len(capability) != 11:
+        raise _error_type("invalid_context") from None
+    (service, capsule, lock, entries, permits, exchanges, completions,
+     native_completions, authority, execution_local, binding_issuer) = capability
+    try:
+        if type(service) is not _service_type or type(capsule) is not _capsule_type:
+            raise _error_type("invalid_context")
+        instance = _instance_dict_get(_instance_dict_slot, service, _service_type)
+        if (type(instance) is not dict
+                or any(type(key) is not str for key in tuple(dict.keys(instance)))
+                or type(lock) is not _rlock_type or type(entries) is not dict
+                or type(permits) is not dict or type(exchanges) is not dict
+                or type(completions) is not dict or type(native_completions) is not dict
+                or type(authority) is not _authority_type
+                or type(execution_local) is not _local_type
+                or dict.get(instance, "_native_rejection_capsule") is not capsule
+                or dict.get(instance, "_lock") is not lock
+                or dict.get(instance, "_entries") is not entries
+                or dict.get(instance, "_permits") is not permits
+                or dict.get(instance, "_exchanges") is not exchanges
+                or dict.get(instance, "_completions") is not completions
+                or dict.get(instance, "_native_completions") is not native_completions
+                or dict.get(instance, "_authority") is not authority
+                or dict.get(instance, "_execution_local") is not execution_local):
+            raise _error_type("invalid_context")
+        capsule_values = tuple(
+            _member_get(slot, capsule, _capsule_type) for slot in _capsule_slots
+        )
+        if (len(capsule_values) != 9
+                or type(capsule_values[0]) is not _weakref_type
+                or _weakref_call(capsule_values[0]) is not service
+                or any(current is not retained for current, retained in zip(
+                    capsule_values[1:], capability[2:10],
+                ))):
+            raise _error_type("invalid_context")
+    except _error_type:
+        raise
+    except BaseException:
+        raise _error_type("invalid_context") from None
+
+    if type(request_id) is not str:
+        raise _error_type("invalid_request") from None
+    try:
+        local_state = _local_dict_get(execution_local, "__dict__")
+    except BaseException:
+        raise _error_type("invalid_context") from None
+    if type(local_state) is not dict:
+        raise _error_type("invalid_context") from None
+    if dict.get(local_state, "active", False) is True:
+        dict.__setitem__(local_state, "violation", True)
+        raise _error_type("permit_invalid") from None
+    if type(app_binding_valid) is not bool:
+        raise _error_type("invalid_context") from None
+
+    class_state = _service_type.__dict__
+    service_binding_valid = (
+        class_state.get("__getattribute__") is None
+        and class_state.get("__getattr__") is None
+        and all(class_state.get(name) is descriptor and name not in instance
+                for name, descriptor in _method_descriptors)
+    )
+    if app_binding_valid and service_binding_valid:
+        return
+
+    try:
+        with lock:
+            entry = dict.get(entries, request_id)
+            if entry is None:
+                raise _error_type("invalid_binding")
+            if type(entry) is not _entry_type:
+                raise _error_type("invalid_binding")
+            entry_request_id = _member_get(_entry_request_id_slot, entry, _entry_type)
+            entry_state = _member_get(_entry_state_slot, entry, _entry_type)
+            entry_lease_ref = _member_get(_entry_lease_ref_slot, entry, _entry_type)
+            entry_binding_ref = _member_get(_entry_binding_ref_slot, entry, _entry_type)
+            entry_permit_ref = _member_get(_entry_permit_ref_slot, entry, _entry_type)
+            entry_generation = _member_get(_entry_generation_slot, entry, _entry_type)
+            if (type(entry_request_id) is not str or entry_request_id != request_id
+                    or type(entry_state) is not str
+                    or type(entry_lease_ref) is not _weakref_type
+                    or type(entry_binding_ref) is not _weakref_type
+                    or entry_permit_ref is not None
+                    and type(entry_permit_ref) is not _weakref_type
+                    or type(entry_generation) is not int
+                    or isinstance(entry_generation, bool)
+                    or dict.get(entries, request_id) is not entry):
+                raise _error_type("invalid_binding")
+
+            permit_rows = []
+            exchange_rows = []
+            completion_rows = []
+            native_completion_rows = []
+            entry_records = {}
+            recipient_types = (str, str, str, str, int, int, str)
+            for key, candidate in tuple(dict.items(entries)):
+                if type(key) is not str or type(candidate) is not _entry_type:
+                    raise _error_type("invalid_binding")
+                candidate_request_id = _member_get(
+                    _entry_request_id_slot, candidate, _entry_type,
+                )
+                candidate_state = _member_get(_entry_state_slot, candidate, _entry_type)
+                candidate_lease_ref = _member_get(
+                    _entry_lease_ref_slot, candidate, _entry_type,
+                )
+                candidate_binding_ref = _member_get(
+                    _entry_binding_ref_slot, candidate, _entry_type,
+                )
+                candidate_permit_ref = _member_get(
+                    _entry_permit_ref_slot, candidate, _entry_type,
+                )
+                candidate_generation = _member_get(
+                    _entry_generation_slot, candidate, _entry_type,
+                )
+                candidate_lease = (
+                    _weakref_call(candidate_lease_ref)
+                    if type(candidate_lease_ref) is _weakref_type else None
+                )
+                candidate_binding = (
+                    _weakref_call(candidate_binding_ref)
+                    if type(candidate_binding_ref) is _weakref_type else None
+                )
+                if (type(candidate_request_id) is not str or candidate_request_id != key
+                        or type(candidate_state) is not str
+                        or type(candidate_lease_ref) is not _weakref_type
+                        or type(candidate_binding_ref) is not _weakref_type
+                        or candidate_permit_ref is not None
+                        and type(candidate_permit_ref) is not _weakref_type
+                        or type(candidate_generation) is not int
+                        or isinstance(candidate_generation, bool)
+                        or candidate_lease is not None
+                        and (type(candidate_lease) is not _lease_type
+                             or _member_get(
+                                 _lease_authority_slot, candidate_lease, _lease_type,
+                             ) is not authority
+                             or _member_get(
+                                 _lease_binding_slot, candidate_lease, _lease_type,
+                             ) is not candidate_binding
+                             or type(_member_get(
+                                 _lease_request_id_slot, candidate_lease, _lease_type,
+                             )) is not str
+                             or not _member_get(
+                                 _lease_request_id_slot, candidate_lease, _lease_type,
+                             ))
+                        or candidate_binding is not None
+                        and type(candidate_binding) is not _binding_type):
+                    raise _error_type("invalid_binding")
+                entry_records[key] = (
+                    candidate, candidate_lease_ref, candidate_binding_ref,
+                    candidate_permit_ref, candidate_generation,
+                )
+            if entry_records.get(request_id, (None,))[0] is not entry:
+                raise _error_type("invalid_binding")
+
+            for key, candidate in tuple(dict.items(permits)):
+                if type(key) is not int or isinstance(key, bool) or type(candidate) is not _permit_row_type:
+                    raise _error_type("invalid_binding")
+                (permit_ref, candidate_entry_ref, row_service_ref, row_authority_ref,
+                 row_lease_ref, row_binding_ref, recipient, thread_ref, thread_ident,
+                 pid, candidate_request_id, generation, nonce) = tuple(
+                    _member_get(slot, candidate, _permit_row_type)
+                    for slot in _permit_row_slots
+                )
+                refs = (
+                    permit_ref, candidate_entry_ref, row_service_ref, row_authority_ref,
+                    row_lease_ref, row_binding_ref, thread_ref,
+                )
+                row_entry = _weakref_call(candidate_entry_ref) if type(candidate_entry_ref) is _weakref_type else None
+                record = entry_records.get(candidate_request_id)
+                row_lease = _weakref_call(row_lease_ref) if type(row_lease_ref) is _weakref_type else object()
+                row_binding = _weakref_call(row_binding_ref) if type(row_binding_ref) is _weakref_type else object()
+                if (any(type(ref) is not _weakref_type for ref in refs)
+                        or type(candidate_request_id) is not str
+                        or record is None or record[0] is not row_entry
+                        or _weakref_call(row_service_ref) is not service
+                        or _weakref_call(row_authority_ref) is not authority
+                        or row_lease is not _weakref_call(record[1])
+                        or row_binding is not _weakref_call(record[2])
+                        or record[3] is not permit_ref
+                        or type(generation) is not int or isinstance(generation, bool)
+                        or type(nonce) is not int or isinstance(nonce, bool)
+                        or type(thread_ident) is not int or isinstance(thread_ident, bool)
+                        or type(pid) is not int or isinstance(pid, bool)
+                        or type(recipient) is not tuple or len(recipient) != len(recipient_types)
+                        or any(type(value) is not expected
+                               for value, expected in zip(recipient, recipient_types))):
+                    raise _error_type("invalid_binding")
+                permit = _weakref_call(permit_ref)
+                if permit is not None and (type(permit) is not _permit_type or id(permit) != key):
+                    raise _error_type("invalid_binding")
+                if row_binding is not None:
+                    if (type(row_binding) is not _binding_type
+                            or tuple(_member_get(slot, row_binding, _binding_type)
+                                     for slot in _binding_recipient_slots) != recipient):
+                        raise _error_type("invalid_binding")
+                if row_entry is entry:
+                    permit_rows.append((key, candidate))
+
+            app_ref = dict.get(instance, "_app_ref")
+            app_value = (_weakref_call(app_ref) if type(app_ref) is _weakref_type else None)
+            if type(app_ref) is not _weakref_type or app_value is None:
+                raise _error_type("invalid_binding")
+            for key, candidate in tuple(dict.items(exchanges)):
+                if type(key) is not int or isinstance(key, bool) or type(candidate) is not _exchange_row_type:
+                    raise _error_type("invalid_binding")
+                (exchange_ref, row_app_ref, row_service_ref, row_authority_ref,
+                 row_lease_ref, row_binding_ref, thread_ref, candidate_request_id,
+                 challenge, chat_session_id, generation, nonce, raw_user_command,
+                 recipient9, thread_ident, pid) = tuple(
+                    _member_get(slot, candidate, _exchange_row_type)
+                    for slot in _human_row_slots
+                )
+                refs = (
+                    exchange_ref, row_app_ref, row_service_ref, row_authority_ref,
+                    row_lease_ref, row_binding_ref, thread_ref,
+                )
+                record = entry_records.get(candidate_request_id)
+                row_lease = _weakref_call(row_lease_ref) if type(row_lease_ref) is _weakref_type else object()
+                row_binding = _weakref_call(row_binding_ref) if type(row_binding_ref) is _weakref_type else object()
+                if (any(type(ref) is not _weakref_type for ref in refs)
+                        or type(candidate_request_id) is not str or record is None
+                        or _weakref_call(row_app_ref) is not app_value
+                        or _weakref_call(row_service_ref) is not service
+                        or _weakref_call(row_authority_ref) is not authority
+                        or row_lease is not _weakref_call(record[1])
+                        or row_binding is not _weakref_call(record[2])
+                        or type(challenge) is not str or type(chat_session_id) is not str
+                        or type(raw_user_command) is not str or type(recipient9) is not bytes
+                        or type(generation) is not int or isinstance(generation, bool)
+                        or type(nonce) is not int or isinstance(nonce, bool)
+                        or type(thread_ident) is not int or isinstance(thread_ident, bool)
+                        or type(pid) is not int or isinstance(pid, bool)):
+                    raise _error_type("invalid_binding")
+                exchange = _weakref_call(exchange_ref)
+                if exchange is not None and (
+                    type(exchange) is not _exchange_type or id(exchange) != key
+                ):
+                    raise _error_type("invalid_binding")
+                if row_binding is not None:
+                    if (type(row_binding) is not _binding_type
+                            or _member_get(
+                                _binding_recipient_slots[1], row_binding, _binding_type,
+                            ) != chat_session_id):
+                        raise _error_type("invalid_binding")
+                if record[0] is entry:
+                    exchange_rows.append((key, candidate))
+
+            for key, candidate in tuple(dict.items(completions)):
+                if type(key) is not int or isinstance(key, bool) or type(candidate) is not _completion_row_type:
+                    raise _error_type("invalid_binding")
+                (receipt_ref, capture_ref, candidate_entry_ref, row_service_ref,
+                 row_authority_ref, row_lease_ref, row_binding_ref, thread_ref,
+                 candidate_request_id, generation, nonce, pid, recipient,
+                 page_sha256) = tuple(
+                    _member_get(slot, candidate, _completion_row_type)
+                    for slot in _completion_row_slots
+                )
+                refs = (
+                    receipt_ref, capture_ref, candidate_entry_ref, row_service_ref,
+                    row_authority_ref, row_lease_ref, row_binding_ref, thread_ref,
+                )
+                row_entry = _weakref_call(candidate_entry_ref) if type(candidate_entry_ref) is _weakref_type else None
+                record = entry_records.get(candidate_request_id)
+                row_lease = _weakref_call(row_lease_ref) if type(row_lease_ref) is _weakref_type else object()
+                row_binding = _weakref_call(row_binding_ref) if type(row_binding_ref) is _weakref_type else object()
+                if (any(type(ref) is not _weakref_type for ref in refs)
+                        or type(candidate_request_id) is not str
+                        or record is None or record[0] is not row_entry
+                        or _weakref_call(row_service_ref) is not service
+                        or _weakref_call(row_authority_ref) is not authority
+                        or row_lease is not _weakref_call(record[1])
+                        or row_binding is not _weakref_call(record[2])
+                        or type(generation) is not int or isinstance(generation, bool)
+                        or type(nonce) is not int or isinstance(nonce, bool)
+                        or type(pid) is not int or isinstance(pid, bool)
+                        or type(recipient) is not tuple or len(recipient) != len(recipient_types)
+                        or any(type(value) is not expected
+                               for value, expected in zip(recipient, recipient_types))
+                        or type(page_sha256) is not str):
+                    raise _error_type("invalid_binding")
+                receipt = _weakref_call(receipt_ref)
+                capture = _weakref_call(capture_ref)
+                if (receipt is not None
+                        and (type(receipt) is not _planning_receipt_type or id(receipt) != key)
+                        or capture is not None
+                        and (type(capture) is not _planning_capture_type
+                             or _member_get(
+                                 _planning_capture_receipt_slot,
+                                 capture,
+                                 _planning_capture_type,
+                             ) is not receipt)):
+                    raise _error_type("invalid_binding")
+                if row_binding is not None:
+                    if (type(row_binding) is not _binding_type
+                            or tuple(_member_get(slot, row_binding, _binding_type)
+                                     for slot in _binding_recipient_slots) != recipient):
+                        raise _error_type("invalid_binding")
+                if row_entry is entry:
+                    completion_rows.append((key, candidate))
+
+            for key, candidate in tuple(dict.items(native_completions)):
+                if (type(key) is not int or isinstance(key, bool)
+                        or type(candidate) is not _native_completion_row_type):
+                    raise _error_type("invalid_binding")
+                (receipt_ref, capture_ref, candidate_entry_ref, row_service_ref,
+                 row_authority_ref, row_lease_ref, row_binding_ref, thread_ref,
+                 candidate_request_id, generation, nonce, pid, recipient, source,
+                 page_sha256) = tuple(
+                    _member_get(slot, candidate, _native_completion_row_type)
+                    for slot in _native_completion_row_slots
+                )
+                refs = (
+                    receipt_ref, capture_ref, candidate_entry_ref, row_service_ref,
+                    row_authority_ref, row_lease_ref, row_binding_ref, thread_ref,
+                )
+                row_entry = _weakref_call(candidate_entry_ref) if type(candidate_entry_ref) is _weakref_type else None
+                record = entry_records.get(candidate_request_id)
+                row_lease = _weakref_call(row_lease_ref) if type(row_lease_ref) is _weakref_type else object()
+                row_binding = _weakref_call(row_binding_ref) if type(row_binding_ref) is _weakref_type else object()
+                if (any(type(ref) is not _weakref_type for ref in refs)
+                        or type(candidate_request_id) is not str
+                        or record is None or record[0] is not row_entry
+                        or _weakref_call(row_service_ref) is not service
+                        or _weakref_call(row_authority_ref) is not authority
+                        or row_lease is not _weakref_call(record[1])
+                        or row_binding is not _weakref_call(record[2])
+                        or type(generation) is not int or isinstance(generation, bool)
+                        or type(nonce) is not int or isinstance(nonce, bool)
+                        or type(pid) is not int or isinstance(pid, bool)
+                        or type(recipient) is not tuple or len(recipient) != len(recipient_types)
+                        or any(type(value) is not expected
+                               for value, expected in zip(recipient, recipient_types))
+                        or type(source) is not str or source not in {"forge", "knowledge"}
+                        or type(page_sha256) is not str):
+                    raise _error_type("invalid_binding")
+                receipt = _weakref_call(receipt_ref)
+                capture = _weakref_call(capture_ref)
+                if (receipt is not None
+                        and (type(receipt) is not _native_receipt_type or id(receipt) != key)
+                        or capture is not None
+                        and (type(capture) is not _native_capture_type
+                             or _member_get(
+                                 _native_capture_receipt_slot,
+                                 capture,
+                                 _native_capture_type,
+                             ) is not receipt
+                             or _member_get(
+                                 _native_capture_source_slot,
+                                 capture,
+                                 _native_capture_type,
+                             ) != source)):
+                    raise _error_type("invalid_binding")
+                if row_binding is not None:
+                    if (type(row_binding) is not _binding_type
+                            or tuple(_member_get(slot, row_binding, _binding_type)
+                                     for slot in _binding_recipient_slots) != recipient):
+                        raise _error_type("invalid_binding")
+                if row_entry is entry:
+                    native_completion_rows.append((key, candidate))
+
+            if (dict.get(entries, request_id) is not entry
+                    or any(dict.get(permits, key) is not row for key, row in permit_rows)
+                    or any(dict.get(exchanges, key) is not row for key, row in exchange_rows)
+                    or any(dict.get(completions, key) is not row for key, row in completion_rows)
+                    or any(dict.get(native_completions, key) is not row
+                           for key, row in native_completion_rows)):
+                raise _error_type("invalid_binding")
+            for key, _row in permit_rows:
+                dict.pop(permits, key, None)
+            for key, _row in exchange_rows:
+                dict.pop(exchanges, key, None)
+            for key, _row in completion_rows:
+                dict.pop(completions, key, None)
+            for key, _row in native_completion_rows:
+                dict.pop(native_completions, key, None)
+            for slot, value in _entry_scrub_slot_values:
+                _member_set(slot, entry, value)
+            _member_set(_entry_state_slot, entry, "expired")
+            _member_set(_entry_generation_slot, entry, entry_generation + 1)
+            if dict.get(entries, request_id) is not entry:
+                raise _error_type("invalid_binding")
+            dict.pop(entries, request_id, None)
+    except _error_type:
+        raise
+    except BaseException:
+        raise _error_type("invalid_binding") from None
+    raise _error_type("invalid_binding") from None
+
+
 _TRUSTED_PUBLICATION_CLEANUP_ANCHOR = _publication_cleanup_anchor
 _TRUSTED_TERMINATE_ANCHORED_PUBLICATION = _terminate_anchored_publication
 _TRUSTED_PLANNING_EXECUTOR = McpPrivateContextConfirmationService._execute_planning_page
@@ -2793,3 +4242,4 @@ _TRUSTED_PAGE_REQUEST_DESCRIPTOR_SLOT = (
 _TRUSTED_PAGE_REQUEST_DESCRIPTOR = McpPrivateContextConfirmationService._page_request_descriptor
 _TRUSTED_SERVICE_ASSERT_PINS = McpPrivateContextConfirmationService._assert_pins
 _TRUSTED_TERMINATE = McpPrivateContextConfirmationService._terminate
+_TRUSTED_ISSUE_CAPTURED_PERMIT = McpPrivateContextConfirmationService._issue_captured_permit

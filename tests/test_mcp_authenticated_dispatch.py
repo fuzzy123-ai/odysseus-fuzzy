@@ -3,6 +3,7 @@ from contextlib import contextmanager
 from copy import deepcopy
 import json
 import math
+import os
 import subprocess
 import sys
 import threading
@@ -17,6 +18,7 @@ from src.mcp_authenticated_dispatch import (
     authenticate_mcp_request,
     MCP_BATCH_MAX,
     MCP_BODY_MAX_BYTES,
+    MCP_CONTEXT_SCOPE,
     McpAuthenticatedIdentity,
     McpBearerProof,
     McpDispatchFailure,
@@ -304,6 +306,155 @@ def test_planning_service_five_repository_projections_match_typed_contract(tmp_p
     _refresh_context_payload_bytes(fallback_validation)
     with pytest.raises(McpDispatchFailure):
         _validate_projection("planning_get_context_pack", fallback_validation)
+
+
+def test_list_and_search_accept_only_exact_unhashed_invalid_metadata_rows(
+    tmp_path,
+    monkeypatch,
+):
+    from mcp_servers.planning_server import call_planning_tool_contract
+    import src.planning_mcp_service as planning_service
+
+    oversized = tmp_path / "docs" / "plans" / "oversized-roadmap.json"
+    oversized.parent.mkdir(parents=True)
+    oversized.write_bytes(b"{" + (b" " * planning_service.MAX_SOURCE_BYTES))
+    unreadable = tmp_path / "docs" / "plans" / "unreadable-roadmap.json"
+    unreadable.write_text(json.dumps({
+        "schema_version": 1,
+        "kind": "harbor.planning.roadmap",
+        "project_id": "demo-project",
+        "roadmap_id": "unreadable-map",
+        "title": "Unreadable Roadmap",
+        "goal": "Remain metadata only.",
+        "status": "running",
+        "slices": [],
+        "gates": [],
+    }), encoding="utf-8")
+    valid = tmp_path / "docs" / "plans" / "valid-roadmap.json"
+    valid.write_text(json.dumps({
+        "schema_version": 1,
+        "kind": "harbor.planning.roadmap",
+        "project_id": "demo-project",
+        "roadmap_id": "valid-map",
+        "title": "Valid Roadmap",
+        "goal": "Keep ordinary hashes mandatory.",
+        "status": "running",
+        "slices": [],
+        "gates": [],
+    }), encoding="utf-8")
+    original_open = planning_service.os.open
+    attempts: list[str] = []
+
+    def normalized(path):
+        return os.path.normcase(os.path.abspath(os.fspath(path)))
+
+    def guarded_open(path, flags):
+        candidate = normalized(path)
+        attempts.append(candidate)
+        if candidate == normalized(unreadable):
+            raise OSError("SENTINEL_PRIVATE_OPEN_FAILURE")
+        if candidate == normalized(oversized):
+            raise AssertionError("oversized body was opened")
+        return original_open(path, flags)
+
+    monkeypatch.setattr(planning_service.os, "open", guarded_open)
+    calls = (
+        ("planning_list_roadmaps", {"limit": 10}, "roadmaps"),
+        ("planning_search_roadmaps", {"query": "roadmap", "limit": 10}, "results"),
+    )
+    direct = {}
+    runtime = AppOwnedPlanningRuntime(
+        repo_root=str(tmp_path),
+        legacy_store=PlanningRevisionStore([]),
+        durable_store=None,
+        issuer=None,
+    )
+    runtime_payloads = {}
+    for name, arguments, rows_key in calls:
+        projection = call_planning_tool_contract(
+            name,
+            arguments,
+            repo_root=tmp_path,
+            preview_chars=0,
+        )
+        _validate_projection(name, projection)
+        direct[name] = projection
+        wrapped = runtime.dispatch(name, arguments, _IDENTITY)
+        runtime_payloads[name] = wrapped["payload"]
+        rows = projection[rows_key]
+        by_ref = {row["source_ref"]: row for row in rows}
+        for relative in (
+            "docs/plans/oversized-roadmap.json",
+            "docs/plans/unreadable-roadmap.json",
+        ):
+            assert {
+                "source_hash": by_ref[relative]["source_hash"],
+                "valid_json": by_ref[relative]["valid_json"],
+                "preview": by_ref[relative]["preview"],
+                "goal": by_ref[relative]["goal"],
+                "ids_derived": by_ref[relative]["ids_derived"],
+                "status": by_ref[relative]["status"],
+            } == {
+                "source_hash": "",
+                "valid_json": False,
+                "preview": "",
+                "goal": "",
+                "ids_derived": True,
+                "status": "unknown",
+            }
+        assert by_ref["docs/plans/valid-roadmap.json"]["source_hash"].startswith("sha256:")
+
+    assert normalized(oversized) not in attempts
+    assert attempts.count(normalized(unreadable)) == 4
+    assert "SENTINEL_PRIVATE_OPEN_FAILURE" not in json.dumps(direct)
+    assert "SENTINEL_PRIVATE_OPEN_FAILURE" not in json.dumps(runtime_payloads)
+
+    list_projection = direct["planning_list_roadmaps"]
+    fallback_index = next(
+        index
+        for index, row in enumerate(list_projection["roadmaps"])
+        if row["source_hash"] == ""
+    )
+    invalid_markers = (
+        ("valid_json", True),
+        ("valid_json", 0),
+        ("preview", "body"),
+        ("goal", "unexpected"),
+        ("ids_derived", False),
+        ("status", "running"),
+    )
+    for field, value in invalid_markers:
+        malformed = deepcopy(list_projection)
+        malformed["roadmaps"][fallback_index][field] = value
+        with pytest.raises(McpDispatchFailure):
+            _validate_projection("planning_list_roadmaps", malformed)
+
+    for malformed_hash in (None, False, 0, [], {}, "sha256:bad"):
+        malformed = deepcopy(list_projection)
+        malformed["roadmaps"][fallback_index]["source_hash"] = malformed_hash
+        with pytest.raises(McpDispatchFailure):
+            _validate_projection("planning_list_roadmaps", malformed)
+
+    read_projection = call_planning_tool_contract(
+        "planning_read_roadmap",
+        {"source_id_or_path": "docs/plans/valid-roadmap.json"},
+        repo_root=tmp_path,
+        preview_chars=0,
+    )
+    read_projection["source"]["source_hash"] = ""
+    with pytest.raises(McpDispatchFailure):
+        _validate_projection("planning_read_roadmap", read_projection)
+
+    context_projection = call_planning_tool_contract(
+        "planning_get_context_pack",
+        {"roadmap_ref": "docs/plans/valid-roadmap.json", "task": "Review."},
+        repo_root=tmp_path,
+        preview_chars=0,
+    )
+    context_projection["roadmap_ref"]["source_hash"] = ""
+    _refresh_context_payload_bytes(context_projection)
+    with pytest.raises(McpDispatchFailure):
+        _validate_projection("planning_get_context_pack", context_projection)
 
 
 def test_accepted_handoff_is_hash_pinned_and_never_authoritative():
@@ -801,6 +952,29 @@ def test_global_planning_gate_hides_and_blocks_tools():
             )
             assert result["error"]["message"] == "Planning read is unavailable"
         assert runtime.calls == 0
+
+    asyncio.run(scenario())
+
+
+def test_generic_dispatch_rejects_context_scope_before_runtime_or_audit():
+    async def scenario():
+        runtime = _Runtime()
+        audits = []
+        identity = McpAuthenticatedIdentity(
+            "token-id", "admin", "subject-id", 4, 9, MCP_CONTEXT_SCOPE,
+        )
+        with pytest.raises(McpDispatchFailure) as error:
+            await dispatch_http_payload(
+                _rpc("initialize"),
+                identity=identity,
+                runtime=runtime,
+                started=time.monotonic(),
+                audit=audits.append,
+            )
+        assert error.value.code == "invalid_request"
+        assert runtime.calls == 0
+        assert audits == []
+        assert MCP_CONTEXT_SCOPE in authenticated_dispatch.MCP_AUTHENTICATED_SCOPES
 
     asyncio.run(scenario())
 

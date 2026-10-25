@@ -34,6 +34,7 @@ ALLOWED_SCOPES = {
     "observability:read",
     "mcp:planning:read",
     "mcp:harbour:inbox",
+    "mcp:harbour:context:read",
 }
 TOKEN_PROFILES = {
     "chat": ["chat"],
@@ -86,7 +87,11 @@ def _normalize_scopes(scopes: str | list[str] | None = None, profile: str | None
     ensure_before("vault:delete", "vault:read")
 
     normalized = normalized or [DEFAULT_SCOPES]
-    mcp_scopes = {"mcp:planning:read", "mcp:harbour:inbox"}
+    mcp_scopes = {
+        "mcp:planning:read",
+        "mcp:harbour:inbox",
+        "mcp:harbour:context:read",
+    }
     if any(scope in normalized for scope in mcp_scopes) and len(normalized) != 1:
         raise HTTPException(400, "MCP scope must be granted by itself")
     return normalized
@@ -136,7 +141,11 @@ def _validate_existing_mcp_token(token, current_user: str | None, manager) -> No
     stored = [part.strip() for part in raw_scopes.split(",") if part.strip()]
     if not any(scope.startswith("mcp:") for scope in stored):
         return
-    recognized = {"mcp:planning:read", "mcp:harbour:inbox"}
+    recognized = {
+        "mcp:planning:read",
+        "mcp:harbour:inbox",
+        "mcp:harbour:context:read",
+    }
     if raw_scopes not in recognized:
         raise HTTPException(403, "MCP token authority is invalid")
     owner = getattr(token, "owner", None)
@@ -204,7 +213,11 @@ def setup_api_token_routes() -> APIRouter:
         owner = get_current_user(request)
         scope_list = _normalize_scopes(scopes, profile)
         scopes_value = ",".join(scope_list)
-        exact_mcp = scope_list in (["mcp:planning:read"], ["mcp:harbour:inbox"])
+        exact_mcp = scope_list in (
+            ["mcp:planning:read"],
+            ["mcp:harbour:inbox"],
+            ["mcp:harbour:context:read"],
+        )
 
         raw_token = "ody_" + secrets.token_urlsafe(32)
         token_hash = bcrypt.hashpw(raw_token.encode(), bcrypt.gensalt()).decode()
