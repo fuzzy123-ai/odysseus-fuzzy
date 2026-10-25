@@ -30,6 +30,11 @@ from src.unified_source_index_sources.planning_composite import (
 from src.context_manifest_producer import (
     CombinedContextManifestProducer,
 )
+from src.harbour.memory.service import (
+    HarbourMemoryService,
+    HarbourMemoryServiceError,
+    default_source_adapter_registry,
+)
 
 __all__ = [
     "KnowledgeRuntime",
@@ -40,4 +45,7 @@ __all__ = [
     "PlanningMarkdownSourceAdapter",
     "PlanningCompositeSourceAdapter",
     "CombinedContextManifestProducer",
+    "HarbourMemoryService",
+    "HarbourMemoryServiceError",
+    "default_source_adapter_registry",
 ]

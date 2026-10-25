@@ -46,15 +46,17 @@ def build_harbour_mcp_tool_contracts(scope: str | None = None) -> tuple[dict[str
 class HarbourMcpDispatcher:
     """Dispatches headless MCP-First tool calls across the 4 Harbour bounded contexts."""
 
-    __slots__ = ("repo_root", "_gateway_coordinator")
+    __slots__ = ("repo_root", "_gateway_coordinator", "_memory_service")
 
     def __init__(
         self,
         repo_root: str | Path | None = None,
         gateway_coordinator: Any = None,
+        memory_service: Any = None,
     ) -> None:
         self.repo_root = Path(repo_root).resolve() if repo_root else Path.cwd().resolve()
         self._gateway_coordinator = gateway_coordinator
+        self._memory_service = memory_service
 
     def dispatch(
         self,
@@ -190,72 +192,29 @@ class HarbourMcpDispatcher:
         identity: Any,
     ) -> dict[str, Any]:
         """Lazy-loaded dispatch for harbour_memory_* tools."""
-        if name == "harbour_memory_query_usi":
-            query = arguments.get("query")
-            if not isinstance(query, str) or not query.strip():
-                raise HarbourMcpDispatchError("invalid_params", "query must be a non-empty string")
-            limit = arguments.get("limit", 10)
-            if not isinstance(limit, int) or limit < 1 or limit > 100:
-                raise HarbourMcpDispatchError("invalid_params", "limit must be between 1 and 100")
+        from src.harbour.memory import HarbourMemoryService, HarbourMemoryServiceError
 
-            from src.planning_roadmap_migration import build_h1r03_structural_census
+        if self._memory_service is None:
+            self._memory_service = HarbourMemoryService(repo_root=self.repo_root)
+        memory_service: HarbourMemoryService = self._memory_service
 
-            census, _ = build_h1r03_structural_census(self.repo_root)
-            q = query.strip().lower()
-            matches = []
-            for r in census:
-                if (
-                    q in r.get("path", "").lower()
-                    or q in r.get("source_id", "").lower()
-                    or q in r.get("kind", "").lower()
-                ):
-                    matches.append({
-                        "source_id": r.get("source_id"),
-                        "path": r.get("path"),
-                        "kind": r.get("kind"),
-                        "structural_role": r.get("structural_role"),
-                    })
-                    if len(matches) >= limit:
-                        break
-            return {
-                "schema": "odysseus.harbour.memory_query_result.v1",
-                "query": query.strip(),
-                "limit": limit,
-                "total_matches": len(matches),
-                "matches": matches,
-            }
+        try:
+            if name == "harbour_memory_query_usi":
+                query = arguments.get("query")
+                limit = arguments.get("limit", 10)
+                owner_scope = arguments.get("owner_scope", "owner:admin")
+                return memory_service.query_usi(query=query, limit=limit, owner_scope=owner_scope)
 
-        if name == "harbour_memory_get_context_manifest":
-            session_id = arguments.get("session_id")
-            if session_id is not None and not isinstance(session_id, str):
-                raise HarbourMcpDispatchError("invalid_params", "session_id must be a string")
-            return {
-                "schema": "odysseus.harbour.context_manifest.v1",
-                "manifest_version": "1.0.0",
-                "session_id": session_id or "default-harbour-session",
-                "memory_domain": {
-                    "usi_status": "ready",
-                    "active_sources": ["planning", "specs", "docs"],
-                },
-                "planning_domain": {
-                    "status": "synchronized",
-                    "scope": "mcp:harbour:context:read",
-                },
-                "bounded": True,
-            }
+            if name == "harbour_memory_get_context_manifest":
+                session_id = arguments.get("session_id")
+                return memory_service.get_context_manifest(session_id=session_id)
 
-        if name == "harbour_memory_runtime_status":
-            from src.unified_source_index_runtime import build_knowledge_runtime
-            from src.unified_source_index_runtime_config import UnifiedSourceIndexRuntimeConfig
-            from src.unified_source_index_job_runner import build_inert_cooperative_index_job_pump
-            from src.unified_source_index_runtime_status import project_unified_source_index_runtime_status
+            if name == "harbour_memory_runtime_status":
+                return memory_service.get_runtime_status()
 
-            config = UnifiedSourceIndexRuntimeConfig.from_environment()
-            kr = build_knowledge_runtime((config.mode.value, config.runtime_enabled))
-            pump = build_inert_cooperative_index_job_pump(config)
-            return project_unified_source_index_runtime_status(kr, pump)
-
-        raise HarbourMcpDispatchError("invalid_params", f"Unknown memory tool: {name}")
+            raise HarbourMcpDispatchError("invalid_params", f"Unknown memory tool: {name}")
+        except HarbourMemoryServiceError as exc:
+            raise HarbourMcpDispatchError(exc.code, exc.detail) from exc
 
     def _dispatch_gateway(
         self,
