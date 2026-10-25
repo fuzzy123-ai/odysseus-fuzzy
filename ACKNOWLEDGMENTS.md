@@ -36,6 +36,7 @@ The full license texts are kept in [`licenses/`](licenses/).
   Deep Research feature (`services/research/`, `src/research_handler.py`,
   `routes/research_routes.py`, `services/search/`). Full text in
   [`licenses/DeepResearch-Apache-2.0.txt`](licenses/DeepResearch-Apache-2.0.txt).
+- Kimchi (https://github.com/chitransh-cj/kimchi) at 3dedd38aef7cd0f3c868844b058ffbd519f067f0 — MIT License; product-planning inspiration only, with original Odysseus-native wording.
 
 ---
 

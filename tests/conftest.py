@@ -7,6 +7,14 @@ from unittest.mock import MagicMock
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+_tests_dir = os.path.dirname(os.path.abspath(__file__))
+try:
+    import tests
+    if hasattr(tests, "__path__") and _tests_dir not in tests.__path__:
+        tests.__path__.insert(0, _tests_dir)
+except ImportError:
+    pass
+
 # Importing core.database below runs init_db() at import time, and its default
 # (sqlite:///./data/app.db) can't be opened in a clean worktree because SQLite
 # won't create the missing ./data parent dir - pytest then dies during
@@ -23,6 +31,13 @@ os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 # which fires during collection. If the real module hasn't been imported yet,
 # the stub wins and contaminates every subsequent test that needs the real ORM.
 try:
+    import httpx
+    if hasattr(httpx, "Client") and hasattr(httpx.Client, "__init__"):
+        _orig_client_init = httpx.Client.__init__
+        def _compat_client_init(self, *args, **kwargs):
+            kwargs.pop("app", None)
+            return _orig_client_init(self, *args, **kwargs)
+        httpx.Client.__init__ = _compat_client_init
     import sqlalchemy  # noqa: F401
     import sqlalchemy.orm  # noqa: F401
     import core.database  # noqa: F401

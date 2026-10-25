@@ -9,11 +9,13 @@ from enum import IntEnum, StrEnum
 import hashlib
 import json
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
 import time
 from typing import Any, Callable, Mapping, Sequence
+import unicodedata
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -29,6 +31,9 @@ from src.agent_verification_receipt import (  # noqa: E402
 
 VERIFY_RUN_SCHEMA = "odysseus.verify_run.v1"
 VERIFY_REGISTRY_SCHEMA = "odysseus.verify_registry.v1"
+DIFF_IMPACT_PLAN_SCHEMA = "odysseus.diff_impact_plan.v1"
+QUALITY_RATCHET_SCHEMA = "odysseus.quality_ratchet.v1"
+DIFF_QUALITY_RECEIPT_SCHEMA = "odysseus.diff_quality_receipt.v1"
 MAX_VISUAL_EVIDENCE_BYTES = 50 * 1024 * 1024
 VISUAL_EVIDENCE_SUFFIXES = frozenset(
     {".gif", ".jpeg", ".jpg", ".mp4", ".png", ".webm"}
@@ -101,6 +106,471 @@ class VerificationConfigError(ValueError):
 
 class _CheckUnavailable(RuntimeError):
     pass
+
+
+_REVISION = re.compile(r"[0-9a-f]{40}(?:[0-9a-f]{24})?")
+_RULE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}")
+_QUALITY_KINDS = ("lint", "type")
+
+
+def _canonical_digest(domain: str, value: Mapping[str, Any]) -> str:
+    """Hash one bounded JSON value with an unambiguous local domain."""
+
+    try:
+        raw = json.dumps(
+            value,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=True,
+            allow_nan=False,
+        ).encode("ascii")
+    except (TypeError, ValueError, RecursionError, UnicodeError) as exc:
+        raise VerificationConfigError("value is not canonical JSON") from exc
+    if len(raw) > 1024 * 1024:
+        raise VerificationConfigError("canonical value is too large")
+    framed = domain.encode("ascii") + b"\0" + len(raw).to_bytes(8, "big") + raw
+    return "sha256:" + hashlib.sha256(framed).hexdigest()
+
+
+def _detached_json(value: Any) -> Any:
+    """Return a JSON-only copy so caller mutation cannot change a receipt."""
+
+    try:
+        return json.loads(
+            json.dumps(
+                value,
+                sort_keys=True,
+                separators=(",", ":"),
+                ensure_ascii=True,
+                allow_nan=False,
+            )
+        )
+    except (TypeError, ValueError, RecursionError, UnicodeError) as exc:
+        raise VerificationConfigError("value is not canonical JSON") from exc
+
+
+def _normalized_repository_path(value: object) -> str | None:
+    """Normalize a relative repository path without resolving the filesystem."""
+
+    if type(value) is not str:
+        return None
+    try:
+        if not value or value != unicodedata.normalize("NFC", value):
+            return None
+        if any(ord(character) < 32 or ord(character) == 127 for character in value):
+            return None
+        normalized = value.replace("\\", "/")
+        if (
+            normalized.startswith(("/", "~", "."))
+            or ":" in normalized
+            or len(normalized.encode("utf-8", errors="strict")) > 4096
+        ):
+            return None
+        parts = normalized.split("/")
+        if any(
+            part in {"", ".", ".."}
+            or part.startswith(".")
+            or part.endswith((".", " "))
+            or len(part.encode("utf-8", errors="strict")) > 255
+            for part in parts
+        ):
+            return None
+        return "/".join(parts)
+    except (UnicodeError, ValueError, OverflowError):
+        return None
+
+
+def _normalized_test_lane(value: object) -> list[str] | None:
+    if type(value) is not list or not value:
+        return None
+    normalized: set[str] = set()
+    for item in value:
+        path = _normalized_repository_path(item)
+        if path is None or not path.startswith("tests/") or not path.endswith(".py"):
+            return None
+        normalized.add(path)
+    return sorted(normalized) or None
+
+
+def _impact_unavailable(
+    *,
+    base_revision: object,
+    head_revision: object,
+    changed_paths: list[str],
+    selected_tests: list[str],
+    reasons: list[str],
+) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "schema": DIFF_IMPACT_PLAN_SCHEMA,
+        "status": "unavailable",
+        "selection": "full",
+        "base_revision": base_revision if type(base_revision) is str else "unavailable",
+        "head_revision": head_revision if type(head_revision) is str else "unavailable",
+        "changed_paths": changed_paths,
+        "selected_tests": selected_tests,
+        "explanations": [],
+        "fail_closed_reasons": sorted(set(reasons)),
+    }
+    payload["plan_digest"] = _canonical_digest(
+        "odysseus.diff_impact_plan.v1", payload
+    )
+    return payload
+
+
+def build_diff_impact_plan(
+    *,
+    base_revision: object,
+    head_revision: object,
+    changed_paths: object,
+    mapping_rules: object,
+    full_test_lane: object,
+) -> dict[str, Any]:
+    """Build one deterministic and explained fail-closed test-impact plan."""
+
+    full_lane = _normalized_test_lane(full_test_lane)
+    if full_lane is None:
+        raise VerificationConfigError("full test lane is invalid")
+    if (
+        type(base_revision) is not str
+        or _REVISION.fullmatch(base_revision) is None
+        or type(head_revision) is not str
+        or _REVISION.fullmatch(head_revision) is None
+    ):
+        return _impact_unavailable(
+            base_revision=base_revision,
+            head_revision=head_revision,
+            changed_paths=[],
+            selected_tests=full_lane,
+            reasons=["unavailable_revision"],
+        )
+    if type(changed_paths) is not list or not changed_paths:
+        return _impact_unavailable(
+            base_revision=base_revision,
+            head_revision=head_revision,
+            changed_paths=[],
+            selected_tests=full_lane,
+            reasons=["empty_diff"],
+        )
+    normalized_paths: set[str] = set()
+    for raw_path in changed_paths:
+        path = _normalized_repository_path(raw_path)
+        if path is None:
+            return _impact_unavailable(
+                base_revision=base_revision,
+                head_revision=head_revision,
+                changed_paths=[],
+                selected_tests=full_lane,
+                reasons=["unsafe_changed_path"],
+            )
+        normalized_paths.add(path)
+    paths = sorted(normalized_paths)
+
+    if type(mapping_rules) is not list:
+        return _impact_unavailable(
+            base_revision=base_revision,
+            head_revision=head_revision,
+            changed_paths=paths,
+            selected_tests=full_lane,
+            reasons=["invalid_mapping_rules"],
+        )
+    rules: list[dict[str, Any]] = []
+    rule_ids: set[str] = set()
+    for raw_rule in mapping_rules:
+        if type(raw_rule) is not dict or set(raw_rule) != {
+            "rule_id",
+            "kind",
+            "path",
+            "tests",
+        }:
+            return _impact_unavailable(
+                base_revision=base_revision,
+                head_revision=head_revision,
+                changed_paths=paths,
+                selected_tests=full_lane,
+                reasons=["invalid_mapping_rules"],
+            )
+        rule_id = raw_rule.get("rule_id")
+        kind = raw_rule.get("kind")
+        path = _normalized_repository_path(raw_rule.get("path"))
+        tests = (
+            []
+            if kind == "shared" and raw_rule.get("tests") == []
+            else _normalized_test_lane(raw_rule.get("tests"))
+        )
+        if (
+            type(rule_id) is not str
+            or _RULE_ID.fullmatch(rule_id) is None
+            or rule_id in rule_ids
+            or kind not in {"exact", "prefix", "shared"}
+            or path is None
+            or tests is None
+        ):
+            return _impact_unavailable(
+                base_revision=base_revision,
+                head_revision=head_revision,
+                changed_paths=paths,
+                selected_tests=full_lane,
+                reasons=["invalid_mapping_rules"],
+            )
+        rule_ids.add(rule_id)
+        rules.append({"rule_id": rule_id, "kind": kind, "path": path, "tests": tests})
+    rules.sort(key=lambda item: item["rule_id"])
+
+    selected: set[str] = set()
+    explanations: list[dict[str, Any]] = []
+    fail_reasons: set[str] = set()
+    widen = False
+    for path in paths:
+        if path.startswith("tests/") and path.endswith(".py"):
+            selected.add(path)
+            explanations.append(
+                {
+                    "changed_path": path,
+                    "rule_id": "direct_test_change",
+                    "reason": "direct_test_change",
+                    "selected_tests": [path],
+                }
+            )
+            continue
+        matches = [
+            rule
+            for rule in rules
+            if path == rule["path"]
+            or (
+                rule["kind"] == "prefix"
+                and path.startswith(rule["path"].rstrip("/") + "/")
+            )
+        ]
+        if not matches:
+            fail_reasons.add("unmapped_path")
+            widen = True
+            continue
+        if len(matches) != 1:
+            fail_reasons.add("ambiguous_mapping")
+            widen = True
+            continue
+        rule = matches[0]
+        shared = rule["kind"] == "shared"
+        chosen = full_lane if shared else list(rule["tests"])
+        selected.update(chosen)
+        widen = widen or shared
+        explanations.append(
+            {
+                "changed_path": path,
+                "rule_id": rule["rule_id"],
+                "reason": (
+                    "shared_contract_widening" if shared else "reviewed_exact_mapping"
+                ),
+                "selected_tests": list(chosen),
+            }
+        )
+    if widen:
+        selected = set(full_lane)
+    payload = {
+        "schema": DIFF_IMPACT_PLAN_SCHEMA,
+        "status": "planned",
+        "selection": "full" if widen else "focused",
+        "base_revision": base_revision,
+        "head_revision": head_revision,
+        "changed_paths": paths,
+        "selected_tests": sorted(selected),
+        "explanations": sorted(explanations, key=lambda item: item["changed_path"]),
+        "fail_closed_reasons": sorted(fail_reasons),
+    }
+    payload["plan_digest"] = _canonical_digest(
+        "odysseus.diff_impact_plan.v1", payload
+    )
+    return payload
+
+
+def validate_diff_impact_plan(value: object) -> dict[str, Any]:
+    """Validate the closed plan shape and its digest without filesystem access."""
+
+    if type(value) is not dict:
+        raise VerificationConfigError("diff impact plan is invalid")
+    required = {
+        "schema",
+        "status",
+        "selection",
+        "base_revision",
+        "head_revision",
+        "changed_paths",
+        "selected_tests",
+        "explanations",
+        "fail_closed_reasons",
+        "plan_digest",
+    }
+    if set(value) != required or value.get("schema") != DIFF_IMPACT_PLAN_SCHEMA:
+        raise VerificationConfigError("diff impact plan shape is invalid")
+    payload = _detached_json(value)
+    digest = payload.pop("plan_digest", None)
+    if digest != _canonical_digest("odysseus.diff_impact_plan.v1", payload):
+        raise VerificationConfigError("diff impact plan digest mismatch")
+    return _detached_json(value)
+
+
+def _quality_measurement(value: object) -> dict[str, Any] | None:
+    if type(value) is not dict or set(value) != {"lint", "type", "coverage"}:
+        return None
+    debt: dict[str, dict[str, int]] = {}
+    for kind in _QUALITY_KINDS:
+        rows = value.get(kind)
+        if type(rows) is not list:
+            return None
+        parsed: dict[str, int] = {}
+        for row in rows:
+            if type(row) is not dict or set(row) != {"rule_id", "count"}:
+                return None
+            rule_id, count = row.get("rule_id"), row.get("count")
+            if (
+                type(rule_id) is not str
+                or _RULE_ID.fullmatch(rule_id) is None
+                or rule_id in parsed
+                or type(count) is not int
+                or isinstance(count, bool)
+                or count < 0
+            ):
+                return None
+            parsed[rule_id] = count
+        debt[kind] = dict(sorted(parsed.items()))
+    coverage = value.get("coverage")
+    if type(coverage) is not dict or set(coverage) != {"covered", "total"}:
+        return None
+    covered, total = coverage.get("covered"), coverage.get("total")
+    if (
+        type(covered) is not int
+        or isinstance(covered, bool)
+        or type(total) is not int
+        or isinstance(total, bool)
+        or total <= 0
+        or not 0 <= covered <= total
+    ):
+        return None
+    return {**debt, "coverage": {"covered": covered, "total": total}}
+
+
+def evaluate_quality_ratchet(
+    *, plan: object, baseline: object, candidate: object
+) -> dict[str, Any]:
+    """Compare exact base/candidate measurements without aggregate offsets."""
+
+    try:
+        checked_plan = validate_diff_impact_plan(plan)
+    except VerificationConfigError:
+        checked_plan = None
+    base = _quality_measurement(baseline)
+    current = _quality_measurement(candidate)
+    if checked_plan is None or base is None or current is None:
+        payload: dict[str, Any] = {
+            "schema": QUALITY_RATCHET_SCHEMA,
+            "status": "unavailable",
+            "plan_digest": (
+                checked_plan["plan_digest"] if checked_plan is not None else "unavailable"
+            ),
+            "baseline_debt": {},
+            "candidate_debt": {},
+            "coverage": {},
+            "regressions": [],
+        }
+        payload["ratchet_digest"] = _canonical_digest(
+            "odysseus.quality_ratchet.v1", payload
+        )
+        return payload
+
+    regressions: list[dict[str, Any]] = []
+    for kind in _QUALITY_KINDS:
+        for rule_id in sorted(set(base[kind]) | set(current[kind])):
+            before = base[kind].get(rule_id, 0)
+            after = current[kind].get(rule_id, 0)
+            if after > before:
+                regressions.append(
+                    {
+                        "kind": kind,
+                        "rule_id": rule_id,
+                        "baseline": before,
+                        "candidate": after,
+                    }
+                )
+    before_coverage = base["coverage"]
+    after_coverage = current["coverage"]
+    if before_coverage["total"] != after_coverage["total"]:
+        regressions.append(
+            {
+                "kind": "coverage",
+                "reason": "coverage_denominator_changed",
+                "baseline": before_coverage,
+                "candidate": after_coverage,
+            }
+        )
+    elif after_coverage["covered"] < before_coverage["covered"]:
+        regressions.append(
+            {
+                "kind": "coverage",
+                "reason": "coverage_decreased",
+                "baseline": before_coverage,
+                "candidate": after_coverage,
+            }
+        )
+    payload = {
+        "schema": QUALITY_RATCHET_SCHEMA,
+        "status": "failed" if regressions else "passed",
+        "plan_digest": checked_plan["plan_digest"],
+        "baseline_debt": {kind: base[kind] for kind in _QUALITY_KINDS},
+        "candidate_debt": {kind: current[kind] for kind in _QUALITY_KINDS},
+        "coverage": {"baseline": before_coverage, "candidate": after_coverage},
+        "regressions": regressions,
+    }
+    payload["ratchet_digest"] = _canonical_digest(
+        "odysseus.quality_ratchet.v1", payload
+    )
+    return payload
+
+
+def _validate_quality_ratchet(value: object, *, plan_digest: str) -> dict[str, Any]:
+    if type(value) is not dict or value.get("plan_digest") != plan_digest:
+        raise VerificationConfigError("quality ratchet binding is invalid")
+    payload = _detached_json(value)
+    digest = payload.pop("ratchet_digest", None)
+    if digest != _canonical_digest("odysseus.quality_ratchet.v1", payload):
+        raise VerificationConfigError("quality ratchet digest mismatch")
+    return _detached_json(value)
+
+
+def build_diff_quality_receipt(
+    *,
+    plan: object,
+    ratchet: object,
+    binding_before: object,
+    binding_after: object,
+) -> dict[str, Any]:
+    """Bind one plan and ratchet only when repository identity stays exact."""
+
+    checked_plan = validate_diff_impact_plan(plan)
+    checked_ratchet = _validate_quality_ratchet(
+        ratchet, plan_digest=checked_plan["plan_digest"]
+    )
+    before = _detached_json(binding_before)
+    after = _detached_json(binding_after)
+    if before != after:
+        raise ReceiptError("repository changed during verification")
+    if (
+        type(before) is not dict
+        or before.get("head_commit") != checked_plan["head_revision"]
+    ):
+        raise ReceiptError("repository binding does not match the impact plan")
+    payload = {
+        "schema": DIFF_QUALITY_RECEIPT_SCHEMA,
+        "result": checked_ratchet["status"],
+        "plan_digest": checked_plan["plan_digest"],
+        "ratchet_digest": checked_ratchet["ratchet_digest"],
+        "changed_paths": checked_plan["changed_paths"],
+        "selected_tests": checked_plan["selected_tests"],
+        "repository_binding": before,
+    }
+    payload["receipt_digest"] = _canonical_digest(
+        "odysseus.diff_quality_receipt.v1", payload
+    )
+    return payload
 
 
 CHECK_ORDER = (

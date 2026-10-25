@@ -90,14 +90,24 @@ output.txt.txt
 
 # Reports and temp files
 .pytest_cache/
-.pytest-tmp-*/
-/.pytest_tmp_*/
+/.pytest-*/
+/.pytest_tmp*/
+/.abc-test*/
+/.pycache-*/
+/.root-test-tmp/
+/.test-tmp/
+/test-tmp-*/
+/test-results/
 /.gmi[0-9]*/
 /.tua[0-9]*/
 /.t_pvf*/
 /.tmp/
-/test-tmp-*/
-/test-results/
+/scripts/_tmp_*.py
+/h1r02s-*/
+/h1r05*/
+/UsersnkatzAppDataLocalTemp*/
+/.codex-remote-attachments/
+/output/
 backups/
 reports/
 tasks/

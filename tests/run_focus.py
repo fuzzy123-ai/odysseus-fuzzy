@@ -178,6 +178,53 @@ def build_pytest_command(
     return command
 
 
+def validate_pytest_args(
+    pytest_args: Sequence[str],
+    parser: argparse.ArgumentParser | None = None,
+    project_root: Path = PROJECT_ROOT,
+) -> None:
+    """Validate that extra pytest arguments do not pollute the repository root.
+
+    Specifically, an explicit ``--basetemp`` must point outside ``project_root``.
+    """
+    resolved_root = project_root.resolve()
+    idx = 0
+    while idx < len(pytest_args):
+        arg = pytest_args[idx]
+        basetemp_val: str | None = None
+        if arg == "--basetemp":
+            if idx + 1 < len(pytest_args):
+                basetemp_val = pytest_args[idx + 1]
+                idx += 1
+        elif arg.startswith("--basetemp="):
+            basetemp_val = arg.split("=", 1)[1]
+
+        if basetemp_val is not None:
+            cleaned_val = basetemp_val.strip("\"'")
+            target = Path(cleaned_val)
+            if not target.is_absolute():
+                target = resolved_root / target
+            try:
+                resolved_target = target.resolve()
+            except Exception:
+                resolved_target = target
+
+            try:
+                is_inside = (
+                    resolved_target == resolved_root
+                    or resolved_target.is_relative_to(resolved_root)
+                )
+            except ValueError:
+                is_inside = False
+
+            if is_inside:
+                message = "explicit --basetemp must be outside the repository root"
+                if parser is not None:
+                    parser.error(message)
+                raise SystemExit(message)
+        idx += 1
+
+
 def selection_from_args(namespace: argparse.Namespace) -> FocusSelection:
     """Convert parsed argparse values into a ``FocusSelection``."""
     return FocusSelection(
@@ -284,6 +331,7 @@ def run(
             "--durations-min has no effect without --durations; pass "
             "--durations N as well"
         )
+    validate_pytest_args(selection.pytest_args, parser=parser)
     command = build_pytest_command(selection)
     if namespace.dry_run:
         print(shlex.join(command))

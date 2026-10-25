@@ -11,16 +11,19 @@ import shlex
 import subprocess
 import sys
 from pathlib import Path
+import tempfile
 
 import pytest
 
 from tests.run_focus import (
+    PROJECT_ROOT,
     FocusSelection,
     build_marker_expression,
     build_pytest_command,
     discover_sub_areas,
     normalize_sub_area,
     run,
+    validate_pytest_args,
 )
 
 PY = "PY"  # placeholder interpreter for deterministic command assertions
@@ -404,3 +407,52 @@ def test_fast_lane_collects_only_unmarked_auth_concurrency_test():
     assert _FAST_AUTH_CONCURRENCY_TEST in collected
     for slow_test in _SLOW_AUTH_CONCURRENCY_TESTS:
         assert slow_test not in collected, f"slow test was not deselected: {slow_test}"
+
+
+# --- basetemp validation ----------------------------------------------------
+
+
+def test_validate_pytest_args_rejects_repo_root_and_internal_paths():
+    with pytest.raises(SystemExit, match="explicit --basetemp must be outside the repository root"):
+        validate_pytest_args(["--basetemp", str(PROJECT_ROOT)])
+
+    with pytest.raises(SystemExit, match="explicit --basetemp must be outside the repository root"):
+        validate_pytest_args([f"--basetemp={PROJECT_ROOT}"])
+
+    with pytest.raises(SystemExit, match="explicit --basetemp must be outside the repository root"):
+        validate_pytest_args(["--basetemp", str(PROJECT_ROOT / "tmp_tests")])
+
+    with pytest.raises(SystemExit, match="explicit --basetemp must be outside the repository root"):
+        validate_pytest_args([f"--basetemp={PROJECT_ROOT / 'sub' / 'dir'}"])
+
+    with pytest.raises(SystemExit, match="explicit --basetemp must be outside the repository root"):
+        validate_pytest_args(["--basetemp=."])
+
+    with pytest.raises(SystemExit, match="explicit --basetemp must be outside the repository root"):
+        validate_pytest_args(["--basetemp", "relative_temp"])
+
+
+def test_validate_pytest_args_allows_external_paths(tmp_path):
+    external_dir = Path(tempfile.gettempdir()) / "pytest_safe_focus"
+    validate_pytest_args(["--basetemp", str(external_dir)])
+    validate_pytest_args([f"--basetemp={external_dir}"])
+    validate_pytest_args(["--basetemp", str(tmp_path)])
+    validate_pytest_args(["-v", "-q"])
+
+
+def test_run_rejects_internal_basetemp(capsys):
+    executor = _FakeExecutor()
+    with pytest.raises(SystemExit) as excinfo:
+        run(["--fast", "--", f"--basetemp={PROJECT_ROOT}"], executor=executor)
+    assert excinfo.value.code == 2
+    assert "explicit --basetemp must be outside the repository root" in capsys.readouterr().err
+    assert executor.calls == []
+
+
+def test_run_allows_external_basetemp():
+    executor = _FakeExecutor()
+    external_dir = Path(tempfile.gettempdir()) / "pytest_safe_focus_run"
+    code = run(["--fast", "--", f"--basetemp={external_dir}"], executor=executor)
+    assert code == 0
+    assert len(executor.calls) == 1
+    assert f"--basetemp={external_dir}" in executor.calls[0]
