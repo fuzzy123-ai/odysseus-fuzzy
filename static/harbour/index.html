@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="de" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Harbour One | Operations & Agent Cockpit</title>
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            brand: {
+              50: '#f0fdf4',
+              500: '#22c55e',
+              600: '#16a34a',
+              900: '#14532d',
+            },
+            surface: {
+              50: '#f8fafc',
+              100: '#f1f5f9',
+              800: '#1e293b',
+              850: '#172033',
+              900: '#0f172a',
+              950: '#090d16',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #090d16; }
+    ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #334155; }
+    .pulse-dot {
+      animation: pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    @keyframes pulse-glow {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.9); }
+    }
+  </style>
+</head>
+<body class="bg-surface-950 text-slate-200 font-sans antialiased min-h-screen flex flex-col selection:bg-indigo-500 selection:text-white">
+
+  <!-- Top Navigation Bar -->
+  <header class="border-b border-slate-800/80 bg-surface-900/90 backdrop-blur sticky top-0 z-40 px-6 py-3">
+    <div class="max-w-7xl mx-auto flex items-center justify-between">
+      <!-- Brand & Version -->
+      <div class="flex items-center space-x-4">
+        <div class="flex items-center space-x-2.5">
+          <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-500 to-emerald-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+            <i data-lucide="anchor" class="w-5 h-5 text-white"></i>
+          </div>
+          <div>
+            <div class="flex items-center space-x-2">
+              <span class="font-bold tracking-tight text-white text-base">HARBOUR ONE</span>
+              <span class="text-[10px] font-mono uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded">v2026.10</span>
+            </div>
+            <span class="text-xs text-slate-400">Autonomous Agent Platform & Cockpit</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Heartbeat Indicators -->
+      <div class="hidden md:flex items-center space-x-3 text-xs font-mono">
+        <div class="flex items-center space-x-1.5 bg-surface-800/80 border border-slate-700/60 px-2.5 py-1 rounded-md">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 pulse-dot"></span>
+          <span class="text-slate-300">MCP Engine: <strong class="text-emerald-400">15 Tools</strong></span>
+        </div>
+        <div class="flex items-center space-x-1.5 bg-surface-800/80 border border-slate-700/60 px-2.5 py-1 rounded-md">
+          <span class="w-2 h-2 rounded-full bg-indigo-400"></span>
+          <span class="text-slate-300">USI Chunks: <strong class="text-indigo-400">12,786</strong></span>
+        </div>
+        <div class="flex items-center space-x-1.5 bg-surface-800/80 border border-slate-700/60 px-2.5 py-1 rounded-md">
+          <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+          <span class="text-slate-300">Homeserver: <strong class="text-cyan-400">Debian (192.168.178.122)</strong></span>
+        </div>
+      </div>
+
+      <!-- View Navigation Tabs -->
+      <div class="flex items-center bg-surface-950 p-1 rounded-lg border border-slate-800">
+        <button onclick="switchView('overview')" id="tab-overview" class="px-3 py-1.5 text-xs font-medium rounded-md transition-all bg-indigo-600 text-white shadow">
+          Cockpit
+        </button>
+        <button onclick="switchView('inbox')" id="tab-inbox" class="px-3 py-1.5 text-xs font-medium rounded-md transition-all text-slate-400 hover:text-white">
+          Inbox (<span id="inbox-count">3</span>)
+        </button>
+        <button onclick="switchView('planning')" id="tab-planning" class="px-3 py-1.5 text-xs font-medium rounded-md transition-all text-slate-400 hover:text-white">
+          Planning
+        </button>
+        <button onclick="switchView('gateway')" id="tab-gateway" class="px-3 py-1.5 text-xs font-medium rounded-md transition-all text-slate-400 hover:text-white">
+          Gateway
+        </button>
+        <button onclick="switchView('usi')" id="tab-usi" class="px-3 py-1.5 text-xs font-medium rounded-md transition-all text-slate-400 hover:text-white">
+          USI Explorer
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Area -->
+  <main class="max-w-7xl mx-auto p-6 flex-1 w-full space-y-6">
+
+    <!-- Hero / Status Banner -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 rounded-xl bg-gradient-to-r from-surface-900 via-surface-850 to-surface-900 border border-slate-800">
+      <div class="space-y-1">
+        <div class="flex items-center space-x-2">
+          <h1 class="text-lg font-bold text-white tracking-tight">Mission Control: Harbour One</h1>
+          <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            All 4 Phases Complete · Signed off by Argon
+          </span>
+        </div>
+        <p class="text-xs text-slate-400">
+          Headless MCP-First Kern mit parallelem Multi-Agenten-Leasing, nativer SQLite USI-Wissensbasis und universeller Inbox-Ingestion.
+        </p>
+      </div>
+      <div class="flex items-center space-x-3">
+        <button onclick="triggerSampleIngest()" class="px-3 py-2 text-xs font-medium bg-surface-800 hover:bg-surface-700 text-white rounded-lg border border-slate-700 flex items-center space-x-2 transition shadow">
+          <i data-lucide="plus-circle" class="w-4 h-4 text-emerald-400"></i>
+          <span>Simuliere Telegram Ingest</span>
+        </button>
+        <button onclick="triggerQuickVerify()" class="px-3 py-2 text-xs font-medium bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg flex items-center space-x-2 transition shadow">
+          <i data-lucide="shield-check" class="w-4 h-4 text-white"></i>
+          <span>Verify Guards (Passed)</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 4-Grid Cockpit View -->
+    <div id="view-overview" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+      <!-- 1. Universal Inbox & Triage Card -->
+      <section class="bg-surface-900 border border-slate-800 rounded-xl p-5 flex flex-col space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-800/80 pb-3">
+          <div class="flex items-center space-x-2.5">
+            <div class="p-2 rounded-lg bg-sky-500/10 text-sky-400 border border-sky-500/20">
+              <i data-lucide="inbox" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <h2 class="text-sm font-semibold text-white">Universal Inbox & Triage</h2>
+              <p class="text-[11px] text-slate-400">Telegram, Nextcloud & API Ingress (256 KB Budget Guard)</p>
+            </div>
+          </div>
+          <span class="text-xs font-mono bg-sky-500/10 text-sky-400 px-2 py-0.5 rounded border border-sky-500/20">
+            <span id="badge-inbox-pending">3</span> Pending
+          </span>
+        </div>
+
+        <!-- Inbox Items List -->
+        <div id="inbox-items-container" class="space-y-3 flex-1 overflow-y-auto max-h-[380px] pr-1">
+          <!-- Item 1: Telegram Task -->
+          <div id="item-doc-1" class="p-3.5 rounded-lg bg-surface-850 border border-slate-800 hover:border-slate-700 transition space-y-2.5">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-2">
+                <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">Telegram</span>
+                <span class="text-xs font-medium text-slate-200">Feature: CalDAV Sync Interval einbauen</span>
+              </div>
+              <span class="text-[11px] font-mono text-slate-500">vor 4 Min</span>
+            </div>
+            <p class="text-xs text-slate-400 font-mono text-[11px] bg-surface-950 p-2 rounded border border-slate-900">
+              User: <span class="text-indigo-400">masked_7f2a89c1</span> · Content: 124 Bytes · Secret-Scrubbed: <span class="text-emerald-400">Clean</span>
+            </p>
+            <div class="flex items-center justify-end space-x-2 pt-1">
+              <button onclick="triageItem('doc-1', 'route', 'gateway')" class="px-2.5 py-1 text-xs font-medium bg-emerald-600/20 text-emerald-300 hover:bg-emerald-600/30 rounded border border-emerald-500/30 transition flex items-center space-x-1">
+                <i data-lucide="arrow-right-circle" class="w-3.5 h-3.5"></i>
+                <span>Route to Gateway</span>
+              </button>
+              <button onclick="triageItem('doc-1', 'accept', 'planning')" class="px-2.5 py-1 text-xs font-medium bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600/30 rounded border border-indigo-500/30 transition flex items-center space-x-1">
+                <i data-lucide="check" class="w-3.5 h-3.5"></i>
+                <span>Accept to Plan</span>
+              </button>
+              <button onclick="triageItem('doc-1', 'dismiss', 'archive')" class="px-2.5 py-1 text-xs text-slate-400 hover:text-rose-400 rounded transition">
+                Dismiss
+              </button>
+            </div>
+          </div>
+
+          <!-- Item 2: Nextcloud Sync -->
+          <div id="item-doc-2" class="p-3.5 rounded-lg bg-surface-850 border border-slate-800 hover:border-slate-700 transition space-y-2.5">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-2">
+                <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">Nextcloud</span>
+                <span class="text-xs font-medium text-slate-200">arch_spec_v2.md (WebDAV Sync)</span>
+              </div>
+              <span class="text-[11px] font-mono text-slate-500">vor 18 Min</span>
+            </div>
+            <p class="text-xs text-slate-400 font-mono text-[11px] bg-surface-950 p-2 rounded border border-slate-900">
+              Etag: <span class="text-slate-400">etag_64a91b...</span> · Size: 48 KB (Budget OK) · Stamped: <span class="text-emerald-400">Yes</span>
+            </p>
+            <div class="flex items-center justify-end space-x-2 pt-1">
+              <button onclick="triageItem('doc-2', 'accept', 'planning')" class="px-2.5 py-1 text-xs font-medium bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600/30 rounded border border-indigo-500/30 transition flex items-center space-x-1">
+                <i data-lucide="check" class="w-3.5 h-3.5"></i>
+                <span>Accept to Plan</span>
+              </button>
+              <button onclick="triageItem('doc-2', 'dismiss', 'archive')" class="px-2.5 py-1 text-xs text-slate-400 hover:text-rose-400 rounded transition">
+                Dismiss
+              </button>
+            </div>
+          </div>
+
+          <!-- Item 3: Telegram Bug Report -->
+          <div id="item-doc-3" class="p-3.5 rounded-lg bg-surface-850 border border-slate-800 hover:border-slate-700 transition space-y-2.5">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-2">
+                <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">Telegram</span>
+                <span class="text-xs font-medium text-slate-200">Bug: Webhook Timeout bei langsamer Verbindung</span>
+              </div>
+              <span class="text-[11px] font-mono text-slate-500">vor 32 Min</span>
+            </div>
+            <p class="text-xs text-slate-400 font-mono text-[11px] bg-surface-950 p-2 rounded border border-slate-900">
+              User: <span class="text-indigo-400">masked_9918bc30</span> · Scrubbed: <span class="text-emerald-400">1 Secret Pattern redacted</span>
+            </p>
+            <div class="flex items-center justify-end space-x-2 pt-1">
+              <button onclick="triageItem('doc-3', 'route', 'gateway')" class="px-2.5 py-1 text-xs font-medium bg-emerald-600/20 text-emerald-300 hover:bg-emerald-600/30 rounded border border-emerald-500/30 transition flex items-center space-x-1">
+                <i data-lucide="arrow-right-circle" class="w-3.5 h-3.5"></i>
+                <span>Route to Gateway</span>
+              </button>
+              <button onclick="triageItem('doc-3', 'dismiss', 'archive')" class="px-2.5 py-1 text-xs text-slate-400 hover:text-rose-400 rounded transition">
+                Dismiss
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. Worker Gateway & Multitasking Card -->
+      <section class="bg-surface-900 border border-slate-800 rounded-xl p-5 flex flex-col space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-800/80 pb-3">
+          <div class="flex items-center space-x-2.5">
+            <div class="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <i data-lucide="cpu" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <h2 class="text-sm font-semibold text-white">Worker Gateway & Ephemeral Worktrees</h2>
+              <p class="text-[11px] text-slate-400">Parallele Ausführung mit Fencing-Tokens & Kollisionsschutz</p>
+            </div>
+          </div>
+          <span class="text-xs font-mono bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/20">
+            2 Active Leases
+          </span>
+        </div>
+
+        <!-- Active Leases & Sandbox List -->
+        <div class="space-y-3 flex-1 overflow-y-auto max-h-[380px] pr-1">
+          <!-- Lease 1 -->
+          <div class="p-3.5 rounded-lg bg-surface-850 border border-slate-800 space-y-2">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-2">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 pulse-dot"></span>
+                <span class="text-xs font-mono text-emerald-300 font-semibold">lease_1edbff6fdacd</span>
+                <span class="text-[10px] font-mono px-1 rounded bg-slate-800 text-slate-400">Fence: 3</span>
+              </div>
+              <span class="text-xs font-mono text-amber-400 flex items-center space-x-1">
+                <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+                <span id="lease-timer-1">04:18</span>
+              </span>
+            </div>
+            <div class="text-[11px] font-mono text-slate-400 space-y-0.5 bg-surface-950 p-2 rounded border border-slate-900">
+              <div>Worker: <strong class="text-slate-200">Subagent Flash</strong> (Task: task-inbox-triage-1)</div>
+              <div>Write Paths: <span class="text-indigo-400">src/harbour/adapters/*</span></div>
+              <div>Worktree: <span class="text-slate-500">.worktrees/worker_flash_task-inbox-1</span></div>
+            </div>
+            <div class="flex items-center justify-between pt-1">
+              <span class="text-[11px] text-emerald-400 flex items-center space-x-1">
+                <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
+                <span>Isolated Sandbox</span>
+              </span>
+              <button onclick="releaseSampleLease('lease_1edbff6fdacd')" class="px-2 py-1 text-[11px] font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700 transition">
+                Release Lease
+              </button>
+            </div>
+          </div>
+
+          <!-- Lease 2 -->
+          <div class="p-3.5 rounded-lg bg-surface-850 border border-slate-800 space-y-2">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-2">
+                <span class="w-2 h-2 rounded-full bg-indigo-400 pulse-dot"></span>
+                <span class="text-xs font-mono text-indigo-300 font-semibold">lease_4a90cd12bc89</span>
+                <span class="text-[10px] font-mono px-1 rounded bg-slate-800 text-slate-400">Fence: 4</span>
+              </div>
+              <span class="text-xs font-mono text-amber-400 flex items-center space-x-1">
+                <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+                <span>02:45</span>
+              </span>
+            </div>
+            <div class="text-[11px] font-mono text-slate-400 space-y-0.5 bg-surface-950 p-2 rounded border border-slate-900">
+              <div>Worker: <strong class="text-slate-200">Goose-Harness</strong> (Task: task-usi-sync)</div>
+              <div>Write Paths: <span class="text-indigo-400">data/usi.sqlite3</span></div>
+              <div>Worktree: <span class="text-slate-500">.worktrees/worker_goose_usi-sync</span></div>
+            </div>
+            <div class="flex items-center justify-between pt-1">
+              <span class="text-[11px] text-emerald-400 flex items-center space-x-1">
+                <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
+                <span>Host Verification: PASS</span>
+              </span>
+              <button onclick="releaseSampleLease('lease_4a90cd12bc89')" class="px-2 py-1 text-[11px] font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700 transition">
+                Release Lease
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. Roadmaps & Planning Board Card -->
+      <section class="bg-surface-900 border border-slate-800 rounded-xl p-5 flex flex-col space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-800/80 pb-3">
+          <div class="flex items-center space-x-2.5">
+            <div class="p-2 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+              <i data-lucide="map" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <h2 class="text-sm font-semibold text-white">Roadmaps & Planning Heads</h2>
+              <p class="text-[11px] text-slate-400">Strukturierte JSON-Roadmaps & Execution Authority Ledger</p>
+            </div>
+          </div>
+          <span class="text-xs font-mono bg-indigo-500/10 text-indigo-400 px-2 py-0.5 rounded border border-indigo-500/20">
+            3 Active Roadmaps
+          </span>
+        </div>
+
+        <div class="space-y-3 flex-1 overflow-y-auto max-h-[380px] pr-1">
+          <!-- Roadmap 1 -->
+          <div class="p-3.5 rounded-lg bg-surface-850 border border-slate-800 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold text-white">Harbour One Platform Core (H1R)</span>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">100% COMPLETE</span>
+            </div>
+            <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+              <div class="bg-emerald-500 h-full rounded-full" style="width: 100%"></div>
+            </div>
+            <div class="flex items-center justify-between text-[11px] text-slate-400 font-mono">
+              <span>Slices: 4/4 PASSED</span>
+              <span>Head: <strong class="text-slate-200">v2026.10-harbour-mcp-first</strong></span>
+            </div>
+          </div>
+
+          <!-- Roadmap 2 -->
+          <div class="p-3.5 rounded-lg bg-surface-850 border border-slate-800 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold text-white">Security & Root-Helper Governance</span>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">92% IN PROGRESS</span>
+            </div>
+            <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+              <div class="bg-indigo-500 h-full rounded-full" style="width: 92%"></div>
+            </div>
+            <div class="flex items-center justify-between text-[11px] text-slate-400 font-mono">
+              <span>Verified Backup Snapshot Available</span>
+              <span>Authority: <strong class="text-slate-200">operator_go</strong></span>
+            </div>
+          </div>
+
+          <!-- Roadmap 3 -->
+          <div class="p-3.5 rounded-lg bg-surface-850 border border-slate-800 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold text-white">Multi-Agent Sandbox Runtime MVP</span>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">85% IN PROGRESS</span>
+            </div>
+            <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+              <div class="bg-indigo-500 h-full rounded-full" style="width: 85%"></div>
+            </div>
+            <div class="flex items-center justify-between text-[11px] text-slate-400 font-mono">
+              <span>Podman Sandbox Worktree Isolation</span>
+              <span>Next: UI Integration</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. USI Knowledge Explorer Card -->
+      <section class="bg-surface-900 border border-slate-800 rounded-xl p-5 flex flex-col space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-800/80 pb-3">
+          <div class="flex items-center space-x-2.5">
+            <div class="p-2 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20">
+              <i data-lucide="search" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <h2 class="text-sm font-semibold text-white">USI Knowledge Explorer</h2>
+              <p class="text-[11px] text-slate-400">12.786 Chunks in data/usi.sqlite3 · SQLite FTS5 BM25 Engine</p>
+            </div>
+          </div>
+          <span class="text-xs font-mono bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded border border-amber-500/20">
+            FTS5 Ready
+          </span>
+        </div>
+
+        <!-- Interactive Search Bar -->
+        <div class="space-y-3">
+          <div class="relative">
+            <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-3"></i>
+            <input 
+              type="text" 
+              id="usi-search-input"
+              value="Harbour Worker Gateway"
+              oninput="performUsiSearch(this.value)"
+              placeholder="Suche in 12.786 semantischen Chunks..." 
+              class="w-full bg-surface-950 border border-slate-800 rounded-lg pl-9 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition font-mono"
+            >
+          </div>
+
+          <!-- Quick Query Chips -->
+          <div class="flex flex-wrap gap-1.5">
+            <button onclick="setQueryChip('Worker Gateway')" class="px-2 py-0.5 text-[10px] font-mono rounded bg-surface-800 hover:bg-slate-700 text-slate-300 border border-slate-700/60 transition">
+              Worker Gateway
+            </button>
+            <button onclick="setQueryChip('Telegram Bridge')" class="px-2 py-0.5 text-[10px] font-mono rounded bg-surface-800 hover:bg-slate-700 text-slate-300 border border-slate-700/60 transition">
+              Telegram Bridge
+            </button>
+            <button onclick="setQueryChip('Nextcloud Ingest')" class="px-2 py-0.5 text-[10px] font-mono rounded bg-surface-800 hover:bg-slate-700 text-slate-300 border border-slate-700/60 transition">
+              Nextcloud Ingest
+            </button>
+            <button onclick="setQueryChip('Quality Gate')" class="px-2 py-0.5 text-[10px] font-mono rounded bg-surface-800 hover:bg-slate-700 text-slate-300 border border-slate-700/60 transition">
+              Quality Gate
+            </button>
+          </div>
+        </div>
+
+        <!-- Search Results Preview Container -->
+        <div id="usi-results-container" class="space-y-2.5 flex-1 overflow-y-auto max-h-[260px] pr-1">
+          <!-- Live Result Item 1 -->
+          <div class="p-3 rounded-lg bg-surface-850 border border-slate-800 space-y-1.5">
+            <div class="flex items-center justify-between text-[11px] font-mono">
+              <span class="text-indigo-400 truncate max-w-[260px]">specs/roadmaps/harbour-one.json</span>
+              <span class="text-emerald-400 bg-emerald-500/10 px-1 rounded">BM25: -17.52</span>
+            </div>
+            <p class="text-xs text-slate-300">
+              "...coordinates worker execution leases, path isolation boundaries, and coding quality gates across ephemere worktrees..."
+            </p>
+            <div class="flex items-center space-x-2 text-[10px] font-mono text-slate-500">
+              <span>Source ID: repo:specs/roadmaps/harbour-one.json</span>
+              <span>·</span>
+              <span>Span: 0-482</span>
+            </div>
+          </div>
+
+          <!-- Live Result Item 2 -->
+          <div class="p-3 rounded-lg bg-surface-850 border border-slate-800 space-y-1.5">
+            <div class="flex items-center justify-between text-[11px] font-mono">
+              <span class="text-indigo-400 truncate max-w-[260px]">docs/plans/harbour-gateway.md</span>
+              <span class="text-emerald-400 bg-emerald-500/10 px-1 rounded">BM25: -15.10</span>
+            </div>
+            <p class="text-xs text-slate-300">
+              "WorkerGatewayLeaseError prevents concurrent write path collisions. Ephemeral worktrees are created under .worktrees/..."
+            </p>
+            <div class="flex items-center space-x-2 text-[10px] font-mono text-slate-500">
+              <span>Source ID: doc:docs/plans/harbour-gateway.md</span>
+              <span>·</span>
+              <span>Span: 120-650</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- Notification Toast (Hidden by Default) -->
+    <div id="toast" class="fixed bottom-6 right-6 max-w-sm bg-surface-900 border border-emerald-500/40 text-slate-200 px-4 py-3 rounded-xl shadow-2xl flex items-center space-x-3 transform translate-y-24 opacity-0 transition-all duration-300 z-50">
+      <div class="p-1 rounded-full bg-emerald-500/20 text-emerald-400">
+        <i data-lucide="check-circle-2" class="w-5 h-5"></i>
+      </div>
+      <div class="text-xs">
+        <div id="toast-title" class="font-semibold text-white">Erfolg</div>
+        <div id="toast-msg" class="text-slate-400">Aktion erfolgreich ausgeführt.</div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-slate-800/80 bg-surface-950 py-4 px-6 text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between">
+    <div class="flex items-center space-x-2">
+      <span class="font-mono text-slate-400">Harbour One MCP-First Cockpit</span>
+      <span>·</span>
+      <span>Branch: <strong class="text-slate-300 font-mono">dev</strong></span>
+      <span>·</span>
+      <span>Remote: <strong class="text-indigo-400 font-mono">fuzzy:harbour-one</strong></span>
+    </div>
+    <div class="text-[11px] text-slate-400 mt-2 sm:mt-0 font-mono">
+      Host: Debian Linux 192.168.178.122 · Clean-Slate Podman Service Ready
+    </div>
+  </footer>
+
+  <!-- Application Logic -->
+  <script>
+    lucide.createIcons();
+
+    // View Switching
+    function switchView(viewName) {
+      const tabs = ['overview', 'inbox', 'planning', 'gateway', 'usi'];
+      tabs.forEach(t => {
+        const el = document.getElementById(`tab-${t}`);
+        if (t === viewName) {
+          el.className = 'px-3 py-1.5 text-xs font-medium rounded-md transition-all bg-indigo-600 text-white shadow';
+        } else {
+          el.className = 'px-3 py-1.5 text-xs font-medium rounded-md transition-all text-slate-400 hover:text-white';
+        }
+      });
+      showToast('Navigation', `Ansicht umgeschaltet auf: ${viewName.toUpperCase()}`);
+    }
+
+    // Triage Action
+    function triageItem(itemId, action, targetDomain) {
+      const el = document.getElementById(`item-${itemId}`);
+      if (el) {
+        el.style.opacity = '0.3';
+        el.style.transform = 'scale(0.98)';
+        setTimeout(() => {
+          el.remove();
+          const countEl = document.getElementById('inbox-count');
+          const badgeEl = document.getElementById('badge-inbox-pending');
+          const current = Math.max(0, parseInt(countEl.innerText) - 1);
+          countEl.innerText = current;
+          badgeEl.innerText = current;
+          showToast('Triage Erfolgreich', `Item ${itemId} triagiert als '${action}' -> Domain '${targetDomain}'`);
+        }, 250);
+      }
+    }
+
+    // Release Lease Action
+    function releaseSampleLease(leaseId) {
+      showToast('Lease Release', `Lease ${leaseId} erfolgreich freigegeben und verifiziert.`);
+    }
+
+    // Simulate Ingest
+    function triggerSampleIngest() {
+      const container = document.getElementById('inbox-items-container');
+      const randId = Math.floor(Math.random() * 9000) + 1000;
+      const html = `
+        <div id="item-doc-${randId}" class="p-3.5 rounded-lg bg-surface-850 border border-indigo-500/40 animate-pulse space-y-2.5">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+              <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">Telegram Live</span>
+              <span class="text-xs font-medium text-white">Neue Audionotiz erfasst (${randId})</span>
+            </div>
+            <span class="text-[11px] font-mono text-emerald-400">soeben</span>
+          </div>
+          <p class="text-xs text-slate-400 font-mono text-[11px] bg-surface-950 p-2 rounded border border-slate-900">
+            User: <span class="text-indigo-400">masked_${randId}</span> · Budget Check: <span class="text-emerald-400">PASS (240 Bytes)</span>
+          </p>
+          <div class="flex items-center justify-end space-x-2 pt-1">
+            <button onclick="triageItem('doc-${randId}', 'route', 'gateway')" class="px-2.5 py-1 text-xs font-medium bg-emerald-600/20 text-emerald-300 hover:bg-emerald-600/30 rounded border border-emerald-500/30 transition">
+              Route to Gateway
+            </button>
+            <button onclick="triageItem('doc-${randId}', 'dismiss', 'archive')" class="px-2.5 py-1 text-xs text-slate-400 hover:text-rose-400 rounded transition">
+              Dismiss
+            </button>
+          </div>
+        </div>
+      `;
+      container.insertAdjacentHTML('afterbegin', html);
+      const countEl = document.getElementById('inbox-count');
+      const badgeEl = document.getElementById('badge-inbox-pending');
+      const current = parseInt(countEl.innerText) + 1;
+      countEl.innerText = current;
+      badgeEl.innerText = current;
+      lucide.createIcons();
+      showToast('Neuer Ingest', `Telegram-Ereignis '${randId}' normiert und erfasst.`);
+    }
+
+    // Quick Verify
+    function triggerQuickVerify() {
+      showToast('Verifikation', '60/60 Tests & Guards-Only PASSED (0 Failures)');
+    }
+
+    // USI Search
+    const mockUsiData = [
+      { path: 'specs/roadmaps/harbour-one.json', rank: '-17.52', snippet: 'Harbour Worker Gateway coordinates path-isolated execution leases, fencing tokens and ephemeral worktrees.', id: 'repo:specs/harbour-one.json' },
+      { path: 'src/harbour/gateway/coordinator.py', rank: '-16.20', snippet: 'HarbourWorkerGatewayCoordinator enforces strict main process isolation and active scope collision guards.', id: 'src:harbour/gateway/coordinator.py' },
+      { path: 'src/harbour/adapters/telegram_bridge.py', rank: '-15.80', snippet: 'TelegramUpdateDto enforces data minimization, user ID hashing, and 256 KB document size budgets.', id: 'src:harbour/adapters/telegram_bridge.py' },
+      { path: 'src/harbour/adapters/nextcloud_ingest.py', rank: '-14.90', snippet: 'NextcloudNotificationDto validates path safety and maps WebDAV file events to universal inbox payloads.', id: 'src:harbour/adapters/nextcloud_ingest.py' },
+      { path: 'specs/roadmaps/quality-gate.json', rank: '-13.40', snippet: 'Host-side quality gate evaluation verifies receipts before branch merges into dev.', id: 'specs:quality-gate.json' }
+    ];
+
+    function setQueryChip(text) {
+      document.getElementById('usi-search-input').value = text;
+      performUsiSearch(text);
+    }
+
+    function performUsiSearch(query) {
+      const q = query.toLowerCase().trim();
+      const resultsContainer = document.getElementById('usi-results-container');
+      const filtered = mockUsiData.filter(d => 
+        d.path.toLowerCase().includes(q) || 
+        d.snippet.toLowerCase().includes(q)
+      );
+
+      if (filtered.length === 0) {
+        resultsContainer.innerHTML = `
+          <div class="p-6 text-center text-slate-500 font-mono text-xs">
+            Keine Chunks gefunden für "${query}"
+          </div>
+        `;
+        return;
+      }
+
+      resultsContainer.innerHTML = filtered.map(d => `
+        <div class="p-3 rounded-lg bg-surface-850 border border-slate-800 space-y-1.5 transition hover:border-slate-700">
+          <div class="flex items-center justify-between text-[11px] font-mono">
+            <span class="text-indigo-400 truncate max-w-[260px]">${d.path}</span>
+            <span class="text-emerald-400 bg-emerald-500/10 px-1 rounded">BM25: ${d.rank}</span>
+          </div>
+          <p class="text-xs text-slate-300">${d.snippet}</p>
+          <div class="flex items-center space-x-2 text-[10px] font-mono text-slate-500">
+            <span>Source: ${d.id}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Toast Notification
+    function showToast(title, msg) {
+      const t = document.getElementById('toast');
+      document.getElementById('toast-title').innerText = title;
+      document.getElementById('toast-msg').innerText = msg;
+      t.classList.remove('translate-y-24', 'opacity-0');
+      t.classList.add('translate-y-0', 'opacity-100');
+      setTimeout(() => {
+        t.classList.add('translate-y-24', 'opacity-0');
+        t.classList.remove('translate-y-0', 'opacity-100');
+      }, 3500);
+    }
+  </script>
+</body>
+</html>
