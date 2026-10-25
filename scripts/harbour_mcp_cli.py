@@ -327,8 +327,72 @@ def smoke_test(
                 db.close()
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description="Harbour MCP CLI: Token management and smoke tests")
+def cmd_sync_usi(args: argparse.Namespace) -> int:
+    from src.harbour.memory import HarbourMemoryService, HarbourMemoryServiceError
+    service = HarbourMemoryService(repo_root=args.repo_root)
+    try:
+        report = service.index_sources(sources=args.sources, owner_scope=args.owner_scope)
+        if args.json:
+            print(json.dumps(report, indent=2))
+        else:
+            print("[OK] USI Synchronization completed.")
+            print(f"     Indexed sources: {report['indexed_sources']}")
+            print(f"     Indexed chunks:  {report['indexed_chunks']}")
+            if report.get("failed_sources"):
+                print(f"     Failed sources:  {len(report['failed_sources'])}")
+        return 0
+    except HarbourMemoryServiceError as exc:
+        if args.json:
+            print(json.dumps({"status": "error", "code": exc.code, "detail": exc.detail}))
+        else:
+            print(f"[ERROR] sync-usi failed ({exc.code}): {exc.detail}", file=sys.stderr)
+        return 1
+
+
+def cmd_query_usi(args: argparse.Namespace) -> int:
+    from src.harbour.memory import HarbourMemoryService, HarbourMemoryServiceError
+    service = HarbourMemoryService(repo_root=args.repo_root)
+    try:
+        result = service.query_usi(query=args.query, limit=args.limit, owner_scope=args.owner_scope)
+        if args.json:
+            print(json.dumps(result, indent=2))
+        else:
+            print(f"Query: '{result['query']}' | Matches: {result['total_matches']}")
+            for idx, match in enumerate(result["matches"], 1):
+                source = match.get("source_id") or match.get("path")
+                rank = match.get("rank")
+                snippet = match.get("snippet", match.get("structural_role", ""))
+                rank_str = f" [rank={rank:.4f}]" if rank is not None else ""
+                print(f"  {idx}. {source}{rank_str}: {snippet[:120]}")
+        return 0
+    except HarbourMemoryServiceError as exc:
+        if args.json:
+            print(json.dumps({"status": "error", "code": exc.code, "detail": exc.detail}))
+        else:
+            print(f"[ERROR] query-usi failed ({exc.code}): {exc.detail}", file=sys.stderr)
+        return 1
+
+
+def cmd_status(args: argparse.Namespace) -> int:
+    from src.harbour.memory import HarbourMemoryService
+    service = HarbourMemoryService(repo_root=args.repo_root)
+    try:
+        status = service.get_runtime_status()
+        if args.json:
+            print(json.dumps(status, indent=2))
+        else:
+            print("Unified Source Index Status:")
+            print(f"  Schema: {status['schema']}")
+            print(f"  Knowledge mode: {status.get('knowledge', {}).get('mode')}")
+            print(f"  Cooperative pump: {status.get('index_job_pump', {}).get('mode')}")
+        return 0
+    except Exception as exc:
+        print(f"[ERROR] status failed: {exc}", file=sys.stderr)
+        return 1
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Harbour MCP CLI: Token management, USI indexing, and smoke tests")
     subparsers = parser.add_subparsers(dest="subcommand", required=True)
 
     # bootstrap-token
@@ -353,16 +417,51 @@ def main() -> int:
     p_smoke.add_argument("--token", default=None, help="Existing API token (default: generate ephemeral token)")
     p_smoke.add_argument("--json", action="store_true", help="Output JSON")
 
-    args = parser.parse_args()
+    # sync-usi
+    sync_p = subparsers.add_parser("sync-usi", help="Synchronize and index sources into data/usi.sqlite3")
+    sync_p.add_argument("--repo-root", type=str, default=None, help="Repository root path")
+    sync_p.add_argument("--sources", nargs="*", default=None, help="Optional subset of sources or roadmaps to index")
+    sync_p.add_argument("--owner-scope", type=str, default="owner:admin", help="USI owner scope (default: owner:admin)")
+    sync_p.add_argument("--json", action="store_true", help="Output machine-readable JSON report")
 
-    if args.subcommand == "bootstrap-token":
+    # query-usi
+    query_p = subparsers.add_parser("query-usi", help="Search the Unified Source Index via FTS5 BM25 or census fallback")
+    query_p.add_argument("query", type=str, help="Search terms or phrase")
+    query_p.add_argument("--limit", type=int, default=10, help="Maximum number of matches (1-100)")
+    query_p.add_argument("--owner-scope", type=str, default="owner:admin", help="USI owner scope (default: owner:admin)")
+    query_p.add_argument("--repo-root", type=str, default=None, help="Repository root path")
+    query_p.add_argument("--json", action="store_true", help="Output machine-readable JSON result")
+
+    # status
+    status_p = subparsers.add_parser("status", help="Inspect USI runtime status and database readiness")
+    status_p.add_argument("--repo-root", type=str, default=None, help="Repository root path")
+    status_p.add_argument("--json", action="store_true", help="Output machine-readable JSON status")
+
+    return parser
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+
+    cmd = getattr(args, "subcommand", None)
+    if cmd == "bootstrap-token":
         bootstrap_token(scope=args.scope, name=args.name, owner=args.owner, as_json=args.json)
-    elif args.subcommand == "list-tokens":
+        return 0
+    elif cmd == "list-tokens":
         list_tokens(as_json=args.json)
-    elif args.subcommand == "smoke-test":
+        return 0
+    elif cmd == "smoke-test":
         smoke_test(url=args.url, token=args.token, as_json=args.json)
+        return 0
+    elif cmd == "sync-usi":
+        return cmd_sync_usi(args)
+    elif cmd == "query-usi":
+        return cmd_query_usi(args)
+    elif cmd == "status":
+        return cmd_status(args)
 
-    return 0
+    return 1
 
 
 if __name__ == "__main__":

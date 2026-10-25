@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 import pytest
 
@@ -415,3 +416,158 @@ def test_dispatcher_custom_memory_service_injection():
     )
     assert res["total_matches"] == 1
     assert res["matches"][0]["source_id"] == "custom:source"
+
+
+# ---------------------------------------------------------------------------
+# 8. Index sources tests (Etappe 3)
+# ---------------------------------------------------------------------------
+
+def test_index_sources_parameter_validation(tmp_path):
+    """index_sources must strictly validate sources, owner_scope, and batch_size."""
+    service = HarbourMemoryService(repo_root=tmp_path)
+
+    # Invalid sources type
+    with pytest.raises(HarbourMemoryServiceError) as exc:
+        service.index_sources(sources="not_a_list")  # type: ignore[arg-type]
+    assert exc.value.code == "invalid_params"
+
+    # Invalid sources item
+    with pytest.raises(HarbourMemoryServiceError) as exc:
+        service.index_sources(sources=[""])
+    assert exc.value.code == "invalid_params"
+
+    with pytest.raises(HarbourMemoryServiceError) as exc:
+        service.index_sources(sources=[123])  # type: ignore[list-item]
+    assert exc.value.code == "invalid_params"
+
+    # Invalid owner_scope
+    with pytest.raises(HarbourMemoryServiceError) as exc:
+        service.index_sources(owner_scope="")
+    assert exc.value.code == "invalid_params"
+
+    with pytest.raises(HarbourMemoryServiceError) as exc:
+        service.index_sources(owner_scope=None)  # type: ignore[arg-type]
+    assert exc.value.code == "invalid_params"
+
+    # Invalid batch_size
+    with pytest.raises(HarbourMemoryServiceError) as exc:
+        service.index_sources(batch_size=0)
+    assert exc.value.code == "invalid_params"
+
+    with pytest.raises(HarbourMemoryServiceError) as exc:
+        service.index_sources(batch_size=-5)
+    assert exc.value.code == "invalid_params"
+
+
+def test_index_sources_creates_sqlite_and_enables_fts5_search(tmp_path):
+    """index_sources creates data/usi.sqlite3 and indexes documents for FTS5 BM25 search."""
+    docs_dir = tmp_path / "docs" / "plans"
+    docs_dir.mkdir(parents=True)
+    doc_file = docs_dir / "harbour-memory-spec.md"
+    doc_file.write_text(
+        "# Harbour Memory Specification\n\n"
+        "Unified Source Index (USI) consolidates planning, memory, and code occurrences.\n\n"
+        "## BM25 Full Text Search\n"
+        "SQLite FTS5 BM25 ranking guarantees fast lexical search with deterministic scoring.\n\n"
+        "## Cooperative Indexer\n"
+        "Cooperative background pump processes change feeds without lock contention.",
+        encoding="utf-8",
+    )
+
+    db_path = tmp_path / "data" / "usi.sqlite3"
+    service = HarbourMemoryService(repo_root=tmp_path)
+
+    # 1. Before indexing: no chunks exist
+    assert not service._has_chunks()
+
+    # 2. Run index_sources on the document
+    report = service.index_sources(sources=["docs/plans/harbour-memory-spec.md"])
+    assert report["schema"] == "odysseus.harbour.memory_index_report.v1"
+    assert report["status"] == "ok"
+    assert report["indexed_sources"] == 1
+    assert report["indexed_chunks"] == 3
+    assert db_path.is_file()
+
+    # 3. After indexing: store has chunks!
+    assert service._has_chunks()
+
+    # 4. query_usi must now return FTS5 BM25 matches with snippets and ranks
+    res = service.query_usi("BM25", limit=5)
+    assert res["schema"] == "odysseus.harbour.memory_query_result.v1"
+    assert res["total_matches"] >= 1
+
+    top_hit = res["matches"][0]
+    assert "source_id" in top_hit
+    assert "chunk_id" in top_hit
+    assert "snippet" in top_hit
+    assert "rank" in top_hit
+    assert "BM25 ranking guarantees" in top_hit["snippet"]
+    assert isinstance(top_hit["rank"], float)
+
+
+def test_index_sources_roadmap_json_semantic_chunking(tmp_path):
+    """index_sources must decompose roadmap JSON into overview and feature chunks."""
+    roadmaps_dir = tmp_path / "specs" / "roadmaps"
+    roadmaps_dir.mkdir(parents=True)
+    roadmap_file = roadmaps_dir / "harbour-test-roadmap.v1.json"
+
+    roadmap_data = {
+        "schema_version": 1,
+        "plan_id": "harbour-test-roadmap",
+        "title": "Harbour Integration Roadmap",
+        "goal": "Unify all memory, planning, and gateway execution protocols.",
+        "status": "active",
+        "completed_features": [
+            {
+                "node_id": "usi-sqlite-fts5-engine",
+                "status": "live_installed",
+                "evidence": "FTS5 BM25 ranking active on database.",
+            },
+            {
+                "node_id": "mcp-dispatcher-routing",
+                "status": "live_installed",
+                "evidence": "Dispatcher delegates to memory service.",
+            },
+        ],
+    }
+    roadmap_file.write_text(json.dumps(roadmap_data), encoding="utf-8")
+
+    service = HarbourMemoryService(repo_root=tmp_path)
+    report = service.index_sources(sources=["specs/roadmaps/harbour-test-roadmap.v1.json"])
+
+    assert report["indexed_sources"] == 1
+    assert report["indexed_chunks"] == 3  # 1 Overview + 2 Features
+
+    # Search for a specific feature node_id
+    search_feat = service.query_usi("usi-sqlite-fts5-engine", limit=5)
+    assert search_feat["total_matches"] == 1
+    assert "usi-sqlite-fts5-engine" in search_feat["matches"][0]["snippet"]
+
+    # Search for roadmap goal keyword
+    search_goal = service.query_usi("protocols", limit=5)
+    assert search_goal["total_matches"] == 1
+    assert "Unify all memory" in search_goal["matches"][0]["snippet"]
+
+
+def test_query_usi_transition_from_fallback_to_fts5(tmp_path):
+    """query_usi smoothly transitions from census fallback to FTS5 search once indexed."""
+    docs_dir = tmp_path / "docs" / "plans"
+    docs_dir.mkdir(parents=True)
+    f = docs_dir / "sample-plan.md"
+    f.write_text("# Sample Plan\nContent about autonomous orchestration.", encoding="utf-8")
+
+    service = HarbourMemoryService(repo_root=tmp_path)
+    assert not service._has_chunks()
+
+    # Query before indexing: Census fallback
+    pre_result = service.query_usi("orchestration", limit=5)
+    assert pre_result["total_matches"] == 0  # Census fallback doesn't read full text
+
+    # Perform indexing
+    service.index_sources(sources=["docs/plans/sample-plan.md"])
+    assert service._has_chunks()
+
+    # Query after indexing: FTS5 BM25 hit
+    post_result = service.query_usi("orchestration", limit=5)
+    assert post_result["total_matches"] == 1
+    assert "autonomous orchestration" in post_result["matches"][0]["snippet"]

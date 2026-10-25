@@ -145,3 +145,28 @@ def test_cli_main_subcommands(capsys, monkeypatch):
             db.commit()
         finally:
             db.close()
+
+
+def test_cli_sync_and_query_usi(tmp_path, capsys):
+    """CLI subcommands sync-usi and query-usi execute properly."""
+    doc_dir = tmp_path / "docs" / "plans"
+    doc_dir.mkdir(parents=True)
+    (doc_dir / "cli-plan.md").write_text("# CLI Planning\nTesting CLI sync and query capabilities.", encoding="utf-8")
+
+    # 1. sync-usi --json
+    code = cli_main(["sync-usi", "--repo-root", str(tmp_path), "--sources", "docs/plans/cli-plan.md", "--json"])
+    assert code == 0
+    out_sync, _ = capsys.readouterr()
+    sync_report = json.loads(out_sync)
+    assert sync_report["schema"] == "odysseus.harbour.memory_index_report.v1"
+    assert sync_report["indexed_sources"] == 1
+    assert sync_report["indexed_chunks"] >= 1
+
+    # 2. query-usi --json
+    code = cli_main(["query-usi", "capabilities", "--repo-root", str(tmp_path), "--json"])
+    assert code == 0
+    out_query, _ = capsys.readouterr()
+    query_result = json.loads(out_query)
+    assert query_result["schema"] == "odysseus.harbour.memory_query_result.v1"
+    assert query_result["total_matches"] >= 1
+    assert "capabilities" in query_result["matches"][0]["snippet"]
