@@ -30,6 +30,10 @@ from fastapi.responses import FileResponse
 from src.constants import DATA_DIR
 
 from src.upload_limits import read_upload_limited, EMAIL_COMPOSE_UPLOAD_MAX_BYTES
+from src.document_subject_scope import (
+    capture_document_request_authority,
+    guard_document_request_authority,
+)
 
 from routes.email_helpers import (
     _strip_think, _extract_reply, _apply_email_style_mechanics, require_owner, require_user, _assert_owns_account,
@@ -769,6 +773,14 @@ def setup_email_routes():
         Returns {doc_id} so the frontend can open it as a tab in the doc panel.
         Other types are rejected — caller should fall back to download.
         """
+        has_cookie = "odysseus_session" in request.cookies
+        authorization = request.headers.get("authorization", "")
+        legacy_credential = (
+            authorization.lower().startswith("bearer ")
+            or bool(request.headers.get("x-api-key"))
+            or bool(getattr(request.state, "api_token", False))
+        )
+        document_authority = None if legacy_credential and not has_cookie else capture_document_request_authority(request)
         try:
             with _imap(account_id, owner=owner) as conn:
                 conn.select(_q(folder), readonly=True)
@@ -783,7 +795,7 @@ def setup_email_routes():
             if not filepath:
                 return {"error": f"Attachment index {index} not found"}
 
-            return _attachment_as_document_response(
+            result = _attachment_as_document_response(
                 filepath,
                 msg,
                 uid=uid,
@@ -791,7 +803,13 @@ def setup_email_routes():
                 account_id=account_id,
                 request=request,
                 logger=logger,
+                document_authority=document_authority,
+                owner=owner,
             )
+            if document_authority is None:
+                return result
+            with guard_document_request_authority(document_authority):
+                return dict(result)
 
             # Capture the source email's identity so the doc can later be used
             # to thread a signed-reply back to the original sender.

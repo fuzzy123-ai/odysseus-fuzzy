@@ -16,7 +16,9 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
 
 import core.database as cdb
+import src.database as src_db
 from core.database import Document
+from core.database import DocumentVersion, Session
 
 
 @pytest.fixture
@@ -26,6 +28,10 @@ def db_factory(monkeypatch):
     cdb.Base.metadata.create_all(engine)
     TS = sessionmaker(bind=engine, autoflush=False, autocommit=False)
     monkeypatch.setattr(cdb, "SessionLocal", TS)
+    monkeypatch.setattr(src_db, "SessionLocal", TS)
+    monkeypatch.setattr(src_db, "Document", Document, raising=False)
+    monkeypatch.setattr(src_db, "DocumentVersion", DocumentVersion, raising=False)
+    monkeypatch.setattr(src_db, "Session", Session, raising=False)
     return TS
 
 

@@ -113,6 +113,9 @@ def create_email_draft_document(
                 .filter(Document.is_active == True)
                 .filter(Document.language == "email")
                 .filter(Document.owner == doc_owner)
+                # This legacy MCP carries an alias, not a certified subject.
+                # It may reuse only legacy drafts, even when an alias matches.
+                .filter(Document.creator_subject_id.is_(None))
                 .filter(Document.source_email_uid == str(source_uid))
                 .filter(Document.source_email_folder == source_folder)
                 .order_by(Document.updated_at.desc())

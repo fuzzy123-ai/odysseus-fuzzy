@@ -1,8 +1,16 @@
+from contextlib import contextmanager
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 import logging
 import re
 import json
 from src.constants import MAX_READ_CHARS
+from src.document_subject_scope import (
+    current_document_owner_alias,
+    guard_document_request_authority,
+    scope_document_web_query,
+    stamp_new_document,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +80,210 @@ def _most_recent_owned_document(db, Document, owner: Optional[str], active_only:
         q = q.filter(Document.is_active == True)
     q = _owned_document_query(q, Document, owner)
     return q.order_by(Document.updated_at.desc()).first()
+
+
+@contextmanager
+def _document_access(document_authority, owner: Optional[str]):
+    """Hold fresh authority for one synchronous document database phase."""
+    if document_authority is None:
+        yield None, owner
+        return
+    with guard_document_request_authority(document_authority) as lease:
+        yield lease, current_document_owner_alias(lease)
+
+
+def _scoped_document_query(query, Document, owner: Optional[str], lease):
+    if lease is None:
+        legacy = query.filter(Document.creator_subject_id.is_(None))
+        return _owned_document_query(legacy, Document, owner)
+    return scope_document_web_query(query, lease, model=Document)
+
+
+def _get_scoped_document(
+    db,
+    Document,
+    doc_id: str,
+    owner: Optional[str],
+    lease,
+    active_only: bool = False,
+):
+    q = db.query(Document).filter(Document.id == doc_id)
+    if active_only:
+        q = q.filter(Document.is_active == True)
+    return _scoped_document_query(q, Document, owner, lease).first()
+
+
+def _most_recent_scoped_document(
+    db,
+    Document,
+    owner: Optional[str],
+    lease,
+    active_only: bool = False,
+):
+    q = db.query(Document)
+    if active_only:
+        q = q.filter(Document.is_active == True)
+    return _scoped_document_query(q, Document, owner, lease).order_by(
+        Document.updated_at.desc()
+    ).first()
+
+
+def _revision_target(document_revision_token):
+    if document_revision_token is None:
+        return None
+    if (
+        type(document_revision_token) is not tuple
+        or len(document_revision_token) != 8
+        or type(document_revision_token[0]) is not str
+        or type(document_revision_token[1]) is not int
+        or type(document_revision_token[2]) is not str
+        or type(document_revision_token[3]) is not bool
+        or type(document_revision_token[4]) is not bool
+        or (
+            document_revision_token[5] is not None
+            and type(document_revision_token[5]) is not str
+        )
+        or type(document_revision_token[6]) is not str
+        or (
+            document_revision_token[7] is not None
+            and type(document_revision_token[7]) is not str
+        )
+    ):
+        return False
+    return document_revision_token[0]
+
+
+def _document_revision_matches(document, document_revision_token) -> bool:
+    target = _revision_target(document_revision_token)
+    if target is False:
+        return False
+    if target is None or document.id != target:
+        return True
+    return (
+        document.id,
+        document.version_count,
+        document.current_content,
+        document.is_active,
+        document.archived,
+        document.session_id,
+        document.title,
+        document.language,
+    ) == document_revision_token
+
+
+def _document_revision(document) -> tuple:
+    return (
+        document.id,
+        document.version_count,
+        document.current_content,
+        document.is_active,
+        document.archived,
+        document.session_id,
+        document.title,
+        document.language,
+    )
+
+
+def _revision_scoped_query(query, Document, revision: tuple):
+    """Add the complete optimistic-concurrency predicate to a scoped query."""
+    return query.filter(
+        Document.id == revision[0],
+        Document.version_count == revision[1],
+        Document.current_content == revision[2],
+        Document.is_active == revision[3],
+        Document.archived == revision[4],
+        Document.session_id.is_(None) if revision[5] is None else Document.session_id == revision[5],
+        Document.title == revision[6],
+        Document.language.is_(None) if revision[7] is None else Document.language == revision[7],
+    )
+
+
+@dataclass(frozen=True, slots=True, repr=False)
+class _DocumentRevisionReceipt:
+    revisions: tuple[tuple, ...] = ()
+    absent_ids: tuple[str, ...] = ()
+    active_revision: Optional[tuple] = None
+    replace_active_revision: bool = False
+
+
+class _DocumentToolResult(dict):
+    """Mapping-compatible result whose private receipt is never serialized."""
+
+
+def _sealed_document_result(
+    result: Dict,
+    *,
+    revisions=(),
+    absent_ids=(),
+    active_revision=None,
+    replace_active_revision=False,
+) -> Dict:
+    sealed = _DocumentToolResult(result)
+    sealed._document_revision_receipt = _DocumentRevisionReceipt(
+        tuple(revisions),
+        tuple(absent_ids),
+        active_revision,
+        replace_active_revision,
+    )
+    return sealed
+
+
+def finalize_document_tool_result(result, document_authority, owner):
+    """Freshly validate and remove the non-serializable document receipt."""
+    if type(result) is not _DocumentToolResult:
+        if isinstance(result, dict) and (
+            result.get("error") or result.get("status") == "confirmation_required"
+        ):
+            return dict(result), None, False
+        raise RuntimeError("unsealed_document_result")
+    receipt = getattr(result, "_document_revision_receipt", None)
+    if type(receipt) is not _DocumentRevisionReceipt:
+        raise RuntimeError("invalid_document_receipt")
+
+    from src.database import SessionLocal, Document
+
+    db = SessionLocal()
+    try:
+        with _document_access(document_authority, owner) as (lease, current_owner):
+            for revision in receipt.revisions:
+                if _revision_target(revision) is False:
+                    raise RuntimeError("invalid_document_receipt")
+                query = _scoped_document_query(
+                    db.query(Document), Document, current_owner, lease
+                )
+                if _revision_scoped_query(query, Document, revision).count() != 1:
+                    raise RuntimeError("stale_document_receipt")
+            for doc_id in receipt.absent_ids:
+                if type(doc_id) is not str:
+                    raise RuntimeError("invalid_document_receipt")
+                query = _scoped_document_query(
+                    db.query(Document).filter(Document.id == doc_id),
+                    Document,
+                    current_owner,
+                    lease,
+                )
+                if query.count() != 0:
+                    raise RuntimeError("stale_document_receipt")
+        return dict(result), receipt.active_revision, receipt.replace_active_revision
+    finally:
+        db.close()
+
+
+def validate_document_revision(document_authority, owner, revision) -> bool:
+    """Revalidate one active-document revision after an async boundary."""
+    if _revision_target(revision) is False or revision is None:
+        return False
+    from src.database import SessionLocal, Document
+
+    db = SessionLocal()
+    try:
+        with _document_access(document_authority, owner) as (lease, current_owner):
+            query = _scoped_document_query(
+                db.query(Document), Document, current_owner, lease
+            )
+            return _revision_scoped_query(query, Document, revision).count() == 1
+    finally:
+        db.close()
 
 
 # ---------------------------------------------------------------------------
@@ -229,6 +441,7 @@ class CreateDocumentTool:
         raw = content or ""
         session_id = ctx.get("session_id")
         owner = ctx.get("owner")
+        document_authority = ctx.get("document_authority")
 
         # Known languages the editor understands (match the <select> in HTML)
         _KNOWN_LANGS = {
@@ -283,56 +496,68 @@ class CreateDocumentTool:
 
         db = SessionLocal()
         try:
-            doc_id = str(uuid.uuid4())
-            ver_id = str(uuid.uuid4())
+            with _document_access(document_authority, owner) as (_lease, current_owner):
+                doc_id = str(uuid.uuid4())
+                ver_id = str(uuid.uuid4())
 
-            # Inherit ownership from the chat session so the doc survives that
-            # session later being deleted (session_id → NULL).
-            _sess = db.query(DbSession).filter(DbSession.id == session_id).first()
-            if owner is not None and (not _sess or _sess.owner != owner):
-                return {"error": "Cannot create document in another user's session"}
-            _owner = _sess.owner if _sess else None
+                # P2 keeps newly created chat documents in the legacy NULL-SID
+                # partition; producer stamping is activated separately.
+                _sess = db.query(DbSession).filter(DbSession.id == session_id).first()
+                expected_owner = owner if current_owner == "local" and owner is None else current_owner
+                if expected_owner is not None and (not _sess or _sess.owner != expected_owner):
+                    return {"error": "Cannot create document in another user's session"}
+                _owner = _sess.owner if _sess else None
 
-            doc = Document(
-                id=doc_id,
-                session_id=session_id,
-                title=title,
-                language=language,
-                current_content=content,
-                version_count=1,
-                is_active=True,
-                owner=_owner,
-            )
-            ver = DocumentVersion(
-                id=ver_id,
-                document_id=doc_id,
-                version_number=1,
-                content=content,
-                summary=f"Created by {_active_model or 'AI'}",
-                source="ai",
-            )
-            db.add(doc)
-            db.add(ver)
-            db.commit()
+                doc = Document(
+                    id=doc_id,
+                    session_id=session_id,
+                    title=title,
+                    language=language,
+                    current_content=content,
+                    version_count=1,
+                    is_active=True,
+                    owner=_owner,
+                    creator_subject_id=None,
+                )
+                if _lease is not None:
+                    stamp_new_document(doc, _lease, local_owner=_owner)
+                ver = DocumentVersion(
+                    id=ver_id,
+                    document_id=doc_id,
+                    version_number=1,
+                    content=content,
+                    summary=f"Created by {_active_model or 'AI'}",
+                    source="ai",
+                )
+                db.add(doc)
+                db.add(ver)
+                db.commit()
+                fresh = _get_scoped_document(
+                    db, Document, doc_id, current_owner, _lease
+                )
+                if fresh is None:
+                    return {"error": "Document operation failed"}
+                fresh_revision = _document_revision(fresh)
+                result = _sealed_document_result({
+                    "action": "create",
+                    "doc_id": doc_id,
+                    "title": title,
+                    "language": language,
+                    "content": content,
+                    "version": 1,
+                }, revisions=(fresh_revision,), active_revision=fresh_revision,
+                   replace_active_revision=True)
 
             set_active_document(doc_id)
             try:
                 from src.event_bus import fire_event
                 fire_event("document_created", _owner)
             except Exception:
-                logger.debug("document_created event dispatch failed", exc_info=True)
-
-            return {
-                "action": "create",
-                "doc_id": doc_id,
-                "title": title,
-                "language": language,
-                "content": content,
-                "version": 1,
-            }
-        except Exception as e:
+                logger.debug("document_created event dispatch failed")
+            return result
+        except Exception:
             db.rollback()
-            return {"error": f"Failed to create document: {e}"}
+            return {"error": "Document operation failed"}
         finally:
             db.close()
 
@@ -342,53 +567,83 @@ class UpdateDocumentTool:
         import uuid
         from src.database import SessionLocal, Document, DocumentVersion
 
-        target_id = ctx.get("doc_id", None) or _active_document_id
+        document_revision_token = ctx.get("document_revision_token")
+        revision_target = _revision_target(document_revision_token)
+        if revision_target is False:
+            return {"error": "Document changed; retry the request"}
+        target_id = ctx.get("doc_id", None) or revision_target or _active_document_id
+        target_was_selected = bool(target_id)
         owner = ctx.get("owner")
+        document_authority = ctx.get("document_authority")
 
         db = SessionLocal()
         try:
-            doc = None
-            if target_id:
-                doc = _get_owned_document(db, Document, target_id, owner)
-            if not doc:
-                doc = _most_recent_owned_document(db, Document, owner)
-                if doc:
-                    target_id = doc.id
-                    set_active_document(target_id)
-                    logger.info(f"update_document: fell back to most recent doc id={target_id}")
-            if not doc:
-                return {"error": "No documents exist to update"}
+            with _document_access(document_authority, owner) as (lease, current_owner):
+                doc = None
+                if target_id:
+                    doc = _get_scoped_document(db, Document, target_id, current_owner, lease)
+                if not doc and target_was_selected:
+                    return {"error": "Document changed or is no longer available"}
+                if not doc:
+                    doc = _most_recent_scoped_document(db, Document, current_owner, lease)
+                    if doc:
+                        target_id = doc.id
+                        set_active_document(target_id)
+                        logger.info(f"update_document: fell back to most recent doc id={target_id}")
+                if not doc:
+                    return {"error": "No documents exist to update"}
+                if not _document_revision_matches(doc, document_revision_token):
+                    return {"error": "Document changed; retry the request"}
 
-            is_email_doc = doc.language == "email" or _looks_like_email_document(doc.current_content or "", doc.title or "")
-            new_content = _coerce_email_document_content(doc.current_content or "", content) if is_email_doc else content.strip()
-            if is_email_doc:
-                doc.language = "email"
-
-            new_ver = doc.version_count + 1
-            ver = DocumentVersion(
-                id=str(uuid.uuid4()),
-                document_id=target_id,
-                version_number=new_ver,
-                content=new_content,
-                summary=f"Updated by {_active_model or 'AI'}",
-                source="ai",
-            )
-            doc.current_content = new_content
-            doc.version_count = new_ver
-            db.add(ver)
-            db.commit()
-
-            return {
-                "action": "update",
-                "doc_id": target_id,
-                "title": doc.title,
-                "language": doc.language,
-                "content": new_content,
-                "version": new_ver,
-            }
-        except Exception as e:
+                old_revision = _document_revision(doc)
+                is_email_doc = doc.language == "email" or _looks_like_email_document(doc.current_content or "", doc.title or "")
+                new_content = _coerce_email_document_content(doc.current_content or "", content) if is_email_doc else content.strip()
+                new_language = "email" if is_email_doc else doc.language
+                new_ver = doc.version_count + 1
+                mutation = _scoped_document_query(
+                    db.query(Document), Document, current_owner, lease
+                )
+                mutation = _revision_scoped_query(mutation, Document, old_revision)
+                changed = mutation.update(
+                    {
+                        Document.current_content: new_content,
+                        Document.version_count: new_ver,
+                        Document.language: new_language,
+                    },
+                    synchronize_session=False,
+                )
+                if changed != 1:
+                    db.rollback()
+                    return {"error": "Document changed; retry the request"}
+                ver = DocumentVersion(
+                    id=str(uuid.uuid4()),
+                    document_id=target_id,
+                    version_number=new_ver,
+                    content=new_content,
+                    summary=f"Updated by {_active_model or 'AI'}",
+                    source="ai",
+                )
+                db.add(ver)
+                db.commit()
+                db.expire_all()
+                fresh = _get_scoped_document(
+                    db, Document, target_id, current_owner, lease
+                )
+                if fresh is None:
+                    return {"error": "Document operation failed"}
+                fresh_revision = _document_revision(fresh)
+                return _sealed_document_result({
+                    "action": "update",
+                    "doc_id": target_id,
+                    "title": fresh.title,
+                    "language": fresh.language,
+                    "content": new_content,
+                    "version": new_ver,
+                }, revisions=(fresh_revision,), active_revision=fresh_revision,
+                   replace_active_revision=True)
+        except Exception:
             db.rollback()
-            return {"error": f"Failed to update document: {e}"}
+            return {"error": "Document operation failed"}
         finally:
             db.close()
 
@@ -398,8 +653,14 @@ class EditDocumentTool:
         import uuid
         from src.database import SessionLocal, Document, DocumentVersion
 
-        target_id = ctx.get("doc_id", None) or _active_document_id
+        document_revision_token = ctx.get("document_revision_token")
+        revision_target = _revision_target(document_revision_token)
+        if revision_target is False:
+            return {"error": "Document changed; retry the request"}
+        target_id = ctx.get("doc_id", None) or revision_target or _active_document_id
+        target_was_selected = bool(target_id)
         owner = ctx.get("owner")
+        document_authority = ctx.get("document_authority")
 
         edits = parse_edit_blocks(content)
         if not edits:
@@ -407,74 +668,91 @@ class EditDocumentTool:
 
         db = SessionLocal()
         try:
-            doc = None
-            if target_id:
-                doc = _get_owned_document(db, Document, target_id, owner)
-            if not doc:
-                # Fallback: most recently updated document. Avoids "no active doc" errors
-                # after server restart or when the agent loses track of which doc to edit.
-                doc = _most_recent_owned_document(db, Document, owner)
-                if doc:
-                    target_id = doc.id
-                    set_active_document(target_id)
-                    logger.info(f"edit_document: fell back to most recent doc id={target_id} title={doc.title!r}")
-            if not doc:
-                return {"error": "No documents exist to edit"}
+            with _document_access(document_authority, owner) as (lease, current_owner):
+                doc = None
+                if target_id:
+                    doc = _get_scoped_document(db, Document, target_id, current_owner, lease)
+                if not doc and target_was_selected:
+                    return {"error": "Document changed or is no longer available"}
+                if not doc:
+                    doc = _most_recent_scoped_document(db, Document, current_owner, lease)
+                    if doc:
+                        target_id = doc.id
+                        set_active_document(target_id)
+                        logger.info(f"edit_document: fell back to most recent doc id={target_id} title={doc.title!r}")
+                if not doc:
+                    return {"error": "No documents exist to edit"}
+                if not _document_revision_matches(doc, document_revision_token):
+                    return {"error": "Document changed; retry the request"}
 
-            updated_content = doc.current_content
-            applied = 0
-            skipped = 0
-            for edit in edits:
-                _find = edit["find"]
-                if _find in updated_content:
-                    updated_content = updated_content.replace(_find, edit["replace"], 1)
-                    applied += 1
-                else:
-                    # Defensive: the active-doc context shows a "N\t" line-number
-                    # gutter for reference. Weaker models sometimes copy that prefix
-                    # into FIND. If the exact match failed, retry with a leading
-                    # "<digits><tab>" stripped from each FIND line — but only use it
-                    # when that stripped form actually matches, so we never corrupt a
-                    # legitimately tab-prefixed document.
-                    _stripped = "\n".join(re.sub(r"^\d+\t", "", _l) for _l in _find.split("\n"))
-                    if _stripped != _find and _stripped in updated_content:
-                        updated_content = updated_content.replace(_stripped, edit["replace"], 1)
+                old_revision = _document_revision(doc)
+                updated_content = doc.current_content
+                applied = 0
+                skipped = 0
+                for edit in edits:
+                    _find = edit["find"]
+                    if _find in updated_content:
+                        updated_content = updated_content.replace(_find, edit["replace"], 1)
                         applied += 1
-                        logger.info("edit_document: matched after stripping line-number gutter from FIND")
                     else:
-                        logger.warning(f"edit_document: FIND text not found, skipping: {_find[:80]!r}")
-                        skipped += 1
+                        _stripped = "\n".join(re.sub(r"^\d+\t", "", _l) for _l in _find.split("\n"))
+                        if _stripped != _find and _stripped in updated_content:
+                            updated_content = updated_content.replace(_stripped, edit["replace"], 1)
+                            applied += 1
+                            logger.info("edit_document: matched after stripping line-number gutter from FIND")
+                        else:
+                            logger.warning(f"edit_document: FIND text not found, skipping: {_find[:80]!r}")
+                            skipped += 1
 
-            if applied == 0:
-                return {"error": f"No edits applied — none of the FIND blocks matched the document content (skipped {skipped})"}
+                if applied == 0:
+                    return {"error": f"No edits applied — none of the FIND blocks matched the document content (skipped {skipped})"}
 
-            new_ver = doc.version_count + 1
-            ver = DocumentVersion(
-                id=str(uuid.uuid4()),
-                document_id=target_id,
-                version_number=new_ver,
-                content=updated_content,
-                summary=f"Edited by {_active_model or 'AI'} ({applied} edit(s))",
-                source="ai",
-            )
-            doc.current_content = updated_content
-            doc.version_count = new_ver
-            db.add(ver)
-            db.commit()
-
-            return {
-                "action": "edit",
-                "doc_id": target_id,
-                "title": doc.title,
-                "language": doc.language,
-                "content": updated_content,
-                "version": new_ver,
-                "applied": applied,
-                "skipped": skipped,
-            }
-        except Exception as e:
+                new_ver = doc.version_count + 1
+                mutation = _scoped_document_query(
+                    db.query(Document), Document, current_owner, lease
+                )
+                mutation = _revision_scoped_query(mutation, Document, old_revision)
+                changed = mutation.update(
+                    {
+                        Document.current_content: updated_content,
+                        Document.version_count: new_ver,
+                    },
+                    synchronize_session=False,
+                )
+                if changed != 1:
+                    db.rollback()
+                    return {"error": "Document changed; retry the request"}
+                ver = DocumentVersion(
+                    id=str(uuid.uuid4()),
+                    document_id=target_id,
+                    version_number=new_ver,
+                    content=updated_content,
+                    summary=f"Edited by {_active_model or 'AI'} ({applied} edit(s))",
+                    source="ai",
+                )
+                db.add(ver)
+                db.commit()
+                db.expire_all()
+                fresh = _get_scoped_document(
+                    db, Document, target_id, current_owner, lease
+                )
+                if fresh is None:
+                    return {"error": "Document operation failed"}
+                fresh_revision = _document_revision(fresh)
+                return _sealed_document_result({
+                    "action": "edit",
+                    "doc_id": target_id,
+                    "title": fresh.title,
+                    "language": fresh.language,
+                    "content": updated_content,
+                    "version": new_ver,
+                    "applied": applied,
+                    "skipped": skipped,
+                }, revisions=(fresh_revision,), active_revision=fresh_revision,
+                   replace_active_revision=True)
+        except Exception:
             db.rollback()
-            return {"error": f"Failed to edit document: {e}"}
+            return {"error": "Document operation failed"}
         finally:
             db.close()
 
@@ -483,8 +761,13 @@ class SuggestDocumentTool:
         """Create inline suggestions for the active document WITHOUT modifying it."""
         from src.database import SessionLocal, Document
 
-        target_id = ctx.get("doc_id", None) or _active_document_id
+        document_revision_token = ctx.get("document_revision_token")
+        revision_target = _revision_target(document_revision_token)
+        if revision_target is False:
+            return {"error": "Document changed; retry the request"}
+        target_id = ctx.get("doc_id", None) or revision_target or _active_document_id
         owner = ctx.get("owner")
+        document_authority = ctx.get("document_authority")
 
         if not target_id:
             return {"error": "No active document to suggest on"}
@@ -495,27 +778,32 @@ class SuggestDocumentTool:
 
         db = SessionLocal()
         try:
-            doc = _get_owned_document(db, Document, target_id, owner)
-            if not doc:
-                return {"error": f"Document {target_id} not found"}
+            with _document_access(document_authority, owner) as (lease, current_owner):
+                doc = _get_scoped_document(db, Document, target_id, current_owner, lease)
+                if not doc:
+                    return {"error": f"Document {target_id} not found"}
+                if not _document_revision_matches(doc, document_revision_token):
+                    return {"error": "Document changed; retry the request"}
 
-            # Validate that FIND text exists in document
-            valid = []
-            for s in suggestions:
-                if s["find"] in doc.current_content:
-                    valid.append(s)
-                else:
-                    logger.warning(f"suggest_document: FIND text not found, skipping: {s['find'][:80]!r}")
+                valid = []
+                for suggestion in suggestions:
+                    if suggestion["find"] in doc.current_content:
+                        valid.append(suggestion)
+                    else:
+                        logger.warning(
+                            "suggest_document: FIND text not found, skipping: %r",
+                            suggestion["find"][:80],
+                        )
 
-            if not valid:
-                return {"error": "No suggestions matched the document content"}
+                if not valid:
+                    return {"error": "No suggestions matched the document content"}
 
-            return {
-                "action": "suggest",
-                "doc_id": target_id,
-                "suggestions": valid,
-                "count": len(valid),
-            }
+                return _sealed_document_result({
+                    "action": "suggest",
+                    "doc_id": target_id,
+                    "suggestions": valid,
+                    "count": len(valid),
+                }, revisions=(_document_revision(doc),))
         finally:
             db.close()
 
@@ -531,10 +819,15 @@ class ManageDocumentTool:
         clickable `[Title](#document-<id>)` anchor + relative timestamps
         so the user can click straight from chat to open the editor.
         """
-        from core.database import SessionLocal, Document
+        from src.database import SessionLocal, Document
         from datetime import datetime, timezone
 
         owner = ctx.get("owner")
+        document_authority = ctx.get("document_authority")
+        document_revision_token = ctx.get("document_revision_token")
+        revision_target = _revision_target(document_revision_token)
+        if revision_target is False:
+            return {"error": "Document changed; retry the request", "exit_code": 1}
 
         try:
             args = _parse_tool_args(content)
@@ -542,7 +835,6 @@ class ManageDocumentTool:
             return {"error": "Invalid JSON arguments", "exit_code": 1}
 
         action = str(args.get("action", "list") or "list").strip().lower()
-        db = SessionLocal()
 
         def _confirmed() -> bool:
             return bool(args.get("confirmed") or args.get("confirm"))
@@ -569,91 +861,145 @@ class ManageDocumentTool:
             if diff < 86400 * 7: return f'{int(diff / 86400)}d ago'
             return ts.strftime('%Y-%m-%d')
 
+        if action == "tidy":
+            if not _confirmed():
+                return _confirmation_required("tidy")
+            from src.document_actions import run_document_tidy
+            try:
+                result = await run_document_tidy(
+                    owner or "", document_authority=document_authority
+                )
+            except Exception:
+                return {"error": "Document operation failed", "exit_code": 1}
+            deleted_ids = getattr(result, "_deleted_document_ids", None)
+            if (
+                type(deleted_ids) is not tuple
+                or any(type(doc_id) is not str for doc_id in deleted_ids)
+            ):
+                return {"error": "Document operation failed", "exit_code": 1}
+            return _sealed_document_result(
+                {"response": str(result), "exit_code": 0},
+                absent_ids=deleted_ids,
+            )
+
+        db = SessionLocal()
         try:
-            if action == "list":
-                q = db.query(Document).filter(Document.is_active == True)
-                q = _owned_document_query(q, Document, owner)
-                if args.get("search"):
-                    q = q.filter(Document.title.ilike(f"%{args['search']}%"))
-                if args.get("language"):
-                    q = q.filter(Document.language == args["language"])
-                docs = q.order_by(Document.updated_at.desc()).limit(args.get("limit", 50)).all()
-                if not docs:
-                    msg = "No documents found" + (f" matching '{args['search']}'" if args.get("search") else "") + "."
-                    return {"response": msg, "documents": [], "exit_code": 0}
-                lines = []
-                items = []
-                for i, d in enumerate(docs):
-                    size = len(d.current_content or "")
-                    lang = d.language or "text"
-                    ts = getattr(d, 'updated_at', None) or getattr(d, 'created_at', None)
-                    marker = " ← most recent" if i == 0 else ""
-                    lines.append(
-                        f"- [{d.title}](#document-{d.id}) — {lang}, {size} chars, updated {_rel(ts)}{marker}"
+            with _document_access(document_authority, owner) as (lease, current_owner):
+                if action == "list":
+                    q = db.query(Document).filter(Document.is_active == True)
+                    q = _scoped_document_query(q, Document, current_owner, lease)
+                    if args.get("search"):
+                        q = q.filter(Document.title.ilike(f"%{args['search']}%"))
+                    if args.get("language"):
+                        q = q.filter(Document.language == args["language"])
+                    docs = q.order_by(Document.updated_at.desc()).limit(args.get("limit", 50)).all()
+                    if not docs:
+                        msg = "No documents found" + (f" matching '{args['search']}'" if args.get("search") else "") + "."
+                        return _sealed_document_result(
+                            {"response": msg, "documents": [], "exit_code": 0}
+                        )
+                    lines = []
+                    items = []
+                    for i, doc in enumerate(docs):
+                        size = len(doc.current_content or "")
+                        lang = doc.language or "text"
+                        timestamp = getattr(doc, "updated_at", None) or getattr(doc, "created_at", None)
+                        marker = " ← most recent" if i == 0 else ""
+                        lines.append(
+                            f"- [{doc.title}](#document-{doc.id}) — {lang}, {size} chars, updated {_rel(timestamp)}{marker}"
+                        )
+                        items.append({"id": doc.id, "title": doc.title, "language": lang, "size": size})
+                    header = f"Found {len(docs)} document(s), sorted most-recent first. Click a title to open:"
+                    return _sealed_document_result({
+                        "response": header + "\n" + "\n".join(lines),
+                        "documents": items,
+                        "exit_code": 0,
+                    }, revisions=tuple(_document_revision(doc) for doc in docs))
+
+                if action in ("read", "view", "open", "get"):
+                    doc_id = args.get("document_id") or args.get("id") or args.get("uid")
+                    if not doc_id:
+                        return {"error": "Need document_id (use action=list to find one)", "exit_code": 1}
+                    doc = _get_scoped_document(
+                        db, Document, doc_id, current_owner, lease, active_only=True
                     )
-                    items.append({"id": d.id, "title": d.title, "language": lang, "size": size})
-                header = f"Found {len(docs)} document(s), sorted most-recent first. Click a title to open:"
-                return {
-                    "response": header + "\n" + "\n".join(lines),
-                    "documents": items,
-                    "exit_code": 0,
-                }
+                    if not doc:
+                        return {"error": f"Document '{doc_id}' not found", "exit_code": 1}
+                    if not _document_revision_matches(doc, document_revision_token):
+                        return {"error": "Document changed; retry the request", "exit_code": 1}
+                    body = doc.current_content or ""
+                    preview_limit = int(args.get("limit", MAX_READ_CHARS))
+                    truncated = len(body) > preview_limit
+                    preview = body[:preview_limit] + (f"\n... (truncated, {len(body)} chars total)" if truncated else "")
+                    anchor = f"[{doc.title}](#document-{doc.id})"
+                    return _sealed_document_result({
+                        "response": f"{anchor} — click to open in editor.\n\n```{doc.language or ''}\n{preview}\n```",
+                        "document": {
+                            "id": doc.id,
+                            "title": doc.title,
+                            "language": doc.language,
+                            "size": len(body),
+                            "content": preview,
+                            "truncated": truncated,
+                        },
+                        "exit_code": 0,
+                    }, revisions=(_document_revision(doc),))
 
-            elif action in ("read", "view", "open", "get"):
-                doc_id = args.get("document_id") or args.get("id") or args.get("uid")
-                if not doc_id:
-                    return {"error": "Need document_id (use action=list to find one)", "exit_code": 1}
-                doc = _get_owned_document(db, Document, doc_id, owner, active_only=True)
-                if not doc:
-                    return {"error": f"Document '{doc_id}' not found", "exit_code": 1}
-                body = doc.current_content or ""
-                preview_limit = int(args.get("limit", MAX_READ_CHARS))
-                truncated = len(body) > preview_limit
-                preview = body[:preview_limit] + (f"\n... (truncated, {len(body)} chars total)" if truncated else "")
-                anchor = f"[{doc.title}](#document-{doc.id})"
-                return {
-                    "response": f"{anchor} — click to open in editor.\n\n```{doc.language or ''}\n{preview}\n```",
-                    "document": {
-                        "id": doc.id,
-                        "title": doc.title,
-                        "language": doc.language,
-                        "size": len(body),
-                        "content": preview,
-                        "truncated": truncated,
-                    },
-                    "exit_code": 0,
-                }
+                if action == "delete":
+                    if not _confirmed():
+                        return _confirmation_required("delete")
+                    doc_id = (
+                        args.get("document_id")
+                        or args.get("id")
+                        or args.get("uid")
+                        or revision_target
+                        or _active_document_id
+                    )
+                    doc = None
+                    if doc_id:
+                        doc = _get_scoped_document(db, Document, doc_id, current_owner, lease)
+                    if not doc:
+                        doc = _most_recent_scoped_document(
+                            db, Document, current_owner, lease, active_only=True
+                        )
+                    if not doc:
+                        return {"error": "No document to delete", "exit_code": 1}
+                    if not _document_revision_matches(doc, document_revision_token):
+                        return {"error": "Document changed; retry the request", "exit_code": 1}
+                    title = doc.title
+                    doc_id = doc.id
+                    old_revision = _document_revision(doc)
+                    mutation = _scoped_document_query(
+                        db.query(Document), Document, current_owner, lease
+                    )
+                    mutation = _revision_scoped_query(mutation, Document, old_revision)
+                    changed = mutation.update(
+                        {Document.is_active: False}, synchronize_session=False
+                    )
+                    if changed != 1:
+                        db.rollback()
+                        return {"error": "Document changed; retry the request", "exit_code": 1}
+                    db.commit()
+                    db.expire_all()
+                    fresh = _get_scoped_document(
+                        db, Document, doc_id, current_owner, lease
+                    )
+                    if fresh is None:
+                        return {"error": "Document operation failed", "exit_code": 1}
+                    fresh_revision = _document_revision(fresh)
+                    response = _sealed_document_result(
+                        {"response": f"Deleted document '{title}'", "exit_code": 0},
+                        revisions=(fresh_revision,),
+                        active_revision=fresh_revision,
+                        replace_active_revision=True,
+                    )
+                    if _active_document_id == doc_id:
+                        set_active_document(None)
+                    return response
 
-            elif action == "delete":
-                if not _confirmed():
-                    return _confirmation_required("delete")
-                doc_id = args.get("document_id") or args.get("id") or args.get("uid") or _active_document_id
-                doc = None
-                if doc_id:
-                    doc = _get_owned_document(db, Document, doc_id, owner)
-                if not doc:
-                    # Fallback: most recently updated doc (likely what the user means)
-                    doc = _most_recent_owned_document(db, Document, owner, active_only=True)
-                if not doc:
-                    return {"error": "No document to delete", "exit_code": 1}
-                title = doc.title
-                doc.is_active = False
-                db.commit()
-                if _active_document_id == doc.id:
-                    set_active_document(None)
-                return {"response": f"Deleted document '{title}'", "exit_code": 0}
-
-            elif action == "tidy":
-                if not _confirmed():
-                    return _confirmation_required("tidy")
-                from src.document_actions import run_document_tidy
-                result = await run_document_tidy(owner or "")
-                return {"response": result, "exit_code": 0}
-
-            else:
                 return {"error": f"Unknown action: {action}", "exit_code": 1}
-        except Exception as e:
-            logger.error(f"manage_documents error: {e}")
-            return {"error": str(e), "exit_code": 1}
+        except Exception:
+            logger.error("manage_documents failed")
+            return {"error": "Document operation failed", "exit_code": 1}
         finally:
             db.close()
