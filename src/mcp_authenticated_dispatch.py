@@ -31,8 +31,9 @@ from src.planning_revision_store import (
 MCP_PLANNING_SCOPE = "mcp:planning:read"
 MCP_HARBOUR_INBOX_SCOPE = "mcp:harbour:inbox"
 MCP_CONTEXT_SCOPE = "mcp:harbour:context:read"
+MCP_GATEWAY_SCOPE = "mcp:harbour:gateway"
 MCP_AUTHENTICATED_SCOPES = frozenset(
-    (MCP_PLANNING_SCOPE, MCP_HARBOUR_INBOX_SCOPE, MCP_CONTEXT_SCOPE)
+    (MCP_PLANNING_SCOPE, MCP_HARBOUR_INBOX_SCOPE, MCP_CONTEXT_SCOPE, MCP_GATEWAY_SCOPE)
 )
 MCP_BODY_MAX_BYTES = 256 * 1024
 MCP_BATCH_MAX = 8
@@ -215,6 +216,14 @@ class AppOwnedPlanningRuntime:
         self.legacy_store = legacy_store
         self.durable_store = durable_store
         self.issuer = issuer
+        self._harbour_dispatcher = None
+
+    @property
+    def harbour_dispatcher(self) -> Any:
+        if self._harbour_dispatcher is None:
+            from src.harbour.mcp.dispatcher import HarbourMcpDispatcher
+            self._harbour_dispatcher = HarbourMcpDispatcher(self.repo_root)
+        return self._harbour_dispatcher
 
     def dispatch(self, name: str, arguments: Mapping[str, Any], identity: McpAuthenticatedIdentity) -> dict[str, Any]:
         from mcp_servers.planning_server import call_planning_tool_contract
@@ -661,16 +670,22 @@ async def _dispatch_message(
             name, arguments = params["name"], params["arguments"]
             if type(name) is not str or type(arguments) is not dict:
                 raise McpDispatchFailure("invalid_params")
+            from src.harbour.mcp import HARBOUR_MCP_FIRST_TOOLS
+
+            is_harbour_first = name in HARBOUR_MCP_FIRST_TOOLS
             inbox_outcome_type: type[Any] | None = None
             if identity.scope == MCP_HARBOUR_INBOX_SCOPE:
                 from src.harbour_inbox_service import HARBOUR_INBOX_TOOL_NAMES, HarbourInboxOutcome
 
                 inbox_outcome_type = HarbourInboxOutcome
-                if name not in HARBOUR_INBOX_TOOL_NAMES:
+                if name not in HARBOUR_INBOX_TOOL_NAMES and not is_harbour_first:
                     raise McpDispatchFailure("invalid_params")
-            elif name not in PLANNING_TOOL_NAMES:
+            elif not is_harbour_first and name not in PLANNING_TOOL_NAMES:
                 raise McpDispatchFailure("invalid_params")
-            elif not planning_reads_enabled:
+            elif not planning_reads_enabled and (
+                name in PLANNING_TOOL_NAMES
+                or (is_harbour_first and HARBOUR_MCP_FIRST_TOOLS[name].get("scope") == MCP_PLANNING_SCOPE)
+            ):
                 raise McpDispatchFailure("planning_unavailable")
             if len(_encode(arguments)) > MCP_ARGUMENTS_MAX_BYTES:
                 raise McpDispatchFailure("budget_exceeded")
@@ -679,7 +694,23 @@ async def _dispatch_message(
                 if type(preview_chars) is not int or preview_chars != 0:
                     raise McpDispatchFailure("invalid_params")
             _run_fence(fence, method)
-            work = asyncio.create_task(asyncio.to_thread(runtime.dispatch, name, arguments, identity))
+            if is_harbour_first and name not in PLANNING_TOOL_NAMES and (
+                inbox_outcome_type is None or name not in HARBOUR_INBOX_TOOL_NAMES
+            ):
+                def _call_harbour_tool() -> dict[str, Any]:
+                    dispatcher = getattr(runtime, "harbour_dispatcher", None)
+                    if dispatcher is None:
+                        from src.harbour.mcp.dispatcher import HarbourMcpDispatcher
+                        dispatcher = HarbourMcpDispatcher(getattr(runtime, "repo_root", None))
+                    from src.harbour.mcp.dispatcher import HarbourMcpDispatchError
+                    try:
+                        return dispatcher.dispatch(name, arguments, identity)
+                    except HarbourMcpDispatchError as exc:
+                        raise McpDispatchFailure(exc.code if exc.code in _FIXED_ERRORS else "planning_failed") from None
+
+                work = asyncio.create_task(asyncio.to_thread(_call_harbour_tool))
+            else:
+                work = asyncio.create_task(asyncio.to_thread(runtime.dispatch, name, arguments, identity))
             try:
                 remaining = MCP_TOTAL_BUDGET_SECONDS - (time.monotonic() - started)
                 payload = await asyncio.wait_for(asyncio.shield(work), timeout=max(0.001, remaining))
@@ -1366,6 +1397,7 @@ __all__ = [
     "MCP_ARGUMENTS_MAX_BYTES",
     "MCP_BODY_MAX_BYTES",
     "MCP_CONTEXT_SCOPE",
+    "MCP_GATEWAY_SCOPE",
     "MCP_PLANNING_SCOPE",
     "MCP_RESULT_MAX_BYTES",
     "MCP_TOTAL_BUDGET_SECONDS",

@@ -35,6 +35,7 @@ ALLOWED_SCOPES = {
     "mcp:planning:read",
     "mcp:harbour:inbox",
     "mcp:harbour:context:read",
+    "mcp:harbour:gateway",
 }
 TOKEN_PROFILES = {
     "chat": ["chat"],
@@ -91,6 +92,7 @@ def _normalize_scopes(scopes: str | list[str] | None = None, profile: str | None
         "mcp:planning:read",
         "mcp:harbour:inbox",
         "mcp:harbour:context:read",
+        "mcp:harbour:gateway",
     }
     if any(scope in normalized for scope in mcp_scopes) and len(normalized) != 1:
         raise HTTPException(400, "MCP scope must be granted by itself")
@@ -145,6 +147,7 @@ def _validate_existing_mcp_token(token, current_user: str | None, manager) -> No
         "mcp:planning:read",
         "mcp:harbour:inbox",
         "mcp:harbour:context:read",
+        "mcp:harbour:gateway",
     }
     if raw_scopes not in recognized:
         raise HTTPException(403, "MCP token authority is invalid")
@@ -217,6 +220,7 @@ def setup_api_token_routes() -> APIRouter:
             ["mcp:planning:read"],
             ["mcp:harbour:inbox"],
             ["mcp:harbour:context:read"],
+            ["mcp:harbour:gateway"],
         )
 
         raw_token = "ody_" + secrets.token_urlsafe(32)

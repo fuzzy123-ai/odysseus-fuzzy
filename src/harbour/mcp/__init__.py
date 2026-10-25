@@ -22,6 +22,11 @@ from src.mcp_private_context_confirmation import (
 from src.planning_mcp_service import (
     PlanningMcpService,
 )
+from src.harbour.mcp.dispatcher import (
+    HarbourMcpDispatchError,
+    HarbourMcpDispatcher,
+    build_harbour_mcp_tool_contracts,
+)
 
 MCP_FIRST_SURFACE_SCHEMA = "odysseus.harbour.mcp_first_surface.v1"
 PRIMARY_INTERFACE = "mcp"
@@ -230,4 +235,8 @@ __all__ = [
     "McpContextAuthority",
     "McpPrivateContextConfirmationService",
     "PlanningMcpService",
+    # Dispatcher
+    "HarbourMcpDispatcher",
+    "HarbourMcpDispatchError",
+    "build_harbour_mcp_tool_contracts",
 ]

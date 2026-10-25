@@ -172,6 +172,11 @@ def test_mcp_first_surface_manifest_and_symbols():
     assert mcp_pkg.McpPrivateContextConfirmationService is orig_mcp_conf.McpPrivateContextConfirmationService
     assert mcp_pkg.PlanningMcpService is orig_mcp_planning.PlanningMcpService
 
+    import src.harbour.mcp.dispatcher as orig_dispatcher
+    assert mcp_pkg.HarbourMcpDispatcher is orig_dispatcher.HarbourMcpDispatcher
+    assert mcp_pkg.HarbourMcpDispatchError is orig_dispatcher.HarbourMcpDispatchError
+    assert mcp_pkg.build_harbour_mcp_tool_contracts is orig_dispatcher.build_harbour_mcp_tool_contracts
+
     manifest = mcp_pkg.get_mcp_first_surface_manifest()
     assert manifest["schema"] == "odysseus.harbour.mcp_first_surface.v1"
     assert manifest["primary_interface"] == "mcp"

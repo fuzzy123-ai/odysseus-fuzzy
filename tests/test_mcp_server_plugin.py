@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
 
+import pytest
 from fastapi import FastAPI
 from fastapi.responses import Response
 from fastapi.testclient import TestClient
