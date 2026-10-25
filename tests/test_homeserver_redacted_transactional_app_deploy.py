@@ -1,5 +1,11 @@
 from __future__ import annotations
 import hashlib,json
+import os
+import subprocess
+import sys
+import tempfile
+import time
+from pathlib import Path
 from ops.homeserver import redacted_transactional_app_deploy as d
 OLD,NEW='a'*40,'b'*40
 def packet():return {'schema_id':d.PACKET_SCHEMA_ID,'old_revision':OLD,'new_revision':NEW,'snapshot_evidence_sha256':'c'*64,'snapshot_id':'f'*64,'manifest_sha256':'d'*64,'old_manifest_sha256':'e'*64,'delivery_disabled':True}
@@ -68,3 +74,128 @@ def test_merge_failure_head_old_rolls_back_once_and_reads_old(monkeypatch):
  monkeypatch.setattr(e,'_run',lambda cmd,**kw: None if 'merge' in cmd else OLD+'\n' if cmd[-2:]==('rev-parse','HEAD') else '')
  calls=[];monkeypatch.setattr(e,'_rollback',lambda p:calls.append(p) is None)
  result=e.run(packet(),execute=True);assert result['status']=='rolled_back' and len(calls)==1
+
+def test_preflight_failure_after_fetch_effect_is_unknown_and_never_retry():
+ calls=[]
+ fetch=('git','-C',d.TARGET_ROOT,'fetch','fuzzy','dev')
+ result=ex(calls,fail=(fetch,)).run(packet(),execute=True)
+ assert d.validate_envelope(result)
+ assert result['status']=='unknown' and result['effect_phase']=='preflight'
+ assert result['retry_permitted'] is False
+ assert not any('podman' in command[0] for command,_ in calls)
+
+def test_deploy_envelope_checks_string_types_before_membership():
+ result=d._envelope('blocked','preflight','failed',False)
+ result['status']=[]
+ result['evidence_sha256']=d._digest(result)
+ assert d.validate_envelope(result) is False
+
+def test_deadline_runner_kills_and_reaps_process_group_descendants():
+ if os.name!='posix': return
+ with tempfile.TemporaryDirectory(prefix='odysseus-deploy-timeout-') as directory:
+  marker=str(Path(directory)/'escaped-child-marker')
+  child="import pathlib,time; time.sleep(1); pathlib.Path("+repr(marker)+").write_text('alive')"
+  parent="import subprocess,sys,time; subprocess.Popen([sys.executable,'-c',"+repr(child)+"]); time.sleep(10)"
+  runner=d._DeadlineProcessRunner()
+  runner.begin()
+  result=runner([sys.executable,'-c',parent],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,text=True,shell=False,env={'PATH':'/usr/bin:/bin'},timeout=0.1)
+  assert getattr(result,'timed_out',False) is True
+  assert result.returncode is not None
+  time.sleep(1.1)
+  assert not Path(marker).exists()
+
+def test_deadline_runner_accepts_executor_check_kwarg_and_bounds_real_child_output():
+ if os.name!='posix': return
+ runner=d._DeadlineProcessRunner();runner.begin()
+ result=runner([sys.executable,'-c',"print('bounded')"],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,text=True,check=False,shell=False,env={'PATH':'/usr/bin:/bin'},timeout=2)
+ assert result.returncode==0 and result.stdout=='bounded\n'
+ with tempfile.TemporaryDirectory(prefix='odysseus-deploy-overflow-group-') as directory:
+  marker=str(Path(directory)/'descendant-survived')
+  child="import pathlib,time; time.sleep(.4); pathlib.Path("+repr(marker)+").write_text('alive')"
+  parent="import subprocess,sys; subprocess.Popen([sys.executable,'-I','-c',"+repr(child)+"]); print('x'*300)"
+  runner=d._DeadlineProcessRunner();runner.begin()
+  try:
+   runner([sys.executable,'-c',parent],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,text=True,check=False,shell=False,env={'PATH':'/usr/bin:/bin'},timeout=2)
+  except ValueError as exc:
+   assert str(exc)=='child output exceeded the fixed capture bound'
+  else:
+   raise AssertionError('captured output larger than the fixed bound was accepted')
+  time.sleep(.6)
+  assert not Path(marker).exists()
+
+def test_deadline_runner_overflow_precedes_early_stdin_close_after_group_cleanup():
+ if os.name!='posix': return
+ with tempfile.TemporaryDirectory(prefix='odysseus-deploy-overflow-stdin-') as directory:
+  marker=str(Path(directory)/'descendant-survived')
+  delayed="import pathlib,time; time.sleep(.4); pathlib.Path("+repr(marker)+").write_text('alive')"
+  child="import os,subprocess,sys; os.close(0); subprocess.Popen([sys.executable,'-I','-c',"+repr(delayed)+"]); print('x'*300)"
+  runner=d._DeadlineProcessRunner();runner.begin()
+  try:
+   runner([sys.executable,'-I','-c',child],input=b'i'*200_000,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,text=True,check=False,shell=False,env={'PATH':'/usr/bin:/bin'},timeout=3)
+  except ValueError as exc:
+   assert str(exc)=='child output exceeded the fixed capture bound'
+  else:
+   raise AssertionError('overflow was hidden by the early stdin close')
+  time.sleep(.6)
+  assert not Path(marker).exists()
+
+def test_deadline_runner_rejects_nonfinite_and_out_of_range_timeouts():
+ if os.name!='posix': return
+ for timeout in (float('nan'),float('inf'),float('-inf'),0,-1,1231):
+  runner=d._DeadlineProcessRunner();runner.begin()
+  try:
+   runner([sys.executable,'-c','pass'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,text=True,check=False,shell=False,env={'PATH':'/usr/bin:/bin'},timeout=timeout)
+  except ValueError as exc:
+   assert str(exc)=='invalid child timeout'
+  else:
+   raise AssertionError('invalid child timeout was accepted')
+
+def test_deadline_runner_times_out_when_child_closes_stdout_early():
+ if os.name!='posix': return
+ started=time.monotonic();runner=d._DeadlineProcessRunner();runner.begin()
+ result=runner([sys.executable,'-c',"import os,time; os.close(1); time.sleep(10)"],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,text=True,check=False,shell=False,env={'PATH':'/usr/bin:/bin'},timeout=0.1)
+ assert getattr(result,'timed_out',False) is True
+ assert result.returncode is not None and time.monotonic()-started < 3
+
+def test_deadline_runner_accepts_early_stdout_close_when_child_finishes_in_budget():
+ if os.name!='posix': return
+ runner=d._DeadlineProcessRunner();runner.begin()
+ result=runner([sys.executable,'-c',"import os,time; os.close(1); time.sleep(0.05)"],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,text=True,check=False,shell=False,env={'PATH':'/usr/bin:/bin'},timeout=2)
+ assert result.returncode==0 and result.stdout==''
+ assert getattr(result,'timed_out',False) is False
+
+def test_deadline_runner_kills_descendant_after_leader_closes_but_pipe_stays_open():
+ if os.name!='posix': return
+ with tempfile.TemporaryDirectory(prefix='odysseus-deploy-pipe-holder-') as directory:
+  marker=str(Path(directory)/'child-survived')
+  child="import pathlib,time; time.sleep(1); pathlib.Path("+repr(marker)+").write_text('alive')"
+  parent="import subprocess,sys; subprocess.Popen([sys.executable,'-c',"+repr(child)+"])"
+  runner=d._DeadlineProcessRunner();runner.begin()
+  result=runner([sys.executable,'-c',parent],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,text=True,check=False,shell=False,env={'PATH':'/usr/bin:/bin'},timeout=3)
+  assert result.returncode==0
+  time.sleep(1.1)
+  assert not Path(marker).exists()
+
+def test_deadline_runner_kills_residual_group_after_success_with_devnull_output():
+ if os.name!='posix': return
+ with tempfile.TemporaryDirectory(prefix='odysseus-deploy-devnull-descendant-') as directory:
+  marker=str(Path(directory)/'child-survived')
+  child="import pathlib,time; time.sleep(.4); pathlib.Path("+repr(marker)+").write_text('alive')"
+  parent="import subprocess,sys; subprocess.Popen([sys.executable,'-c',"+repr(child)+"])"
+  runner=d._DeadlineProcessRunner();runner.begin()
+  result=runner([sys.executable,'-c',parent],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,text=True,check=False,shell=False,env={'PATH':'/usr/bin:/bin'},timeout=2)
+  assert result.returncode==0 and getattr(result,'timed_out',False) is False
+  time.sleep(.6)
+  assert not Path(marker).exists()
+
+def test_deadline_runner_kills_descendant_that_closes_its_pipe_after_leader_exit():
+ if os.name!='posix': return
+ with tempfile.TemporaryDirectory(prefix='odysseus-deploy-closed-descendant-') as directory:
+  marker=str(Path(directory)/'child-survived')
+  child="import os,pathlib,time; os.close(1); time.sleep(.4); pathlib.Path("+repr(marker)+").write_text('alive')"
+  parent="import subprocess,sys; subprocess.Popen([sys.executable,'-c',"+repr(child)+"])"
+  runner=d._DeadlineProcessRunner();runner.begin()
+  result=runner([sys.executable,'-c',parent],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,text=True,check=False,shell=False,env={'PATH':'/usr/bin:/bin'},timeout=2)
+  assert result.returncode==0 and getattr(result,'timed_out',False) is False
+  time.sleep(.6)
+  assert not Path(marker).exists()

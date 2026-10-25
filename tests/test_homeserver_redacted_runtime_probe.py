@@ -49,6 +49,16 @@ def _safe_payload(module: ModuleType) -> dict[str, object]:
             "raw_target_visible": False,
             "secret_values_visible": False,
         },
+        "pc_control_readiness": {
+            "enabled": True,
+            "wake_enabled": True,
+            "wake_target_configured": True,
+            "agent_secret_configured": True,
+            "wake_ready": True,
+            "agent_ready": True,
+            "raw_target_visible": False,
+            "secret_values_visible": False,
+        },
     }
 
 
@@ -109,6 +119,16 @@ def test_malformed_or_secret_bearing_subprocess_output_is_fail_closed_and_redact
             "raw_target_visible": False,
             "secret_values_visible": False,
         },
+        "pc_control_readiness": {
+            "enabled": False,
+            "wake_enabled": False,
+            "wake_target_configured": False,
+            "agent_secret_configured": False,
+            "wake_ready": False,
+            "agent_ready": False,
+            "raw_target_visible": False,
+            "secret_values_visible": False,
+        },
     }
     assert raw_marker not in encoded
 
@@ -154,6 +174,7 @@ def test_legitimate_probe_preserves_presence_and_runtime_readiness() -> None:
     assert projection["unknown_sensitive_key_count"] == 1
     assert projection["credential_presence"] == payload["credential_presence"]
     assert projection["telegram_delivery_readiness"] == payload["telegram_delivery_readiness"]
+    assert projection["pc_control_readiness"] == payload["pc_control_readiness"]
 
 
 def test_nested_telegram_readiness_is_exact_and_token_bound() -> None:
@@ -245,6 +266,47 @@ def test_container_send_readiness_is_false_without_target_or_token(
     assert no_token["telegram_delivery_readiness"]["send_ready"] is False
     assert no_target["unknown_sensitive_key_count"] == 0
     assert no_token["unknown_sensitive_key_count"] == 0
+
+
+def test_container_pc_control_readiness_is_presence_only_and_secret_bound(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _load_module()
+    payload = _container_program_payload(
+        module,
+        monkeypatch,
+        {
+            "TELEGRAM_PC_CONTROL_ENABLED": "true",
+            "TELEGRAM_PC_WAKE_ENABLED": "true",
+            "TELEGRAM_PC_MAC": "synthetic-mac-value",
+            "TELEGRAM_PC_BROADCAST": "synthetic-broadcast-value",
+            "TELEGRAM_PC_AGENT_SECRET": "synthetic-agent-secret-value",
+        },
+    )
+    assert payload["pc_control_readiness"] == {
+        "enabled": True,
+        "wake_enabled": True,
+        "wake_target_configured": True,
+        "agent_secret_configured": True,
+        "wake_ready": True,
+        "agent_ready": True,
+        "raw_target_visible": False,
+        "secret_values_visible": False,
+    }
+    encoded = json.dumps(payload, sort_keys=True)
+    assert "synthetic-mac-value" not in encoded
+    assert "synthetic-broadcast-value" not in encoded
+    assert "synthetic-agent-secret-value" not in encoded
+
+
+def test_pc_control_readiness_rejects_secret_presence_mismatch() -> None:
+    module = _load_module()
+    payload = _safe_payload(module)
+    payload["credential_presence"]["TELEGRAM_PC_AGENT_SECRET"] = False
+    with pytest.raises(ValueError):
+        module.parse_container_projection(
+            json.dumps(payload), container="odysseus_odysseus_1"
+        )
 
 
 def test_invalid_container_name_is_rejected_without_starting_a_process() -> None:

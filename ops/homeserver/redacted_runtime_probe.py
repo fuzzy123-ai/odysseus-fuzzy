@@ -39,6 +39,7 @@ EXPECTED_CREDENTIAL_KEYS = (
     "SERPER_API_KEY",
     "TAVILY_API_KEY",
     "TELEGRAM_BOT_TOKEN",
+    "TELEGRAM_PC_AGENT_SECRET",
 )
 
 SENSITIVE_KEY_MARKERS = (
@@ -67,6 +68,25 @@ _TELEGRAM_READINESS_ENV_KEYS = (
     "TELEGRAM_AGENT_REPLY_ENABLED",
 )
 
+_PC_CONTROL_READINESS_KEYS = (
+    "enabled",
+    "wake_enabled",
+    "wake_target_configured",
+    "agent_secret_configured",
+    "wake_ready",
+    "agent_ready",
+    "raw_target_visible",
+    "secret_values_visible",
+)
+
+_PC_CONTROL_READINESS_ENV_KEYS = (
+    "TELEGRAM_PC_CONTROL_ENABLED",
+    "TELEGRAM_PC_WAKE_ENABLED",
+    "TELEGRAM_PC_MAC",
+    "TELEGRAM_PC_BROADCAST",
+    "TELEGRAM_PC_AGENT_SECRET",
+)
+
 _CONTAINER_PROGRAM = """\
 import json
 import os
@@ -74,8 +94,9 @@ import os
 expected = %r
 markers = %r
 readiness_keys = %r
+pc_readiness_keys = %r
 keys = tuple(os.environ)
-known = set(expected) | set(readiness_keys)
+known = set(expected) | set(readiness_keys) | set(pc_readiness_keys)
 notification_target = (os.environ.get("TELEGRAM_NOTIFICATION_CHAT_ID") or "").strip()
 allowed_targets = (os.environ.get("TELEGRAM_ALLOWED_CHAT_IDS") or "").strip()
 fallback_target = (os.environ.get("TELEGRAM_CHAT_ID") or "").strip()
@@ -88,6 +109,13 @@ target_configured = bool(
 )
 agent_reply_enabled = os.environ.get("TELEGRAM_AGENT_REPLY_ENABLED", "").strip().lower() in {"1", "true", "yes", "on"}
 bot_token_configured = bool((os.environ.get("TELEGRAM_BOT_TOKEN") or "").strip())
+pc_enabled = os.environ.get("TELEGRAM_PC_CONTROL_ENABLED", "").strip().lower() in {"1", "true", "yes", "on"}
+pc_wake_enabled = os.environ.get("TELEGRAM_PC_WAKE_ENABLED", "").strip().lower() in {"1", "true", "yes", "on"}
+pc_wake_target_configured = bool(
+    (os.environ.get("TELEGRAM_PC_MAC") or "").strip()
+    and (os.environ.get("TELEGRAM_PC_BROADCAST") or "").strip()
+)
+pc_agent_secret_configured = bool((os.environ.get("TELEGRAM_PC_AGENT_SECRET") or "").strip())
 payload = {
     "schema_id": %r,
     "environment_entry_count": len(keys),
@@ -104,9 +132,25 @@ payload = {
         "raw_target_visible": False,
         "secret_values_visible": False,
     },
+    "pc_control_readiness": {
+        "enabled": pc_enabled,
+        "wake_enabled": pc_wake_enabled,
+        "wake_target_configured": pc_wake_target_configured,
+        "agent_secret_configured": pc_agent_secret_configured,
+        "wake_ready": pc_enabled and pc_wake_enabled and pc_wake_target_configured,
+        "agent_ready": pc_enabled and pc_agent_secret_configured,
+        "raw_target_visible": False,
+        "secret_values_visible": False,
+    },
 }
 print(json.dumps(payload, sort_keys=True, separators=(",", ":")))
-""" % (EXPECTED_CREDENTIAL_KEYS, SENSITIVE_KEY_MARKERS, _TELEGRAM_READINESS_ENV_KEYS, CONTAINER_SCHEMA_ID)
+""" % (
+    EXPECTED_CREDENTIAL_KEYS,
+    SENSITIVE_KEY_MARKERS,
+    _TELEGRAM_READINESS_ENV_KEYS,
+    _PC_CONTROL_READINESS_ENV_KEYS,
+    CONTAINER_SCHEMA_ID,
+)
 
 
 def _blocked(error_code: str) -> dict[str, Any]:
@@ -117,6 +161,7 @@ def _blocked(error_code: str) -> dict[str, Any]:
         "raw_environment_visible": False,
         "secret_values_visible": False,
         "telegram_delivery_readiness": _blocked_telegram_readiness(),
+        "pc_control_readiness": _blocked_pc_control_readiness(),
     }
 
 
@@ -125,6 +170,19 @@ def _blocked_telegram_readiness() -> dict[str, bool]:
         "opaque_target_configured": False,
         "agent_reply_enabled": False,
         "send_ready": False,
+        "raw_target_visible": False,
+        "secret_values_visible": False,
+    }
+
+
+def _blocked_pc_control_readiness() -> dict[str, bool]:
+    return {
+        "enabled": False,
+        "wake_enabled": False,
+        "wake_target_configured": False,
+        "agent_secret_configured": False,
+        "wake_ready": False,
+        "agent_ready": False,
         "raw_target_visible": False,
         "secret_values_visible": False,
     }
@@ -158,6 +216,7 @@ def parse_container_projection(raw: str, *, container: str) -> dict[str, Any]:
             "credential_presence",
             "unknown_sensitive_key_count",
             "telegram_delivery_readiness",
+            "pc_control_readiness",
         }
         or payload.get("schema_id") != CONTAINER_SCHEMA_ID
     ):
@@ -173,6 +232,10 @@ def parse_container_projection(raw: str, *, container: str) -> dict[str, Any]:
     readiness = _telegram_readiness(
         payload.get("telegram_delivery_readiness"),
         bot_token_configured=raw_presence["TELEGRAM_BOT_TOKEN"],
+    )
+    pc_control_readiness = _pc_control_readiness(
+        payload.get("pc_control_readiness"),
+        agent_secret_configured=raw_presence["TELEGRAM_PC_AGENT_SECRET"],
     )
 
     return {
@@ -192,6 +255,7 @@ def parse_container_projection(raw: str, *, container: str) -> dict[str, Any]:
         "raw_environment_visible": False,
         "secret_values_visible": False,
         "telegram_delivery_readiness": readiness,
+        "pc_control_readiness": pc_control_readiness,
     }
 
 
@@ -217,6 +281,32 @@ def _telegram_readiness(
     ):
         raise ValueError("invalid_probe_payload")
     return {key: value[key] for key in _TELEGRAM_READINESS_KEYS}
+
+
+def _pc_control_readiness(
+    value: Any,
+    *,
+    agent_secret_configured: bool,
+) -> dict[str, bool]:
+    if (
+        not isinstance(value, dict)
+        or set(value) != set(_PC_CONTROL_READINESS_KEYS)
+        or type(agent_secret_configured) is not bool
+    ):
+        raise ValueError("invalid_probe_payload")
+    if any(type(value[key]) is not bool for key in _PC_CONTROL_READINESS_KEYS):
+        raise ValueError("invalid_probe_payload")
+    if value["raw_target_visible"] is not False or value["secret_values_visible"] is not False:
+        raise ValueError("invalid_probe_payload")
+    if value["agent_secret_configured"] != agent_secret_configured:
+        raise ValueError("invalid_probe_payload")
+    if value["wake_ready"] != (
+        value["enabled"] and value["wake_enabled"] and value["wake_target_configured"]
+    ):
+        raise ValueError("invalid_probe_payload")
+    if value["agent_ready"] != (value["enabled"] and value["agent_secret_configured"]):
+        raise ValueError("invalid_probe_payload")
+    return {key: value[key] for key in _PC_CONTROL_READINESS_KEYS}
 
 
 def collect_runtime_projection(
@@ -264,6 +354,7 @@ def _self_check() -> dict[str, Any]:
                 "credential_presence": presence,
                 "unknown_sensitive_key_count": 0,
                 "telegram_delivery_readiness": _blocked_telegram_readiness(),
+                "pc_control_readiness": _blocked_pc_control_readiness(),
             }
         ),
         container=DEFAULT_CONTAINER,
@@ -275,6 +366,7 @@ def _self_check() -> dict[str, Any]:
         and projection["secret_values_visible"] is False
         and projection["raw_environment_visible"] is False
         and projection["telegram_delivery_readiness"] == _blocked_telegram_readiness()
+        and projection["pc_control_readiness"] == _blocked_pc_control_readiness()
         else "failed",
         "secret_values_visible": False,
         "raw_environment_visible": False,

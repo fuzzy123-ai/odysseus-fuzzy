@@ -1,0 +1,1 @@
+homebase ALL=(root) NOPASSWD: NOSETENV: /usr/bin/systemctl start --wait odysseus-maintenance-lifecycle-bootstrap.service, /usr/bin/python3 -I /usr/local/libexec/odysseus-maintenance-bootstrap/readback.py

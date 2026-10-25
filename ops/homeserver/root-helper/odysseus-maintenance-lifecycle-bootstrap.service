@@ -1,0 +1,26 @@
+[Unit]
+Description=One-use Odysseus maintenance lifecycle bootstrap
+After=local-fs.target
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+UMask=0077
+TimeoutStartSec=30s
+TimeoutStopSec=5s
+KillMode=control-group
+SendSIGKILL=yes
+ExecStart=/usr/bin/python3 -I /usr/local/libexec/odysseus-maintenance-bootstrap/supervisor.py
+StandardInput=null
+StandardOutput=null
+StandardError=null
+PrivateTmp=no
+ProtectSystem=strict
+ProtectHome=yes
+# The fixed bootstrap must safely create /var/lib/odysseus-maintenance when it
+# is absent. systemd cannot make a missing child writable under a read-only
+# parent, so the existing /var/lib parent is writable for this pinned root
+# supervisor; the supervisor validates every package, state, and shared object.
+ReadWritePaths=/var/lib /var/lib/odysseus-predeploy-backup-root-helper /tmp/odysseus-auto-update.lock
+

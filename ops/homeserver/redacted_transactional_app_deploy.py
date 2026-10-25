@@ -10,20 +10,28 @@ from __future__ import annotations
 from dataclasses import dataclass
 import hashlib
 import json
+import math
 import os
 import re
+import selectors
+import signal
 import subprocess
 import sys
+import time
 from typing import Any, Callable, Mapping, Protocol
 from urllib.parse import urlsplit
 from ops.homeserver import redacted_backup_snapshot_observation as snapshot_observer
+from ops.homeserver import redacted_maintenance_lifecycle_lock as lifecycle_lock
 from ops.homeserver import redacted_transactional_app_deploy_readback as deploy_readback
 
 SCHEMA_ID = "odysseus.redacted_transactional_app_deploy.v1"
 PACKET_SCHEMA_ID = "odysseus.transactional_app_deploy_packet.v1"
 TARGET_ROOT = "/opt/odysseus"
 RELEASE_WORKTREE = "/opt/odysseus-release-transactional-app"
-LOCK_PATH = "/tmp/odysseus-auto-update.lock"
+LOCK_PATH = lifecycle_lock.SHARED_LOCK
+TRANSACTION_DEADLINE_SECONDS = 1140
+CLEANUP_RESERVE_SECONDS = 30
+_TERMINATE_GRACE_SECONDS = 2
 PROJECT = "odysseus"
 APP_SERVICE = "odysseus"
 APP_CONTAINER = "odysseus_odysseus_1"
@@ -47,6 +55,7 @@ _TUPLES = frozenset({
     ("unknown", "post_health", "unknown", False),
     ("rolled_back", "rollback_verified", "rolled_back", True),
     ("unknown", "rollback_attempted", "unknown", True),
+    ("unknown", "preflight", "unknown", False),
 })
 
 
@@ -56,14 +65,25 @@ def _digest(payload: Mapping[str, Any]) -> str:
 
 
 def validate_envelope(payload: Any) -> bool:
-    return (
-        type(payload) is dict and set(payload) == _ENVELOPE_KEYS
-        and payload.get("schema_id") == SCHEMA_ID and payload.get("status") in _STATUSES
-        and payload.get("effect_phase") in _PHASES and payload.get("outcome") in _OUTCOMES
-        and (payload.get("status"), payload.get("effect_phase"), payload.get("outcome"), payload.get("rollback_attempted")) in _TUPLES and payload.get("retry_permitted") is False
-        and type(payload.get("evidence_sha256")) is str and _HEX64.fullmatch(payload["evidence_sha256"]) is not None
-        and payload["evidence_sha256"] == _digest(payload)
-    )
+    if type(payload) is not dict or set(payload) != _ENVELOPE_KEYS:
+        return False
+    if payload.get("schema_id") != SCHEMA_ID:
+        return False
+    status = payload.get("status")
+    phase = payload.get("effect_phase")
+    outcome = payload.get("outcome")
+    rollback = payload.get("rollback_attempted")
+    retry = payload.get("retry_permitted")
+    if type(status) is not str or type(phase) is not str or type(outcome) is not str:
+        return False
+    if type(rollback) is not bool or retry is not False:
+        return False
+    if status not in _STATUSES or phase not in _PHASES or outcome not in _OUTCOMES:
+        return False
+    if (status, phase, outcome, rollback) not in _TUPLES:
+        return False
+    digest = payload.get("evidence_sha256")
+    return type(digest) is str and _HEX64.fullmatch(digest) is not None and digest == _digest(payload)
 
 
 def _envelope(status: str, phase: str, outcome: str, rollback: bool) -> dict[str, Any]:
@@ -114,19 +134,20 @@ def production_entrypoint(packet_value: Any, *, execute: bool = False, runner: R
     packet = packet_value if isinstance(packet_value, DeployPacket) else DeployPacket.from_mapping(packet_value)
     if not execute or packet is None:
         return _envelope("not_executed", "not_run", "not_run", False)
+    bounded_runner = _DeadlineProcessRunner() if runner is subprocess.run else runner
     baseline: list[deploy_readback.RuntimeBaseline | None] = [None]
     def capture() -> object | None:
-        candidate = deploy_readback.capture_runtime_baseline(runner=runner)
+        candidate = deploy_readback.capture_runtime_baseline(runner=bounded_runner)
         if candidate is None or candidate.revision != packet.old_revision or candidate.manifest_sha256 != packet.old_manifest_sha256 or not candidate.expected_mounts:
             return None
         baseline[0] = candidate
         return candidate
     def readback(bound: DeployPacket, revision: str) -> bool:
         payload = deploy_readback.collect_host_readback(
-            deploy_readback.ReadbackExpectation(revision, bound.manifest_sha256 if revision == bound.new_revision else bound.old_manifest_sha256), (baseline[0].dependency_digests if baseline[0] else ()), checkout_required=(revision != bound.new_revision), runner=runner,
+            deploy_readback.ReadbackExpectation(revision, bound.manifest_sha256 if revision == bound.new_revision else bound.old_manifest_sha256), (baseline[0].dependency_digests if baseline[0] else ()), checkout_required=(revision != bound.new_revision), runner=bounded_runner,
         )
         return deploy_readback.validate_envelope(payload) and payload["status"] == "ok"
-    return TransactionalAppDeployExecutor(runner=runner, readback=readback, baseline_factory=capture).run(packet, execute=True)
+    return TransactionalAppDeployExecutor(runner=bounded_runner, readback=readback, baseline_factory=capture).run(packet, execute=True)
 
 
 @dataclass(frozen=True, slots=True)
@@ -174,18 +195,293 @@ class _HostLock:
     def __init__(self) -> None:
         self._fd: int | None = None
     def __enter__(self) -> object:
-        import fcntl
-        self._fd = os.open(LOCK_PATH, os.O_CREAT | os.O_RDWR, 0o600)
-        try:
-            fcntl.flock(self._fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except Exception:
-            os.close(self._fd); self._fd = None
-            raise
+        self._fd = lifecycle_lock.acquire_shared_lock()
         return self
     def __exit__(self, exc_type: object, exc: object, trace: object) -> None:
         if self._fd is not None:
-            import fcntl
-            fcntl.flock(self._fd, fcntl.LOCK_UN); os.close(self._fd); self._fd = None
+            lifecycle_lock.close_lock(self._fd)
+            self._fd = None
+
+
+class ProcessTimedOut(TimeoutError):
+    """A child reached its bounded deadline and was killed and reaped."""
+
+
+class _DeadlineProcessRunner:
+    """Run each command in a killable process group under one absolute budget."""
+
+    def __init__(self, *, monotonic: Callable[[], float] = time.monotonic, popen: Any = subprocess.Popen) -> None:
+        self._monotonic = monotonic
+        self._popen = popen
+        self._cutoff: float | None = None
+
+    def begin(self) -> None:
+        started = self._monotonic()
+        self._cutoff = started + TRANSACTION_DEADLINE_SECONDS - CLEANUP_RESERVE_SECONDS
+
+    def _remaining(self) -> float:
+        if self._cutoff is None:
+            self.begin()
+        return max(0.0, float(self._cutoff) - self._monotonic())
+
+    @staticmethod
+    def _signal_group(process: Any, sig: int) -> None:
+        if os.name == "posix":
+            try:
+                os.killpg(process.pid, sig)
+            except ProcessLookupError:
+                pass
+        elif sig == signal.SIGTERM:
+            process.terminate()
+        else:
+            process.kill()
+
+    @staticmethod
+    def _group_exists(process: Any) -> bool:
+        """Return whether the owned POSIX process group still has members."""
+        if os.name != "posix":
+            return False
+        try:
+            os.killpg(process.pid, 0)
+        except ProcessLookupError:
+            return False
+        except PermissionError:
+            return True
+        return True
+
+    def _terminate_residual_group(self, process: Any, *, deadline: float) -> bool:
+        """Remove all same-session descendants and verify the group disappeared."""
+        if os.name != "posix":
+            return True
+        try:
+            os.killpg(process.pid, signal.SIGTERM)
+        except ProcessLookupError:
+            return True
+        term_deadline = min(deadline, self._monotonic() + 0.1)
+        try:
+            process.wait(timeout=max(0.0, term_deadline - self._monotonic()))
+        except subprocess.TimeoutExpired:
+            pass
+        while self._monotonic() < term_deadline and self._group_exists(process):
+            time.sleep(0.01)
+        if self._group_exists(process):
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                return True
+        try:
+            process.wait(timeout=max(0.0, deadline - self._monotonic()))
+        except subprocess.TimeoutExpired:
+            return False
+        while self._monotonic() < deadline:
+            if not self._group_exists(process):
+                return True
+            time.sleep(0.01)
+        return not self._group_exists(process)
+
+    def __call__(self, command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[Any]:
+        requested_timeout = kwargs.pop("timeout", 60)
+        input_value = kwargs.pop("input", None)
+        check = kwargs.pop("check", False)
+        if check is not False:
+            raise ValueError("bounded runner does not support check=True")
+        try:
+            finite_timeout = math.isfinite(float(requested_timeout))
+        except (OverflowError, TypeError, ValueError):
+            finite_timeout = False
+        if type(requested_timeout) not in (int, float) or not finite_timeout or requested_timeout <= 0 or requested_timeout > 1230:
+            raise ValueError("invalid child timeout")
+        allowed = min(float(requested_timeout), self._remaining())
+        if allowed <= 0:
+            raise ProcessTimedOut("transaction deadline reached")
+        if input_value is not None and type(input_value) is not bytes:
+            raise ValueError("bounded runner accepts bytes input only")
+        if input_value is not None and len(input_value) > 1_700_000:
+            raise ValueError("child input exceeded the fixed bound")
+        supplied_stdin = kwargs.pop("stdin", subprocess.DEVNULL)
+        if input_value is not None:
+            if supplied_stdin not in (None, subprocess.DEVNULL):
+                raise ValueError("input and explicit stdin cannot both be set")
+            stdin_value: Any = subprocess.PIPE
+        else:
+            if supplied_stdin not in (None, subprocess.DEVNULL):
+                raise ValueError("bounded runner requires explicit byte input for piped stdin")
+            stdin_value = subprocess.DEVNULL
+        if kwargs.get("stderr") == subprocess.PIPE:
+            raise ValueError("bounded runner does not capture child stderr")
+
+        process = None
+        selector = None
+        timed_out = False
+        stdout: Any = None
+        stderr: Any = None
+        output_too_large = False
+        input_closed_early = False
+        input_offset = 0
+        captured = bytearray()
+        stdout_eof = kwargs.get("stdout") != subprocess.PIPE
+        deadline = self._monotonic() + allowed
+        cleanup_deadline = deadline + _TERMINATE_GRACE_SECONDS
+        cleanup_verified = True
+
+        def read_stdout() -> None:
+            nonlocal stdout_eof, output_too_large
+            assert process is not None and process.stdout is not None and selector is not None
+            while not stdout_eof:
+                try:
+                    chunk = os.read(process.stdout.fileno(), 257)
+                except BlockingIOError:
+                    return
+                if not chunk:
+                    stdout_eof = True
+                    try:
+                        selector.unregister(process.stdout)
+                    except KeyError:
+                        pass
+                    return
+                remaining = 257 - len(captured)
+                if remaining > 0:
+                    captured.extend(chunk[:remaining])
+                if len(captured) > 256:
+                    output_too_large = True
+                    return
+
+        try:
+            if self._monotonic() >= deadline:
+                raise ProcessTimedOut("transaction deadline reached before process start")
+            process = self._popen(
+                command,
+                stdin=stdin_value,
+                close_fds=True,
+                start_new_session=(os.name == "posix"),
+                **kwargs,
+            )
+            if process.stdin is not None and input_value is not None and input_value:
+                os.set_blocking(process.stdin.fileno(), False)
+            elif process.stdin is not None and input_value is not None:
+                process.stdin.close()
+
+            if process.stdout is not None:
+                os.set_blocking(process.stdout.fileno(), False)
+            selector = selectors.DefaultSelector()
+            if process.stdout is not None:
+                selector.register(process.stdout, selectors.EVENT_READ, "stdout")
+            if process.stdin is not None and input_value:
+                selector.register(process.stdin, selectors.EVENT_WRITE, "stdin")
+
+            while True:
+                now = self._monotonic()
+                if now >= deadline:
+                    timed_out = process.poll() is None or not stdout_eof or input_offset < len(input_value or b"")
+                    break
+                if process.poll() is not None:
+                    if input_offset < len(input_value or b""):
+                        input_closed_early = True
+                    if stdout_eof or selector is None or not any(key.data == "stdout" for key in selector.get_map().values()):
+                        break
+                    events = selector.select(0)
+                    if not events:
+                        break
+                else:
+                    remaining = deadline - now
+                    events = selector.select(min(remaining, 0.05)) if selector is not None and selector.get_map() else []
+                    if not events:
+                        time.sleep(min(0.01, remaining))
+
+                for key, _mask in events:
+                    if key.data == "stdout":
+                        read_stdout()
+                        if output_too_large:
+                            break
+                        continue
+                    try:
+                        count = os.write(process.stdin.fileno(), input_value[input_offset : input_offset + 65536])
+                    except BrokenPipeError:
+                        input_closed_early = input_offset < len(input_value)
+                        try:
+                            selector.unregister(process.stdin)
+                        except KeyError:
+                            pass
+                        process.stdin.close()
+                        continue
+                    if count <= 0:
+                        input_closed_early = True
+                        selector.unregister(process.stdin)
+                        process.stdin.close()
+                        continue
+                    input_offset += count
+                    if input_offset == len(input_value):
+                        selector.unregister(process.stdin)
+                        process.stdin.close()
+
+                if output_too_large:
+                    break
+
+            if process.poll() is not None and input_offset < len(input_value or b""):
+                input_closed_early = True
+            if process.poll() is None and (timed_out or output_too_large or input_closed_early):
+                self._signal_group(process, signal.SIGTERM)
+            cleanup_verified = self._terminate_residual_group(process, deadline=cleanup_deadline)
+            try:
+                process.wait(timeout=max(0.0, cleanup_deadline - self._monotonic()))
+            except subprocess.TimeoutExpired:
+                cleanup_verified = False
+
+            if process.stdout is not None and not stdout_eof and selector is not None:
+                drain_deadline = min(cleanup_deadline, self._monotonic() + 0.25)
+                while self._monotonic() < drain_deadline and not stdout_eof and not output_too_large:
+                    events = selector.select(min(0.02, drain_deadline - self._monotonic())) if selector.get_map() else []
+                    for key, _mask in events:
+                        if key.data == "stdout":
+                            read_stdout()
+
+            if process.stdin is not None and not process.stdin.closed:
+                process.stdin.close()
+            if process.stdout is not None:
+                process.stdout.close()
+            if selector is not None:
+                selector.close()
+                selector = None
+            # Oversized output deliberately stops pipe draining.  Cleanup is
+            # established by process-group termination and leader reaping.
+            if not stdout_eof and not output_too_large:
+                cleanup_verified = False
+            if not cleanup_verified:
+                raise RuntimeError("child process-group cleanup was not verified")
+            if output_too_large:
+                raise ValueError("child output exceeded the fixed capture bound")
+            if input_closed_early:
+                raise BrokenPipeError("child closed bounded input early")
+
+            returncode = process.returncode
+            stdout = bytes(captured) if kwargs.get("stdout") == subprocess.PIPE else None
+            if kwargs.get("text") is True and stdout is not None:
+                stdout = stdout.decode(kwargs.get("encoding") or "utf-8", errors=kwargs.get("errors") or "strict")
+            stderr = None
+            result = subprocess.CompletedProcess(command, returncode, stdout, stderr)
+            result.timed_out = timed_out
+            return result
+        except BaseException:
+            if process is not None:
+                try:
+                    self._signal_group(process, signal.SIGKILL)
+                except Exception:
+                    pass
+                try:
+                    process.wait(timeout=max(0.0, cleanup_deadline - self._monotonic()))
+                except subprocess.TimeoutExpired:
+                    pass
+                for stream_name in ("stdin", "stdout", "stderr"):
+                    stream = getattr(process, stream_name, None)
+                    if stream is not None:
+                        try:
+                            stream.close()
+                        except Exception:
+                            pass
+            raise
+        finally:
+            if selector is not None:
+                selector.close()
 
 
 Runner = Callable[..., Any]
@@ -203,6 +499,8 @@ class TransactionalAppDeployExecutor:
         self._path_exists, self._lock_factory = path_exists, lock_factory
         self._baseline_factory = baseline_factory
         self._consumed = False
+        self._effect_may_have_started = False
+        self._runtime_switch_attempted = False
 
     def _environment(self, revision: str) -> dict[str, str]:
         uid = getattr(os, "getuid", lambda: 1000)()
@@ -223,16 +521,33 @@ class TransactionalAppDeployExecutor:
         return 60
 
     def _run(self, command: tuple[str, ...], *, capture: bool = False) -> str | None:
+        if self._command_may_mutate(command):
+            self._effect_may_have_started = True
         try:
             result = self._runner(list(command), stdout=subprocess.PIPE if capture else subprocess.DEVNULL,
                                   stderr=subprocess.DEVNULL, text=True, check=False, shell=False,
                                   env=self._environment(getattr(self, "_revision", "")), timeout=self._timeout(command))
+        except ProcessTimedOut:
+            raise
         except Exception:
             return None
+        if getattr(result, "timed_out", False) is True:
+            raise ProcessTimedOut("child reached its bounded deadline")
         if getattr(result, "returncode", None) != 0:
             return None
         output = getattr(result, "stdout", "")
         return output if capture and type(output) is str and len(output) <= 256 else ("" if not capture else None)
+
+    @staticmethod
+    def _command_may_mutate(command: tuple[str, ...]) -> bool:
+        if command[:2] == ("git", "-C"):
+            return any(
+                marker in command
+                for marker in ("fetch", "merge", "worktree")
+            )
+        if command[:2] == ("podman", "tag"):
+            return True
+        return "build" in command or "up" in command
 
     def _preflight(self, packet: DeployPacket) -> tuple[bool, str | None]:
         if self._path_exists(RELEASE_WORKTREE):
@@ -262,6 +577,7 @@ class TransactionalAppDeployExecutor:
         if self._run((*prefix, "build", APP_SERVICE)) is None: return "not_started"
         # A failed service switch is ambiguous: Compose may have recreated the
         # app before reporting its error.  Treat it as post-switch and rollback.
+        self._runtime_switch_attempted = True
         return "switched" if self._run((*prefix, "up", "-d", "--no-deps", "--no-build", "--force-recreate", APP_SERVICE)) is not None else "ambiguous"
 
     def _rollback(self, packet: DeployPacket) -> bool:
@@ -279,6 +595,14 @@ class TransactionalAppDeployExecutor:
         if packet is None or not packet.valid() or self._readback is None or self._snapshot_validator is None: return _envelope("blocked", "preflight", "failed", False)
         switched = False
         self._revision = packet.new_revision
+        self._effect_may_have_started = False
+        self._runtime_switch_attempted = False
+        begin = getattr(self._runner, "begin", None)
+        if callable(begin):
+            try:
+                begin()
+            except Exception:
+                return _envelope("blocked", "preflight", "failed", False)
         try:
             with self._lock_factory():
                 baseline = self._baseline_factory() if self._baseline_factory is not None else None
@@ -289,10 +613,16 @@ class TransactionalAppDeployExecutor:
                 except Exception: snapshot_valid = False
                 if snapshot_valid is not True: return _envelope("blocked", "preflight", "failed", False)
                 preflight, image = self._preflight(packet)
-                if not preflight or image is None: return _envelope("blocked", "preflight", "failed", False)
+                if not preflight or image is None:
+                    if self._effect_may_have_started:
+                        return _envelope("unknown", "preflight", "unknown", False)
+                    return _envelope("blocked", "preflight", "failed", False)
                 switch_state = self._switch(image, packet)
-                if switch_state == "not_started": return _envelope("blocked", "preflight", "failed", False)
-                switched = True
+                if switch_state == "not_started":
+                    if self._effect_may_have_started:
+                        return _envelope("unknown", "preflight", "unknown", False)
+                    return _envelope("blocked", "preflight", "failed", False)
+                switched = switch_state in {"switched", "ambiguous"} or self._runtime_switch_attempted
                 if switch_state == "ambiguous":
                     rolled = self._rollback(packet)  # exactly one best-effort rollback; never retry it
                     try: restored = rolled and self._readback(packet, packet.old_revision)
@@ -317,7 +647,7 @@ class TransactionalAppDeployExecutor:
         except Exception:
             # An exception after the switch is ambiguous.  Make precisely one
             # best-effort rollback and retain unknown rather than retrying.
-            if switched:
+            if switched or self._runtime_switch_attempted:
                 try:
                     rolled = self._rollback(packet)
                     restored = rolled and self._readback is not None and self._readback(packet, packet.old_revision)
@@ -326,6 +656,8 @@ class TransactionalAppDeployExecutor:
                     if restored:
                         return _envelope("rolled_back", "rollback_verified", "rolled_back", True)
                 return _envelope("unknown", "rollback_attempted", "unknown", True)
+            if self._effect_may_have_started:
+                return _envelope("unknown", "preflight", "unknown", False)
             return _envelope("blocked", "preflight", "failed", False)
 
 

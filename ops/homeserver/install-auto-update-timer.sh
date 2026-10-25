@@ -59,7 +59,10 @@ if [[ -z "$SCHEDULE" ]]; then
   exit 1
 fi
 
+# Keep the host notifier independent of a failed app container.
+test -f "$ODYSSEUS_ROOT/ops/homeserver/updater_safety.py"
 mkdir -p "$SERVICE_DIR" "$BIN_DIR"
+install -m 700 "$ODYSSEUS_ROOT/ops/homeserver/updater_safety.py" "$BIN_DIR/odysseus-updater-safety.py"
 
 cat >"$WRAPPER_PATH" <<'EOF'
 #!/usr/bin/env bash
@@ -76,6 +79,8 @@ log() {
 }
 
 UPDATE_STAGE="initializing"
+UPDATE_RESULT="failed"
+release_revision=""
 
 report_failed_stage() {
   local exit_code=$?
@@ -91,6 +96,38 @@ die() {
 }
 
 trap report_failed_stage ERR
+
+report_outcome() {
+  local exit_code=$?
+  trap - EXIT
+  local result="$UPDATE_RESULT"
+  if [[ "$exit_code" -ne 0 ]]; then result="failed"; fi
+  # A delivery failure does not rewrite the deployment result.
+  if ! python3 "$HOME/.local/bin/odysseus-updater-safety.py" notify \
+      --result "$result" --stage "$UPDATE_STAGE" --revision "$release_revision"; then
+    log "WARN: update outcome notification unavailable; delivery is not confirmed"
+  fi
+  exit "$exit_code"
+}
+trap report_outcome EXIT
+
+validate_candidate_configuration() {
+  # Bypass the normal entrypoint: no chown/setup/app startup or DB migration.
+  # Use Compose's effective candidate environment, without serializing it.
+  compose run --rm --no-deps --entrypoint python odysseus \
+    -I /app/ops/homeserver/updater_safety.py configuration >/dev/null 2>&1
+}
+
+preserve_previous_image() {
+  if podman container exists odysseus_odysseus_1 >/dev/null 2>&1; then
+    local previous_image
+    previous_image="$(podman inspect --format '{{.Image}}' odysseus_odysseus_1)"
+    [[ "$previous_image" =~ ^(sha256:)?[0-9a-f]{64}$ ]] || die "previous image identity unavailable"
+    # Retention only: not a claim that this image is healthy or migration-safe.
+    podman image tag "$previous_image" \
+      "localhost/odysseus:pre-update-$(date -u +%Y%m%dT%H%M%SZ)-$$"
+  fi
+}
 
 run_locked() {
   if command -v flock >/dev/null 2>&1; then
@@ -210,6 +247,10 @@ if [[ "$local_commit" == "$remote_commit" ]]; then
     *"\"commit\":\"$short_commit\""*)
       if runtime_release_manifest_ready; then
         log "already current at $short_commit with a valid release manifest"
+        UPDATE_STAGE="runtime_stability"
+        release_revision="$local_commit"
+        python3 ops/homeserver/updater_safety.py stable --revision "$release_revision"
+        UPDATE_RESULT="unchanged"
         exit 0
       fi
       log "checkout and runtime are current at $short_commit but release manifest is stale or unavailable; rebuilding deployment"
@@ -254,17 +295,20 @@ UPDATE_STAGE="release_manifest"
 log "generating revision-bound release manifest"
 prepare_release_manifest "$release_revision" "$current_branch"
 
+UPDATE_STAGE="rollback_image_preservation"
+preserve_previous_image
+
 UPDATE_STAGE="app_image_build"
 log "building app image"
 build_app_image
 
+UPDATE_STAGE="candidate_configuration"
+log "validating candidate configuration before switch"
+validate_candidate_configuration
+
 UPDATE_STAGE="app_container_switch"
 log "switching to the verified app image"
 switch_to_built_app
-
-UPDATE_STAGE="image_prune"
-log "pruning dangling podman images"
-podman image prune -f
 
 UPDATE_STAGE="service_readiness"
 log "waiting for services"
@@ -280,10 +324,19 @@ case "$version_json" in
   *) die "version API does not report deployed commit $short_commit" ;;
 esac
 
+UPDATE_STAGE="runtime_stability"
+log "verifying stable readiness and revision for 30 seconds"
+python3 ops/homeserver/updater_safety.py stable --revision "$release_revision"
+
+UPDATE_STAGE="image_prune"
+log "pruning dangling podman images"
+podman image prune -f
+
 UPDATE_STAGE="tool_capability_refresh"
 log "refreshing tool capability knowledge"
 refresh_tool_capability_knowledge "$short_commit"
 
+UPDATE_RESULT="completed"
 log "scheduled update completed at $short_commit"
 EOF
 
