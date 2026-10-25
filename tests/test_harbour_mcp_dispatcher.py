@@ -27,9 +27,9 @@ def _rpc(method: str, params: dict | None = None, message_id: int = 1) -> dict:
 
 
 def test_build_harbour_mcp_tool_contracts():
-    """Tool contracts builder must cover all 14 tools and support scope filtering."""
+    """Tool contracts builder must cover all 15 tools and support scope filtering."""
     contracts = build_harbour_mcp_tool_contracts()
-    assert len(contracts) == 14
+    assert len(contracts) == 15
     names = {c["name"] for c in contracts}
     assert names == set(HARBOUR_MCP_FIRST_TOOLS.keys())
     for contract in contracts:
@@ -46,11 +46,12 @@ def test_build_harbour_mcp_tool_contracts():
     }
 
     inbox_contracts = build_harbour_mcp_tool_contracts("mcp:harbour:inbox")
-    assert len(inbox_contracts) == 3
+    assert len(inbox_contracts) == 4
     assert {c["name"] for c in inbox_contracts} == {
         "harbour_inbox_list_items",
         "harbour_inbox_capture_document",
         "harbour_inbox_stamp_document",
+        "harbour_inbox_triage_item",
     }
 
     gateway_contracts = build_harbour_mcp_tool_contracts("mcp:harbour:gateway")
@@ -298,6 +299,76 @@ def test_dispatcher_inbox_domain():
     assert stamped["owner_subject_id"] == "owner_subj_999"
     assert stamped["stamp_hash"].startswith("sha256:")
 
+    # 4. triage_item - successful triage
+    triaged = dispatcher.dispatch(
+        "harbour_inbox_triage_item",
+        {
+            "item_id": "inbox_item_42",
+            "action": "route",
+            "target_domain": "planning",
+            "reason": "Roadmap proposal for harbour v2",
+        },
+        identity=identity,
+    )
+    assert triaged["schema"] == "odysseus.harbour.inbox_triaged_item.v1"
+    assert triaged["item_id"] == "inbox_item_42"
+    assert triaged["action"] == "route"
+    assert triaged["target_domain"] == "planning"
+    assert triaged["reason"] == "Roadmap proposal for harbour v2"
+    assert triaged["status"] == "triaged"
+    assert triaged["owner_subject_id"] == "owner_subj_999"
+    assert triaged["timestamp"] is not None
+    assert triaged["triaged_at"] is not None
+    assert triaged["audit_hash"].startswith("sha256:")
+
+    # 4b. triage_item - dismiss action without optional fields
+    dismissed = dispatcher.dispatch(
+        "harbour_inbox_triage_item",
+        {"item_id": "inbox_item_43", "action": "dismiss"},
+        identity=identity,
+    )
+    assert dismissed["schema"] == "odysseus.harbour.inbox_triaged_item.v1"
+    assert dismissed["item_id"] == "inbox_item_43"
+    assert dismissed["action"] == "dismiss"
+    assert dismissed["status"] == "triaged"
+    assert dismissed["audit_hash"].startswith("sha256:")
+
+    # 4c. triage_item - invalid action rejection
+    with pytest.raises(HarbourMcpDispatchError) as exc:
+        dispatcher.dispatch(
+            "harbour_inbox_triage_item",
+            {"item_id": "inbox_item_44", "action": "unsupported_action"},
+            identity=identity,
+        )
+    assert exc.value.code == "invalid_params"
+
+    # 4d. triage_item - missing item_id
+    with pytest.raises(HarbourMcpDispatchError) as exc:
+        dispatcher.dispatch(
+            "harbour_inbox_triage_item",
+            {"item_id": "", "action": "accept"},
+            identity=identity,
+        )
+    assert exc.value.code == "invalid_params"
+
+    # 4e. triage_item - missing action
+    with pytest.raises(HarbourMcpDispatchError) as exc:
+        dispatcher.dispatch(
+            "harbour_inbox_triage_item",
+            {"item_id": "inbox_item_45", "action": ""},
+            identity=identity,
+        )
+    assert exc.value.code == "invalid_params"
+
+    # 4f. triage_item - non-string target_domain or reason
+    with pytest.raises(HarbourMcpDispatchError) as exc:
+        dispatcher.dispatch(
+            "harbour_inbox_triage_item",
+            {"item_id": "inbox_item_46", "action": "route", "target_domain": 123},
+            identity=identity,
+        )
+    assert exc.value.code == "invalid_params"
+
 
 def test_dispatcher_scope_enforcement():
     """Dispatcher must reject cross-scope calls with unauthorized."""
@@ -317,6 +388,15 @@ def test_dispatcher_scope_enforcement():
         dispatcher.dispatch(
             "harbour_inbox_list_items",
             {},
+            identity=McpAuthenticatedIdentity("token-1", "admin", "subj-1", 1, 1, "mcp:planning:read"),
+        )
+    assert exc.value.code == "unauthorized"
+
+    # planning identity calling harbour_inbox_triage_item
+    with pytest.raises(HarbourMcpDispatchError) as exc:
+        dispatcher.dispatch(
+            "harbour_inbox_triage_item",
+            {"item_id": "item_1", "action": "accept"},
             identity=McpAuthenticatedIdentity("token-1", "admin", "subj-1", 1, 1, "mcp:planning:read"),
         )
     assert exc.value.code == "unauthorized"

@@ -258,6 +258,32 @@ HARBOUR_MCP_FIRST_TOOLS: dict[str, dict[str, Any]] = {
             },
         },
     },
+    "harbour_inbox_triage_item": {
+        "name": "harbour_inbox_triage_item",
+        "namespace": "harbour_inbox",
+        "description": "Triage an inbox item to an operational domain or action with audit trail",
+        "bound_service": "HarbourInboxService",
+        "scope": "mcp:harbour:inbox",
+        "input_schema": {
+            "type": "object",
+            "required": ["item_id", "action"],
+            "properties": {
+                "item_id": {"type": "string", "description": "Unique inbox item identifier"},
+                "action": {
+                    "type": "string",
+                    "description": "Triage action (e.g. accept, route, dismiss, escalate)",
+                },
+                "target_domain": {
+                    "type": "string",
+                    "description": "Target domain for routed item (e.g. planning, memory, gateway)",
+                },
+                "reason": {
+                    "type": "string",
+                    "description": "Reason or context for the triage decision",
+                },
+            },
+        },
+    },
 }
 
 

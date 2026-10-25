@@ -1,8 +1,8 @@
 """Adapters bounded context: Optional Periphery Adapters.
 
 This module consolidates metadata and entry points for optional external integrations:
-- Telegram (incl. PC-Control remote execution)
-- Nextcloud Knowledge Ingestion
+- Telegram (incl. PC-Control remote execution and Universal Inbox bridge)
+- Nextcloud Knowledge Ingestion & Universal Inbox ingestion
 - Forge & Git Provider Context Readers
 - Email Draft & CalDAV Calendar
 """
@@ -20,23 +20,38 @@ from src.forge_context_reader import (
     RetainedForgeVersion,
     ImmutableForgeContextReader,
 )
+from src.harbour.adapters.telegram_bridge import (
+    TelegramUpdateDto,
+    mask_telegram_identifier,
+    sanitize_telegram_text,
+    sanitize_telegram_filename,
+    parse_telegram_update_to_dto,
+    map_telegram_dto_to_inbox_capture,
+)
+from src.harbour.adapters.nextcloud_ingest import (
+    NextcloudNotificationDto,
+    sanitize_nextcloud_path,
+    validate_nextcloud_budget,
+    parse_nextcloud_notification,
+    map_nextcloud_dto_to_inbox_capture,
+)
 
 ADAPTER_METADATA_SCHEMA = "odysseus.harbour.adapter_metadata.v1"
 
 PERIPHERY_ADAPTERS: dict[str, dict[str, Any]] = {
     "telegram": {
         "name": "telegram",
-        "description": "Telegram chat integration and PC-Control remote execution",
+        "description": "Telegram chat integration, PC-Control remote execution, and Universal Inbox bridge",
         "enabled_by_default": False,
-        "entrypoint": "plugins.telegram",
-        "capabilities": ["chat_streaming", "command_dispatch", "pc_control"],
+        "entrypoint": "src.harbour.adapters.telegram_bridge",
+        "capabilities": ["chat_streaming", "command_dispatch", "pc_control", "inbox_bridge"],
     },
     "nextcloud": {
         "name": "nextcloud",
-        "description": "Nextcloud Knowledge Ingestion and composition into unified source index",
+        "description": "Nextcloud Knowledge Ingestion, source index composition, and Universal Inbox ingestion",
         "enabled_by_default": False,
-        "entrypoint": "src.nextcloud_knowledge_ingestion",
-        "capabilities": ["document_sync", "remote_knowledge_ingest"],
+        "entrypoint": "src.harbour.adapters.nextcloud_ingest",
+        "capabilities": ["document_sync", "remote_knowledge_ingest", "inbox_bridge"],
     },
     "forge": {
         "name": "forge",
@@ -70,6 +85,18 @@ __all__ = [
     # Nextcloud
     "NextcloudKnowledgeIngestionError",
     "NextcloudKnowledgeIngestionResult",
+    "NextcloudNotificationDto",
+    "sanitize_nextcloud_path",
+    "validate_nextcloud_budget",
+    "parse_nextcloud_notification",
+    "map_nextcloud_dto_to_inbox_capture",
+    # Telegram
+    "TelegramUpdateDto",
+    "mask_telegram_identifier",
+    "sanitize_telegram_text",
+    "sanitize_telegram_filename",
+    "parse_telegram_update_to_dto",
+    "map_telegram_dto_to_inbox_capture",
     # Forge
     "ForgeContextReaderError",
     "RetainedForgeVersion",

@@ -154,7 +154,7 @@ def test_adapters_manifest_and_symbols():
     manifest = adapters_pkg.get_periphery_adapters_manifest()
     assert manifest["schema"] == "odysseus.harbour.adapter_metadata.v1"
     assert set(manifest["adapters"].keys()) == {"telegram", "nextcloud", "forge", "email_caldav"}
-    assert manifest["adapters"]["telegram"]["capabilities"] == ["chat_streaming", "command_dispatch", "pc_control"]
+    assert manifest["adapters"]["telegram"]["capabilities"] == ["chat_streaming", "command_dispatch", "pc_control", "inbox_bridge"]
     assert manifest["adapters"]["forge"]["enabled_by_default"] is True
 
 

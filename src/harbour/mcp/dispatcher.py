@@ -504,6 +504,53 @@ class HarbourMcpDispatcher:
                 "stamped_at": datetime.now(timezone.utc).isoformat(),
             }
 
+        if name == "harbour_inbox_triage_item":
+            item_id = arguments.get("item_id")
+            if not isinstance(item_id, str) or not item_id.strip():
+                raise HarbourMcpDispatchError("invalid_params", "item_id is required")
+            item_id = item_id.strip()
+
+            action = arguments.get("action")
+            if not isinstance(action, str) or not action.strip():
+                raise HarbourMcpDispatchError("invalid_params", "action is required")
+            action = action.strip().lower()
+
+            valid_actions = {"accept", "route", "dismiss", "escalate", "defer", "archive"}
+            if action not in valid_actions:
+                raise HarbourMcpDispatchError(
+                    "invalid_params",
+                    f"Invalid triage action: '{action}'. Valid actions are: {sorted(valid_actions)}",
+                )
+
+            target_domain = arguments.get("target_domain")
+            if target_domain is not None and not isinstance(target_domain, str):
+                raise HarbourMcpDispatchError("invalid_params", "target_domain must be a string")
+            if target_domain:
+                target_domain = target_domain.strip().lower()
+
+            reason = arguments.get("reason")
+            if reason is not None and not isinstance(reason, str):
+                raise HarbourMcpDispatchError("invalid_params", "reason must be a string")
+            if reason:
+                reason = reason.strip()
+
+            now_utc = datetime.now(timezone.utc).isoformat()
+            audit_seed = f"{item_id}:{action}:{target_domain or ''}:{reason or ''}:{owner_subject_id}:{now_utc}".encode("utf-8")
+            audit_hash = hashlib.sha256(audit_seed).hexdigest()
+
+            return {
+                "schema": "odysseus.harbour.inbox_triaged_item.v1",
+                "item_id": item_id,
+                "action": action,
+                "target_domain": target_domain,
+                "reason": reason,
+                "status": "triaged",
+                "owner_subject_id": owner_subject_id,
+                "timestamp": now_utc,
+                "triaged_at": now_utc,
+                "audit_hash": f"sha256:{audit_hash}",
+            }
+
         raise HarbourMcpDispatchError("invalid_params", f"Unknown inbox tool: {name}")
 
 
