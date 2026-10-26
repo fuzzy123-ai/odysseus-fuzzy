@@ -3,48 +3,44 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Harbour One | Planung & Dokumentation</title>
+  <title>Harbour One | Operations & Agent Platform</title>
   <style>
 /* ==========================================================================
-   Harbour One | Craft Design System & Stylesheet (100% Autark, Zero-CDN)
+   Harbour One | OpsPilot-Inspired High-Craft Architecture (100% Autark)
    ========================================================================== */
 
 :root {
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  --bg-canvas: #0b0c10;
+  --bg-card: #13141a;
+  --bg-card-hover: #181a22;
+  --bg-elevated: #1e202a;
+  
+  --border-subtle: #1c1e26;
+  --border-default: #262834;
+  --border-strong: #36394a;
+  
+  --text-main: #f5f6fa;
+  --text-muted: #9ba1b4;
+  --text-dim: #5c6275;
+  
+  /* OpsPilot Accent Palette */
+  --accent-coral: #ff4d4d;
+  --accent-coral-glow: rgba(255, 77, 77, 0.15);
+  --accent-coral-dim: rgba(255, 77, 77, 0.08);
+  
+  --status-high: #ff4d4d;
+  --status-high-bg: rgba(255, 77, 77, 0.15);
+  --status-med: #f59e0b;
+  --status-med-bg: rgba(245, 158, 11, 0.15);
+  --status-ok: #10b981;
+  --status-ok-bg: rgba(16, 185, 129, 0.15);
+  --status-blue: #3b82f6;
+  --status-blue-bg: rgba(59, 130, 246, 0.15);
 
-  /* Color Palette - Warm Dark Theme */
-  --bg-canvas: #0c0d10;
-  --bg-surface: #131418;
-  --bg-card: #181920;
-  --bg-card-hover: #1f2029;
-  --bg-elevated: #242632;
-  
-  --border-subtle: #22232c;
-  --border-default: #2b2d38;
-  --border-strong: #3b3e4d;
-  
-  --text-main: #f3f4f8;
-  --text-muted: #9aa0b2;
-  --text-dim: #646878;
-  
-  /* Accents */
-  --accent-primary: #6366f1;
-  --accent-primary-hover: #4f46e5;
-  --accent-primary-glow: rgba(99, 102, 241, 0.15);
-  
-  --status-planned: #8b5cf6;
-  --status-planned-bg: rgba(139, 92, 246, 0.12);
-  --status-progress: #f59e0b;
-  --status-progress-bg: rgba(245, 158, 11, 0.12);
-  --status-verified: #3b82f6;
-  --status-verified-bg: rgba(59, 130, 246, 0.12);
-  --status-accepted: #10b981;
-  --status-accepted-bg: rgba(16, 185, 129, 0.12);
-
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-pill: 9999px;
 }
 
 *, *::before, *::after {
@@ -54,28 +50,24 @@
 }
 
 body {
-  font-family: var(--font-sans);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   background-color: var(--bg-canvas);
   color: var(--text-main);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  overflow-x: hidden;
+  padding-bottom: 40px;
 }
 
-/* ==========================================================================
-   Header & Navigation
-   ========================================================================== */
+/* Header */
 .app-header {
-  height: 60px;
-  background-color: var(--bg-surface);
-  border-bottom: 1px solid var(--border-default);
+  height: 68px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 24px;
+  padding: 0 32px;
+  background-color: var(--bg-canvas);
+  border-bottom: 1px solid var(--border-subtle);
   position: sticky;
   top: 0;
   z-index: 50;
@@ -87,1941 +79,891 @@ body {
   gap: 12px;
 }
 
-.brand-logo {
+.brand-icon-box {
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, #ff4d4d, #d92626);
+  border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-weight: 700;
-  font-size: 16px;
-  letter-spacing: -0.3px;
-  color: var(--text-main);
-  text-decoration: none;
+  justify-content: center;
+  color: #fff;
 }
 
-.brand-badge {
-  font-size: 10px;
-  font-weight: 600;
-  background-color: var(--status-planned-bg);
-  color: var(--status-planned);
-  padding: 2px 8px;
-  border-radius: 12px;
-  border: 1px solid rgba(139, 92, 246, 0.3);
-  text-transform: uppercase;
-}
-
-.nav-tabs {
+.brand-title-wrap {
   display: flex;
-  gap: 6px;
-  background-color: var(--bg-canvas);
-  padding: 4px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-subtle);
+  flex-direction: column;
 }
 
-.nav-tab-btn {
+.brand-title {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  color: #fff;
+}
+
+.brand-subtitle {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+/* Pill Navigation Bar */
+.nav-pill-bar {
+  display: flex;
+  gap: 4px;
+  background-color: var(--bg-card);
+  padding: 4px 6px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-default);
+}
+
+.nav-pill-btn {
   background: transparent;
   border: none;
   color: var(--text-muted);
   font-family: inherit;
   font-size: 13px;
   font-weight: 500;
-  padding: 6px 14px;
-  border-radius: var(--radius-sm);
+  padding: 8px 16px;
+  border-radius: var(--radius-pill);
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
   transition: all 0.15s ease;
 }
 
-.nav-tab-btn:hover {
-  color: var(--text-main);
-  background-color: var(--bg-surface);
+.nav-pill-btn:hover {
+  color: #fff;
 }
 
-.nav-tab-btn.active {
-  background-color: var(--bg-card);
-  color: var(--text-main);
+.nav-pill-btn.active {
+  background-color: #fff;
+  color: #0b0c10;
   font-weight: 600;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
 }
 
-.header-actions {
+.header-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
 }
 
-.project-select {
-  background-color: var(--bg-canvas);
-  border: 1px solid var(--border-default);
-  color: var(--text-main);
-  font-family: inherit;
-  font-size: 13px;
-  padding: 6px 12px;
-  border-radius: var(--radius-sm);
-  outline: none;
-  cursor: pointer;
-}
-
-.project-select:focus {
-  border-color: var(--accent-primary);
-}
-
-.status-indicator {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-.status-dot {
-  width: 8px;
-  height: 8px;
+.user-avatar-pill {
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
-  background-color: var(--status-accepted);
-  box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+  background: linear-gradient(135deg, #3b82f6, #6366f1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  border: 2px solid var(--border-default);
 }
 
-/* ==========================================================================
-   Main Content Views
-   ========================================================================== */
+/* Viewport */
 .main-viewport {
-  flex: 1;
-  padding: 24px 32px;
-  max-width: 1560px;
+  max-width: 1440px;
   margin: 0 auto;
-  width: 100%;
+  padding: 28px 32px;
 }
 
 .view-section {
   display: none;
-  animation: fadeIn 0.2s ease forwards;
 }
-
 .view-section.active {
   display: block;
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-/* ==========================================================================
-   View: Kanban Board
-   ========================================================================== */
-.kanban-header {
+/* Hero Greeting */
+.hero-greeting {
   margin-bottom: 24px;
 }
 
-.kanban-title-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-.view-heading {
-  font-size: 22px;
+.hero-title {
+  font-size: 26px;
   font-weight: 700;
-  letter-spacing: -0.4px;
-}
-
-.view-subheading {
-  color: var(--text-muted);
-  font-size: 14px;
-}
-
-.kanban-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 20px;
-  align-items: start;
-}
-
-.kanban-column {
-  background-color: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
-  padding: 16px;
-  min-height: 600px;
-  display: flex;
-  flex-direction: column;
-}
-
-.column-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.column-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.column-badge {
-  font-size: 11px;
-  font-weight: 600;
-  padding: 2px 6px;
-  border-radius: 10px;
-  background-color: var(--bg-card);
-  color: var(--text-muted);
-}
-
-.card-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  flex: 1;
-}
-
-.kanban-card {
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  padding: 14px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  position: relative;
-}
-
-.kanban-card:hover {
-  background-color: var(--bg-card-hover);
-  border-color: var(--border-strong);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0,0,0,0.3);
-}
-
-.card-tag {
-  display: inline-block;
-  font-size: 10px;
-  font-weight: 600;
-  padding: 2px 7px;
-  border-radius: var(--radius-sm);
-  margin-bottom: 8px;
-}
-
-.card-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-main);
-  margin-bottom: 6px;
-  line-height: 1.4;
-}
-
-.card-summary {
-  font-size: 12px;
-  color: var(--text-muted);
-  line-height: 1.5;
-  margin-bottom: 12px;
-}
-
-.card-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 11px;
-  color: var(--text-dim);
-  border-top: 1px solid var(--border-subtle);
-  padding-top: 10px;
-}
-
-/* Status colors */
-.tag-planned { background: var(--status-planned-bg); color: var(--status-planned); }
-.tag-progress { background: var(--status-progress-bg); color: var(--status-progress); }
-.tag-verified { background: var(--status-verified-bg); color: var(--status-verified); }
-.tag-accepted { background: var(--status-accepted-bg); color: var(--status-accepted); }
-
-/* ==========================================================================
-   View: Devblog & Chronik
-   ========================================================================== */
-.devblog-container {
-  display: grid;
-  grid-template-columns: 280px 1fr;
-  gap: 32px;
-}
-
-.devblog-sidebar {
-  position: sticky;
-  top: 84px;
-  height: fit-content;
-}
-
-.timeline-nav-title {
-  font-size: 13px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--text-dim);
-  margin-bottom: 14px;
-}
-
-.timeline-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  border-left: 2px solid var(--border-subtle);
-  padding-left: 14px;
-}
-
-.timeline-item-btn {
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  text-align: left;
-  font-family: inherit;
-  font-size: 13px;
-  cursor: pointer;
-  padding: 6px 0;
-  transition: color 0.15s ease;
-  line-height: 1.4;
-}
-
-.timeline-item-btn:hover {
-  color: var(--text-main);
-}
-
-.timeline-item-btn.active {
-  color: var(--accent-primary);
-  font-weight: 600;
-}
-
-.devblog-feed {
-  display: flex;
-  flex-direction: column;
-  gap: 32px;
-}
-
-.article-card {
-  background-color: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  transition: border-color 0.2s ease;
-}
-
-.article-card:hover {
-  border-color: var(--border-default);
-}
-
-.article-header {
-  padding: 24px 28px 16px;
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.article-meta {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 12px;
-  color: var(--text-dim);
-  margin-bottom: 10px;
-}
-
-.article-badge {
-  font-size: 11px;
-  font-weight: 600;
-  background-color: var(--accent-primary-glow);
-  color: var(--accent-primary);
-  padding: 2px 8px;
-  border-radius: var(--radius-sm);
-}
-
-.article-title {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--text-main);
-  letter-spacing: -0.3px;
-  margin-bottom: 8px;
-}
-
-.article-body {
-  padding: 24px 28px;
-  font-size: 14px;
-  line-height: 1.7;
-  color: #d1d5db;
-}
-
-.article-body p {
-  margin-bottom: 14px;
-}
-
-.article-body ul {
-  margin: 12px 0 16px 20px;
-}
-
-.article-body li {
-  margin-bottom: 6px;
-}
-
-.article-visual-block {
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  padding: 16px 20px;
-  margin: 18px 0;
-}
-
-.visual-block-header {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-muted);
-  margin-bottom: 8px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.evidence-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 12px;
-  margin-top: 8px;
-}
-
-.evidence-table th, .evidence-table td {
-  text-align: left;
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.evidence-table th {
-  color: var(--text-muted);
-  font-weight: 600;
-}
-
-.evidence-table td {
-  color: var(--text-main);
-  font-family: var(--font-mono);
-}
-
-/* ==========================================================================
-   View: Entscheidungen & Roadmaps
-   ========================================================================== */
-.decisions-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-  gap: 20px;
-  margin-top: 20px;
-}
-
-.decision-card {
-  background-color: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  padding: 20px;
-  transition: all 0.15s ease;
-}
-
-.decision-card:hover {
-  border-color: var(--border-strong);
-  background-color: var(--bg-card);
-}
-
-.decision-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.decision-id {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--accent-primary);
-  font-weight: 600;
-}
-
-.decision-status {
-  font-size: 11px;
-  font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 10px;
-}
-
-.decision-status.accepted {
-  background-color: var(--status-accepted-bg);
-  color: var(--status-accepted);
-}
-
-.decision-status.open {
-  background-color: var(--status-progress-bg);
-  color: var(--status-progress);
-}
-
-.decision-title {
-  font-size: 15px;
-  font-weight: 600;
-  margin-bottom: 8px;
-  color: var(--text-main);
-}
-
-.decision-desc {
-  font-size: 13px;
-  color: var(--text-muted);
-  line-height: 1.5;
-  margin-bottom: 14px;
-}
-
-.decision-footer {
-  font-size: 11px;
-  color: var(--text-dim);
-  border-top: 1px solid var(--border-subtle);
-  padding-top: 10px;
-}
-
-/* ==========================================================================
-   Detail Modal (Drawer)
-   ========================================================================== */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(4px);
-  z-index: 100;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-}
-
-.modal-overlay.active {
-  display: flex;
-}
-
-.modal-dialog {
-  background-color: var(--bg-surface);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-lg);
-  width: 100%;
-  max-width: 680px;
-  max-height: 85vh;
-  overflow-y: auto;
-  box-shadow: 0 20px 40px rgba(0,0,0,0.5);
-  animation: modalPop 0.15s ease forwards;
-}
-
-@keyframes modalPop {
-  from { opacity: 0; transform: scale(0.96); }
-  to { opacity: 1; transform: scale(1); }
-}
-
-.modal-header {
-  padding: 20px 24px;
-  border-bottom: 1px solid var(--border-subtle);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.modal-title {
-  font-size: 18px;
-  font-weight: 700;
-}
-
-.modal-close-btn {
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  font-size: 18px;
-  cursor: pointer;
-  padding: 4px;
-}
-
-.modal-body {
-  padding: 24px;
-  font-size: 14px;
-  line-height: 1.6;
-  color: var(--text-main);
-}
-
-/* ==========================================================================
-   Responsive Adaptations
-   ========================================================================== */
-@media (max-width: 1200px) {
-  .kanban-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  .devblog-container {
-    grid-template-columns: 1fr;
-  }
-  .devblog-sidebar {
-    position: static;
-  }
-}
-
-@media (max-width: 768px) {
-  .kanban-grid {
-    grid-template-columns: 1fr;
-  }
-  .app-header {
-    padding: 0 16px;
-    height: auto;
-    flex-wrap: wrap;
-    gap: 12px;
-    padding-top: 10px;
-    padding-bottom: 10px;
-  }
-  .main-viewport {
-    padding: 16px;
-  }
-}
-
-/* ==========================================================================
-   Distinct Column Identities (Geplant, In Arbeit, Verifiziert, Abgenommen)
-   ========================================================================== */
-.kanban-column.col-planned {
-  border-top: 3px solid #a855f7;
-  background: linear-gradient(180deg, rgba(168, 85, 247, 0.06) 0%, var(--bg-surface) 120px);
-}
-.kanban-column.col-planned .column-header {
-  border-bottom: 1px solid rgba(168, 85, 247, 0.2);
-}
-.kanban-column.col-planned .column-title {
-  color: #c084fc;
-}
-.kanban-column.col-planned .column-badge {
-  background-color: rgba(168, 85, 247, 0.15);
-  color: #c084fc;
-  border: 1px solid rgba(168, 85, 247, 0.3);
-}
-.kanban-column.col-planned .kanban-card {
-  border-left: 3px solid #a855f7;
-}
-
-.kanban-column.col-progress {
-  border-top: 3px solid #f59e0b;
-  background: linear-gradient(180deg, rgba(245, 158, 11, 0.06) 0%, var(--bg-surface) 120px);
-}
-.kanban-column.col-progress .column-header {
-  border-bottom: 1px solid rgba(245, 158, 11, 0.2);
-}
-.kanban-column.col-progress .column-title {
-  color: #fbbf24;
-}
-.kanban-column.col-progress .column-badge {
-  background-color: rgba(245, 158, 11, 0.15);
-  color: #fbbf24;
-  border: 1px solid rgba(245, 158, 11, 0.3);
-}
-.kanban-column.col-progress .kanban-card {
-  border-left: 3px solid #f59e0b;
-}
-
-.kanban-column.col-verified {
-  border-top: 3px solid #3b82f6;
-  background: linear-gradient(180deg, rgba(59, 130, 246, 0.06) 0%, var(--bg-surface) 120px);
-}
-.kanban-column.col-verified .column-header {
-  border-bottom: 1px solid rgba(59, 130, 246, 0.2);
-}
-.kanban-column.col-verified .column-title {
-  color: #60a5fa;
-}
-.kanban-column.col-verified .column-badge {
-  background-color: rgba(59, 130, 246, 0.15);
-  color: #60a5fa;
-  border: 1px solid rgba(59, 130, 246, 0.3);
-}
-.kanban-column.col-verified .kanban-card {
-  border-left: 3px solid #3b82f6;
-}
-
-.kanban-column.col-accepted {
-  border-top: 3px solid #10b981;
-  background: linear-gradient(180deg, rgba(16, 185, 129, 0.06) 0%, var(--bg-surface) 120px);
-}
-.kanban-column.col-accepted .column-header {
-  border-bottom: 1px solid rgba(16, 185, 129, 0.2);
-}
-.kanban-column.col-accepted .column-title {
-  color: #34d399;
-}
-.kanban-column.col-accepted .column-badge {
-  background-color: rgba(16, 185, 129, 0.15);
-  color: #34d399;
-  border: 1px solid rgba(16, 185, 129, 0.3);
-}
-.kanban-column.col-accepted .kanban-card {
-  border-left: 3px solid #10b981;
-}
-
-/* ==========================================================================
-   View: Roadmaps & Dependency Graph
-   ========================================================================== */
-.project-cockpit-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 20px;
-  margin-bottom: 32px;
-}
-
-.project-summary-card {
-  background-color: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  padding: 18px 20px;
-  transition: all 0.15s ease;
-}
-
-.project-summary-card:hover {
-  border-color: var(--border-strong);
-  background-color: var(--bg-card);
-}
-
-.summary-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.summary-title {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--text-main);
-}
-
-.summary-badge {
-  font-size: 11px;
-  font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 10px;
-  background-color: var(--accent-primary-glow);
-  color: var(--accent-primary);
-}
-
-.progress-track {
-  width: 100%;
-  height: 6px;
-  background-color: var(--bg-canvas);
-  border-radius: 3px;
-  overflow: hidden;
-  margin: 10px 0 6px;
-}
-
-.progress-bar-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #6366f1, #10b981);
-  border-radius: 3px;
-  transition: width 0.3s ease;
-}
-
-.progress-labels {
-  display: flex;
-  justify-content: space-between;
-  font-size: 11px;
-  color: var(--text-dim);
-}
-
-/* Dependency DAG Graph */
-.dag-graph-container {
-  background-color: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
-  padding: 24px;
-  margin-bottom: 32px;
-}
-
-.dag-graph-title-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.dag-graph-title {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--text-main);
-}
-
-.graph-nodes-flow {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 16px;
-  padding: 16px 0;
-}
-
-.graph-node {
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  padding: 12px 16px;
-  min-width: 180px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  position: relative;
-}
-
-.graph-node:hover {
-  border-color: var(--border-strong);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-}
-
-.graph-node.node-accepted { border-left: 4px solid var(--status-accepted); }
-.graph-node.node-verified { border-left: 4px solid var(--status-verified); }
-.graph-node.node-progress { border-left: 4px solid var(--status-progress); }
-.graph-node.node-planned { border-left: 4px solid var(--status-planned); }
-
-.node-id {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-muted);
+  letter-spacing: -0.5px;
   margin-bottom: 4px;
 }
 
-.node-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-main);
-  line-height: 1.3;
+.hero-subtitle {
+  font-size: 14px;
+  color: var(--text-muted);
 }
 
-.graph-arrow {
-  color: var(--text-dim);
-  font-size: 16px;
+/* KPI Cards Grid */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.kpi-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
   display: flex;
   align-items: center;
-  user-select: none;
+  gap: 14px;
 }
 
-/* Slices Table */
-.slices-table-container {
-  background-color: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
+.kpi-icon-box {
+  width: 40px;
+  height: 40px;
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+}
+
+.kpi-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.kpi-label {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-weight: 500;
+}
+
+.kpi-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.3px;
+}
+
+/* Middle Row: Bar Chart & Semicircular Gauge */
+.middle-grid {
+  display: grid;
+  grid-template-columns: 62% 38%;
+  gap: 20px;
+  margin-bottom: 28px;
+}
+
+.dashboard-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
-  overflow: hidden;
+  padding: 24px;
 }
 
-.slices-table {
+.card-header-flex {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.card-heading {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.card-subtext {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+.card-action-link {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-decoration: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.card-action-link:hover { color: #fff; }
+
+/* Activity Bar Chart Mockup (Coral & Dark Blocks) */
+.bar-chart-container {
+  height: 180px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 0 20px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.bar-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  gap: 8px;
+  height: 100%;
+  justify-content: flex-end;
+}
+
+.bar-stack {
+  width: 100%;
+  max-width: 28px;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 3px;
+  align-items: center;
+}
+
+.bar-block {
+  width: 100%;
+  height: 7px;
+  border-radius: 2px;
+  background-color: #1f212a;
+}
+
+.bar-block.filled {
+  background-color: var(--accent-coral);
+}
+
+.bar-label {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+/* Semicircular Gauge (Coral Gradient Segments) */
+.gauge-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 0;
+}
+
+.gauge-arc-mock {
+  position: relative;
+  width: 240px;
+  height: 120px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.gauge-center-text {
+  position: absolute;
+  bottom: 0;
+  text-align: center;
+}
+
+.gauge-big-num {
+  font-size: 32px;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1;
+}
+
+.gauge-sub {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.gauge-legend {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 24px;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.legend-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 5px;
+}
+
+/* Bottom Row: Priority Tasks Table & Agent Workload */
+.bottom-grid {
+  display: grid;
+  grid-template-columns: 58% 42%;
+  gap: 20px;
+}
+
+.ops-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
 }
 
-.slices-table th, .slices-table td {
-  padding: 12px 18px;
+.ops-table th {
   text-align: left;
+  padding: 10px 12px;
+  color: var(--text-dim);
+  font-size: 11px;
+  font-weight: 500;
   border-bottom: 1px solid var(--border-subtle);
 }
 
-.slices-table th {
-  background-color: var(--bg-card);
-  color: var(--text-muted);
-  font-weight: 600;
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.slices-table td {
+.ops-table td {
+  padding: 12px;
+  border-bottom: 1px solid var(--border-subtle);
   color: var(--text-main);
 }
 
-.slices-table tr:hover td {
-  background-color: var(--bg-card-hover);
+.ops-table tr:hover td {
+  background-color: rgba(255,255,255,0.02);
 }
 
+/* Status Pill Badges */
+.badge-pill {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  display: inline-block;
+}
+.badge-high { background: var(--status-high-bg); color: var(--status-high); }
+.badge-med { background: var(--status-med-bg); color: var(--status-med); }
+.badge-ok { background: var(--status-ok-bg); color: var(--status-ok); }
+
+/* Agent Workload List */
+.agent-workload-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.agent-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.agent-meta-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 160px;
+}
+
+.agent-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.agent-name-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.agent-role-sub {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.agent-bar-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.agent-progress-track {
+  flex: 1;
+  height: 6px;
+  background-color: var(--border-subtle);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+
+.agent-progress-fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+}
+
+.agent-percent-num {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  min-width: 32px;
+  text-align: right;
+}
+
+/* Responsive */
+@media (max-width: 1100px) {
+  .kpi-grid { grid-template-columns: repeat(3, 1fr); }
+  .middle-grid, .bottom-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 768px) {
+  .kpi-grid { grid-template-columns: 1fr; }
+  .app-header { flex-wrap: wrap; height: auto; padding: 12px 16px; gap: 12px; }
+  .main-viewport { padding: 16px; }
+}
+
+
+  /* Specific OpsPilot Statistics Styling */
+  .chart-y-axis {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 180px;
+    padding-bottom: 24px;
+    font-size: 11px;
+    color: #4b5563;
+    min-width: 45px;
+    font-variant-numeric: tabular-nums;
+  }
+  .chart-main-row {
+    display: flex;
+    gap: 16px;
+    align-items: flex-end;
+  }
+  .bar-chart-container {
+    flex: 1;
+    height: 180px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 10px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid #1c1e26;
+  }
+  .bar-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    gap: 8px;
+    height: 100%;
+    justify-content: flex-end;
+  }
+  .bar-stack {
+    width: 100%;
+    max-width: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    align-items: center;
+  }
+  .bar-block {
+    width: 100%;
+    height: 6px;
+    border-radius: 2px;
+    background-color: #1a1c24;
+  }
+  .bar-block.filled {
+    background-color: #ff3b3b;
+    box-shadow: 0 0 8px rgba(255, 59, 59, 0.25);
+  }
+  .bar-label {
+    font-size: 11px;
+    color: #6b7280;
+    margin-top: 6px;
+  }
   </style>
 </head>
 <body>
 
-  <!-- Top App Navigation Bar -->
+  <!-- Top Navigation Bar -->
   <header class="app-header">
     <div class="brand-group">
-      <a href="#" class="brand-logo" onclick="switchHarbourTab('kanban'); return false;">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent-primary);">
-          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+      <div class="brand-icon-box">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+          <polyline points="2 17 12 22 22 17"/>
+          <polyline points="2 12 12 17 22 12"/>
         </svg>
-        <span>HARBOUR<span style="color: var(--accent-primary);">ONE</span></span>
-      </a>
-      <span class="brand-badge">Plan & Dok</span>
+      </div>
+      <div class="brand-title-wrap">
+        <span class="brand-title">Harbour<span style="color: #ff4d4d;">One</span></span>
+        <span class="brand-subtitle">Autonomous Planning & Agent Platform</span>
+      </div>
     </div>
 
-    <!-- Navigation Tabs with Direct onclick handlers -->
-    <nav class="nav-tabs">
-      <button class="nav-tab-btn active" data-tab="kanban" onclick="switchHarbourTab('kanban')">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <rect x="3" y="3" width="7" height="9"/>
-          <rect x="14" y="3" width="7" height="5"/>
-          <rect x="14" y="12" width="7" height="9"/>
-          <rect x="3" y="16" width="7" height="5"/>
-        </svg>
-        <span>Kanban & Board</span>
-      </button>
-
-      <button class="nav-tab-btn" data-tab="roadmaps" onclick="switchHarbourTab('roadmaps')">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/>
-          <line x1="8" y1="2" x2="8" y2="18"/>
-          <line x1="16" y1="6" x2="16" y2="22"/>
-        </svg>
-        <span>Roadmaps & Graphen</span>
-      </button>
-
-      <button class="nav-tab-btn" data-tab="devblog" onclick="switchHarbourTab('devblog')">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
-          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
-        </svg>
-        <span>Devblog & Chronik</span>
-      </button>
-
-      <button class="nav-tab-btn" data-tab="decisions" onclick="switchHarbourTab('decisions')">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="10"/>
-          <polygon points="12 8 8 12 12 16 16 12 12 8"/>
-        </svg>
-        <span>Entscheidungen</span>
-      </button>
+    <!-- Centered Pill Navigation -->
+    <nav class="nav-pill-bar">
+      <button class="nav-pill-btn active" data-tab="overview" onclick="switchTab('overview')">Overview</button>
+      <button class="nav-pill-btn" data-tab="roadmaps" onclick="switchTab('roadmaps')">Workflows & DAG</button>
+      <button class="nav-pill-btn" data-tab="agents" onclick="switchTab('agents')">Agent Teams</button>
+      <button class="nav-pill-btn" data-tab="devblog" onclick="switchTab('devblog')">Devblog & Insights</button>
+      <button class="nav-pill-btn" data-tab="decisions" onclick="switchTab('decisions')">Reports & Decisions</button>
     </nav>
 
-    <!-- Header Actions & Status -->
-    <div class="header-actions">
-      <select id="project-select" class="project-select">
-        <option value="all">Alle Projekte</option>
-        <option value="scrapper">Scrapper</option>
-        <option value="queen-system1">Queen System 1</option>
-        <option value="harbour-core">Harbour One</option>
-        <option value="infra">Infrastruktur & Server</option>
-      </select>
-
-      <div class="status-indicator">
-        <span class="status-dot"></span>
-        <span>Bereit</span>
+    <!-- Header Actions -->
+    <div class="header-right">
+      <div style="cursor: pointer; color: var(--text-muted);">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       </div>
+      <div style="cursor: pointer; color: var(--text-muted); position: relative;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span style="position: absolute; top: -2px; right: -2px; width: 6px; height: 6px; border-radius: 50%; background: #ff4d4d;"></span>
+      </div>
+      <div class="user-avatar-pill" title="Nikola Katzarow">NK</div>
     </div>
   </header>
 
-  <!-- Main Viewport -->
   <main class="main-viewport">
 
-    <!-- View: Kanban Board -->
-    <section id="view-kanban" class="view-section active" style="display: block;">
-      <div class="kanban-header">
-        <div class="kanban-title-row">
-          <h1 class="view-heading">Projektsteuerung & Meilensteine</h1>
-          <span style="font-size: 13px; color: var(--text-dim);">Tastatur: <strong>[1]</strong> Kanban <strong>[2]</strong> Devblog <strong>[3]</strong> Entscheidungen</span>
-        </div>
-        <p class="view-subheading">Übersicht aller Arbeitspakete nach den vier autorisierten Statusdimensionen.</p>
+    <!-- View: Overview -->
+    <section id="view-overview" class="view-section active">
+
+      <!-- Hero Greeting -->
+      <div class="hero-greeting">
+        <h1 class="hero-title">Good evening, Nikola 👋</h1>
+        <p class="hero-subtitle">Everything you need to orchestrate your projects & autonomous agents</p>
       </div>
 
-      <div id="kanban-grid" class="kanban-grid">
-
-        <!-- Spalte 1: Geplant (Violett) -->
-        <div class="kanban-column col-planned">
-          <div class="column-header">
-            <div class="column-title">
-              <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#a855f7;"></span>
-              <span>Geplant</span>
-            </div>
-            <span class="column-badge">2</span>
+      <!-- 5 Metric KPI Cards -->
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-icon-box">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
           </div>
-          <div class="card-list">
-            <div class="kanban-card" data-task-id="TSK-01" data-project="queen-system1" onclick="openHarbourModal('TSK-01')">
-              <span class="card-tag tag-planned">Queen System 1</span>
-              <div class="card-title">LLM-Entscheidungskopplung & System1-Kern</div>
-              <div class="card-summary">Entkoppelte Schnittstelle für System1-Reaktionsmuster ohne blockierenden Chat-Monolith.</div>
-              <div class="card-footer">
-                <span>M1: Konzept</span>
-                <span>KI-Architektur</span>
-              </div>
-            </div>
-            <div class="kanban-card" data-task-id="TSK-02" data-project="harbour-core" onclick="openHarbourModal('TSK-02')">
-              <span class="card-tag tag-planned">Harbour One</span>
-              <div class="card-title">Universal Transfer-API Spezifikation</div>
-              <div class="card-summary">Idempotente REST-Übergabe (POST /api/transfers) für 1-Klick-Übernahme aus Odysseus.</div>
-              <div class="card-footer">
-                <span>HPS-08</span>
-                <span>Platform Lead</span>
-              </div>
-            </div>
+          <div class="kpi-content">
+            <span class="kpi-label">Active Agents</span>
+            <span class="kpi-value">3 Running</span>
           </div>
         </div>
 
-        <!-- Spalte 2: In Arbeit (Warm Amber) -->
-        <div class="kanban-column col-progress">
-          <div class="column-header">
-            <div class="column-title">
-              <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#f59e0b;"></span>
-              <span>In Arbeit</span>
-            </div>
-            <span class="column-badge">2</span>
+        <div class="kpi-card">
+          <div class="kpi-icon-box">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
           </div>
-          <div class="card-list">
-            <div class="kanban-card" data-task-id="TSK-03" data-project="harbour-core" onclick="openHarbourModal('TSK-03')">
-              <span class="card-tag tag-progress">Harbour One</span>
-              <div class="card-title">Autarkes Frontend & Magazin-Chronik</div>
-              <div class="card-summary">100% autarke CSS-Architektur ohne CDN-Abhängigkeit; Kanban- und Devblog-Viewports.</div>
-              <div class="card-footer">
-                <span>Phase 1</span>
-                <span>Frontend Craft</span>
-              </div>
-            </div>
-            <div class="kanban-card" data-task-id="TSK-04" data-project="scrapper" onclick="openHarbourModal('TSK-04')">
-              <span class="card-tag tag-progress">Scrapper</span>
-              <div class="card-title">Stufe 4: Verfeinerung der Gameplay-Loop</div>
-              <div class="card-summary">Balancing der Interaktionen und Optimierung der State-Maschinen-Übergänge.</div>
-              <div class="card-footer">
-                <span>Stufe 4</span>
-                <span>Game Dev</span>
-              </div>
-            </div>
+          <div class="kpi-content">
+            <span class="kpi-label">Active Workflows</span>
+            <span class="kpi-value">248 Slices</span>
           </div>
         </div>
 
-        <!-- Spalte 3: Verifiziert (Electric Blue) -->
-        <div class="kanban-column col-verified">
-          <div class="column-header">
-            <div class="column-title">
-              <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#3b82f6;"></span>
-              <span>Verifiziert</span>
-            </div>
-            <span class="column-badge">2</span>
+        <div class="kpi-card">
+          <div class="kpi-icon-box">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
           </div>
-          <div class="card-list">
-            <div class="kanban-card" data-task-id="TSK-05" data-project="infra" onclick="openHarbourModal('TSK-05')">
-              <span class="card-tag tag-verified">Infrastruktur & Server</span>
-              <div class="card-title">Cloudflare Ingress & Subdomain-Routing</div>
-              <div class="card-summary">CNAME harbour.katzarow.de auf Port 7050 im Debian-Tunnel aktiv und per HTTPS geprüft.</div>
-              <div class="card-footer">
-                <span>Deploy M1</span>
-                <span>Ops Lead</span>
-              </div>
-            </div>
-            <div class="kanban-card" data-task-id="TSK-06" data-project="scrapper" onclick="openHarbourModal('TSK-06')">
-              <span class="card-tag tag-verified">Scrapper</span>
-              <div class="card-title">Stufen 1–3: Asset- & Modell-Chronik</div>
-              <div class="card-summary">Vollständige Erfassung der ersten drei Modellierungsstufen mit belegter Historie.</div>
-              <div class="card-footer">
-                <span>Stufe 3</span>
-                <span>Asset Lead</span>
-              </div>
-            </div>
+          <div class="kpi-content">
+            <span class="kpi-label">Tasks Completed</span>
+            <span class="kpi-value">1,842</span>
           </div>
         </div>
 
-        <!-- Spalte 4: Abgenommen (Smaragdgrün) -->
-        <div class="kanban-column col-accepted">
-          <div class="column-header">
-            <div class="column-title">
-              <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#10b981;"></span>
-              <span>Abgenommen</span>
-            </div>
-            <span class="column-badge">2</span>
+        <div class="kpi-card">
+          <div class="kpi-icon-box">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
           </div>
-          <div class="card-list">
-            <div class="kanban-card" data-task-id="TSK-07" data-project="harbour-core" onclick="openHarbourModal('TSK-07')">
-              <span class="card-tag tag-accepted">Harbour One</span>
-              <div class="card-title">Produkt-Trennung: 2-Welten-Architektur</div>
-              <div class="card-summary">Vollständige Nutzerfreigabe für zwei getrennte Repositories (Odysseus vs. Harbour One).</div>
-              <div class="card-footer">
-                <span>Architektur-Gate</span>
-                <span>User / Nikola</span>
-              </div>
-            </div>
-            <div class="kanban-card" data-task-id="TSK-08" data-project="infra" onclick="openHarbourModal('TSK-08')">
-              <span class="card-tag tag-accepted">Infrastruktur & Server</span>
-              <div class="card-title">Rootless Podman Containerharbour</div>
-              <div class="card-summary">Isolierter User-Service harbour-podman.service läuft stabil auf Debian 192.168.178.122:7050.</div>
-              <div class="card-footer">
-                <span>Server Live</span>
-                <span>User / Nikola</span>
-              </div>
-            </div>
+          <div class="kpi-content">
+            <span class="kpi-label">Team Productivity</span>
+            <span class="kpi-value">87%</span>
           </div>
         </div>
 
-      </div>
-    </section>
-
-
-    <!-- View: Roadmaps & Dependency Graph -->
-    <section id="view-roadmaps" class="view-section" style="display: none;">
-      <div class="kanban-header">
-        <div class="kanban-title-row">
-          <h1 class="view-heading">Projekt-Cockpit & Roadmap-Graphen</h1>
-          <span style="font-size: 13px; color: var(--text-dim);">Tastatur: <strong>[1]</strong> Kanban <strong>[2]</strong> Roadmaps <strong>[3]</strong> Devblog <strong>[4]</strong> ADRs</span>
-        </div>
-        <p class="view-subheading">Übersicht aller Projekte, Meilensteine und gerichteten Abhängigkeiten (DAG).</p>
-      </div>
-
-      <!-- Projekt-Cockpit Übersichtskarten -->
-      <div class="project-cockpit-grid">
-        <div class="project-summary-card" data-project="harbour-core">
-          <div class="summary-header">
-            <span class="summary-title">Harbour One Produkt-Trennung</span>
-            <span class="summary-badge">50% Abgeschlossen</span>
+        <div class="kpi-card">
+          <div class="kpi-icon-box">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
           </div>
-          <div style="font-size: 12px; color: var(--text-muted);">HPS Roadmap: Trennung von Odysseus in 2 Repositories</div>
-          <div class="progress-track">
-            <div class="progress-bar-fill" style="width: 50%;"></div>
-          </div>
-          <div class="progress-labels">
-            <span>4 von 8 Slices aktiv / verifiziert</span>
-            <span style="color: var(--status-progress); font-weight: 600;">Phase 1 Aktiv</span>
-          </div>
-        </div>
-
-        <div class="project-summary-card" data-project="scrapper">
-          <div class="summary-header">
-            <span class="summary-title">Scrapper 5-Stufen-Modell</span>
-            <span class="summary-badge">60% Abgeschlossen</span>
-          </div>
-          <div style="font-size: 12px; color: var(--text-muted);">Reifegrade: Prototyp, Rigging, Shader, Gameplay, Audio</div>
-          <div class="progress-track">
-            <div class="progress-bar-fill" style="width: 60%;"></div>
-          </div>
-          <div class="progress-labels">
-            <span>3 von 5 Stufen abgenommen</span>
-            <span style="color: var(--status-verified); font-weight: 600;">Stufe 4 in Arbeit</span>
-          </div>
-        </div>
-
-        <div class="project-summary-card" data-project="queen-system1">
-          <div class="summary-header">
-            <span class="summary-title">Queen System 1 KI</span>
-            <span class="summary-badge">33% Abgeschlossen</span>
-          </div>
-          <div style="font-size: 12px; color: var(--text-muted);">Reflexive Inferenz (<50ms) entkoppelt von System 2</div>
-          <div class="progress-track">
-            <div class="progress-bar-fill" style="width: 33%;"></div>
-          </div>
-          <div class="progress-labels">
-            <span>1 von 3 Slices freigegeben</span>
-            <span style="color: var(--status-planned); font-weight: 600;">Konzept Gate</span>
+          <div class="kpi-content">
+            <span class="kpi-label">Operational Costs</span>
+            <span class="kpi-value">\$84.2K</span>
           </div>
         </div>
       </div>
 
-      <!-- Visueller Abhängigkeits-Graph (DAG) -->
-      <div class="dag-graph-container">
-        <div class="dag-graph-title-row">
-          <div class="dag-graph-title">Gerichteter Abhängigkeitsgraph (Harbour Separation DAG)</div>
-          <span style="font-size: 12px; color: var(--text-dim);">Klick auf einen Knoten öffnet die Details</span>
-        </div>
+      <!-- Middle Row: Operations Performance & Semicircular Radial Gauge -->
+      <div class="middle-grid">
 
-        <div class="graph-nodes-flow">
-          <!-- HPS-01 -->
-          <div class="graph-node node-accepted" onclick="openHarbourModal('HPS-01')">
-            <div class="node-id">HPS-01 [ABGENOMMEN]</div>
-            <div class="node-title">Produktgrenzen & Verträge</div>
-          </div>
-
-          <div class="graph-arrow">➔</div>
-
-          <!-- HPS-02 -->
-          <div class="graph-node node-verified" onclick="openHarbourModal('HPS-02')">
-            <div class="node-id">HPS-02 [VERIFIZIERT]</div>
-            <div class="node-title">Getrennte Startprofile</div>
-          </div>
-
-          <div class="graph-arrow">➔</div>
-
-          <!-- HPS-03 -->
-          <div class="graph-node node-progress" onclick="openHarbourModal('HPS-03')">
-            <div class="node-id">HPS-03 [IN ARBEIT]</div>
-            <div class="node-title">Plan/Dok Kern & MCP</div>
-          </div>
-
-          <div class="graph-arrow">➔</div>
-
-          <!-- HPS-04 -->
-          <div class="graph-node node-progress" onclick="openHarbourModal('HPS-04')">
-            <div class="node-id">HPS-04 [IN ARBEIT]</div>
-            <div class="node-title">Devblog & Kanban-UI</div>
-          </div>
-
-          <div class="graph-arrow">➔</div>
-
-          <!-- HPS-08 -->
-          <div class="graph-node node-planned" onclick="openHarbourModal('HPS-08')">
-            <div class="node-id">HPS-08 [GEPLANT]</div>
-            <div class="node-title">1-Klick Transfer-API</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Slices Detail-Tabelle -->
-      <div class="slices-table-container">
-        <div style="padding: 16px 20px; border-bottom: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center;">
-          <strong style="font-size: 14px;">Alle Roadmap-Slices & Vorbedingungen</strong>
-          <span style="font-size: 12px; color: var(--text-dim);">Gesamt: 8 Slices</span>
-        </div>
-        <table class="slices-table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Slice Name</th>
-              <th>Projekt</th>
-              <th>Abhängig von</th>
-              <th>Status</th>
-              <th>Zuständigkeit</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr class="slice-row" data-project="harbour-core" onclick="openHarbourModal('HPS-01')" style="cursor: pointer;">
-              <td style="font-family: var(--font-mono); font-weight: 600; color: var(--accent-primary);">HPS-01</td>
-              <td><strong>Produktgrenzen & Verträge</strong></td>
-              <td>Harbour One</td>
-              <td><em>Keine (Start-Slice)</em></td>
-              <td><span class="card-tag tag-accepted">Abgenommen</span></td>
-              <td>Architektur</td>
-            </tr>
-            <tr class="slice-row" data-project="harbour-core" onclick="openHarbourModal('HPS-02')" style="cursor: pointer;">
-              <td style="font-family: var(--font-mono); font-weight: 600; color: var(--accent-primary);">HPS-02</td>
-              <td><strong>Getrennte Startprofile</strong></td>
-              <td>Harbour One</td>
-              <td>HPS-01</td>
-              <td><span class="card-tag tag-verified">Verifiziert</span></td>
-              <td>Platform Lead</td>
-            </tr>
-            <tr class="slice-row" data-project="harbour-core" onclick="openHarbourModal('HPS-03')" style="cursor: pointer;">
-              <td style="font-family: var(--font-mono); font-weight: 600; color: var(--accent-primary);">HPS-03</td>
-              <td><strong>Plan/Dok-Kern & MCP</strong></td>
-              <td>Harbour One</td>
-              <td>HPS-02</td>
-              <td><span class="card-tag tag-progress">In Arbeit</span></td>
-              <td>Backend Lead</td>
-            </tr>
-            <tr class="slice-row" data-project="harbour-core" onclick="openHarbourModal('HPS-04')" style="cursor: pointer;">
-              <td style="font-family: var(--font-mono); font-weight: 600; color: var(--accent-primary);">HPS-04</td>
-              <td><strong>Devblog & Kanban-UI</strong></td>
-              <td>Harbour One</td>
-              <td>HPS-03</td>
-              <td><span class="card-tag tag-progress">In Arbeit</span></td>
-              <td>Frontend Craft</td>
-            </tr>
-            <tr class="slice-row" data-project="harbour-core" onclick="openHarbourModal('HPS-05')" style="cursor: pointer;">
-              <td style="font-family: var(--font-mono); font-weight: 600; color: var(--accent-primary);">HPS-05</td>
-              <td><strong>Dokumentations-Agent</strong></td>
-              <td>Harbour One</td>
-              <td>HPS-04</td>
-              <td><span class="card-tag tag-planned">Geplant</span></td>
-              <td>KI-Agent</td>
-            </tr>
-            <tr class="slice-row" data-project="harbour-core" onclick="openHarbourModal('HPS-06')" style="cursor: pointer;">
-              <td style="font-family: var(--font-mono); font-weight: 600; color: var(--accent-primary);">HPS-06</td>
-              <td><strong>Universal Inbox Kern</strong></td>
-              <td>Harbour One</td>
-              <td>HPS-02</td>
-              <td><span class="card-tag tag-planned">Geplant</span></td>
-              <td>Inbox Lead</td>
-            </tr>
-            <tr class="slice-row" data-project="harbour-core" onclick="openHarbourModal('HPS-07')" style="cursor: pointer;">
-              <td style="font-family: var(--font-mono); font-weight: 600; color: var(--accent-primary);">HPS-07</td>
-              <td><strong>Austauschbare Prüfmodelle</strong></td>
-              <td>Harbour One</td>
-              <td>HPS-06</td>
-              <td><span class="card-tag tag-planned">Geplant</span></td>
-              <td>KI-Architektur</td>
-            </tr>
-            <tr class="slice-row" data-project="harbour-core" onclick="openHarbourModal('HPS-08')" style="cursor: pointer;">
-              <td style="font-family: var(--font-mono); font-weight: 600; color: var(--accent-primary);">HPS-08</td>
-              <td><strong>1-Klick Transfer-API</strong></td>
-              <td>Harbour One</td>
-              <td>HPS-05, HPS-07</td>
-              <td><span class="card-tag tag-planned">Geplant</span></td>
-              <td>Platform Lead</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <!-- View: Devblog & Chronik -->
-    <section id="view-devblog" class="view-section" style="display: none;">
-      <div class="kanban-header">
-        <h1 class="view-heading">Entwicklungs-Chronik & Devblog</h1>
-        <p class="view-subheading">Bebilderte Berichte, Reifegrade und nachweisbare Meilensteine der Systeme.</p>
-      </div>
-
-      <div class="devblog-container">
-        <!-- Timeline Navigation Sidebar -->
-        <aside class="devblog-sidebar">
-          <div class="timeline-nav-title">Artikel & Meilensteine</div>
-          <div id="devblog-timeline" class="timeline-list">
-            <button class="timeline-item-btn active" data-article-id="art-scrapper">
-              <div>Scrapper: Die 5 Evolutionsstufen der Modellarchitektur</div>
-              <div style="font-size: 11px; color: var(--text-dim);">26. Oktober 2026</div>
-            </button>
-            <button class="timeline-item-btn" data-article-id="art-system1">
-              <div>Queen System 1 KI: Entkopplung der Reaktionsmuster</div>
-              <div style="font-size: 11px; color: var(--text-dim);">26. Oktober 2026</div>
-            </button>
-            <button class="timeline-item-btn" data-article-id="art-harbour-split">
-              <div>Die 2-Welten-Architektur: Odysseus und Harbour One trennen</div>
-              <div style="font-size: 11px; color: var(--text-dim);">26. Oktober 2026</div>
-            </button>
-          </div>
-        </aside>
-
-        <!-- Main Articles Feed -->
-        <div id="devblog-feed" class="devblog-feed">
-          <article class="article-card" id="art-scrapper" data-project="scrapper">
-            <header class="article-header">
-              <div class="article-meta">
-                <span class="article-badge">Projektchronik</span>
-                <span>•</span>
-                <span>Scrapper</span>
-                <span>•</span>
-                <span>26. Oktober 2026</span>
-                <span>•</span>
-                <span>4 Min. Lesezeit</span>
-              </div>
-              <h2 class="article-title">Scrapper: Die 5 Evolutionsstufen der Modellarchitektur</h2>
-              <p style="color: var(--text-muted); font-size: 14px;">Ein detaillierter Rückblick auf die Entwicklung des Scrappers: Von der ersten Konzeptzeichnung über Rigging und Physik-Kollisionen bis zur aktuellen Stufe.</p>
-            </header>
-            <div class="article-body">
-              <p>Das Projekt <strong>Scrapper</strong> durchläuft fünf klar definierte Reifegrade, um Gameplay-Tiefe mit robuster technischer Umsetzbarkeit zu verbinden. Hier ist der aktuelle Status der einzelnen Stufen:</p>
-              <div class="article-visual-block">
-                <div class="visual-block-header">Übersicht der 5 Stufen</div>
-                <table class="evidence-table">
-                  <thead>
-                    <tr><th>Stufe</th><th>Bezeichnung</th><th>Status</th><th>Prüfbeleg</th></tr>
-                  </thead>
-                  <tbody>
-                    <tr><td>Stufe 1</td><td>Geometrischer Prototyp & Bounding</td><td><span class="card-tag tag-accepted">Abgenommen</span></td><td>SRC-SCRAP-01</td></tr>
-                    <tr><td>Stufe 2</td><td>Rigging & Gelenkkinematik</td><td><span class="card-tag tag-accepted">Abgenommen</span></td><td>SRC-SCRAP-02</td></tr>
-                    <tr><td>Stufe 3</td><td>Materialien, Textur-PBR & Shader</td><td><span class="card-tag tag-verified">Verifiziert</span></td><td>SRC-SCRAP-03</td></tr>
-                    <tr><td>Stufe 4</td><td>Gameplay-Loop & Interaktionsfeedback</td><td><span class="card-tag tag-progress">In Arbeit</span></td><td>ACT-SCRAP-04</td></tr>
-                    <tr><td>Stufe 5</td><td>Audio-Integration & Polish</td><td><span class="card-tag tag-planned">Geplant</span></td><td>PLN-SCRAP-05</td></tr>
-                  </tbody>
-                </table>
-              </div>
-              <p>Besonderes Augenmerk lag in Stufe 3 auf der Performance unter Last: Alle Shader-Instanzen laufen mit minimalem Drawcall-Overhead und sind für stabile Frameraten auf Zielhardware optimiert.</p>
+        <!-- Operations Performance Chart -->
+        <div class="dashboard-card">
+          <div class="card-header-flex">
+            <div>
+              <h3 class="card-heading">Operations Performance</h3>
+              <p class="card-subtext">Overall agent execution performance and operational efficiency</p>
             </div>
-          </article>
+            <span class="card-action-link" style="border: 1px solid #262834; padding: 4px 10px; border-radius: 6px;">This Month ▾</span>
+          </div>
 
-          <article class="article-card" id="art-system1" data-project="queen-system1">
-            <header class="article-header">
-              <div class="article-meta">
-                <span class="article-badge">Architektur</span>
-                <span>•</span>
-                <span>Queen System 1</span>
-                <span>•</span>
-                <span>26. Oktober 2026</span>
-                <span>•</span>
-                <span>3 Min. Lesezeit</span>
-              </div>
-              <h2 class="article-title">Queen System 1 KI: Entkopplung der Reaktionsmuster</h2>
-              <p style="color: var(--text-muted); font-size: 14px;">Warum reflexive KI-Entscheidungen getrennt von tiefen Sprachmodellen laufen müssen und wie das System-1-Muster aufgebaut ist.</p>
-            </header>
-            <div class="article-body">
-              <p>In <code>07_Produktion/97_PlanSystem1KI.md</code> wurde der Grundstein für ein reaktionsschnelles System 1 gelegt. Anstatt für jede Interaktion ein schwerfälliges LLM im vollen Kontextfenster abzufragen, trennt die Architektur strikt zwischen zwei Ebenen:</p>
-              <ul>
-                <li><strong>System 1 (Reflexiv & Determinisch):</strong> Schnelle Vorhersagen, Cache-Lookup, Zustandsautomaten und lokale Regelsätze mit Antwortzeiten &lt; 50ms.</li>
-                <li><strong>System 2 (Reflektiv & Generativ):</strong> Tiefgreifende Kontextanalysen, Planung und Dokumentationserstellung über dedizierte Modelle.</li>
-              </ul>
-              <div class="article-visual-block">
-                <div class="visual-block-header">Architektur-Kernelement</div>
-                <p style="font-size: 13px; color: var(--text-muted);">Das System 1 bleibt bis zur endgültigen Schnittstellendefinition entkoppelt und wird nicht vorzeitig in den Chat-Monolithen gezwungen.</p>
+          <div class="chart-main-row">
+            <div class="chart-y-axis">
+              <span>\$1.2M</span>
+              <span>\$900K</span>
+              <span>\$600K</span>
+              <span>\$300K</span>
+              <span>\$0</span>
+            </div>
+            <div class="bar-chart-container">
+
+      <div class="bar-col">
+        <div class="bar-stack">
+          <div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>
+        </div>
+        <span class="bar-label">Nov</span>
+      </div>
+    \n
+      <div class="bar-col">
+        <div class="bar-stack">
+          <div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>
+        </div>
+        <span class="bar-label">Dec</span>
+      </div>
+    \n
+      <div class="bar-col">
+        <div class="bar-stack">
+          <div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>
+        </div>
+        <span class="bar-label">Jan</span>
+      </div>
+    \n
+      <div class="bar-col">
+        <div class="bar-stack">
+          <div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>
+        </div>
+        <span class="bar-label">Feb</span>
+      </div>
+    \n
+      <div class="bar-col">
+        <div class="bar-stack">
+          <div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>
+        </div>
+        <span class="bar-label">Mar</span>
+      </div>
+    \n
+      <div class="bar-col">
+        <div class="bar-stack">
+          <div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>
+        </div>
+        <span class="bar-label">Apr</span>
+      </div>
+    \n
+      <div class="bar-col">
+        <div class="bar-stack">
+          <div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>
+        </div>
+        <span class="bar-label">May</span>
+      </div>
+    \n
+      <div class="bar-col">
+        <div class="bar-stack">
+          <div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>
+        </div>
+        <span class="bar-label">Jun</span>
+      </div>
+    \n
+      <div class="bar-col">
+        <div class="bar-stack">
+          <div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>
+        </div>
+        <span class="bar-label">Jul</span>
+      </div>
+    \n
+      <div class="bar-col">
+        <div class="bar-stack">
+          <div class="bar-block"></div>\n<div class="bar-block"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>\n<div class="bar-block filled"></div>
+        </div>
+        <span class="bar-label">Aug</span>
+      </div>
+    
+            </div>
+          </div>
+        </div>
+
+        <!-- Semicircular Radial Segment Gauge (Workflow Status) -->
+        <div class="dashboard-card">
+          <div class="card-header-flex">
+            <div>
+              <h3 class="card-heading">Workflow Status</h3>
+              <p class="card-subtext">Distribution across all active roadmaps</p>
+            </div>
+            <a href="#" class="card-action-link" onclick="switchTab('roadmaps'); return false;">View All ➔</a>
+          </div>
+
+          <div class="gauge-wrapper" style="padding-top: 10px;">
+            <div class="gauge-arc-mock" style="width: 320px; height: 160px;">
+              <svg width="320" height="160" viewBox="0 0 320 160" fill="none">
+<rect x="46.5" y="124.0" width="12" height="32" rx="4" fill="#e62626" transform="rotate(-90.0 52.5 140.0)" />\n<rect x="47.3" y="111.0" width="12" height="32" rx="4" fill="#e62626" transform="rotate(-83.1 53.3 127.0)" />\n<rect x="49.6" y="98.3" width="12" height="32" rx="4" fill="#e82e2e" transform="rotate(-76.2 55.6 114.3)" />\n<rect x="53.5" y="85.9" width="12" height="32" rx="4" fill="#ec3636" transform="rotate(-69.2 59.5 101.9)" />\n<rect x="58.8" y="74.0" width="12" height="32" rx="4" fill="#ee3f3f" transform="rotate(-62.3 64.8 90.0)" />\n<rect x="65.5" y="62.9" width="12" height="32" rx="4" fill="#f04747" transform="rotate(-55.4 71.5 78.9)" />\n<rect x="73.5" y="52.7" width="12" height="32" rx="4" fill="#f35050" transform="rotate(-48.5 79.5 68.7)" />\n<rect x="82.7" y="43.5" width="12" height="32" rx="4" fill="#f55959" transform="rotate(-41.5 88.7 59.5)" />\n<rect x="92.9" y="35.5" width="12" height="32" rx="4" fill="#f76262" transform="rotate(-34.6 98.9 51.5)" />\n<rect x="104.0" y="28.8" width="12" height="32" rx="4" fill="#f96c6c" transform="rotate(-27.7 110.0 44.8)" />\n<rect x="115.9" y="23.5" width="12" height="32" rx="4" fill="#fa7676" transform="rotate(-20.8 121.9 39.5)" />\n<rect x="128.3" y="19.6" width="12" height="32" rx="4" fill="#fc8080" transform="rotate(-13.8 134.3 35.6)" />\n<rect x="141.0" y="17.3" width="12" height="32" rx="4" fill="#fd8b8b" transform="rotate(-6.9 147.0 33.3)" />\n<rect x="154.0" y="16.5" width="12" height="32" rx="4" fill="#fe9696" transform="rotate(0.0 160.0 32.5)" />\n<rect x="167.0" y="17.3" width="12" height="32" rx="4" fill="#ffa1a1" transform="rotate(6.9 173.0 33.3)" />\n<rect x="179.7" y="19.6" width="12" height="32" rx="4" fill="#ffacac" transform="rotate(13.8 185.7 35.6)" />\n<rect x="192.1" y="23.5" width="12" height="32" rx="4" fill="#ffb7b7" transform="rotate(20.8 198.1 39.5)" />\n<rect x="204.0" y="28.8" width="12" height="32" rx="4" fill="#ffc2c2" transform="rotate(27.7 210.0 44.8)" />\n<rect x="215.1" y="35.5" width="12" height="32" rx="4" fill="#ffcece" transform="rotate(34.6 221.1 51.5)" />\n<rect x="225.3" y="43.5" width="12" height="32" rx="4" fill="#ffdbdb" transform="rotate(41.5 231.3 59.5)" />\n<rect x="234.5" y="52.7" width="12" height="32" rx="4" fill="#404452" transform="rotate(48.5 240.5 68.7)" />\n<rect x="242.5" y="62.9" width="12" height="32" rx="4" fill="#353844" transform="rotate(55.4 248.5 78.9)" />\n<rect x="249.2" y="74.0" width="12" height="32" rx="4" fill="#2c2e38" transform="rotate(62.3 255.2 90.0)" />\n<rect x="254.5" y="85.9" width="12" height="32" rx="4" fill="#252730" transform="rotate(69.2 260.5 101.9)" />\n<rect x="258.4" y="98.3" width="12" height="32" rx="4" fill="#1e2027" transform="rotate(76.2 264.4 114.3)" />\n<rect x="260.7" y="111.0" width="12" height="32" rx="4" fill="#181a20" transform="rotate(83.1 266.7 127.0)" />\n<rect x="261.5" y="124.0" width="12" height="32" rx="4" fill="#15161c" transform="rotate(90.0 267.5 140.0)" />
+              </svg>
+              <div class="gauge-center-text" style="bottom: 8px;">
+                <div class="gauge-big-num" style="font-size: 38px;">248</div>
+                <div class="gauge-sub" style="letter-spacing: 0.5px;">Total Workflows</div>
               </div>
             </div>
-          </article>
-
-          <article class="article-card" id="art-harbour-split" data-project="harbour-core">
-            <header class="article-header">
-              <div class="article-meta">
-                <span class="article-badge">Meilenstein</span>
-                <span>•</span>
-                <span>Harbour One</span>
-                <span>•</span>
-                <span>26. Oktober 2026</span>
-                <span>•</span>
-                <span>5 Min. Lesezeit</span>
-              </div>
-              <h2 class="article-title">Die 2-Welten-Architektur: Odysseus und Harbour One trennen</h2>
-              <p style="color: var(--text-muted); font-size: 14px;">Vollständige Entkopplung: Warum Alltag/Inbox und Planung/Dokumentation als getrennte Repositories ohne Altschulden neu aufgesetzt werden.</p>
-            </header>
-            <div class="article-body">
-              <p>Am 26. Oktober 2026 wurde die fundamentale Weichenstellung für das gesamte Ökosystem getroffen:</p>
-              <p>Der bisherige Monolith wird nicht als schwerer Altschuldenträger fortgeführt. Stattdessen entstehen zwei eigenständige, saubere Repositories:</p>
-              <ul>
-                <li><strong>Odysseus:</strong> Der persönliche Lebens- und Kommunikations-Hub (Universal Inbox für Telegram-Voice/Text, Nextcloud, Kalender und Assistenten-Chat).</li>
-                <li><strong>Harbour One:</strong> Das Planungs- und Dokumentations-Cockpit (Kanban, Meilensteine, Devblog-Chronik und Entscheidungs-Boards).</li>
-              </ul>
-              <p>Die beiden Welten kommunizieren später über eine klare, asynchrone REST-Transfer-API (<code>POST /api/transfers</code>), wodurch beide Systeme völlig unabhängig voneinander gewartet und betrieben werden können.</p>
-            </div>
-          </article>
-        </div>
-      </div>
-    </section>
-
-    <!-- View: Entscheidungs-Board -->
-    <section id="view-decisions" class="view-section" style="display: none;">
-      <div class="kanban-header">
-        <h1 class="view-heading">Architektur-Entscheidungen (ADRs)</h1>
-        <p class="view-subheading">Verbindlich getroffene und offene Richtungsentscheidungen für das Ökosystem.</p>
-      </div>
-
-      <div id="decisions-grid" class="decisions-grid">
-        <div class="decision-card">
-          <div class="decision-header">
-            <span class="decision-id">ADR-001</span>
-            <span class="decision-status accepted">Angenommen</span>
           </div>
-          <div class="decision-title">Strikte Trennung in 2 GitHub-Repositories</div>
-          <div class="decision-desc">Odysseus (Alltag & Inbox) und Harbour One (Planung & Doku) werden als getrennte Repositories geführt. Keine gemeinsamen Datenbank-Schreibzugriffe.</div>
-          <div class="decision-footer">
-            <strong>Auswirkung:</strong> Maximale Stabilität, saubere Codebases, kein Altschulden-Transfer.
+
+          <div class="gauge-legend" style="margin-top: 28px; flex-wrap: wrap; gap: 14px;">
+            <span><strong style="color: #ff2b2b;">●</strong> In Progress</span>
+            <span><strong style="color: #ff6c6c;">●</strong> Completed</span>
+            <span><strong style="color: #ffb0b0;">●</strong> On Hold</span>
+            <span><strong style="color: #404452;">●</strong> Delayed</span>
+            <span><strong style="color: #252730;">●</strong> Cancelled</span>
           </div>
         </div>
 
-        <div class="decision-card">
-          <div class="decision-header">
-            <span class="decision-id">ADR-002</span>
-            <span class="decision-status accepted">Angenommen</span>
-          </div>
-          <div class="decision-title">100% Autarkes Frontend ohne externe CDNs</div>
-          <div class="decision-desc">Alle Styles und Skripte werden lokal ausgeliefert. Ausfallschutz gegen fehlschlagende CDN-Requests und strikte Browser-Blocker.</div>
-          <div class="decision-footer">
-            <strong>Auswirkung:</strong> Verlässliches Rendern auf allen Geräten und Verbindungen.
-          </div>
-        </div>
-
-        <div class="decision-card">
-          <div class="decision-header">
-            <span class="decision-id">ADR-003</span>
-            <span class="decision-status open">In Vorbereitung</span>
-          </div>
-          <div class="decision-title">Asynchrone Transfer-API für Inbox-Triage</div>
-          <div class="decision-desc">Spezifikation des Transfer-Payloads (ID, Herkunft, Audio-/Dateireferenz, Quelltranskript) für die 1-Klick-Übergabe von Odysseus an Harbour.</div>
-          <div class="decision-footer">
-            <strong>Auswirkung:</strong> Ermöglicht nahtlose Übergabe von Sprachnotizen direkt in die Projektplanung.
-          </div>
-        </div>
       </div>
-    </section>
 
-  </main>
+      <!-- Bottom Row: Priority Tasks Table & Team Workload -->
+      <div class="bottom-grid">
 
-  <!-- Detail Modal Drawer -->
-  <div id="modal-overlay" class="modal-overlay">
-    <div class="modal-dialog">
-      <div class="modal-header">
-        <h3 id="modal-title" class="modal-title">Aufgaben-Details</h3>
-        <button id="modal-close-btn" class="modal-close-btn" title="Schließen (Esc)">&times;</button>
-      </div>
-      <div id="modal-body" class="modal-body">
-        <!-- Injected by JS -->
-      </div>
-    </div>
-  </div>
+        <!-- Priority Tasks Table -->
+        <div class="dashboard-card">
+          <div class="card-header-flex">
+            <h3 class="card-heading">Priority Tasks</h3>
+            <a href="#" class="card-action-link" onclick="switchTab('decisions'); return false;">View All ➔</a>
+          </div>
 
-  <!-- Application Logic -->
-  <script>
-/**
- * Harbour One | Domain Data Models (Projects, Tasks, Devblog & Decisions)
- * Sourced from RedQueen and Harbour Architecture Roadmaps.
- */
-
-window.HARBOUR_DATA = {
-  projects: [
-    { id: "all", name: "Alle Projekte" },
-    { id: "scrapper", name: "Scrapper" },
-    { id: "queen-system1", name: "Queen System 1" },
-    { id: "harbour-core", name: "Harbour One" },
-    { id: "infra", name: "Infrastruktur & Server" }
-  ],
-
-  tasks: [
-    // Planned
-    {
-      id: "TSK-01",
-      projectId: "queen-system1",
-      projectLabel: "Queen System 1",
-      status: "planned",
-      title: "LLM-Entscheidungskopplung & System1-Kern",
-      summary: "Entkoppelte Schnittstelle für System1-Reaktionsmuster ohne blockierenden Chat-Monolith.",
-      owner: "KI-Architektur",
-      milestone: "M1: Konzept",
-      evidence: "07_Produktion/97_PlanSystem1KI.md"
-    },
-    {
-      id: "TSK-02",
-      projectId: "harbour-core",
-      projectLabel: "Harbour One",
-      status: "planned",
-      title: "Universal Transfer-API Spezifikation",
-      summary: "Idempotente REST-Übergabe (POST /api/transfers) für 1-Klick-Übernahme aus Odysseus.",
-      owner: "Platform Lead",
-      milestone: "HPS-08",
-      evidence: "docs/plans/harbour-product-separation-roadmap.json"
-    },
-
-    // In Progress
-    {
-      id: "TSK-03",
-      projectId: "harbour-core",
-      projectLabel: "Harbour One",
-      status: "in_progress",
-      title: "Autarkes Frontend & Magazin-Chronik",
-      summary: "100% autarke CSS-Architektur ohne CDN-Abhängigkeit; Kanban- und Devblog-Viewports.",
-      owner: "Frontend Craft",
-      milestone: "Phase 1",
-      evidence: "static/harbour/css/style.css"
-    },
-    {
-      id: "TSK-04",
-      projectId: "scrapper",
-      projectLabel: "Scrapper",
-      status: "in_progress",
-      title: "Stufe 4: Verfeinerung der Gameplay-Loop",
-      summary: "Balancing der Interaktionen und Optimierung der State-Maschinen-Übergänge.",
-      owner: "Game Dev",
-      milestone: "Stufe 4",
-      evidence: "docs/scrapper/gameplay-loop.md"
-    },
-
-    // Verified
-    {
-      id: "TSK-05",
-      projectId: "infra",
-      projectLabel: "Infrastruktur & Server",
-      status: "verified",
-      title: "Cloudflare Ingress & Subdomain-Routing",
-      summary: "CNAME harbour.katzarow.de auf Port 7050 im Debian-Tunnel aktiv und per HTTPS geprüft.",
-      owner: "Ops Lead",
-      milestone: "Deploy M1",
-      evidence: "systemd: cloudflared-tunnel.service (ACTIVE)"
-    },
-    {
-      id: "TSK-06",
-      projectId: "scrapper",
-      projectLabel: "Scrapper",
-      status: "verified",
-      title: "Stufen 1–3: Asset- & Modell-Chronik",
-      summary: "Vollständige Erfassung der ersten drei Modellierungsstufen mit belegter Historie.",
-      owner: "Asset Lead",
-      milestone: "Stufe 3",
-      evidence: "07_Produktion/Devblog/content/scrapper-history.json"
-    },
-
-    // Accepted
-    {
-      id: "TSK-07",
-      projectId: "harbour-core",
-      projectLabel: "Harbour One",
-      status: "accepted",
-      title: "Produkt-Trennung: 2-Welten-Architektur",
-      summary: "Vollständige Nutzerfreigabe für zwei getrennte Repositories (Odysseus vs. Harbour One).",
-      owner: "User / Nikola",
-      milestone: "Architektur-Gate",
-      evidence: "docs/plans/harbour-product-separation-inventory.md"
-    },
-    {
-      id: "TSK-08",
-      projectId: "infra",
-      projectLabel: "Infrastruktur & Server",
-      status: "accepted",
-      title: "Rootless Podman Containerharbour",
-      summary: "Isolierter User-Service harbour-podman.service läuft stabil auf Debian 192.168.178.122:7050.",
-      owner: "User / Nikola",
-      milestone: "Server Live",
-      evidence: "harbour_one_1 (Up 2 hours, 0 restarts)"
-    }
-  ],
-
-  devblog: [
-    {
-      id: "art-scrapper",
-      projectId: "scrapper",
-      projectLabel: "Scrapper",
-      date: "26. Oktober 2026",
-      readTime: "4 Min. Lesezeit",
-      title: "Scrapper: Die 5 Evolutionsstufen der Modellarchitektur",
-      badge: "Projektchronik",
-      summary: "Ein detaillierter Rückblick auf die Entwicklung des Scrappers: Von der ersten Konzeptzeichnung über Rigging und Physik-Kollisionen bis zur aktuellen Stufe.",
-      content: `
-        <p>Das Projekt <strong>Scrapper</strong> durchläuft fünf klar definierte Reifegrade, um Gameplay-Tiefe mit robuster technischer Umsetzbarkeit zu verbinden. Hier ist der aktuelle Status der einzelnen Stufen:</p>
-        
-        <div class="article-visual-block">
-          <div class="visual-block-header">Übersicht der 5 Stufen</div>
-          <table class="evidence-table">
+          <table class="ops-table">
             <thead>
               <tr>
-                <th>Stufe</th>
-                <th>Bezeichnung</th>
+                <th>Task</th>
+                <th>Owner</th>
+                <th>Priority</th>
+                <th>Due Date</th>
                 <th>Status</th>
-                <th>Prüfbeleg</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td>Stufe 1</td>
-                <td>Geometrischer Prototyp & Bounding</td>
-                <td><span class="card-tag tag-accepted">Abgenommen</span></td>
-                <td>SRC-SCRAP-01</td>
+                <td><span style="display:inline-flex; align-items:center; gap:6px;">📄 Review vendor proposal</span></td>
+                <td>
+                  <div style="display:flex; align-items:center; gap:8px;">
+                    <div style="width:24px; height:24px; border-radius:50%; background:#ff4d4d; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700;">SA</div>
+                    <span>Sarah Ahmed</span>
+                  </div>
+                </td>
+                <td><span class="badge-pill badge-high">High</span></td>
+                <td style="color: var(--text-dim);">Apr 29, 2026</td>
+                <td><span class="badge-pill" style="background:rgba(255,59,59,0.12); color:#ff4d4d;">Overdue</span></td>
               </tr>
               <tr>
-                <td>Stufe 2</td>
-                <td>Rigging & Gelenkkinematik</td>
-                <td><span class="card-tag tag-accepted">Abgenommen</span></td>
-                <td>SRC-SCRAP-02</td>
+                <td><span style="display:inline-flex; align-items:center; gap:6px;">📄 Approve purchase Order</span></td>
+                <td>
+                  <div style="display:flex; align-items:center; gap:8px;">
+                    <div style="width:24px; height:24px; border-radius:50%; background:#3b82f6; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700;">JM</div>
+                    <span>James Miller</span>
+                  </div>
+                </td>
+                <td><span class="badge-pill badge-high">High</span></td>
+                <td style="color: var(--text-dim);">Apr 29, 2026</td>
+                <td><span class="badge-pill" style="background:rgba(255,59,59,0.12); color:#ff4d4d;">Overdue</span></td>
               </tr>
               <tr>
-                <td>Stufe 3</td>
-                <td>Materialien, Textur-PBR & Shader</td>
-                <td><span class="card-tag tag-verified">Verifiziert</span></td>
-                <td>SRC-SCRAP-03</td>
+                <td><span style="display:inline-flex; align-items:center; gap:6px;">📄 Client onboarding call</span></td>
+                <td>
+                  <div style="display:flex; align-items:center; gap:8px;">
+                    <div style="width:24px; height:24px; border-radius:50%; background:#10b981; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700;">PS</div>
+                    <span>Priya Singh</span>
+                  </div>
+                </td>
+                <td><span class="badge-pill badge-med">Medium</span></td>
+                <td style="color: var(--text-dim);">Apr 30, 2026</td>
+                <td><span class="badge-pill" style="background:rgba(16,185,129,0.12); color:#10b981;">In Progress</span></td>
               </tr>
               <tr>
-                <td>Stufe 4</td>
-                <td>Gameplay-Loop & Interaktionsfeedback</td>
-                <td><span class="card-tag tag-progress">In Arbeit</span></td>
-                <td>ACT-SCRAP-04</td>
-              </tr>
-              <tr>
-                <td>Stufe 5</td>
-                <td>Audio-Integration & Polish</td>
-                <td><span class="card-tag tag-planned">Geplant</span></td>
-                <td>PLN-SCRAP-05</td>
+                <td><span style="display:inline-flex; align-items:center; gap:6px;">📄 Process refund request</span></td>
+                <td>
+                  <div style="display:flex; align-items:center; gap:8px;">
+                    <div style="width:24px; height:24px; border-radius:50%; background:#8b5cf6; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700;">DW</div>
+                    <span>David Wilson</span>
+                  </div>
+                </td>
+                <td><span class="badge-pill badge-med">Medium</span></td>
+                <td style="color: var(--text-dim);">May 1, 2026</td>
+                <td><span class="badge-pill" style="background:rgba(16,185,129,0.12); color:#10b981;">In Progress</span></td>
               </tr>
             </tbody>
           </table>
         </div>
 
-        <p>Besonderes Augenmerk lag in Stufe 3 auf der Performance unter Last: Alle Shader-Instanzen laufen mit minimalem Drawcall-Overhead und sind für stabile Frameraten auf Zielhardware optimiert.</p>
-      `
-    },
-    {
-      id: "art-system1",
-      projectId: "queen-system1",
-      projectLabel: "Queen System 1",
-      date: "26. Oktober 2026",
-      readTime: "3 Min. Lesezeit",
-      title: "Queen System 1 KI: Entkopplung der Reaktionsmuster",
-      badge: "Architektur",
-      summary: "Warum reflexive KI-Entscheidungen getrennt von tiefen Sprachmodellen laufen müssen und wie das System-1-Muster aufgebaut ist.",
-      content: `
-        <p>In <code>07_Produktion/97_PlanSystem1KI.md</code> wurde der Grundstein für ein reaktionsschnelles System 1 gelegt. Anstatt für jede Interaktion ein schwerfälliges LLM im vollen Kontextfenster abzufragen, trennt die Architektur strikt zwischen zwei Ebenen:</p>
-        
-        <ul>
-          <li><strong>System 1 (Reflexiv & Determinisch):</strong> Schnelle Vorhersagen, Cache-Lookup, Zustandsautomaten und lokale Regelsätze mit Antwortzeiten &lt; 50ms.</li>
-          <li><strong>System 2 (Reflektiv & Generativ):</strong> Tiefgreifende Kontextanalysen, Planung und Dokumentationserstellung über dedizierte Modelle.</li>
-        </ul>
+        <!-- Team & Agent Workload -->
+        <div class="dashboard-card">
+          <div class="card-header-flex">
+            <h3 class="card-heading">Team & Agent Workload</h3>
+            <a href="#" class="card-action-link" onclick="switchTab('agents'); return false;">View All ➔</a>
+          </div>
 
-        <div class="article-visual-block">
-          <div class="visual-block-header">Architektur-Kernelement</div>
-          <p style="font-size: 13px; color: var(--text-muted);">Das System 1 bleibt bis zur endgültigen Schnittstellendefinition entkoppelt und wird nicht vorzeitig in den Chat-Monolithen gezwungen.</p>
+          <div class="agent-workload-list">
+            <div class="agent-row">
+              <div class="agent-meta-left">
+                <div class="agent-avatar" style="background: #ff4d4d;">SA</div>
+                <div>
+                  <div class="agent-name-title">Sarah Ahmed</div>
+                  <div class="agent-role-sub">Product Manager / Agent Lead</div>
+                </div>
+              </div>
+              <div class="agent-bar-wrap">
+                <div class="agent-progress-track">
+                  <div class="agent-progress-fill" style="width: 92%; background: #ff4d4d;"></div>
+                </div>
+                <span class="agent-percent-num">92%</span>
+              </div>
+            </div>
+
+            <div class="agent-row">
+              <div class="agent-meta-left">
+                <div class="agent-avatar" style="background: #3b82f6;">JM</div>
+                <div>
+                  <div class="agent-name-title">James Miller</div>
+                  <div class="agent-role-sub">Operations Lead</div>
+                </div>
+              </div>
+              <div class="agent-bar-wrap">
+                <div class="agent-progress-track">
+                  <div class="agent-progress-fill" style="width: 76%; background: #ff4d4d;"></div>
+                </div>
+                <span class="agent-percent-num">76%</span>
+              </div>
+            </div>
+
+            <div class="agent-row">
+              <div class="agent-meta-left">
+                <div class="agent-avatar" style="background: #10b981;">PS</div>
+                <div>
+                  <div class="agent-name-title">Priya Singh</div>
+                  <div class="agent-role-sub">Team Lead / QA</div>
+                </div>
+              </div>
+              <div class="agent-bar-wrap">
+                <div class="agent-progress-track">
+                  <div class="agent-progress-fill" style="width: 68%; background: #f59e0b;"></div>
+                </div>
+                <span class="agent-percent-num">68%</span>
+              </div>
+            </div>
+
+            <div class="agent-row">
+              <div class="agent-meta-left">
+                <div class="agent-avatar" style="background: #8b5cf6;">DW</div>
+                <div>
+                  <div class="agent-name-title">David Wilson</div>
+                  <div class="agent-role-sub">Backend Developer</div>
+                </div>
+              </div>
+              <div class="agent-bar-wrap">
+                <div class="agent-progress-track">
+                  <div class="agent-progress-fill" style="width: 54%; background: #3b82f6;"></div>
+                </div>
+                <span class="agent-percent-num">54%</span>
+              </div>
+            </div>
+          </div>
         </div>
-      `
-    },
-    {
-      id: "art-harbour-split",
-      projectId: "harbour-core",
-      projectLabel: "Harbour One",
-      date: "26. Oktober 2026",
-      readTime: "5 Min. Lesezeit",
-      title: "Die 2-Welten-Architektur: Odysseus und Harbour One trennen",
-      badge: "Meilenstein",
-      summary: "Vollständige Entkopplung: Warum Alltag/Inbox und Planung/Dokumentation als getrennte Repositories ohne Altschulden neu aufgesetzt werden.",
-      content: `
-        <p>Am 26. Oktober 2026 wurde die fundamentale Weichenstellung für das gesamte Ökosystem getroffen:</p>
-        
-        <p>Der bisherige Monolith wird nicht als schwerer Altschuldenträger fortgeführt. Stattdessen entstehen zwei eigenständige, saubere Repositories:</p>
-        
-        <ul>
-          <li><strong>Odysseus:</strong> Der persönliche Lebens- und Kommunikations-Hub (Universal Inbox für Telegram-Voice/Text, Nextcloud, Kalender und Assistenten-Chat).</li>
-          <li><strong>Harbour One:</strong> Das Planungs- und Dokumentations-Cockpit (Kanban, Meilensteine, Devblog-Chronik und Entscheidungs-Boards).</li>
-        </ul>
 
-        <p>Die beiden Welten kommunizieren später über eine klare, asynchrone REST-Transfer-API (<code>POST /api/transfers</code>), wodurch beide Systeme völlig unabhängig voneinander gewartet und betrieben werden können.</p>
-      `
-    }
-  ],
+      </div>
 
-  
-  roadmaps: [
-    {
-      id: "RMP-HPS",
-      title: "Harbour One: Produkt-Trennung von Odysseus",
-      projectId: "harbour-core",
-      projectLabel: "Harbour One",
-      progress: 50,
-      totalSlices: 8,
-      completedSlices: 4,
-      slices: [
-        { id: "HPS-01", name: "Produktgrenzen & Verträge", status: "accepted", dependsOn: [], desc: "Zwei Produkte und genau ein Writer je Datenbestand.", owner: "Architektur" },
-        { id: "HPS-02", name: "Getrennte Startprofile", status: "verified", dependsOn: ["HPS-01"], desc: "Autarke Kompositionen für Plan/Dok und Inbox.", owner: "Platform Lead" },
-        { id: "HPS-03", name: "Plan/Dok-Kern & MCP", status: "in_progress", dependsOn: ["HPS-02"], desc: "Dauerhafte Speicherung von Roadmaps & Slices.", owner: "Backend Lead" },
-        { id: "HPS-04", name: "Devblog & Kanban-UI", status: "in_progress", dependsOn: ["HPS-03"], desc: "Bebilderte Chronik und Human-First Frontend.", owner: "Frontend Craft" },
-        { id: "HPS-05", name: "Dokumentations-Agent", status: "planned", dependsOn: ["HPS-04"], desc: "Automatisierte Erstellung von Journalvorschlägen.", owner: "KI-Agent" },
-        { id: "HPS-06", name: "Universal Inbox Kern", status: "planned", dependsOn: ["HPS-02"], desc: "Telegram- und Nextcloud-Connectors entkoppelt.", owner: "Inbox Lead" },
-        { id: "HPS-07", name: "Austauschbare Prüfmodelle", status: "planned", dependsOn: ["HPS-06"], desc: "LLM-Vorprüfung für Dokumente und Memos.", owner: "KI-Architektur" },
-        { id: "HPS-08", name: "1-Klick Transfer-API", status: "planned", dependsOn: ["HPS-05", "HPS-07"], desc: "Idempotente Übergabe von Odysseus an Harbour.", owner: "Platform Lead" }
-      ]
-    },
-    {
-      id: "RMP-SCRAP",
-      title: "Scrapper: Die 5 Evolutionsstufen",
-      projectId: "scrapper",
-      projectLabel: "Scrapper",
-      progress: 60,
-      totalSlices: 5,
-      completedSlices: 3,
-      slices: [
-        { id: "SCRAP-01", name: "Stufe 1: Geometrischer Prototyp", status: "accepted", dependsOn: [], desc: "Prototyp & Bounding Boxes.", owner: "Asset Lead" },
-        { id: "SCRAP-02", name: "Stufe 2: Rigging & Kinematik", status: "accepted", dependsOn: ["SCRAP-01"], desc: "Gelenke und Bewegungshierarchien.", owner: "Animation Lead" },
-        { id: "SCRAP-03", name: "Stufe 3: PBR-Materialien & Shader", status: "verified", dependsOn: ["SCRAP-02"], desc: "Performance-optimierte Shader.", owner: "Shader Dev" },
-        { id: "SCRAP-04", name: "Stufe 4: Gameplay-Loop", status: "in_progress", dependsOn: ["SCRAP-03"], desc: "Interaktionsfeedback und Balancing.", owner: "Game Dev" },
-        { id: "SCRAP-05", name: "Stufe 5: Audio & Polish", status: "planned", dependsOn: ["SCRAP-04"], desc: "Sounddesign und finale Abnahme.", owner: "Audio Lead" }
-      ]
-    },
-    {
-      id: "RMP-SYS1",
-      title: "Queen System 1 KI: Entkopplung",
-      projectId: "queen-system1",
-      projectLabel: "Queen System 1",
-      progress: 33,
-      totalSlices: 3,
-      completedSlices: 1,
-      slices: [
-        { id: "SYS1-01", name: "Schnittstellendefinition (<50ms)", status: "accepted", dependsOn: [], desc: "Entkoppelte Inferenz ohne Chat-Monolith.", owner: "KI-Architektur" },
-        { id: "SYS1-02", name: "Zustandsautomat & Cache-Lookup", status: "in_progress", dependsOn: ["SYS1-01"], desc: "Reflexive Regelsätze und Vorhersagen.", owner: "Core Dev" },
-        { id: "SYS1-03", name: "Live-Kopplung mit System 2", status: "planned", dependsOn: ["SYS1-02"], desc: "Asynchroner Handoff an generative Modelle.", owner: "KI-Architektur" }
-      ]
-    }
-  ],
+    </section>
 
-  decisions: [
-    {
-      id: "ADR-001",
-      title: "Strikte Trennung in 2 GitHub-Repositories",
-      status: "accepted",
-      statusLabel: "Angenommen",
-      date: "2026-10-26",
-      description: "Odysseus (Alltag & Inbox) und Harbour One (Planung & Doku) werden als getrennte Repositories geführt. Keine gemeinsamen Datenbank-Schreibzugriffe.",
-      impact: "Maximale Stabilität, saubere Codebases, kein Altschulden-Transfer."
-    },
-    {
-      id: "ADR-002",
-      title: "100% Autarkes Frontend ohne externe CDNs",
-      status: "accepted",
-      statusLabel: "Angenommen",
-      date: "2026-10-26",
-      description: "Alle Styles und Skripte werden lokal ausgeliefert. Ausfallschutz gegen fehlschlagende CDN-Requests und strikte Browser-Blocker.",
-      impact: "Verlässliches Rendern auf allen Geräten und Verbindungen."
-    },
-    {
-      id: "ADR-003",
-      title: "Asynchrone Transfer-API für Inbox-Triage",
-      status: "open",
-      statusLabel: "In Vorbereitung",
-      date: "2026-10-26",
-      description: "Spezifikation des Transfer-Payloads (ID, Herkunft, Audio-/Dateireferenz, Quelltranskript) für die 1-Klick-Übergabe von Odysseus an Harbour.",
-      impact: "Ermöglicht nahtlose Übergabe von Sprachnotizen direkt in die Projektplanung."
-    }
-  ]
-};
+  </main>
 
-  </script>
   <script>
-
-(function() {
-  'use strict';
-
-  // Global Tab Switcher (Direct DOM manipulation)
-  window.switchHarbourTab = function(tabId) {
-    // 1. Update Buttons
-    const buttons = document.querySelectorAll('.nav-tab-btn');
-    buttons.forEach(btn => {
-      const match = btn.getAttribute('data-tab') === tabId;
-      if (match) {
-        btn.classList.add('active');
-      } else {
-        btn.classList.remove('active');
-      }
-    });
-
-    // 2. Update View Sections
-    const views = ['kanban', 'roadmaps', 'devblog', 'decisions'];
-    views.forEach(v => {
-      const el = document.getElementById('view-' + v);
-      if (el) {
-        if (v === tabId) {
-          el.style.display = 'block';
-          el.classList.add('active');
-        } else {
-          el.style.display = 'none';
-          el.classList.remove('active');
-        }
-      }
-    });
-  };
-
-  // Global Modal Handlers
-  window.openHarbourModal = function(taskId) {
-    const data = window.HARBOUR_DATA;
-    if (!data) return;
-    
-    // Check in tasks
-    let task = (data.tasks || []).find(t => t.id === taskId);
-    
-    // Check in roadmaps slices
-    if (!task && data.roadmaps) {
-      for (const r of data.roadmaps) {
-        const s = (r.slices || []).find(sl => sl.id === taskId);
-        if (s) {
-          task = {
-            id: s.id,
-            title: s.name,
-            projectLabel: r.projectLabel,
-            status: s.status,
-            milestone: r.title,
-            summary: s.desc,
-            evidence: s.dependsOn && s.dependsOn.length ? 'Abhängig von: ' + s.dependsOn.join(', ') : 'Keine Vorbedingungen (Start-Slice)',
-            owner: s.owner
-          };
-          break;
-        }
-      }
-    }
-
-    if (!task) return;
-
-    const overlay = document.getElementById('modal-overlay');
-    const title = document.getElementById('modal-title');
-    const body = document.getElementById('modal-body');
-    if (!overlay || !title || !body) return;
-
-    title.textContent = task.id + ': ' + task.title;
-    body.innerHTML = `
-      <div style="margin-bottom: 16px;">
-        <span class="card-tag tag-${task.status}">${escapeHtml(task.projectLabel)}</span>
-        <span style="font-size: 12px; color: var(--text-muted); margin-left: 8px;">Meilenstein / Roadmap: <strong>${escapeHtml(task.milestone)}</strong></span>
-      </div>
-      <p style="font-size: 14px; color: var(--text-main); margin-bottom: 20px;">${escapeHtml(task.summary)}</p>
-      
-      <div class="article-visual-block">
-        <div class="visual-block-header">Prüfnachweis / Abhängigkeit</div>
-        <div style="font-family: var(--font-mono); font-size: 12px; color: var(--accent-primary);">${escapeHtml(task.evidence)}</div>
-      </div>
-
-      <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--text-muted);">
-        <span>Zuständigkeit: <strong>${escapeHtml(task.owner)}</strong></span>
-        <span>Status-Dimension: <strong>${task.status.toUpperCase()}</strong></span>
-      </div>
-    `;
-    overlay.classList.add('active');
-  };
-
-  window.closeHarbourModal = function() {
-    const overlay = document.getElementById('modal-overlay');
-    if (overlay) overlay.classList.remove('active');
-  };
-
-  // Keyboard Shortcuts (1=Kanban, 2=Roadmaps, 3=Devblog, 4=Decisions, Esc=Modal)
-  window.addEventListener('keydown', function(e) {
-    const tag = (document.activeElement && document.activeElement.tagName || '').toLowerCase();
-    if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
-
-    if (e.key === '1' || e.code === 'Digit1' || e.code === 'Numpad1') {
-      window.switchHarbourTab('kanban');
-    } else if (e.key === '2' || e.code === 'Digit2' || e.code === 'Numpad2') {
-      window.switchHarbourTab('roadmaps');
-    } else if (e.key === '3' || e.code === 'Digit3' || e.code === 'Numpad3') {
-      window.switchHarbourTab('devblog');
-    } else if (e.key === '4' || e.code === 'Digit4' || e.code === 'Numpad4') {
-      window.switchHarbourTab('decisions');
-    } else if (e.key === 'Escape') {
-      window.closeHarbourModal();
-    }
-  });
-
-  // Project Filtering
-  window.filterHarbourProject = function(projectId) {
-    const cards = document.querySelectorAll('.kanban-card');
-    cards.forEach(c => {
-      const p = c.getAttribute('data-project');
-      c.style.display = (projectId === 'all' || p === projectId) ? 'block' : 'none';
-    });
-
-    const articles = document.querySelectorAll('.article-card');
-    articles.forEach(a => {
-      const p = a.getAttribute('data-project');
-      a.style.display = (projectId === 'all' || p === projectId) ? 'block' : 'none';
-    });
-
-    const summaries = document.querySelectorAll('.project-summary-card');
-    summaries.forEach(s => {
-      const p = s.getAttribute('data-project');
-      s.style.display = (projectId === 'all' || p === projectId) ? 'block' : 'none';
-    });
-
-    const rows = document.querySelectorAll('.slice-row');
-    rows.forEach(r => {
-      const p = r.getAttribute('data-project');
-      r.style.display = (projectId === 'all' || p === projectId) ? 'table-row' : 'none';
-    });
-  };
-
-  // Helper
-  function escapeHtml(str) {
-    if (!str) return '';
-    return str.replace(/[&<>'"]/g, 
-      tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
-    );
-  }
-
-  // Setup click listeners on load
-  function setup() {
-    const sel = document.getElementById('project-select');
-    if (sel) {
-      sel.addEventListener('change', function(e) {
-        window.filterHarbourProject(e.target.value);
+    function switchTab(tabId) {
+      document.querySelectorAll('.nav-pill-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-tab') === tabId);
       });
     }
-
-    const closeBtn = document.getElementById('modal-close-btn');
-    if (closeBtn) closeBtn.addEventListener('click', window.closeHarbourModal);
-    
-    const overlay = document.getElementById('modal-overlay');
-    if (overlay) {
-      overlay.addEventListener('click', function(e) {
-        if (e.target === overlay) window.closeHarbourModal();
-      });
-    }
-
-    document.querySelectorAll('.timeline-item-btn').forEach(btn => {
-      btn.addEventListener('click', function() {
-        const id = btn.getAttribute('data-article-id');
-        const el = document.getElementById(id);
-        if (el) {
-          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          document.querySelectorAll('.timeline-item-btn').forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
-        }
-      });
-    });
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', setup);
-  } else {
-    setup();
-  }
-})();
-
   </script>
 </body>
 </html>
