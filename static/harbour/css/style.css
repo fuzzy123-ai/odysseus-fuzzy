@@ -673,3 +673,82 @@ body {
     padding: 16px;
   }
 }
+
+/* ==========================================================================
+   Distinct Column Identities (Geplant, In Arbeit, Verifiziert, Abgenommen)
+   ========================================================================== */
+.kanban-column.col-planned {
+  border-top: 3px solid #a855f7;
+  background: linear-gradient(180deg, rgba(168, 85, 247, 0.06) 0%, var(--bg-surface) 120px);
+}
+.kanban-column.col-planned .column-header {
+  border-bottom: 1px solid rgba(168, 85, 247, 0.2);
+}
+.kanban-column.col-planned .column-title {
+  color: #c084fc;
+}
+.kanban-column.col-planned .column-badge {
+  background-color: rgba(168, 85, 247, 0.15);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+}
+.kanban-column.col-planned .kanban-card {
+  border-left: 3px solid #a855f7;
+}
+
+.kanban-column.col-progress {
+  border-top: 3px solid #f59e0b;
+  background: linear-gradient(180deg, rgba(245, 158, 11, 0.06) 0%, var(--bg-surface) 120px);
+}
+.kanban-column.col-progress .column-header {
+  border-bottom: 1px solid rgba(245, 158, 11, 0.2);
+}
+.kanban-column.col-progress .column-title {
+  color: #fbbf24;
+}
+.kanban-column.col-progress .column-badge {
+  background-color: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+.kanban-column.col-progress .kanban-card {
+  border-left: 3px solid #f59e0b;
+}
+
+.kanban-column.col-verified {
+  border-top: 3px solid #3b82f6;
+  background: linear-gradient(180deg, rgba(59, 130, 246, 0.06) 0%, var(--bg-surface) 120px);
+}
+.kanban-column.col-verified .column-header {
+  border-bottom: 1px solid rgba(59, 130, 246, 0.2);
+}
+.kanban-column.col-verified .column-title {
+  color: #60a5fa;
+}
+.kanban-column.col-verified .column-badge {
+  background-color: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+.kanban-column.col-verified .kanban-card {
+  border-left: 3px solid #3b82f6;
+}
+
+.kanban-column.col-accepted {
+  border-top: 3px solid #10b981;
+  background: linear-gradient(180deg, rgba(16, 185, 129, 0.06) 0%, var(--bg-surface) 120px);
+}
+.kanban-column.col-accepted .column-header {
+  border-bottom: 1px solid rgba(16, 185, 129, 0.2);
+}
+.kanban-column.col-accepted .column-title {
+  color: #34d399;
+}
+.kanban-column.col-accepted .column-badge {
+  background-color: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+.kanban-column.col-accepted .kanban-card {
+  border-left: 3px solid #10b981;
+}
