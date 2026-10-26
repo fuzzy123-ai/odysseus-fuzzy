@@ -12,6 +12,8 @@ services:
       - ${UNIVERSAL_INBOX_HOST_PATH:-./data/universal-inbox}:${UNIVERSAL_INBOX_PATH:-/app/universal-inbox}:ro,z
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    env_file:
+      - /opt/odysseus/.env
     environment:
       - LLM_HOST=${LLM_HOST:-ollama}
       - LLM_HOSTS=${LLM_HOSTS:-ollama}
@@ -19,7 +21,7 @@ services:
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       - CHROMADB_HOST=chromadb
       - CHROMADB_PORT=8000
-      - DATABASE_URL=${DATABASE_URL:-sqlite:///./data/app.db}
+      - DATABASE_URL=sqlite:////app/data/app.db
       - AUTH_ENABLED=${AUTH_ENABLED:-true}
       - ODYSSEUS_TOOL_CATALOG_V2_ENABLED=true
       - HARBOUR_MCP_FIRST_ENABLED=true

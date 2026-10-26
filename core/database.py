@@ -51,7 +51,7 @@ def _normalize_sqlite_url(url: str) -> str:
 
 
 # Get database URL from environment, default to SQLite in DATA_DIR
-DATABASE_URL = _normalize_sqlite_url(os.getenv("DATABASE_URL", _default_database_url()))
+DATABASE_URL = _normalize_sqlite_url((os.getenv("DATABASE_URL") or "").strip() or _default_database_url())
 
 # Create engine
 _connect_args = {"check_same_thread": False} if "sqlite" in DATABASE_URL else {}
