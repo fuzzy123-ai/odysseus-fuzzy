@@ -706,6 +706,289 @@ body {
     border-radius: 50%;
   }
 
+  
+  /* Additional OpsPilot Views Styles (Roadmaps, Agents, Devblog, Decisions) */
+  .view-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .view-title-wrap h2 {
+    font-size: 22px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -0.4px;
+  }
+  .view-title-wrap p {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+  
+  .filter-pill-group {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .filter-pill-btn {
+    background: #13141a;
+    border: 1px solid #262834;
+    color: #9ba1b4;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 6px 14px;
+    border-radius: 9999px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .filter-pill-btn:hover {
+    color: #fff;
+    border-color: #3b3f52;
+  }
+  .filter-pill-btn.active {
+    background: #fff;
+    color: #0b0c10;
+    border-color: #fff;
+    font-weight: 600;
+  }
+
+  /* 4 Workflow Status Columns (Klar differenziert) */
+  .workflow-columns-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 18px;
+    margin-top: 20px;
+  }
+  @media (max-width: 1200px) {
+    .workflow-columns-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 640px) {
+    .workflow-columns-grid { grid-template-columns: 1fr; }
+  }
+
+  .workflow-col {
+    background: #111217;
+    border-radius: 14px;
+    border: 1px solid #1e202a;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  /* Category distinctions */
+  .col-stage-planned { border-top: 3px solid #3b82f6; }
+  .col-stage-inprogress { border-top: 3px solid #f97316; }
+  .col-stage-verified { border-top: 3px solid #a855f7; }
+  .col-stage-accepted { border-top: 3px solid #10b981; }
+
+  .workflow-col-header {
+    padding: 14px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #1c1e26;
+    background: rgba(255, 255, 255, 0.015);
+  }
+  .col-title-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #fff;
+  }
+  .col-count-pill {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    background: #1c1e26;
+    color: #9ba1b4;
+  }
+
+  .col-items-list {
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 380px;
+  }
+
+  .slice-card {
+    background: #16171f;
+    border: 1px solid #232532;
+    border-radius: 10px;
+    padding: 14px;
+    transition: transform 0.15s ease, border-color 0.15s ease;
+    cursor: pointer;
+  }
+  .slice-card:hover {
+    transform: translateY(-2px);
+    border-color: #36394a;
+  }
+  .slice-meta-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .slice-id {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent-coral);
+    letter-spacing: 0.3px;
+  }
+  .slice-project-tag {
+    font-size: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: #9ba1b4;
+  }
+  .slice-card-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #f5f6fa;
+    line-height: 1.4;
+    margin-bottom: 8px;
+  }
+  .slice-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    font-size: 11px;
+    color: #6b7280;
+  }
+  .agent-pulse-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #f97316;
+    background: rgba(249, 115, 22, 0.12);
+    padding: 2px 8px;
+    border-radius: 9999px;
+  }
+  .pulse-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #f97316;
+    box-shadow: 0 0 6px #f97316;
+  }
+
+  /* DAG Visual Map */
+  .dag-map-box {
+    background: #111217;
+    border: 1px solid #1e202a;
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 24px;
+  }
+  .dag-flow-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    overflow-x: auto;
+    padding: 12px 6px;
+  }
+  .dag-node {
+    background: #161720;
+    border: 1px solid #262837;
+    border-radius: 10px;
+    padding: 12px 18px;
+    min-width: 170px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .dag-node.active-node {
+    border-color: var(--accent-coral);
+    box-shadow: 0 0 12px rgba(235, 51, 51, 0.15);
+  }
+  .dag-arrow {
+    color: #4b5563;
+    font-size: 18px;
+    user-select: none;
+  }
+
+  /* Agent Teams Cockpit */
+  .agents-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 18px;
+    margin-bottom: 28px;
+  }
+  @media (max-width: 1100px) {
+    .agents-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 600px) {
+    .agents-grid { grid-template-columns: 1fr; }
+  }
+  .agent-cockpit-card {
+    background: #13141a;
+    border: 1px solid #1f212a;
+    border-radius: 14px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    position: relative;
+    overflow: hidden;
+  }
+  .agent-status-badge {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 9999px;
+  }
+
+  /* ADR & Decisions Table Controls */
+  .decisions-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .search-input-box {
+    background: #161720;
+    border: 1px solid #262837;
+    border-radius: 8px;
+    padding: 8px 14px;
+    color: #fff;
+    font-size: 13px;
+    width: 260px;
+    outline: none;
+  }
+  .search-input-box:focus {
+    border-color: var(--accent-coral);
+  }
+  .btn-accent {
+    background: var(--accent-coral);
+    color: #fff;
+    border: none;
+    font-weight: 600;
+    font-size: 13px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: opacity 0.15s ease;
+  }
+  .btn-accent:hover { opacity: 0.9; }
+
   </style>
 </head>
 <body>
@@ -1834,13 +2117,597 @@ body {
 
     </section>
 
-  </main>
+    <!-- ========================================== -->
+    <!-- View: Workflows & DAG (Tab 2)             -->
+    <!-- ========================================== -->
+    <section id="view-roadmaps" class="view-section">
+      <div class="view-header">
+        <div class="view-title-wrap">
+          <h2>Workflows & DAG Slices</h2>
+          <p>Visuelle Abhängigkeiten, Agent-Claims und Live-Slices über alle Roadmaps</p>
+        </div>
+        <div class="filter-pill-group">
+          <button class="filter-pill-btn active" onclick="filterSlices('all', this)">Alle Slices</button>
+          <button class="filter-pill-btn" onclick="filterSlices('harbour', this)">Harbour One</button>
+          <button class="filter-pill-btn" onclick="filterSlices('redqueen', this)">RedQueen</button>
+          <button class="filter-pill-btn" onclick="filterSlices('odysseus', this)">Odysseus Core</button>
+          <button class="btn-accent" onclick="showNewSliceModal()" style="margin-left: 8px;">+ Neuer Slice</button>
+        </div>
+      </div>
+
+      <!-- DAG Visual Dependency Flow -->
+      <div class="dag-map-box">
+        <div style="font-size: 12px; font-weight: 600; color: #8a8f9d; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Live Execution DAG Pipeline</div>
+        <div class="dag-flow-row">
+          <div class="dag-node">
+            <span style="font-size: 10px; color: #10b981; font-weight: 700;">PHASE 1 • DONE</span>
+            <strong style="color: #fff; font-size: 13px;">Architektur-Fundament</strong>
+            <span style="font-size: 11px; color: #6b7280;">RedQueen Module & Schemas</span>
+          </div>
+          <span class="dag-arrow">➔</span>
+          <div class="dag-node active-node">
+            <span style="font-size: 10px; color: #ff4d4d; font-weight: 700;">PHASE 2 • IN WORK</span>
+            <strong style="color: #fff; font-size: 13px;">OpsPilot Cockpit UI</strong>
+            <span style="font-size: 11px; color: #6b7280;">Active Agent: Sol</span>
+          </div>
+          <span class="dag-arrow">➔</span>
+          <div class="dag-node active-node">
+            <span style="font-size: 10px; color: #f97316; font-weight: 700;">PHASE 3 • IN WORK</span>
+            <strong style="color: #fff; font-size: 13px;">Multi-Tasking Leases</strong>
+            <span style="font-size: 11px; color: #6b7280;">Active Agent: Luna</span>
+          </div>
+          <span class="dag-arrow">➔</span>
+          <div class="dag-node">
+            <span style="font-size: 10px; color: #6b7280; font-weight: 700;">PHASE 4 • PLANNED</span>
+            <strong style="color: #fff; font-size: 13px;">MCP Planning Submission</strong>
+            <span style="font-size: 11px; color: #6b7280;">ADR P0/P1 Integration</span>
+          </div>
+          <span class="dag-arrow">➔</span>
+          <div class="dag-node">
+            <span style="font-size: 10px; color: #6b7280; font-weight: 700;">PHASE 5 • PLANNED</span>
+            <strong style="color: #fff; font-size: 13px;">Automated Review Gate</strong>
+            <span style="font-size: 11px; color: #6b7280;">Opus Chief Abnahme</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4 Klar differenzierte Status-Spalten -->
+      <div class="workflow-columns-grid">
+        <!-- Spalte 1: Geplant -->
+        <div class="workflow-col col-stage-planned">
+          <div class="workflow-col-header">
+            <div class="col-title-badge">
+              <span style="color: #3b82f6;">●</span> Geplant
+            </div>
+            <span class="col-count-pill">3</span>
+          </div>
+          <div class="col-items-list">
+            <div class="slice-card" data-project="harbour">
+              <div class="slice-meta-top">
+                <span class="slice-id">SLC-04</span>
+                <span class="slice-project-tag">Harbour One</span>
+              </div>
+              <div class="slice-card-title">Live WebSocket Feed für Agent Multitasking Telemetrie</div>
+              <div class="slice-card-footer">
+                <span>Lease: Unassigned</span>
+                <span style="color: #3b82f6; font-weight: 600;">P1 High</span>
+              </div>
+            </div>
+            <div class="slice-card" data-project="redqueen">
+              <div class="slice-meta-top">
+                <span class="slice-id">SLC-05</span>
+                <span class="slice-project-tag">RedQueen</span>
+              </div>
+              <div class="slice-card-title">Bounded File Size Auditor für Subagenten-Workspaces</div>
+              <div class="slice-card-footer">
+                <span>Lease: Unassigned</span>
+                <span style="color: #3b82f6; font-weight: 600;">P2 Med</span>
+              </div>
+            </div>
+            <div class="slice-card" data-project="odysseus">
+              <div class="slice-meta-top">
+                <span class="slice-id">SLC-06</span>
+                <span class="slice-project-tag">Odysseus</span>
+              </div>
+              <div class="slice-card-title">Automatisierte Snapshot-Verifikation vor Server-Releases</div>
+              <div class="slice-card-footer">
+                <span>Lease: Unassigned</span>
+                <span style="color: #3b82f6; font-weight: 600;">P1 High</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Spalte 2: In Arbeit -->
+        <div class="workflow-col col-stage-inprogress">
+          <div class="workflow-col-header">
+            <div class="col-title-badge">
+              <span style="color: #f97316;">●</span> In Arbeit
+            </div>
+            <span class="col-count-pill">2</span>
+          </div>
+          <div class="col-items-list">
+            <div class="slice-card" data-project="harbour">
+              <div class="slice-meta-top">
+                <span class="slice-id">SLC-02</span>
+                <span class="slice-project-tag">Harbour One</span>
+              </div>
+              <div class="slice-card-title">OpsPilot Design Angleichung: Equalizer Bars & Radial Gauge</div>
+              <div class="slice-card-footer">
+                <span class="agent-pulse-pill"><span class="pulse-dot"></span> Agent Sol</span>
+                <span style="color: #f97316; font-weight: 600;">14m TTL</span>
+              </div>
+            </div>
+            <div class="slice-card" data-project="redqueen">
+              <div class="slice-meta-top">
+                <span class="slice-id">SLC-03</span>
+                <span class="slice-project-tag">RedQueen</span>
+              </div>
+              <div class="slice-card-title">Concurrent Subagent Leases & Path-Scoped Claim Manager</div>
+              <div class="slice-card-footer">
+                <span class="agent-pulse-pill"><span class="pulse-dot"></span> Agent Luna</span>
+                <span style="color: #f97316; font-weight: 600;">22m TTL</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Spalte 3: Verifiziert -->
+        <div class="workflow-col col-stage-verified">
+          <div class="workflow-col-header">
+            <div class="col-title-badge">
+              <span style="color: #a855f7;">●</span> Verifiziert
+            </div>
+            <span class="col-count-pill">2</span>
+          </div>
+          <div class="col-items-list">
+            <div class="slice-card" data-project="odysseus">
+              <div class="slice-meta-top">
+                <span class="slice-id">SLC-01</span>
+                <span class="slice-project-tag">Odysseus</span>
+              </div>
+              <div class="slice-card-title">Debian Homeserver Worktree Isolation & Port 7050 Bind</div>
+              <div class="slice-card-footer">
+                <span style="color: #a855f7; font-weight: 600;">Verified: Tests Pass</span>
+                <span>Agent Chronos</span>
+              </div>
+            </div>
+            <div class="slice-card" data-project="harbour">
+              <div class="slice-meta-top">
+                <span class="slice-id">SLC-00</span>
+                <span class="slice-project-tag">Harbour One</span>
+              </div>
+              <div class="slice-card-title">Standalone Static Asset Serving ohne Session Redirect</div>
+              <div class="slice-card-footer">
+                <span style="color: #a855f7; font-weight: 600;">Verified: HTTP 200</span>
+                <span>System</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Spalte 4: Abgenommen -->
+        <div class="workflow-col col-stage-accepted">
+          <div class="workflow-col-header">
+            <div class="col-title-badge">
+              <span style="color: #10b981;">●</span> Abgenommen
+            </div>
+            <span class="col-count-pill">3</span>
+          </div>
+          <div class="col-items-list">
+            <div class="slice-card" data-project="redqueen">
+              <div class="slice-meta-top">
+                <span class="slice-id">ADR-01</span>
+                <span class="slice-project-tag">Architektur</span>
+              </div>
+              <div class="slice-card-title">ADR: Multi-Agent Isolation über path-scoped Claims</div>
+              <div class="slice-card-footer">
+                <span style="color: #10b981; font-weight: 600;">✓ Accepted by Opus</span>
+                <span>Nikola</span>
+              </div>
+            </div>
+            <div class="slice-card" data-project="harbour">
+              <div class="slice-meta-top">
+                <span class="slice-id">ADR-02</span>
+                <span class="slice-project-tag">Harbour One</span>
+              </div>
+              <div class="slice-card-title">Design Direction: OpsPilot Dark Obsidian Theme</div>
+              <div class="slice-card-footer">
+                <span style="color: #10b981; font-weight: 600;">✓ Accepted</span>
+                <span>Nikola</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- View: Agent Teams (Tab 3)                 -->
+    <!-- ========================================== -->
+    <section id="view-agents" class="view-section">
+      <div class="view-header">
+        <div class="view-title-wrap">
+          <h2>Agent Teams & Multitasking Cockpit</h2>
+          <p>Echtzeit-Übersicht: Welche Agenten arbeiten gerade an welchen Slices & Pfaden</p>
+        </div>
+        <div style="font-size: 12px; color: #10b981; font-weight: 600; display: flex; align-items: center; gap: 6px;">
+          <span style="width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 8px #10b981;"></span>
+          3 Agenten aktiv im Workspace
+        </div>
+      </div>
+
+      <div class="agents-grid">
+        <!-- Agent Sol -->
+        <div class="agent-cockpit-card">
+          <span class="agent-status-badge" style="background: rgba(235, 51, 51, 0.15); color: #ff4d4d;">Running</span>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #ff4d4d, #d92626); display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 14px;">AS</div>
+            <div>
+              <strong style="color: #fff; font-size: 15px;">Agent Sol</strong>
+              <div style="font-size: 12px; color: #8a8f9d;">Frontend & UI Engineer</div>
+            </div>
+          </div>
+          <div>
+            <div style="font-size: 11px; color: #6b7280; margin-bottom: 2px;">AKTIVER CLAIM</div>
+            <div style="font-size: 13px; font-weight: 600; color: #f5f6fa;">OpsPilot Middle Stats & Equalizer</div>
+          </div>
+          <div>
+            <div style="font-size: 11px; color: #6b7280; margin-bottom: 4px;">PFAD-LOCK (PATH-SCOPED)</div>
+            <code style="font-size: 11px; background: #191b22; padding: 3px 6px; border-radius: 4px; color: #ff8080;">static/harbour/*</code>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #1f212a; pt: 8px; padding-top: 10px; font-size: 11px;">
+            <span style="color: #6b7280;">Lease TTL: 14m</span>
+            <span style="color: #ff4d4d; font-weight: 700;">92% Workload</span>
+          </div>
+        </div>
+
+        <!-- Agent Luna -->
+        <div class="agent-cockpit-card">
+          <span class="agent-status-badge" style="background: rgba(249, 115, 22, 0.15); color: #f97316;">Running</span>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #f97316, #ea580c); display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 14px;">AL</div>
+            <div>
+              <strong style="color: #fff; font-size: 15px;">Agent Luna</strong>
+              <div style="font-size: 12px; color: #8a8f9d;">Multi-Tasking Coordinator</div>
+            </div>
+          </div>
+          <div>
+            <div style="font-size: 11px; color: #6b7280; margin-bottom: 2px;">AKTIVER CLAIM</div>
+            <div style="font-size: 13px; font-weight: 600; color: #f5f6fa;">Lease Manager & Subagent Queue</div>
+          </div>
+          <div>
+            <div style="font-size: 11px; color: #6b7280; margin-bottom: 4px;">PFAD-LOCK (PATH-SCOPED)</div>
+            <code style="font-size: 11px; background: #191b22; padding: 3px 6px; border-radius: 4px; color: #f9a8d4;">core/multitask/*</code>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #1f212a; padding-top: 10px; font-size: 11px;">
+            <span style="color: #6b7280;">Lease TTL: 22m</span>
+            <span style="color: #f97316; font-weight: 700;">76% Workload</span>
+          </div>
+        </div>
+
+        <!-- Agent Chronos -->
+        <div class="agent-cockpit-card">
+          <span class="agent-status-badge" style="background: rgba(59, 130, 246, 0.15); color: #3b82f6;">Active</span>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #3b82f6, #2563eb); display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 14px;">AC</div>
+            <div>
+              <strong style="color: #fff; font-size: 15px;">Agent Chronos</strong>
+              <div style="font-size: 12px; color: #8a8f9d;">Release Engineer</div>
+            </div>
+          </div>
+          <div>
+            <div style="font-size: 11px; color: #6b7280; margin-bottom: 2px;">AKTIVER CLAIM</div>
+            <div style="font-size: 13px; font-weight: 600; color: #f5f6fa;">Debian Homeserver Sync & Health</div>
+          </div>
+          <div>
+            <div style="font-size: 11px; color: #6b7280; margin-bottom: 4px;">PFAD-LOCK (PATH-SCOPED)</div>
+            <code style="font-size: 11px; background: #191b22; padding: 3px 6px; border-radius: 4px; color: #93c5fd;">ops/homeserver/*</code>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #1f212a; padding-top: 10px; font-size: 11px;">
+            <span style="color: #6b7280;">Lease TTL: 35m</span>
+            <span style="color: #3b82f6; font-weight: 700;">54% Workload</span>
+          </div>
+        </div>
+
+        <!-- Agent Atlas -->
+        <div class="agent-cockpit-card">
+          <span class="agent-status-badge" style="background: rgba(107, 114, 128, 0.15); color: #9ca3af;">Standby</span>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #4b5563, #374151); display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 14px;">AA</div>
+            <div>
+              <strong style="color: #fff; font-size: 15px;">Agent Atlas</strong>
+              <div style="font-size: 12px; color: #8a8f9d;">Code Review & Verification</div>
+            </div>
+          </div>
+          <div>
+            <div style="font-size: 11px; color: #6b7280; margin-bottom: 2px;">AKTIVER CLAIM</div>
+            <div style="font-size: 13px; font-weight: 600; color: #9ca3af;">Kein aktiver Task</div>
+          </div>
+          <div>
+            <div style="font-size: 11px; color: #6b7280; margin-bottom: 4px;">PFAD-LOCK (PATH-SCOPED)</div>
+            <code style="font-size: 11px; background: #191b22; padding: 3px 6px; border-radius: 4px; color: #6b7280;">None</code>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #1f212a; padding-top: 10px; font-size: 11px;">
+            <span style="color: #6b7280;">Bereit für Task</span>
+            <span style="color: #9ca3af; font-weight: 700;">0% Workload</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Active Path-Locks Table -->
+      <div class="dashboard-card">
+        <h3 class="card-heading" style="margin-bottom: 14px;">Durable Path-Scoped Claims & Lease-Lockbox</h3>
+        <table class="ops-table">
+          <thead>
+            <tr>
+              <th>Gesperrter Pfad</th>
+              <th>Zuständiger Agent</th>
+              <th>Slice ID</th>
+              <th>Verbleibende Lease</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>static/harbour/*</code></td>
+              <td>Agent Sol (Frontend)</td>
+              <td><span style="color: var(--accent-coral); font-weight: 600;">SLC-02</span></td>
+              <td>14 Min</td>
+              <td><span class="badge-pill badge-high">Locked</span></td>
+            </tr>
+            <tr>
+              <td><code>core/multitask/*</code></td>
+              <td>Agent Luna (Coordinator)</td>
+              <td><span style="color: var(--accent-coral); font-weight: 600;">SLC-03</span></td>
+              <td>22 Min</td>
+              <td><span class="badge-pill badge-high">Locked</span></td>
+            </tr>
+            <tr>
+              <td><code>ops/homeserver/*</code></td>
+              <td>Agent Chronos (Release)</td>
+              <td><span style="color: var(--accent-coral); font-weight: 600;">SLC-01</span></td>
+              <td>35 Min</td>
+              <td><span class="badge-pill badge-med">Active Sync</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- View: Devblog & Insights (Tab 4)          -->
+    <!-- ========================================== -->
+    <section id="view-devblog" class="view-section">
+      <div class="view-header">
+        <div class="view-title-wrap">
+          <h2>Devblog & Engineering Insights</h2>
+          <p>Architektur-Entscheidungen, Sprint-Erkenntnisse und technische Meilensteine</p>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
+        <div class="dashboard-card">
+          <div style="font-size: 11px; color: var(--accent-coral); font-weight: 700; margin-bottom: 6px;">26. OKTOBER 2026 • RELEASE HARBOUR ONE</div>
+          <h3 style="font-size: 16px; color: #fff; margin-bottom: 8px;">RedQueen Multi-Agent Architecture & OpsPilot Cockpit</h3>
+          <p style="font-size: 13px; color: var(--text-muted); line-height: 1.6; margin-bottom: 14px;">
+            Das Harbour One Cockpit wurde auf das tiefschwarze OpsPilot-Design mit 40-Bar-Equalizer und 27-Segment-Halbkreis-Gauge umgestellt. Gleichzeitig wurde die strikte Pfad-Isolation für nebenläufige Agenten etabliert, um Schreibkonflikte dauerhaft auszuschließen.
+          </p>
+          <div style="display: flex; gap: 8px;">
+            <span style="font-size: 11px; background: #1c1e27; padding: 3px 8px; border-radius: 4px; color: #9ba1b4;">Architecture</span>
+            <span style="font-size: 11px; background: #1c1e27; padding: 3px 8px; border-radius: 4px; color: #9ba1b4;">OpsPilot</span>
+          </div>
+        </div>
+
+        <div class="dashboard-card">
+          <div style="font-size: 11px; color: #3b82f6; font-weight: 700; margin-bottom: 6px;">25. OKTOBER 2026 • INFRASTRUKTUR</div>
+          <h3 style="font-size: 16px; color: #fff; margin-bottom: 8px;">Debian Homeserver Worktree Isolation</h3>
+          <p style="font-size: 13px; color: var(--text-muted); line-height: 1.6; margin-bottom: 14px;">
+            Separation des legacy Odysseus-Dienstes auf Port 7000 vom neuen Harbour-One Stack auf Port 7050 mittels isolierter Git-Worktrees. Gewährleistet zero-downtime Deployments ohne Störung des laufenden Betriebs.
+          </p>
+          <div style="display: flex; gap: 8px;">
+            <span style="font-size: 11px; background: #1c1e27; padding: 3px 8px; border-radius: 4px; color: #9ba1b4;">DevOps</span>
+            <span style="font-size: 11px; background: #1c1e27; padding: 3px 8px; border-radius: 4px; color: #9ba1b4;">Homeserver</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- View: Reports & Decisions (Tab 5)         -->
+    <!-- ========================================== -->
+    <section id="view-decisions" class="view-section">
+      <div class="view-header">
+        <div class="view-title-wrap">
+          <h2>Reports & Planning Decisions (ADR)</h2>
+          <p>Interaktives Planungswerkzeug mit Priorisierung, MCP-Anbindung und Filterung</p>
+        </div>
+        <button class="btn-accent" onclick="showNewDecisionModal()">+ Neue Entscheidung</button>
+      </div>
+
+      <!-- Decisions Toolbar: Priority Filter, Search & Sorting -->
+      <div class="decisions-toolbar">
+        <div class="filter-pill-group">
+          <button class="filter-pill-btn active" onclick="filterDecisions('all', this)">Alle Prioritäten</button>
+          <button class="filter-pill-btn" onclick="filterDecisions('P0', this)" style="color: #ff4d4d;">P0 Blocker</button>
+          <button class="filter-pill-btn" onclick="filterDecisions('P1', this)" style="color: #f97316;">P1 Critical</button>
+          <button class="filter-pill-btn" onclick="filterDecisions('P2', this)" style="color: #3b82f6;">P2 Normal</button>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <input type="text" id="decision-search-input" class="search-input-box" placeholder="Entscheidung filtern..." oninput="searchDecisions(this.value)">
+          <button class="filter-pill-btn" onclick="sortDecisionsByPriority()">Sortieren: Priorität (P0 ➔ P2)</button>
+        </div>
+      </div>
+
+      <!-- Decisions Interactive Table -->
+      <div class="dashboard-card" style="padding: 0; overflow: hidden;">
+        <table class="ops-table" id="decisions-table">
+          <thead>
+            <tr>
+              <th style="width: 90px;">Priorität</th>
+              <th style="width: 80px;">ADR ID</th>
+              <th>Titel & Kontext</th>
+              <th style="width: 140px;">Zuständiger</th>
+              <th style="width: 110px;">Datum</th>
+              <th style="width: 110px;">Status</th>
+            </tr>
+          </thead>
+          <tbody id="decisions-tbody">
+            <tr data-prio="P0">
+              <td><span class="badge-pill badge-high" style="font-weight: 700;">P0 Blocker</span></td>
+              <td><code>ADR-04</code></td>
+              <td>
+                <strong style="color: #fff; display: block; margin-bottom: 2px;">MCP Planning Submission Bridge</strong>
+                <span style="font-size: 12px; color: #8a8f9d;">Duale Schnittstelle für UI und MCP-Tools zur synchronen Bearbeitung der Planning JSON.</span>
+              </td>
+              <td>Nikola / Sol</td>
+              <td style="color: #6b7280;">26. Okt 2026</td>
+              <td><span class="badge-pill" style="background: rgba(249, 115, 22, 0.15); color: #f97316;">In Review</span></td>
+            </tr>
+            <tr data-prio="P0">
+              <td><span class="badge-pill badge-high" style="font-weight: 700;">P0 Blocker</span></td>
+              <td><code>ADR-01</code></td>
+              <td>
+                <strong style="color: #fff; display: block; margin-bottom: 2px;">Durable Path-Scoped Claims für Agenten</strong>
+                <span style="font-size: 12px; color: #8a8f9d;">Verhinderung kollidierender Datei-Edits bei parallelem Multitasking mehrerer Agenten.</span>
+              </td>
+              <td>Nikola</td>
+              <td style="color: #6b7280;">25. Okt 2026</td>
+              <td><span class="badge-pill badge-ok">Accepted</span></td>
+            </tr>
+            <tr data-prio="P1">
+              <td><span class="badge-pill badge-med" style="font-weight: 700; color: #f97316; background: rgba(249, 115, 22, 0.15);">P1 Critical</span></td>
+              <td><code>ADR-02</code></td>
+              <td>
+                <strong style="color: #fff; display: block; margin-bottom: 2px;">OpsPilot Obsidian Theme als Standard</strong>
+                <span style="font-size: 12px; color: #8a8f9d;">Vollständige Abkehr vom Standard AI-Vibecode Look zugunsten von professionellem Dark HUD.</span>
+              </td>
+              <td>Nikola / Sol</td>
+              <td style="color: #6b7280;">26. Okt 2026</td>
+              <td><span class="badge-pill badge-ok">Accepted</span></td>
+            </tr>
+            <tr data-prio="P1">
+              <td><span class="badge-pill badge-med" style="font-weight: 700; color: #f97316; background: rgba(249, 115, 22, 0.15);">P1 Critical</span></td>
+              <td><code>ADR-03</code></td>
+              <td>
+                <strong style="color: #fff; display: block; margin-bottom: 2px;">Zero External CDN Resilience</strong>
+                <span style="font-size: 12px; color: #8a8f9d;">Vollständig autarke Auslieferung aller Fonts, Icons und SVGs direkt über den Container.</span>
+              </td>
+              <td>Chronos</td>
+              <td style="color: #6b7280;">25. Okt 2026</td>
+              <td><span class="badge-pill badge-ok">Accepted</span></td>
+            </tr>
+            <tr data-prio="P2">
+              <td><span class="badge-pill" style="font-weight: 700; color: #3b82f6; background: rgba(59, 130, 246, 0.15);">P2 Normal</span></td>
+              <td><code>ADR-05</code></td>
+              <td>
+                <strong style="color: #fff; display: block; margin-bottom: 2px;">Automatisierte Opus Review Abnahme</strong>
+                <span style="font-size: 12px; color: #8a8f9d;">Formales Vier-Augen-Prinzip vor jedem Merge auf den Hauptbranch.</span>
+              </td>
+              <td>Atlas / Opus</td>
+              <td style="color: #6b7280;">26. Okt 2026</td>
+              <td><span class="badge-pill" style="background: rgba(107, 114, 128, 0.15); color: #9ca3af;">Proposed</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+</main>
 
   <script>
+    // Tab Map
+    const TABS = ['overview', 'roadmaps', 'agents', 'devblog', 'decisions'];
+
     function switchTab(tabId) {
+      if (!TABS.includes(tabId)) tabId = 'overview';
+      
+      // Update Tab Pill Buttons
       document.querySelectorAll('.nav-pill-btn').forEach(btn => {
         btn.classList.toggle('active', btn.getAttribute('data-tab') === tabId);
       });
+
+      // Update View Sections
+      TABS.forEach(t => {
+        const sec = document.getElementById('view-' + t);
+        if (sec) {
+          if (t === tabId) {
+            sec.classList.add('active');
+            sec.style.display = 'block';
+          } else {
+            sec.classList.remove('active');
+            sec.style.display = 'none';
+          }
+        }
+      });
+      
+      // Scroll to top
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // Keyboard Shortcuts: 1, 2, 3, 4, 5
+    document.addEventListener('keydown', function(e) {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      const keyMap = { '1': 'overview', '2': 'roadmaps', '3': 'agents', '4': 'devblog', '5': 'decisions' };
+      if (keyMap[e.key]) {
+        e.preventDefault();
+        switchTab(keyMap[e.key]);
+      }
+    });
+
+    // Decisions Filter & Search
+    function filterDecisions(prio, btnEl) {
+      document.querySelectorAll('.decisions-toolbar .filter-pill-btn').forEach(b => b.classList.remove('active'));
+      if (btnEl) btnEl.classList.add('active');
+
+      const rows = document.querySelectorAll('#decisions-tbody tr');
+      rows.forEach(r => {
+        const rowPrio = r.getAttribute('data-prio');
+        r.style.display = (prio === 'all' || rowPrio === prio) ? '' : 'none';
+      });
+    }
+
+    function searchDecisions(query) {
+      const q = query.toLowerCase().trim();
+      const rows = document.querySelectorAll('#decisions-tbody tr');
+      rows.forEach(r => {
+        const text = r.textContent.toLowerCase();
+        r.style.display = text.includes(q) ? '' : 'none';
+      });
+    }
+
+    function sortDecisionsByPriority() {
+      const tbody = document.getElementById('decisions-tbody');
+      const rows = Array.from(tbody.querySelectorAll('tr'));
+      const prioOrder = { 'P0': 0, 'P1': 1, 'P2': 2 };
+      
+      rows.sort((a, b) => {
+        const prioA = prioOrder[a.getAttribute('data-prio')] ?? 99;
+        const prioB = prioOrder[b.getAttribute('data-prio')] ?? 99;
+        return prioA - prioB;
+      });
+
+      rows.forEach(r => tbody.appendChild(r));
+    }
+
+    // Filter Slices by Project
+    function filterSlices(project, btnEl) {
+      document.querySelectorAll('#view-roadmaps .filter-pill-btn').forEach(b => b.classList.remove('active'));
+      if (btnEl) btnEl.classList.add('active');
+
+      const cards = document.querySelectorAll('.slice-card');
+      cards.forEach(c => {
+        const cardProj = c.getAttribute('data-project');
+        c.style.display = (project === 'all' || cardProj === project) ? 'block' : 'none';
+      });
+    }
+
+    function showNewDecisionModal() {
+      alert("MCP Bridge bereit: Neue Entscheidungen können direkt per MCP planning_submit_work eingereicht werden.");
+    }
+
+    function showNewSliceModal() {
+      alert("Roadmap Engine: Neue Slices werden automatisch in den DAG eingereiht.");
     }
   </script>
 </body>
