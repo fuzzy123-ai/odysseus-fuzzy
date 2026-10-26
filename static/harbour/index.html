@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Harbour One | Operations & Agent Cockpit</title>
+  <title>Harbour One | Command Workbench</title>
   <!-- Google Fonts: Inter & JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Lucide Icons -->
@@ -18,23 +18,19 @@
       theme: {
         extend: {
           fontFamily: {
-            sans: ['Inter', 'sans-serif'],
+            sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
             mono: ['JetBrains Mono', 'monospace'],
           },
           colors: {
-            brand: {
-              50: '#f0fdf4',
-              500: '#22c55e',
-              600: '#16a34a',
-              900: '#14532d',
-            },
-            surface: {
-              50: '#f8fafc',
-              100: '#f1f5f9',
-              800: '#1e293b',
-              850: '#172033',
-              900: '#0f172a',
-              950: '#090d16',
+            terminal: {
+              black: '#09090b',
+              surface: '#121215',
+              card: '#18181b',
+              border: '#27272a',
+              borderLight: '#3f3f46',
+              text: '#f4f4f5',
+              muted: '#a1a1aa',
+              dim: '#71717a',
             }
           }
         }
@@ -42,599 +38,736 @@
     }
   </script>
   <style>
-    /* Custom Scrollbar */
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: #090d16; }
-    ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
-    ::-webkit-scrollbar-thumb:hover { background: #334155; }
-    .pulse-dot {
-      animation: pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    /* High-density craft scrollbar */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: #09090b; }
+    ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 2px; }
+    ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
+
+    .kbd-chip {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      line-height: 1;
+      padding: 2px 5px;
+      border-radius: 3px;
+      background: #27272a;
+      color: #e4e4e7;
+      border: 1px solid #3f3f46;
+      box-shadow: 0 1px 0 rgba(0,0,0,0.4);
     }
-    @keyframes pulse-glow {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.4; transform: scale(0.9); }
+    .mono-nums {
+      font-variant-numeric: tabular-nums;
+    }
+    .diff-add {
+      background-color: rgba(16, 185, 129, 0.08);
+      color: #34d399;
+      border-left: 2px solid #10b981;
+    }
+    .diff-del {
+      background-color: rgba(244, 63, 94, 0.08);
+      color: #fb7185;
+      border-left: 2px solid #f43f5e;
+    }
+    .diff-hunk {
+      background-color: rgba(99, 102, 241, 0.08);
+      color: #818cf8;
+      border-left: 2px solid #6366f1;
     }
   </style>
 </head>
-<body class="bg-surface-950 text-slate-200 font-sans antialiased min-h-screen flex flex-col selection:bg-indigo-500 selection:text-white">
+<body class="bg-terminal-black text-terminal-text font-sans antialiased h-screen flex flex-col overflow-hidden select-none">
 
-  <!-- Top Navigation Bar -->
-  <header class="border-b border-slate-800/80 bg-surface-900/90 backdrop-blur sticky top-0 z-40 px-6 py-3">
-    <div class="max-w-7xl mx-auto flex items-center justify-between">
-      <!-- Brand & Version -->
-      <div class="flex items-center space-x-4">
-        <div class="flex items-center space-x-2.5">
-          <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-500 to-emerald-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-            <i data-lucide="anchor" class="w-5 h-5 text-white"></i>
-          </div>
-          <div>
-            <div class="flex items-center space-x-2">
-              <span class="font-bold tracking-tight text-white text-base">HARBOUR ONE</span>
-              <span class="text-[10px] font-mono uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded">v2026.10</span>
-            </div>
-            <span class="text-xs text-slate-400">Autonomous Agent Platform & Cockpit</span>
-          </div>
-        </div>
+  <!-- TOP STATUS BAR: DENSE, OPERATIONAL, TELEMETRY -->
+  <header class="h-10 bg-terminal-surface border-b border-terminal-border px-4 flex items-center justify-between shrink-0 text-xs font-mono">
+    <!-- Left: Identity & Core Version -->
+    <div class="flex items-center space-x-3">
+      <div class="flex items-center space-x-2">
+        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span class="font-bold tracking-wider text-white text-[13px]">HARBOUR<span class="text-indigo-400">ONE</span></span>
+        <span class="text-[10px] text-terminal-dim">v2026.10</span>
       </div>
+      <span class="text-terminal-border">|</span>
+      <!-- Host & Cluster Telemetry -->
+      <div class="flex items-center space-x-3 text-[11px] text-terminal-muted">
+        <span>HOST: <strong class="text-slate-300">Debian (192.168.178.122)</strong></span>
+        <span>PING: <strong class="text-emerald-400 mono-nums">1.8ms</strong></span>
+        <span>LEASES: <strong class="text-indigo-400 mono-nums" id="stat-leases">2 ACTIVE</strong></span>
+        <span>USI: <strong class="text-amber-400 mono-nums">12,786 CHUNKS</strong></span>
+        <span>GUARDS: <strong class="text-emerald-400">60/60 PASS</strong></span>
+      </div>
+    </div>
 
-      <!-- Live Heartbeat Indicators -->
-      <div class="hidden md:flex items-center space-x-3 text-xs font-mono">
-        <div class="flex items-center space-x-1.5 bg-surface-800/80 border border-slate-700/60 px-2.5 py-1 rounded-md">
-          <span class="w-2 h-2 rounded-full bg-emerald-400 pulse-dot"></span>
-          <span class="text-slate-300">MCP Engine: <strong class="text-emerald-400">15 Tools</strong></span>
-        </div>
-        <div class="flex items-center space-x-1.5 bg-surface-800/80 border border-slate-700/60 px-2.5 py-1 rounded-md">
-          <span class="w-2 h-2 rounded-full bg-indigo-400"></span>
-          <span class="text-slate-300">USI Chunks: <strong class="text-indigo-400">12,786</strong></span>
-        </div>
-        <div class="flex items-center space-x-1.5 bg-surface-800/80 border border-slate-700/60 px-2.5 py-1 rounded-md">
-          <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
-          <span class="text-slate-300">Homeserver: <strong class="text-cyan-400">Debian (192.168.178.122)</strong></span>
-        </div>
-      </div>
-
-      <!-- View Navigation Tabs -->
-      <div class="flex items-center bg-surface-950 p-1 rounded-lg border border-slate-800">
-        <button onclick="switchView('overview')" id="tab-overview" class="px-3 py-1.5 text-xs font-medium rounded-md transition-all bg-indigo-600 text-white shadow">
-          Cockpit
+    <!-- Right: Mode Navigation & Shortcuts HUD -->
+    <div class="flex items-center space-x-3">
+      <nav class="flex items-center bg-terminal-black border border-terminal-border rounded p-0.5" id="mode-nav">
+        <button onclick="setMode('inbox')" id="btn-mode-inbox" class="px-2.5 py-1 text-[11px] rounded transition flex items-center space-x-1.5 bg-terminal-border text-white font-medium">
+          <span class="kbd-chip">1</span>
+          <span>Inbox Triage</span>
+          <span class="ml-1 px-1 rounded-full bg-indigo-500/20 text-indigo-300 text-[10px] mono-nums" id="badge-inbox">3</span>
         </button>
-        <button onclick="switchView('inbox')" id="tab-inbox" class="px-3 py-1.5 text-xs font-medium rounded-md transition-all text-slate-400 hover:text-white">
-          Inbox (<span id="inbox-count">3</span>)
+        <button onclick="setMode('gateway')" id="btn-mode-gateway" class="px-2.5 py-1 text-[11px] rounded transition flex items-center space-x-1.5 text-terminal-muted hover:text-white">
+          <span class="kbd-chip">2</span>
+          <span>Worker Gateway</span>
+          <span class="ml-1 px-1 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] mono-nums">2</span>
         </button>
-        <button onclick="switchView('planning')" id="tab-planning" class="px-3 py-1.5 text-xs font-medium rounded-md transition-all text-slate-400 hover:text-white">
-          Planning
+        <button onclick="setMode('usi')" id="btn-mode-usi" class="px-2.5 py-1 text-[11px] rounded transition flex items-center space-x-1.5 text-terminal-muted hover:text-white">
+          <span class="kbd-chip">3</span>
+          <span>USI Knowledge</span>
         </button>
-        <button onclick="switchView('gateway')" id="tab-gateway" class="px-3 py-1.5 text-xs font-medium rounded-md transition-all text-slate-400 hover:text-white">
-          Gateway
+        <button onclick="setMode('audit')" id="btn-mode-audit" class="px-2.5 py-1 text-[11px] rounded transition flex items-center space-x-1.5 text-terminal-muted hover:text-white">
+          <span class="kbd-chip">4</span>
+          <span>Audit Ledger</span>
         </button>
-        <button onclick="switchView('usi')" id="tab-usi" class="px-3 py-1.5 text-xs font-medium rounded-md transition-all text-slate-400 hover:text-white">
-          USI Explorer
-        </button>
-      </div>
+      </nav>
+      <button onclick="toggleModal('help')" class="p-1.5 text-terminal-muted hover:text-white rounded border border-terminal-border hover:border-terminal-borderLight transition" title="Shortcuts [?]">
+        <i data-lucide="help-circle" class="w-3.5 h-3.5"></i>
+      </button>
     </div>
   </header>
 
-  <!-- Main Content Area -->
-  <main class="max-w-7xl mx-auto p-6 flex-1 w-full space-y-6">
+  <!-- MAIN WORKBENCH: SPLIT-PANE HIGH-DENSITY INTERFACE -->
+  <main class="flex-1 flex overflow-hidden">
 
-    <!-- Hero / Status Banner -->
-    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 rounded-xl bg-gradient-to-r from-surface-900 via-surface-850 to-surface-900 border border-slate-800">
-      <div class="space-y-1">
+    <!-- LEFT PANE: DENSE STREAM / QUEUE (38% WIDTH) -->
+    <aside class="w-[38%] border-r border-terminal-border bg-terminal-black flex flex-col shrink-0">
+
+      <!-- Stream Header & Filters -->
+      <div class="h-9 px-3 border-b border-terminal-border flex items-center justify-between shrink-0 bg-terminal-surface/60 text-xs">
         <div class="flex items-center space-x-2">
-          <h1 class="text-lg font-bold text-white tracking-tight">Mission Control: Harbour One</h1>
-          <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-            All 4 Phases Complete · Signed off by Argon
-          </span>
+          <span class="font-mono font-semibold uppercase text-terminal-muted text-[11px] tracking-wider" id="stream-title">INBOX INGRESS STREAM</span>
+          <span class="text-[10px] font-mono text-terminal-dim" id="stream-count">3 ITEMS</span>
         </div>
-        <p class="text-xs text-slate-400">
-          Headless MCP-First Kern mit parallelem Multi-Agenten-Leasing, nativer SQLite USI-Wissensbasis und universeller Inbox-Ingestion.
-        </p>
+        <div class="flex items-center space-x-1">
+          <button onclick="filterFeed('all')" id="flt-all" class="px-1.5 py-0.5 text-[10px] font-mono rounded bg-terminal-border text-white">ALL</button>
+          <button onclick="filterFeed('telegram')" id="flt-telegram" class="px-1.5 py-0.5 text-[10px] font-mono rounded text-terminal-dim hover:text-white">TEL</button>
+          <button onclick="filterFeed('nextcloud')" id="flt-nextcloud" class="px-1.5 py-0.5 text-[10px] font-mono rounded text-terminal-dim hover:text-white">NC</button>
+          <button onclick="filterFeed('system')" id="flt-system" class="px-1.5 py-0.5 text-[10px] font-mono rounded text-terminal-dim hover:text-white">SYS</button>
+        </div>
       </div>
-      <div class="flex items-center space-x-3">
-        <button onclick="triggerSampleIngest()" class="px-3 py-2 text-xs font-medium bg-surface-800 hover:bg-surface-700 text-white rounded-lg border border-slate-700 flex items-center space-x-2 transition shadow">
-          <i data-lucide="plus-circle" class="w-4 h-4 text-emerald-400"></i>
-          <span>Simuliere Telegram Ingest</span>
-        </button>
-        <button onclick="triggerQuickVerify()" class="px-3 py-2 text-xs font-medium bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg flex items-center space-x-2 transition shadow">
-          <i data-lucide="shield-check" class="w-4 h-4 text-white"></i>
-          <span>Verify Guards (Passed)</span>
-        </button>
+
+      <!-- Scrollable Stream Container -->
+      <div class="flex-1 overflow-y-auto divide-y divide-terminal-border/50 font-mono text-xs" id="stream-items-list">
+        <!-- Rendered dynamically by JS -->
       </div>
-    </div>
 
-    <!-- 4-Grid Cockpit View -->
-    <div id="view-overview" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-      <!-- 1. Universal Inbox & Triage Card -->
-      <section class="bg-surface-900 border border-slate-800 rounded-xl p-5 flex flex-col space-y-4">
-        <div class="flex items-center justify-between border-b border-slate-800/80 pb-3">
-          <div class="flex items-center space-x-2.5">
-            <div class="p-2 rounded-lg bg-sky-500/10 text-sky-400 border border-sky-500/20">
-              <i data-lucide="inbox" class="w-5 h-5"></i>
-            </div>
-            <div>
-              <h2 class="text-sm font-semibold text-white">Universal Inbox & Triage</h2>
-              <p class="text-[11px] text-slate-400">Telegram, Nextcloud & API Ingress (256 KB Budget Guard)</p>
-            </div>
-          </div>
-          <span class="text-xs font-mono bg-sky-500/10 text-sky-400 px-2 py-0.5 rounded border border-sky-500/20">
-            <span id="badge-inbox-pending">3</span> Pending
-          </span>
-        </div>
-
-        <!-- Inbox Items List -->
-        <div id="inbox-items-container" class="space-y-3 flex-1 overflow-y-auto max-h-[380px] pr-1">
-          <!-- Item 1: Telegram Task -->
-          <div id="item-doc-1" class="p-3.5 rounded-lg bg-surface-850 border border-slate-800 hover:border-slate-700 transition space-y-2.5">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center space-x-2">
-                <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">Telegram</span>
-                <span class="text-xs font-medium text-slate-200">Feature: CalDAV Sync Interval einbauen</span>
-              </div>
-              <span class="text-[11px] font-mono text-slate-500">vor 4 Min</span>
-            </div>
-            <p class="text-xs text-slate-400 font-mono text-[11px] bg-surface-950 p-2 rounded border border-slate-900">
-              User: <span class="text-indigo-400">masked_7f2a89c1</span> · Content: 124 Bytes · Secret-Scrubbed: <span class="text-emerald-400">Clean</span>
-            </p>
-            <div class="flex items-center justify-end space-x-2 pt-1">
-              <button onclick="triageItem('doc-1', 'route', 'gateway')" class="px-2.5 py-1 text-xs font-medium bg-emerald-600/20 text-emerald-300 hover:bg-emerald-600/30 rounded border border-emerald-500/30 transition flex items-center space-x-1">
-                <i data-lucide="arrow-right-circle" class="w-3.5 h-3.5"></i>
-                <span>Route to Gateway</span>
-              </button>
-              <button onclick="triageItem('doc-1', 'accept', 'planning')" class="px-2.5 py-1 text-xs font-medium bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600/30 rounded border border-indigo-500/30 transition flex items-center space-x-1">
-                <i data-lucide="check" class="w-3.5 h-3.5"></i>
-                <span>Accept to Plan</span>
-              </button>
-              <button onclick="triageItem('doc-1', 'dismiss', 'archive')" class="px-2.5 py-1 text-xs text-slate-400 hover:text-rose-400 rounded transition">
-                Dismiss
-              </button>
-            </div>
-          </div>
-
-          <!-- Item 2: Nextcloud Sync -->
-          <div id="item-doc-2" class="p-3.5 rounded-lg bg-surface-850 border border-slate-800 hover:border-slate-700 transition space-y-2.5">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center space-x-2">
-                <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">Nextcloud</span>
-                <span class="text-xs font-medium text-slate-200">arch_spec_v2.md (WebDAV Sync)</span>
-              </div>
-              <span class="text-[11px] font-mono text-slate-500">vor 18 Min</span>
-            </div>
-            <p class="text-xs text-slate-400 font-mono text-[11px] bg-surface-950 p-2 rounded border border-slate-900">
-              Etag: <span class="text-slate-400">etag_64a91b...</span> · Size: 48 KB (Budget OK) · Stamped: <span class="text-emerald-400">Yes</span>
-            </p>
-            <div class="flex items-center justify-end space-x-2 pt-1">
-              <button onclick="triageItem('doc-2', 'accept', 'planning')" class="px-2.5 py-1 text-xs font-medium bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600/30 rounded border border-indigo-500/30 transition flex items-center space-x-1">
-                <i data-lucide="check" class="w-3.5 h-3.5"></i>
-                <span>Accept to Plan</span>
-              </button>
-              <button onclick="triageItem('doc-2', 'dismiss', 'archive')" class="px-2.5 py-1 text-xs text-slate-400 hover:text-rose-400 rounded transition">
-                Dismiss
-              </button>
-            </div>
-          </div>
-
-          <!-- Item 3: Telegram Bug Report -->
-          <div id="item-doc-3" class="p-3.5 rounded-lg bg-surface-850 border border-slate-800 hover:border-slate-700 transition space-y-2.5">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center space-x-2">
-                <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">Telegram</span>
-                <span class="text-xs font-medium text-slate-200">Bug: Webhook Timeout bei langsamer Verbindung</span>
-              </div>
-              <span class="text-[11px] font-mono text-slate-500">vor 32 Min</span>
-            </div>
-            <p class="text-xs text-slate-400 font-mono text-[11px] bg-surface-950 p-2 rounded border border-slate-900">
-              User: <span class="text-indigo-400">masked_9918bc30</span> · Scrubbed: <span class="text-emerald-400">1 Secret Pattern redacted</span>
-            </p>
-            <div class="flex items-center justify-end space-x-2 pt-1">
-              <button onclick="triageItem('doc-3', 'route', 'gateway')" class="px-2.5 py-1 text-xs font-medium bg-emerald-600/20 text-emerald-300 hover:bg-emerald-600/30 rounded border border-emerald-500/30 transition flex items-center space-x-1">
-                <i data-lucide="arrow-right-circle" class="w-3.5 h-3.5"></i>
-                <span>Route to Gateway</span>
-              </button>
-              <button onclick="triageItem('doc-3', 'dismiss', 'archive')" class="px-2.5 py-1 text-xs text-slate-400 hover:text-rose-400 rounded transition">
-                Dismiss
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- 2. Worker Gateway & Multitasking Card -->
-      <section class="bg-surface-900 border border-slate-800 rounded-xl p-5 flex flex-col space-y-4">
-        <div class="flex items-center justify-between border-b border-slate-800/80 pb-3">
-          <div class="flex items-center space-x-2.5">
-            <div class="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              <i data-lucide="cpu" class="w-5 h-5"></i>
-            </div>
-            <div>
-              <h2 class="text-sm font-semibold text-white">Worker Gateway & Ephemeral Worktrees</h2>
-              <p class="text-[11px] text-slate-400">Parallele Ausführung mit Fencing-Tokens & Kollisionsschutz</p>
-            </div>
-          </div>
-          <span class="text-xs font-mono bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/20">
-            2 Active Leases
-          </span>
-        </div>
-
-        <!-- Active Leases & Sandbox List -->
-        <div class="space-y-3 flex-1 overflow-y-auto max-h-[380px] pr-1">
-          <!-- Lease 1 -->
-          <div class="p-3.5 rounded-lg bg-surface-850 border border-slate-800 space-y-2">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center space-x-2">
-                <span class="w-2 h-2 rounded-full bg-emerald-400 pulse-dot"></span>
-                <span class="text-xs font-mono text-emerald-300 font-semibold">lease_1edbff6fdacd</span>
-                <span class="text-[10px] font-mono px-1 rounded bg-slate-800 text-slate-400">Fence: 3</span>
-              </div>
-              <span class="text-xs font-mono text-amber-400 flex items-center space-x-1">
-                <i data-lucide="clock" class="w-3.5 h-3.5"></i>
-                <span id="lease-timer-1">04:18</span>
-              </span>
-            </div>
-            <div class="text-[11px] font-mono text-slate-400 space-y-0.5 bg-surface-950 p-2 rounded border border-slate-900">
-              <div>Worker: <strong class="text-slate-200">Subagent Flash</strong> (Task: task-inbox-triage-1)</div>
-              <div>Write Paths: <span class="text-indigo-400">src/harbour/adapters/*</span></div>
-              <div>Worktree: <span class="text-slate-500">.worktrees/worker_flash_task-inbox-1</span></div>
-            </div>
-            <div class="flex items-center justify-between pt-1">
-              <span class="text-[11px] text-emerald-400 flex items-center space-x-1">
-                <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
-                <span>Isolated Sandbox</span>
-              </span>
-              <button onclick="releaseSampleLease('lease_1edbff6fdacd')" class="px-2 py-1 text-[11px] font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700 transition">
-                Release Lease
-              </button>
-            </div>
-          </div>
-
-          <!-- Lease 2 -->
-          <div class="p-3.5 rounded-lg bg-surface-850 border border-slate-800 space-y-2">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center space-x-2">
-                <span class="w-2 h-2 rounded-full bg-indigo-400 pulse-dot"></span>
-                <span class="text-xs font-mono text-indigo-300 font-semibold">lease_4a90cd12bc89</span>
-                <span class="text-[10px] font-mono px-1 rounded bg-slate-800 text-slate-400">Fence: 4</span>
-              </div>
-              <span class="text-xs font-mono text-amber-400 flex items-center space-x-1">
-                <i data-lucide="clock" class="w-3.5 h-3.5"></i>
-                <span>02:45</span>
-              </span>
-            </div>
-            <div class="text-[11px] font-mono text-slate-400 space-y-0.5 bg-surface-950 p-2 rounded border border-slate-900">
-              <div>Worker: <strong class="text-slate-200">Goose-Harness</strong> (Task: task-usi-sync)</div>
-              <div>Write Paths: <span class="text-indigo-400">data/usi.sqlite3</span></div>
-              <div>Worktree: <span class="text-slate-500">.worktrees/worker_goose_usi-sync</span></div>
-            </div>
-            <div class="flex items-center justify-between pt-1">
-              <span class="text-[11px] text-emerald-400 flex items-center space-x-1">
-                <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
-                <span>Host Verification: PASS</span>
-              </span>
-              <button onclick="releaseSampleLease('lease_4a90cd12bc89')" class="px-2 py-1 text-[11px] font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700 transition">
-                Release Lease
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- 3. Roadmaps & Planning Board Card -->
-      <section class="bg-surface-900 border border-slate-800 rounded-xl p-5 flex flex-col space-y-4">
-        <div class="flex items-center justify-between border-b border-slate-800/80 pb-3">
-          <div class="flex items-center space-x-2.5">
-            <div class="p-2 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-              <i data-lucide="map" class="w-5 h-5"></i>
-            </div>
-            <div>
-              <h2 class="text-sm font-semibold text-white">Roadmaps & Planning Heads</h2>
-              <p class="text-[11px] text-slate-400">Strukturierte JSON-Roadmaps & Execution Authority Ledger</p>
-            </div>
-          </div>
-          <span class="text-xs font-mono bg-indigo-500/10 text-indigo-400 px-2 py-0.5 rounded border border-indigo-500/20">
-            3 Active Roadmaps
-          </span>
-        </div>
-
-        <div class="space-y-3 flex-1 overflow-y-auto max-h-[380px] pr-1">
-          <!-- Roadmap 1 -->
-          <div class="p-3.5 rounded-lg bg-surface-850 border border-slate-800 space-y-2">
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-semibold text-white">Harbour One Platform Core (H1R)</span>
-              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">100% COMPLETE</span>
-            </div>
-            <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
-              <div class="bg-emerald-500 h-full rounded-full" style="width: 100%"></div>
-            </div>
-            <div class="flex items-center justify-between text-[11px] text-slate-400 font-mono">
-              <span>Slices: 4/4 PASSED</span>
-              <span>Head: <strong class="text-slate-200">v2026.10-harbour-mcp-first</strong></span>
-            </div>
-          </div>
-
-          <!-- Roadmap 2 -->
-          <div class="p-3.5 rounded-lg bg-surface-850 border border-slate-800 space-y-2">
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-semibold text-white">Security & Root-Helper Governance</span>
-              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">92% IN PROGRESS</span>
-            </div>
-            <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
-              <div class="bg-indigo-500 h-full rounded-full" style="width: 92%"></div>
-            </div>
-            <div class="flex items-center justify-between text-[11px] text-slate-400 font-mono">
-              <span>Verified Backup Snapshot Available</span>
-              <span>Authority: <strong class="text-slate-200">operator_go</strong></span>
-            </div>
-          </div>
-
-          <!-- Roadmap 3 -->
-          <div class="p-3.5 rounded-lg bg-surface-850 border border-slate-800 space-y-2">
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-semibold text-white">Multi-Agent Sandbox Runtime MVP</span>
-              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">85% IN PROGRESS</span>
-            </div>
-            <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
-              <div class="bg-indigo-500 h-full rounded-full" style="width: 85%"></div>
-            </div>
-            <div class="flex items-center justify-between text-[11px] text-slate-400 font-mono">
-              <span>Podman Sandbox Worktree Isolation</span>
-              <span>Next: UI Integration</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- 4. USI Knowledge Explorer Card -->
-      <section class="bg-surface-900 border border-slate-800 rounded-xl p-5 flex flex-col space-y-4">
-        <div class="flex items-center justify-between border-b border-slate-800/80 pb-3">
-          <div class="flex items-center space-x-2.5">
-            <div class="p-2 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20">
-              <i data-lucide="search" class="w-5 h-5"></i>
-            </div>
-            <div>
-              <h2 class="text-sm font-semibold text-white">USI Knowledge Explorer</h2>
-              <p class="text-[11px] text-slate-400">12.786 Chunks in data/usi.sqlite3 · SQLite FTS5 BM25 Engine</p>
-            </div>
-          </div>
-          <span class="text-xs font-mono bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded border border-amber-500/20">
-            FTS5 Ready
-          </span>
-        </div>
-
-        <!-- Interactive Search Bar -->
-        <div class="space-y-3">
-          <div class="relative">
-            <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-3"></i>
-            <input 
-              type="text" 
-              id="usi-search-input"
-              value="Harbour Worker Gateway"
-              oninput="performUsiSearch(this.value)"
-              placeholder="Suche in 12.786 semantischen Chunks..." 
-              class="w-full bg-surface-950 border border-slate-800 rounded-lg pl-9 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition font-mono"
-            >
-          </div>
-
-          <!-- Quick Query Chips -->
-          <div class="flex flex-wrap gap-1.5">
-            <button onclick="setQueryChip('Worker Gateway')" class="px-2 py-0.5 text-[10px] font-mono rounded bg-surface-800 hover:bg-slate-700 text-slate-300 border border-slate-700/60 transition">
-              Worker Gateway
-            </button>
-            <button onclick="setQueryChip('Telegram Bridge')" class="px-2 py-0.5 text-[10px] font-mono rounded bg-surface-800 hover:bg-slate-700 text-slate-300 border border-slate-700/60 transition">
-              Telegram Bridge
-            </button>
-            <button onclick="setQueryChip('Nextcloud Ingest')" class="px-2 py-0.5 text-[10px] font-mono rounded bg-surface-800 hover:bg-slate-700 text-slate-300 border border-slate-700/60 transition">
-              Nextcloud Ingest
-            </button>
-            <button onclick="setQueryChip('Quality Gate')" class="px-2 py-0.5 text-[10px] font-mono rounded bg-surface-800 hover:bg-slate-700 text-slate-300 border border-slate-700/60 transition">
-              Quality Gate
-            </button>
-          </div>
-        </div>
-
-        <!-- Search Results Preview Container -->
-        <div id="usi-results-container" class="space-y-2.5 flex-1 overflow-y-auto max-h-[260px] pr-1">
-          <!-- Live Result Item 1 -->
-          <div class="p-3 rounded-lg bg-surface-850 border border-slate-800 space-y-1.5">
-            <div class="flex items-center justify-between text-[11px] font-mono">
-              <span class="text-indigo-400 truncate max-w-[260px]">specs/roadmaps/harbour-one.json</span>
-              <span class="text-emerald-400 bg-emerald-500/10 px-1 rounded">BM25: -17.52</span>
-            </div>
-            <p class="text-xs text-slate-300">
-              "...coordinates worker execution leases, path isolation boundaries, and coding quality gates across ephemere worktrees..."
-            </p>
-            <div class="flex items-center space-x-2 text-[10px] font-mono text-slate-500">
-              <span>Source ID: repo:specs/roadmaps/harbour-one.json</span>
-              <span>·</span>
-              <span>Span: 0-482</span>
-            </div>
-          </div>
-
-          <!-- Live Result Item 2 -->
-          <div class="p-3 rounded-lg bg-surface-850 border border-slate-800 space-y-1.5">
-            <div class="flex items-center justify-between text-[11px] font-mono">
-              <span class="text-indigo-400 truncate max-w-[260px]">docs/plans/harbour-gateway.md</span>
-              <span class="text-emerald-400 bg-emerald-500/10 px-1 rounded">BM25: -15.10</span>
-            </div>
-            <p class="text-xs text-slate-300">
-              "WorkerGatewayLeaseError prevents concurrent write path collisions. Ephemeral worktrees are created under .worktrees/..."
-            </p>
-            <div class="flex items-center space-x-2 text-[10px] font-mono text-slate-500">
-              <span>Source ID: doc:docs/plans/harbour-gateway.md</span>
-              <span>·</span>
-              <span>Span: 120-650</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-    </div>
-
-    <!-- Notification Toast (Hidden by Default) -->
-    <div id="toast" class="fixed bottom-6 right-6 max-w-sm bg-surface-900 border border-emerald-500/40 text-slate-200 px-4 py-3 rounded-xl shadow-2xl flex items-center space-x-3 transform translate-y-24 opacity-0 transition-all duration-300 z-50">
-      <div class="p-1 rounded-full bg-emerald-500/20 text-emerald-400">
-        <i data-lucide="check-circle-2" class="w-5 h-5"></i>
+      <!-- Stream Footer Quick Action Note -->
+      <div class="h-7 border-t border-terminal-border bg-terminal-surface/40 px-3 flex items-center justify-between text-[10px] text-terminal-dim font-mono">
+        <span>Navigation: <kbd class="kbd-chip">j</kbd> runter <kbd class="kbd-chip">k</kbd> hoch</span>
+        <span>Fokus: <kbd class="kbd-chip">Enter</kbd></span>
       </div>
-      <div class="text-xs">
-        <div id="toast-title" class="font-semibold text-white">Erfolg</div>
-        <div id="toast-msg" class="text-slate-400">Aktion erfolgreich ausgeführt.</div>
-      </div>
-    </div>
+    </aside>
 
+    <!-- RIGHT PANE: INSPECTOR & COMMAND MATRIX (62% WIDTH) -->
+    <section class="flex-1 bg-terminal-surface flex flex-col overflow-hidden" id="inspector-pane">
+
+      <!-- Top Inspector Status / Context Bar -->
+      <div class="h-9 px-4 border-b border-terminal-border flex items-center justify-between shrink-0 bg-terminal-surface text-xs font-mono">
+        <div class="flex items-center space-x-2">
+          <span class="text-terminal-dim">RECORD:</span>
+          <span class="font-semibold text-white tracking-wide" id="insp-record-id">DOC-89C1-TG</span>
+          <span class="text-terminal-border">|</span>
+          <span class="text-[11px]" id="insp-audit-status">
+            <span class="text-emerald-400">● AUDIT-PASSED</span> (0 Secrets, Budget OK)
+          </span>
+        </div>
+        <div class="flex items-center space-x-2 text-[11px]" id="insp-timestamp">
+          <span class="text-terminal-dim">ERFASST:</span>
+          <span class="text-terminal-muted mono-nums">2026-10-26 08:04:12 UTC</span>
+        </div>
+      </div>
+
+      <!-- Dynamic Inspector Body (Switches with Mode & Selected Item) -->
+      <div class="flex-1 overflow-y-auto p-4 space-y-4" id="inspector-content">
+        <!-- Injected dynamically based on Mode & active item -->
+      </div>
+
+      <!-- Bottom Fast Command Bar -->
+      <footer class="border-t border-terminal-border bg-terminal-card/80 p-2.5 px-4 shrink-0 flex items-center justify-between" id="action-footer">
+        <div class="flex items-center space-x-2" id="action-buttons-group">
+          <!-- Dynamic action buttons injected based on active mode -->
+        </div>
+        <div class="flex items-center space-x-3 text-[11px] font-mono text-terminal-dim">
+          <span>Shortcuts: <kbd class="kbd-chip">a</kbd> Accept <kbd class="kbd-chip">g</kbd> Gateway <kbd class="kbd-chip">x</kbd> Reject <kbd class="kbd-chip">/</kbd> Search</span>
+        </div>
+      </footer>
+    </section>
   </main>
 
-  <!-- Footer -->
-  <footer class="border-t border-slate-800/80 bg-surface-950 py-4 px-6 text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between">
-    <div class="flex items-center space-x-2">
-      <span class="font-mono text-slate-400">Harbour One MCP-First Cockpit</span>
-      <span>·</span>
-      <span>Branch: <strong class="text-slate-300 font-mono">dev</strong></span>
-      <span>·</span>
-      <span>Remote: <strong class="text-indigo-400 font-mono">fuzzy:harbour-one</strong></span>
+  <!-- KEYBOARD SHORTCUTS MODAL HUD -->
+  <div id="modal-help" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+    <div class="w-full max-w-lg bg-terminal-surface border border-terminal-borderLight rounded-lg shadow-2xl p-5 space-y-4 font-mono text-xs">
+      <div class="flex items-center justify-between border-b border-terminal-border pb-2.5">
+        <span class="font-bold text-white uppercase tracking-wider flex items-center space-x-2">
+          <i data-lucide="command" class="w-4 h-4 text-indigo-400"></i>
+          <span>Harbour One Keyboard Matrix</span>
+        </span>
+        <button onclick="toggleModal('help')" class="text-terminal-dim hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <div class="grid grid-cols-2 gap-3 text-[11px]">
+        <div class="space-y-1.5">
+          <div class="text-indigo-400 font-semibold mb-1">NAVIGATION</div>
+          <div class="flex justify-between"><span>Next Item:</span> <kbd class="kbd-chip">j</kbd> / <kbd class="kbd-chip">↓</kbd></div>
+          <div class="flex justify-between"><span>Prev Item:</span> <kbd class="kbd-chip">k</kbd> / <kbd class="kbd-chip">↑</kbd></div>
+          <div class="flex justify-between"><span>Switch Mode:</span> <kbd class="kbd-chip">1</kbd> - <kbd class="kbd-chip">4</kbd></div>
+          <div class="flex justify-between"><span>Spotlight Search:</span> <kbd class="kbd-chip">/</kbd></div>
+        </div>
+        <div class="space-y-1.5">
+          <div class="text-emerald-400 font-semibold mb-1">TRIAGE & GATEWAY</div>
+          <div class="flex justify-between"><span>Accept to Planning:</span> <kbd class="kbd-chip">a</kbd></div>
+          <div class="flex justify-between"><span>Route to Sandbox:</span> <kbd class="kbd-chip">g</kbd></div>
+          <div class="flex justify-between"><span>Reject / Quarantine:</span> <kbd class="kbd-chip">x</kbd></div>
+          <div class="flex justify-between"><span>Renew Lease (+5m):</span> <kbd class="kbd-chip">l</kbd></div>
+          <div class="flex justify-between"><span>Authorize Merge:</span> <kbd class="kbd-chip">m</kbd></div>
+        </div>
+      </div>
+      <div class="border-t border-terminal-border pt-2 text-right">
+        <span class="text-terminal-dim text-[10px]">Press <kbd class="kbd-chip">Esc</kbd> or <kbd class="kbd-chip">?</kbd> to close</span>
+      </div>
     </div>
-    <div class="text-[11px] text-slate-400 mt-2 sm:mt-0 font-mono">
-      Host: Debian Linux 192.168.178.122 · Clean-Slate Podman Service Ready
-    </div>
-  </footer>
+  </div>
 
-  <!-- Application Logic -->
+  <!-- APPLICATION LOGIC & STATE ENGINE -->
   <script>
-    lucide.createIcons();
+    // System Data Model
+    const state = {
+      mode: 'inbox', // inbox | gateway | usi | audit
+      activeItemIndex: 0,
+      activeFilter: 'all',
+      inboxItems: [
+        {
+          id: 'DOC-89C1-TG',
+          source: 'telegram',
+          title: 'CalDAV Sync Interval auf 5min verkürzen',
+          user: 'masked_7f2a89c1',
+          time: '08:04:12',
+          sizeBytes: 124,
+          budgetOk: true,
+          scrubbedClean: true,
+          content: 'Können wir das Intervall für den CalDAV-Sync auf 5min setzen statt 15min? Bei Terminkonflikten loggt der Dienst derzeit zu spät.',
+          kind: 'text',
+          rawPayload: '{"update_id":901824,"message":{"message_id":412,"chat":{"id":-10088912},"from":{"id":7481920},"text":"Können wir das Intervall für den CalDAV-Sync auf 5min setzen statt 15min?..."}}'
+        },
+        {
+          id: 'DOC-4B2E-NC',
+          source: 'nextcloud',
+          title: 'arch_spec_v2.md (WebDAV Sync Notification)',
+          user: 'admin@nextcloud',
+          time: '07:48:30',
+          sizeBytes: 48120,
+          budgetOk: true,
+          scrubbedClean: true,
+          content: '# Harbour Architecture Spec v2\n\n## 1. Modular Monolith Bounded Contexts\n- Primary interface: Headless MCP\n- Memory Runtime: Unified Source Index SQLite with FTS5 BM25\n- Gateway: Path-isolated worker execution leases with fencing tokens.\n- Universal Inbox: Webhook & WebDAV bridges enforcing 256 KB document budgets.',
+          kind: 'document',
+          rawPayload: '{"event":"file_updated","path":"/Documents/arch_spec_v2.md","etag":"64a91b22e1","size":48120}'
+        },
+        {
+          id: 'DOC-19FA-TG',
+          source: 'telegram',
+          title: 'Bug: Webhook Timeout bei 4G Verbindungsabriss',
+          user: 'masked_9918bc30',
+          time: '07:12:05',
+          sizeBytes: 310,
+          budgetOk: true,
+          scrubbedClean: true,
+          content: 'Habe bei schwachem Mobilfunk-Empfang regelmäßig "TelegramBridgeError: connection_timeout". Der Retry-Backoff sollte 3 Versuche mit Exponential Jitter durchführen.',
+          kind: 'text',
+          rawPayload: '{"update_id":901819,"message":{"message_id":409,"text":"Habe bei schwachem Mobilfunk-Empfang..."}}'
+        }
+      ],
+      gatewayLeases: [
+        {
+          id: 'lease_1edbff6fdacd',
+          worker: 'Subagent Flash',
+          task: 'task-inbox-triage-1',
+          paths: ['src/harbour/adapters/*'],
+          worktree: '.worktrees/worker_flash_inbox_1',
+          fence: 3,
+          expiresSeconds: 245,
+          diff: `--- a/src/harbour/adapters/telegram_bridge.py
++++ b/src/harbour/adapters/telegram_bridge.py
+@@ -48,6 +48,8 @@ class TelegramUpdateDto:
+     mime_type: str | None
+     size_bytes: int
++    retry_count: int = 0
++    backoff_jitter_ms: int = 150
+     raw_content: str | None
+     is_bot: bool
+     observed_at: str`,
+          receipt: { tests: '13 passed', compile: 'OK', lint: '0 errors' }
+        },
+        {
+          id: 'lease_4a90cd12bc89',
+          worker: 'Goose-Harness',
+          task: 'task-usi-sync',
+          paths: ['data/usi.sqlite3'],
+          worktree: '.worktrees/worker_goose_usi_sync',
+          fence: 4,
+          expiresSeconds: 160,
+          diff: `--- a/data/usi.sqlite3
++++ b/data/usi.sqlite3
+@@ -1,3 +1,3 @@
+-12786 chunks indexed (fts5 bm25)
++12810 chunks indexed (fts5 bm25)
++Added: specs/roadmaps/harbour-command-workbench.json`,
+          receipt: { tests: '60 passed', compile: 'OK', lint: '0 errors' }
+        }
+      ],
+      usiChunks: [
+        { path: 'specs/roadmaps/harbour-one.json', score: '-17.52', snippet: 'Harbour Worker Gateway coordinates path-isolated execution leases, fencing tokens and ephemeral worktrees.', id: 'repo:specs/harbour-one.json', span: '0-482' },
+        { path: 'src/harbour/gateway/coordinator.py', score: '-16.20', snippet: 'HarbourWorkerGatewayCoordinator enforces strict main process isolation and active scope collision guards.', id: 'src:harbour/gateway/coordinator.py', span: '120-650' },
+        { path: 'src/harbour/adapters/telegram_bridge.py', score: '-15.80', snippet: 'TelegramUpdateDto enforces data minimization, user ID hashing, and 256 KB document size budgets.', id: 'src:harbour/adapters/telegram_bridge.py', span: '45-310' },
+        { path: 'src/harbour/adapters/nextcloud_ingest.py', score: '-14.90', snippet: 'NextcloudNotificationDto validates path safety and maps WebDAV file events to universal inbox payloads.', id: 'src:harbour/adapters/nextcloud_ingest.py', span: '80-420' }
+      ]
+    };
 
-    // View Switching
-    function switchView(viewName) {
-      const tabs = ['overview', 'inbox', 'planning', 'gateway', 'usi'];
-      tabs.forEach(t => {
-        const el = document.getElementById(`tab-${t}`);
-        if (t === viewName) {
-          el.className = 'px-3 py-1.5 text-xs font-medium rounded-md transition-all bg-indigo-600 text-white shadow';
+    // Initialize View
+    function init() {
+      lucide.createIcons();
+      renderStream();
+      renderInspector();
+      setupKeybindings();
+      startTimers();
+    }
+
+    // Set Main View Mode
+    function setMode(newMode) {
+      state.mode = newMode;
+      state.activeItemIndex = 0;
+
+      // Update Nav Buttons
+      ['inbox', 'gateway', 'usi', 'audit'].forEach(m => {
+        const btn = document.getElementById(`btn-mode-${m}`);
+        if (m === newMode) {
+          btn.className = 'px-2.5 py-1 text-[11px] rounded transition flex items-center space-x-1.5 bg-terminal-border text-white font-medium shadow-sm';
         } else {
-          el.className = 'px-3 py-1.5 text-xs font-medium rounded-md transition-all text-slate-400 hover:text-white';
+          btn.className = 'px-2.5 py-1 text-[11px] rounded transition flex items-center space-x-1.5 text-terminal-muted hover:text-white';
         }
       });
-      showToast('Navigation', `Ansicht umgeschaltet auf: ${viewName.toUpperCase()}`);
+
+      renderStream();
+      renderInspector();
     }
 
-    // Triage Action
-    function triageItem(itemId, action, targetDomain) {
-      const el = document.getElementById(`item-${itemId}`);
-      if (el) {
-        el.style.opacity = '0.3';
-        el.style.transform = 'scale(0.98)';
-        setTimeout(() => {
-          el.remove();
-          const countEl = document.getElementById('inbox-count');
-          const badgeEl = document.getElementById('badge-inbox-pending');
-          const current = Math.max(0, parseInt(countEl.innerText) - 1);
-          countEl.innerText = current;
-          badgeEl.innerText = current;
-          showToast('Triage Erfolgreich', `Item ${itemId} triagiert als '${action}' -> Domain '${targetDomain}'`);
-        }, 250);
-      }
-    }
+    // Render Left Stream Pane
+    function renderStream() {
+      const container = document.getElementById('stream-items-list');
+      const titleEl = document.getElementById('stream-title');
+      const countEl = document.getElementById('stream-count');
 
-    // Release Lease Action
-    function releaseSampleLease(leaseId) {
-      showToast('Lease Release', `Lease ${leaseId} erfolgreich freigegeben und verifiziert.`);
-    }
+      container.innerHTML = '';
 
-    // Simulate Ingest
-    function triggerSampleIngest() {
-      const container = document.getElementById('inbox-items-container');
-      const randId = Math.floor(Math.random() * 9000) + 1000;
-      const html = `
-        <div id="item-doc-${randId}" class="p-3.5 rounded-lg bg-surface-850 border border-indigo-500/40 animate-pulse space-y-2.5">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center space-x-2">
-              <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">Telegram Live</span>
-              <span class="text-xs font-medium text-white">Neue Audionotiz erfasst (${randId})</span>
+      if (state.mode === 'inbox') {
+        titleEl.innerText = 'INBOX INGRESS STREAM';
+        countEl.innerText = `${state.inboxItems.length} ITEMS`;
+
+        if (state.inboxItems.length === 0) {
+          container.innerHTML = '<div class="p-8 text-center text-terminal-dim font-mono text-xs">Inbox Queue ist leer. Keine offenen Items.</div>';
+          return;
+        }
+
+        state.inboxItems.forEach((item, idx) => {
+          const isActive = idx === state.activeItemIndex;
+          const srcBadge = item.source === 'telegram'
+            ? '<span class="text-[9px] px-1 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">TEL</span>'
+            : '<span class="text-[9px] px-1 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">NC</span>';
+
+          const el = document.createElement('div');
+          el.className = `p-2.5 px-3 cursor-pointer transition flex items-start space-x-2.5 ${isActive ? 'bg-terminal-card border-l-2 border-indigo-500 text-white' : 'hover:bg-terminal-surface/60 text-terminal-muted'}`;
+          el.onclick = () => { state.activeItemIndex = idx; renderStream(); renderInspector(); };
+          el.innerHTML = `
+            <div class="pt-0.5 shrink-0">${srcBadge}</div>
+            <div class="flex-1 min-w-0 space-y-0.5">
+              <div class="flex items-center justify-between">
+                <span class="font-medium truncate ${isActive ? 'text-white' : 'text-slate-300'}">${escapeHtml(item.title)}</span>
+                <span class="text-[10px] text-terminal-dim mono-nums">${item.time}</span>
+              </div>
+              <div class="flex items-center space-x-2 text-[10px] text-terminal-dim">
+                <span>${item.user}</span>
+                <span>·</span>
+                <span class="mono-nums">${item.sizeBytes} B</span>
+                <span>·</span>
+                <span class="text-emerald-400">0 secrets</span>
+              </div>
             </div>
-            <span class="text-[11px] font-mono text-emerald-400">soeben</span>
-          </div>
-          <p class="text-xs text-slate-400 font-mono text-[11px] bg-surface-950 p-2 rounded border border-slate-900">
-            User: <span class="text-indigo-400">masked_${randId}</span> · Budget Check: <span class="text-emerald-400">PASS (240 Bytes)</span>
-          </p>
-          <div class="flex items-center justify-end space-x-2 pt-1">
-            <button onclick="triageItem('doc-${randId}', 'route', 'gateway')" class="px-2.5 py-1 text-xs font-medium bg-emerald-600/20 text-emerald-300 hover:bg-emerald-600/30 rounded border border-emerald-500/30 transition">
-              Route to Gateway
-            </button>
-            <button onclick="triageItem('doc-${randId}', 'dismiss', 'archive')" class="px-2.5 py-1 text-xs text-slate-400 hover:text-rose-400 rounded transition">
-              Dismiss
-            </button>
-          </div>
-        </div>
-      `;
-      container.insertAdjacentHTML('afterbegin', html);
-      const countEl = document.getElementById('inbox-count');
-      const badgeEl = document.getElementById('badge-inbox-pending');
-      const current = parseInt(countEl.innerText) + 1;
-      countEl.innerText = current;
-      badgeEl.innerText = current;
-      lucide.createIcons();
-      showToast('Neuer Ingest', `Telegram-Ereignis '${randId}' normiert und erfasst.`);
-    }
+          `;
+          container.appendChild(el);
+        });
+      } else if (state.mode === 'gateway') {
+        titleEl.innerText = 'ACTIVE WORKER LEASES';
+        countEl.innerText = `${state.gatewayLeases.length} ACTIVE`;
 
-    // Quick Verify
-    function triggerQuickVerify() {
-      showToast('Verifikation', '60/60 Tests & Guards-Only PASSED (0 Failures)');
-    }
+        state.gatewayLeases.forEach((lease, idx) => {
+          const isActive = idx === state.activeItemIndex;
+          const el = document.createElement('div');
+          el.className = `p-2.5 px-3 cursor-pointer transition flex items-start space-x-2.5 ${isActive ? 'bg-terminal-card border-l-2 border-emerald-500 text-white' : 'hover:bg-terminal-surface/60 text-terminal-muted'}`;
+          el.onclick = () => { state.activeItemIndex = idx; renderStream(); renderInspector(); };
+          el.innerHTML = `
+            <div class="pt-0.5 shrink-0">
+              <span class="text-[9px] px-1 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">LSE</span>
+            </div>
+            <div class="flex-1 min-w-0 space-y-0.5">
+              <div class="flex items-center justify-between">
+                <span class="font-semibold text-emerald-400 truncate">${lease.id}</span>
+                <span class="text-[10px] font-mono text-amber-400 mono-nums" id="timer-${lease.id}">${formatTime(lease.expiresSeconds)}</span>
+              </div>
+              <div class="flex items-center justify-between text-[10px] text-terminal-dim">
+                <span>${lease.worker}</span>
+                <span>Fence: #${lease.fence}</span>
+              </div>
+            </div>
+          `;
+          container.appendChild(el);
+        });
+      } else if (state.mode === 'usi') {
+        titleEl.innerText = 'USI SEMANTIC CHUNKS';
+        countEl.innerText = '12,786 TOTAL';
 
-    // USI Search
-    const mockUsiData = [
-      { path: 'specs/roadmaps/harbour-one.json', rank: '-17.52', snippet: 'Harbour Worker Gateway coordinates path-isolated execution leases, fencing tokens and ephemeral worktrees.', id: 'repo:specs/harbour-one.json' },
-      { path: 'src/harbour/gateway/coordinator.py', rank: '-16.20', snippet: 'HarbourWorkerGatewayCoordinator enforces strict main process isolation and active scope collision guards.', id: 'src:harbour/gateway/coordinator.py' },
-      { path: 'src/harbour/adapters/telegram_bridge.py', rank: '-15.80', snippet: 'TelegramUpdateDto enforces data minimization, user ID hashing, and 256 KB document size budgets.', id: 'src:harbour/adapters/telegram_bridge.py' },
-      { path: 'src/harbour/adapters/nextcloud_ingest.py', rank: '-14.90', snippet: 'NextcloudNotificationDto validates path safety and maps WebDAV file events to universal inbox payloads.', id: 'src:harbour/adapters/nextcloud_ingest.py' },
-      { path: 'specs/roadmaps/quality-gate.json', rank: '-13.40', snippet: 'Host-side quality gate evaluation verifies receipts before branch merges into dev.', id: 'specs:quality-gate.json' }
-    ];
-
-    function setQueryChip(text) {
-      document.getElementById('usi-search-input').value = text;
-      performUsiSearch(text);
-    }
-
-    function performUsiSearch(query) {
-      const q = query.toLowerCase().trim();
-      const resultsContainer = document.getElementById('usi-results-container');
-      const filtered = mockUsiData.filter(d => 
-        d.path.toLowerCase().includes(q) || 
-        d.snippet.toLowerCase().includes(q)
-      );
-
-      if (filtered.length === 0) {
-        resultsContainer.innerHTML = `
-          <div class="p-6 text-center text-slate-500 font-mono text-xs">
-            Keine Chunks gefunden für "${query}"
+        state.usiChunks.forEach((c, idx) => {
+          const isActive = idx === state.activeItemIndex;
+          const el = document.createElement('div');
+          el.className = `p-2.5 px-3 cursor-pointer transition space-y-1 ${isActive ? 'bg-terminal-card border-l-2 border-indigo-500 text-white' : 'hover:bg-terminal-surface/60 text-terminal-muted'}`;
+          el.onclick = () => { state.activeItemIndex = idx; renderStream(); renderInspector(); };
+          el.innerHTML = `
+            <div class="flex items-center justify-between text-[11px]">
+              <span class="text-indigo-400 truncate font-semibold">${c.path}</span>
+              <span class="text-emerald-400 text-[10px] mono-nums">${c.score}</span>
+            </div>
+            <p class="text-[11px] text-slate-300 line-clamp-2">${c.snippet}</p>
+          `;
+          container.appendChild(el);
+        });
+      } else if (state.mode === 'audit') {
+        titleEl.innerText = 'CRYPTOGRAPHIC AUDIT LEDGER';
+        countEl.innerText = 'IMMUTABLE';
+        container.innerHTML = `
+          <div class="p-3 text-[11px] space-y-2 text-terminal-muted font-mono">
+            <div class="text-slate-300 font-semibold">Ledger Head: rev_ae3b21ec</div>
+            <div class="text-[10px] text-terminal-dim">Authority Ledger verifiziert gegen SHA-256 Wurzelanker.</div>
           </div>
         `;
-        return;
+      }
+    }
+
+    // Render Right Inspector Pane
+    function renderInspector() {
+      const contentEl = document.getElementById('inspector-content');
+      const recordIdEl = document.getElementById('insp-record-id');
+      const actionGroup = document.getElementById('action-buttons-group');
+
+      if (state.mode === 'inbox') {
+        const item = state.inboxItems[state.activeItemIndex];
+        if (!item) {
+          contentEl.innerHTML = '<div class="text-terminal-dim font-mono text-xs p-6">Kein Eintrag ausgewählt.</div>';
+          actionGroup.innerHTML = '';
+          return;
+        }
+
+        recordIdEl.innerText = item.id;
+        contentEl.innerHTML = `
+          <!-- Meta Card -->
+          <div class="p-3 rounded border border-terminal-border bg-terminal-black/70 font-mono text-xs space-y-2">
+            <div class="grid grid-cols-2 gap-2 text-[11px]">
+              <div><span class="text-terminal-dim">SOURCE:</span> <strong class="text-white uppercase">${item.source}</strong></div>
+              <div><span class="text-terminal-dim">USER MASK:</span> <span class="text-indigo-300">${item.user}</span></div>
+              <div><span class="text-terminal-dim">PAYLOAD SIZE:</span> <span class="mono-nums text-emerald-400">${item.sizeBytes} Bytes</span> (Max 256 KB)</div>
+              <div><span class="text-terminal-dim">SECRET AUDIT:</span> <span class="text-emerald-400 font-semibold">PASS (Clean)</span></div>
+            </div>
+          </div>
+
+          <!-- Document / Content Section -->
+          <div class="space-y-1.5 font-mono">
+            <div class="flex items-center justify-between text-[11px] text-terminal-dim uppercase tracking-wider">
+              <span>Sanitized Message / Document Body</span>
+              <span>Format: Plain Text / Markdown</span>
+            </div>
+            <div class="p-3.5 rounded border border-terminal-border bg-terminal-black font-mono text-xs text-slate-200 leading-relaxed whitespace-pre-wrap selection:bg-indigo-600">
+${escapeHtml(item.content)}
+            </div>
+          </div>
+
+          <!-- Raw Redacted Payload Inspector -->
+          <div class="space-y-1 font-mono">
+            <div class="text-[10px] text-terminal-dim uppercase">Raw Ingress Frame (Redacted Identity)</div>
+            <pre class="p-2.5 rounded bg-terminal-black/90 border border-terminal-border/80 text-[10px] text-slate-400 overflow-x-auto">${escapeHtml(item.rawPayload)}</pre>
+          </div>
+        `;
+
+        actionGroup.innerHTML = `
+          <button onclick="actionTriage('accept')" class="px-3 py-1.5 text-xs font-mono font-medium rounded bg-indigo-600 hover:bg-indigo-500 text-white flex items-center space-x-1.5 transition">
+            <kbd class="kbd-chip bg-indigo-700 border-indigo-400">a</kbd>
+            <span>Accept -> Planning Head</span>
+          </button>
+          <button onclick="actionTriage('route')" class="px-3 py-1.5 text-xs font-mono font-medium rounded bg-emerald-600 hover:bg-emerald-500 text-white flex items-center space-x-1.5 transition">
+            <kbd class="kbd-chip bg-emerald-700 border-emerald-400">g</kbd>
+            <span>Gateway Sandbox Worktree</span>
+          </button>
+          <button onclick="actionTriage('reject')" class="px-3 py-1.5 text-xs font-mono font-medium rounded bg-terminal-card hover:bg-rose-950/40 text-rose-400 border border-terminal-border flex items-center space-x-1.5 transition">
+            <kbd class="kbd-chip">x</kbd>
+            <span>Reject / Quarantäne</span>
+          </button>
+        `;
+      } else if (state.mode === 'gateway') {
+        const lease = state.gatewayLeases[state.activeItemIndex];
+        if (!lease) {
+          contentEl.innerHTML = '<div class="text-terminal-dim font-mono text-xs p-6">Kein aktiver Lease ausgewählt.</div>';
+          actionGroup.innerHTML = '';
+          return;
+        }
+
+        recordIdEl.innerText = lease.id;
+        contentEl.innerHTML = `
+          <!-- Lease Telemetry -->
+          <div class="p-3 rounded border border-terminal-border bg-terminal-black/70 font-mono text-xs space-y-2">
+            <div class="grid grid-cols-2 gap-2 text-[11px]">
+              <div><span class="text-terminal-dim">WORKER:</span> <strong class="text-white">${lease.worker}</strong></div>
+              <div><span class="text-terminal-dim">TASK ID:</span> <span class="text-indigo-300 font-semibold">${lease.task}</span></div>
+              <div><span class="text-terminal-dim">WRITE PATHS:</span> <span class="text-indigo-400 font-mono">${lease.paths.join(', ')}</span></div>
+              <div><span class="text-terminal-dim">WORKTREE:</span> <span class="text-slate-300">${lease.worktree}</span></div>
+            </div>
+          </div>
+
+          <!-- Real-Time Dirty-Diff Viewer -->
+          <div class="space-y-1.5 font-mono">
+            <div class="flex items-center justify-between text-[11px] text-terminal-dim uppercase tracking-wider">
+              <span>Host Sandbox Dirty-Diff (Unified Diff vs. dev)</span>
+              <span class="text-emerald-400">Collision-Free Sandbox</span>
+            </div>
+            <pre class="p-3 rounded border border-terminal-border bg-terminal-black font-mono text-[11px] overflow-x-auto leading-relaxed">
+${colorizeDiff(lease.diff)}
+            </pre>
+          </div>
+
+          <!-- Quality Gate Verification Receipt -->
+          <div class="p-2.5 rounded border border-emerald-500/30 bg-emerald-950/10 font-mono text-[11px] flex items-center justify-between">
+            <span class="text-emerald-400 flex items-center space-x-1.5">
+              <i data-lucide="shield-check" class="w-4 h-4"></i>
+              <span>Verification Gate: PASSED (Compile: OK · Tests: ${lease.receipt.tests})</span>
+            </span>
+            <span class="text-terminal-dim text-[10px]">Verified by scripts/verify.py</span>
+          </div>
+        `;
+
+        actionGroup.innerHTML = `
+          <button onclick="actionLease('renew')" class="px-3 py-1.5 text-xs font-mono font-medium rounded bg-indigo-600 hover:bg-indigo-500 text-white flex items-center space-x-1.5 transition">
+            <kbd class="kbd-chip bg-indigo-700 border-indigo-400">l</kbd>
+            <span>Renew Lease (+300s)</span>
+          </button>
+          <button onclick="actionLease('merge')" class="px-3 py-1.5 text-xs font-mono font-medium rounded bg-emerald-600 hover:bg-emerald-500 text-white flex items-center space-x-1.5 transition">
+            <kbd class="kbd-chip bg-emerald-700 border-emerald-400">m</kbd>
+            <span>Authorize Host Merge</span>
+          </button>
+          <button onclick="actionLease('kill')" class="px-3 py-1.5 text-xs font-mono font-medium rounded bg-terminal-card hover:bg-rose-950/40 text-rose-400 border border-terminal-border flex items-center space-x-1.5 transition">
+            <kbd class="kbd-chip">k</kbd>
+            <span>Terminate & Roll Sandbox</span>
+          </button>
+        `;
+      } else if (state.mode === 'usi') {
+        const chunk = state.usiChunks[state.activeItemIndex];
+        recordIdEl.innerText = chunk ? chunk.id : 'USI-EXPLORER';
+        contentEl.innerHTML = `
+          <!-- Spotlight Quick Input -->
+          <div class="space-y-1 font-mono">
+            <div class="text-[11px] text-terminal-dim uppercase">FTS5 BM25 Knowledge Spotlight</div>
+            <div class="relative">
+              <input type="text" id="usi-input" placeholder="Type query to filter 12,786 chunks... (Press / to focus)" value="Harbour Worker Gateway" class="w-full bg-terminal-black border border-terminal-border rounded px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-indigo-500">
+            </div>
+          </div>
+
+          ${chunk ? `
+          <!-- Chunk Detail -->
+          <div class="p-3.5 rounded border border-terminal-border bg-terminal-black/70 font-mono text-xs space-y-3">
+            <div class="flex items-center justify-between border-b border-terminal-border/60 pb-2">
+              <span class="text-indigo-400 font-semibold">${chunk.path}</span>
+              <span class="text-emerald-400 text-[10px] font-mono bg-emerald-500/10 px-1.5 py-0.5 rounded">BM25: ${chunk.score}</span>
+            </div>
+            <div class="text-[11px] text-slate-300 leading-relaxed">${chunk.snippet}</div>
+            <div class="flex items-center justify-between text-[10px] text-terminal-dim pt-2 border-t border-terminal-border/60">
+              <span>Token Span: ${chunk.span}</span>
+              <span>Source ID: ${chunk.id}</span>
+            </div>
+          </div>
+          ` : ''}
+        `;
+        actionGroup.innerHTML = `
+          <button onclick="copyChunkContext()" class="px-3 py-1.5 text-xs font-mono font-medium rounded bg-indigo-600 hover:bg-indigo-500 text-white flex items-center space-x-1.5 transition">
+            <kbd class="kbd-chip bg-indigo-700 border-indigo-400">c</kbd>
+            <span>Copy Context Prompt</span>
+          </button>
+        `;
       }
 
-      resultsContainer.innerHTML = filtered.map(d => `
-        <div class="p-3 rounded-lg bg-surface-850 border border-slate-800 space-y-1.5 transition hover:border-slate-700">
-          <div class="flex items-center justify-between text-[11px] font-mono">
-            <span class="text-indigo-400 truncate max-w-[260px]">${d.path}</span>
-            <span class="text-emerald-400 bg-emerald-500/10 px-1 rounded">BM25: ${d.rank}</span>
-          </div>
-          <p class="text-xs text-slate-300">${d.snippet}</p>
-          <div class="flex items-center space-x-2 text-[10px] font-mono text-slate-500">
-            <span>Source: ${d.id}</span>
-          </div>
-        </div>
-      `).join('');
+      lucide.createIcons();
     }
 
-    // Toast Notification
-    function showToast(title, msg) {
-      const t = document.getElementById('toast');
-      document.getElementById('toast-title').innerText = title;
-      document.getElementById('toast-msg').innerText = msg;
-      t.classList.remove('translate-y-24', 'opacity-0');
-      t.classList.add('translate-y-0', 'opacity-100');
-      setTimeout(() => {
-        t.classList.add('translate-y-24', 'opacity-0');
-        t.classList.remove('translate-y-0', 'opacity-100');
-      }, 3500);
+    // Colorize unified diff lines
+    function colorizeDiff(raw) {
+      return raw.split('\n').map(line => {
+        if (line.startsWith('+++') || line.startsWith('---')) {
+          return `<span class="text-terminal-dim font-bold">${escapeHtml(line)}</span>`;
+        }
+        if (line.startsWith('@@')) {
+          return `<div class="diff-hunk px-1">${escapeHtml(line)}</div>`;
+        }
+        if (line.startsWith('+')) {
+          return `<div class="diff-add px-1">${escapeHtml(line)}</div>`;
+        }
+        if (line.startsWith('-')) {
+          return `<div class="diff-del px-1">${escapeHtml(line)}</div>`;
+        }
+        return `<span>${escapeHtml(line)}</span>`;
+      }).join('\n');
     }
+
+    // Action Handlers
+    function actionTriage(decision) {
+      if (state.inboxItems.length === 0) return;
+      const current = state.inboxItems[state.activeItemIndex];
+      state.inboxItems.splice(state.activeItemIndex, 1);
+      if (state.activeItemIndex >= state.inboxItems.length) {
+        state.activeItemIndex = Math.max(0, state.inboxItems.length - 1);
+      }
+      document.getElementById('badge-inbox').innerText = state.inboxItems.length;
+      renderStream();
+      renderInspector();
+    }
+
+    function actionLease(action) {
+      const lease = state.gatewayLeases[state.activeItemIndex];
+      if (!lease) return;
+      if (action === 'renew') {
+        lease.expiresSeconds += 300;
+        renderStream();
+        renderInspector();
+      } else if (action === 'merge' || action === 'kill') {
+        state.gatewayLeases.splice(state.activeItemIndex, 1);
+        if (state.activeItemIndex >= state.gatewayLeases.length) {
+          state.activeItemIndex = Math.max(0, state.gatewayLeases.length - 1);
+        }
+        document.getElementById('stat-leases').innerText = `${state.gatewayLeases.length} ACTIVE`;
+        renderStream();
+        renderInspector();
+      }
+    }
+
+    function copyChunkContext() {
+      const chunk = state.usiChunks[state.activeItemIndex];
+      if (chunk) {
+        navigator.clipboard.writeText(`[CONTEXT CHUNK: ${chunk.id}]\n${chunk.snippet}`);
+      }
+    }
+
+    // Keyboard Cheatsheet HUD Toggle
+    function toggleModal(id) {
+      const m = document.getElementById(`modal-${id}`);
+      if (m) m.classList.toggle('hidden');
+    }
+
+    // Single-Key & Command Navigation Keybindings
+    function setupKeybindings() {
+      window.addEventListener('keydown', (e) => {
+        // Do not intercept if user is typing in an input
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+          if (e.key === 'Escape') e.target.blur();
+          return;
+        }
+
+        switch (e.key) {
+          case 'j':
+          case 'ArrowDown':
+            navigateFeed(1);
+            e.preventDefault();
+            break;
+          case 'k':
+          case 'ArrowUp':
+            navigateFeed(-1);
+            e.preventDefault();
+            break;
+          case '1':
+            setMode('inbox');
+            break;
+          case '2':
+            setMode('gateway');
+            break;
+          case '3':
+            setMode('usi');
+            break;
+          case '4':
+            setMode('audit');
+            break;
+          case 'a':
+            if (state.mode === 'inbox') actionTriage('accept');
+            break;
+          case 'g':
+            if (state.mode === 'inbox') actionTriage('route');
+            break;
+          case 'x':
+            if (state.mode === 'inbox') actionTriage('reject');
+            break;
+          case 'l':
+            if (state.mode === 'gateway') actionLease('renew');
+            break;
+          case 'm':
+            if (state.mode === 'gateway') actionLease('merge');
+            break;
+          case 'c':
+            if (state.mode === 'usi') copyChunkContext();
+            break;
+          case '/':
+            setMode('usi');
+            setTimeout(() => {
+              const inp = document.getElementById('usi-input');
+              if (inp) { inp.focus(); inp.select(); }
+            }, 50);
+            e.preventDefault();
+            break;
+          case '?':
+            toggleModal('help');
+            break;
+          case 'Escape':
+            const modal = document.getElementById('modal-help');
+            if (!modal.classList.contains('hidden')) modal.classList.add('hidden');
+            break;
+        }
+      });
+    }
+
+    function navigateFeed(direction) {
+      let maxLen = 0;
+      if (state.mode === 'inbox') maxLen = state.inboxItems.length;
+      else if (state.mode === 'gateway') maxLen = state.gatewayLeases.length;
+      else if (state.mode === 'usi') maxLen = state.usiChunks.length;
+
+      if (maxLen === 0) return;
+      state.activeItemIndex = Math.min(Math.max(0, state.activeItemIndex + direction), maxLen - 1);
+      renderStream();
+      renderInspector();
+    }
+
+    function startTimers() {
+      setInterval(() => {
+        state.gatewayLeases.forEach(l => {
+          if (l.expiresSeconds > 0) l.expiresSeconds--;
+          const el = document.getElementById(`timer-${l.id}`);
+          if (el) el.innerText = formatTime(l.expiresSeconds);
+        });
+      }, 1000);
+    }
+
+    function formatTime(totalSec) {
+      const m = Math.floor(totalSec / 60);
+      const s = totalSec % 60;
+      return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    window.onload = init;
   </script>
 </body>
 </html>
