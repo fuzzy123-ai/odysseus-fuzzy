@@ -501,3 +501,199 @@ body {
   .app-header { flex-wrap: wrap; height: auto; padding: 12px 16px; gap: 12px; }
   .main-viewport { padding: 16px; }
 }
+
+
+  /* OpsPilot High-Craft Middle Statistics Styles */
+  .middle-grid {
+    display: grid;
+    grid-template-columns: 62% 38%;
+    gap: 20px;
+    margin-bottom: 28px;
+  }
+
+  .btn-time-filter {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    border: 1px solid #262834;
+    color: #9ba1b4;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 5px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .btn-time-filter:hover {
+    border-color: #3b3f52;
+    color: #fff;
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  .chart-main-row {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+    position: relative;
+    height: 190px;
+    padding-top: 10px;
+  }
+
+  .chart-y-axis {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 154px;
+    font-size: 11px;
+    color: #555b6d;
+    min-width: 44px;
+    font-variant-numeric: tabular-nums;
+    padding-bottom: 24px;
+    user-select: none;
+  }
+
+  .bar-chart-wrapper {
+    flex: 1;
+    position: relative;
+    height: 154px;
+  }
+
+  .chart-gridlines {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 130px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .gridline {
+    width: 100%;
+    border-bottom: 1px dashed rgba(255, 255, 255, 0.05);
+  }
+
+  .bar-chart-container {
+    position: relative;
+    z-index: 2;
+    height: 100%;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding-bottom: 24px;
+    border-bottom: 1px solid #1f212a;
+  }
+
+  .month-col-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+  }
+
+  .month-bars-cluster {
+    display: flex;
+    align-items: flex-end;
+    gap: 2.5px;
+    height: 130px;
+  }
+
+  .bar-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    width: 5.5px;
+    justify-content: flex-end;
+  }
+
+  .bar-block {
+    width: 100%;
+    height: 6px;
+    border-radius: 1.5px;
+    background-color: #191b22;
+  }
+
+  .bar-block.filled {
+    background-color: #eb3333;
+    box-shadow: 0 0 5px rgba(235, 51, 51, 0.4);
+  }
+
+  .bar-label {
+    font-size: 11px;
+    color: #6b7280;
+    font-weight: 500;
+    user-select: none;
+  }
+
+  /* Semicircular Radial Segment Gauge */
+  .gauge-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 0 0;
+  }
+
+  .gauge-arc-mock {
+    position: relative;
+    width: 340px;
+    height: 170px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+  }
+
+  .gauge-center-text {
+    position: absolute;
+    bottom: 8px;
+    text-align: center;
+    left: 0;
+    right: 0;
+    user-select: none;
+  }
+
+  .gauge-big-num {
+    font-size: 38px;
+    font-weight: 800;
+    color: #ffffff;
+    line-height: 1;
+    letter-spacing: -1px;
+  }
+
+  .gauge-sub {
+    font-size: 12px;
+    color: #6b7280;
+    font-weight: 500;
+    margin-top: 4px;
+    letter-spacing: 0.3px;
+  }
+
+  .gauge-legend {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 16px;
+    margin-top: 22px;
+    font-size: 11px;
+    color: #8a8f9d;
+    font-weight: 500;
+    flex-wrap: wrap;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .legend-dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+  }
