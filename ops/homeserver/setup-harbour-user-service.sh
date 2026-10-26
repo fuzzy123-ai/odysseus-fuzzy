@@ -14,9 +14,9 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-WorkingDirectory=/opt/odysseus
-ExecStart=/bin/sh -lc '/usr/bin/podman-compose -f docker-compose.harbour.yml up -d'
-ExecStop=/bin/sh -lc '/usr/bin/podman-compose -f docker-compose.harbour.yml stop'
+WorkingDirectory=/opt/odysseus/.worktrees/harbour-one
+ExecStart=/bin/sh -lc 'cd /opt/odysseus/.worktrees/harbour-one && /usr/bin/podman-compose -f docker-compose.harbour.yml up -d'
+ExecStop=/bin/sh -lc 'cd /opt/odysseus/.worktrees/harbour-one && /usr/bin/podman-compose -f docker-compose.harbour.yml stop'
 RemainAfterExit=yes
 TimeoutStartSec=300
 TimeoutStopSec=120

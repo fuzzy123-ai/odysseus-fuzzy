@@ -1,21 +1,14 @@
 services:
   harbour:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        INSTALL_OPTIONAL: ${INSTALL_OPTIONAL:-false}
-        INSTALL_OFFICE: ${INSTALL_OFFICE:-false}
-        INSTALL_STT: ${INSTALL_STT:-false}
-        INSTALL_OCR: ${INSTALL_OCR:-false}
-        ODYSSEUS_RELEASE_REVISION: ${ODYSSEUS_RELEASE_REVISION:-v2026.10-harbour-mcp-first}
+    image: localhost/odysseus_odysseus:latest
     container_name: harbour_one_1
     ports:
       - "127.0.0.1:7050:7000"
     volumes:
-      - ${APP_DATA_DIR:-./data}:/app/data:z
-      - ${APP_LOGS_DIR:-./logs}:/app/logs:z
-      - ${APP_DATA_DIR:-./data}/ssh:/app/.ssh:z
+      - .:/app:z
+      - /opt/odysseus/data:/app/data:z
+      - /opt/odysseus/logs:/app/logs:z
+      - /opt/odysseus/data/ssh:/app/.ssh:z
       - ${UNIVERSAL_INBOX_HOST_PATH:-./data/universal-inbox}:${UNIVERSAL_INBOX_PATH:-/app/universal-inbox}:ro,z
     extra_hosts:
       - "host.docker.internal:host-gateway"
