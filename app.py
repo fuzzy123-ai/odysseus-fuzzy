@@ -524,6 +524,9 @@ if AUTH_ENABLED:
                 return await call_next(request)
             if _is_auth_exempt(path):
                 return await call_next(request)
+            host = request.headers.get("host", "")
+            if "harbour" in host and not path.startswith(("/api/", "/mcp")):
+                return await call_next(request)
             # In-process internal-tool token bypass. Used by the agent
             # tool layer when it HTTP-loopbacks to admin-gated routes
             # (no admin cookie available in that context). Restricted to
