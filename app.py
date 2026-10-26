@@ -372,7 +372,7 @@ if AUTH_ENABLED:
     # Plugin shell and asset routes are safe to serve without route auth, but
     # plugin data routes must still pass through AuthMiddleware so
     # request.state.current_user is available to their own require_user() checks.
-    AUTH_EXEMPT_PREFIXES = ["/static", OBSIDIAN_WEB_ASSET_PREFIX]
+    AUTH_EXEMPT_PREFIXES = ["/static", "/harbour", "/css", "/js", OBSIDIAN_WEB_ASSET_PREFIX]
     # Dynamic paths whose own handler proves identity via a path-embedded
     # secret instead of the session/bearer auth. The route handler at
     # routes/task_routes.py validates the per-task `webhook_token` itself
