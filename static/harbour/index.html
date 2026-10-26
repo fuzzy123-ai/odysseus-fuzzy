@@ -760,6 +760,186 @@ body {
   border-left: 3px solid #10b981;
 }
 
+/* ==========================================================================
+   View: Roadmaps & Dependency Graph
+   ========================================================================== */
+.project-cockpit-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 20px;
+  margin-bottom: 32px;
+}
+
+.project-summary-card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+  transition: all 0.15s ease;
+}
+
+.project-summary-card:hover {
+  border-color: var(--border-strong);
+  background-color: var(--bg-card);
+}
+
+.summary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.summary-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.summary-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background-color: var(--accent-primary-glow);
+  color: var(--accent-primary);
+}
+
+.progress-track {
+  width: 100%;
+  height: 6px;
+  background-color: var(--bg-canvas);
+  border-radius: 3px;
+  overflow: hidden;
+  margin: 10px 0 6px;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #6366f1, #10b981);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.progress-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+/* Dependency DAG Graph */
+.dag-graph-container {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  margin-bottom: 32px;
+}
+
+.dag-graph-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.dag-graph-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.graph-nodes-flow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 0;
+}
+
+.graph-node {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  min-width: 180px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+}
+
+.graph-node:hover {
+  border-color: var(--border-strong);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.graph-node.node-accepted { border-left: 4px solid var(--status-accepted); }
+.graph-node.node-verified { border-left: 4px solid var(--status-verified); }
+.graph-node.node-progress { border-left: 4px solid var(--status-progress); }
+.graph-node.node-planned { border-left: 4px solid var(--status-planned); }
+
+.node-id {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.node-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+  line-height: 1.3;
+}
+
+.graph-arrow {
+  color: var(--text-dim);
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  user-select: none;
+}
+
+/* Slices Table */
+.slices-table-container {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.slices-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.slices-table th, .slices-table td {
+  padding: 12px 18px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.slices-table th {
+  background-color: var(--bg-card);
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.slices-table td {
+  color: var(--text-main);
+}
+
+.slices-table tr:hover td {
+  background-color: var(--bg-card-hover);
+}
+
   </style>
 </head>
 <body>
@@ -786,6 +966,15 @@ body {
           <rect x="3" y="16" width="7" height="5"/>
         </svg>
         <span>Kanban & Board</span>
+      </button>
+
+      <button class="nav-tab-btn" data-tab="roadmaps" onclick="switchHarbourTab('roadmaps')">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/>
+          <line x1="8" y1="2" x2="8" y2="18"/>
+          <line x1="16" y1="6" x2="16" y2="22"/>
+        </svg>
+        <span>Roadmaps & Graphen</span>
       </button>
 
       <button class="nav-tab-btn" data-tab="devblog" onclick="switchHarbourTab('devblog')">
@@ -961,6 +1150,200 @@ body {
           </div>
         </div>
 
+      </div>
+    </section>
+
+
+    <!-- View: Roadmaps & Dependency Graph -->
+    <section id="view-roadmaps" class="view-section" style="display: none;">
+      <div class="kanban-header">
+        <div class="kanban-title-row">
+          <h1 class="view-heading">Projekt-Cockpit & Roadmap-Graphen</h1>
+          <span style="font-size: 13px; color: var(--text-dim);">Tastatur: <strong>[1]</strong> Kanban <strong>[2]</strong> Roadmaps <strong>[3]</strong> Devblog <strong>[4]</strong> ADRs</span>
+        </div>
+        <p class="view-subheading">Übersicht aller Projekte, Meilensteine und gerichteten Abhängigkeiten (DAG).</p>
+      </div>
+
+      <!-- Projekt-Cockpit Übersichtskarten -->
+      <div class="project-cockpit-grid">
+        <div class="project-summary-card" data-project="harbour-core">
+          <div class="summary-header">
+            <span class="summary-title">Harbour One Produkt-Trennung</span>
+            <span class="summary-badge">50% Abgeschlossen</span>
+          </div>
+          <div style="font-size: 12px; color: var(--text-muted);">HPS Roadmap: Trennung von Odysseus in 2 Repositories</div>
+          <div class="progress-track">
+            <div class="progress-bar-fill" style="width: 50%;"></div>
+          </div>
+          <div class="progress-labels">
+            <span>4 von 8 Slices aktiv / verifiziert</span>
+            <span style="color: var(--status-progress); font-weight: 600;">Phase 1 Aktiv</span>
+          </div>
+        </div>
+
+        <div class="project-summary-card" data-project="scrapper">
+          <div class="summary-header">
+            <span class="summary-title">Scrapper 5-Stufen-Modell</span>
+            <span class="summary-badge">60% Abgeschlossen</span>
+          </div>
+          <div style="font-size: 12px; color: var(--text-muted);">Reifegrade: Prototyp, Rigging, Shader, Gameplay, Audio</div>
+          <div class="progress-track">
+            <div class="progress-bar-fill" style="width: 60%;"></div>
+          </div>
+          <div class="progress-labels">
+            <span>3 von 5 Stufen abgenommen</span>
+            <span style="color: var(--status-verified); font-weight: 600;">Stufe 4 in Arbeit</span>
+          </div>
+        </div>
+
+        <div class="project-summary-card" data-project="queen-system1">
+          <div class="summary-header">
+            <span class="summary-title">Queen System 1 KI</span>
+            <span class="summary-badge">33% Abgeschlossen</span>
+          </div>
+          <div style="font-size: 12px; color: var(--text-muted);">Reflexive Inferenz (<50ms) entkoppelt von System 2</div>
+          <div class="progress-track">
+            <div class="progress-bar-fill" style="width: 33%;"></div>
+          </div>
+          <div class="progress-labels">
+            <span>1 von 3 Slices freigegeben</span>
+            <span style="color: var(--status-planned); font-weight: 600;">Konzept Gate</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Visueller Abhängigkeits-Graph (DAG) -->
+      <div class="dag-graph-container">
+        <div class="dag-graph-title-row">
+          <div class="dag-graph-title">Gerichteter Abhängigkeitsgraph (Harbour Separation DAG)</div>
+          <span style="font-size: 12px; color: var(--text-dim);">Klick auf einen Knoten öffnet die Details</span>
+        </div>
+
+        <div class="graph-nodes-flow">
+          <!-- HPS-01 -->
+          <div class="graph-node node-accepted" onclick="openHarbourModal('HPS-01')">
+            <div class="node-id">HPS-01 [ABGENOMMEN]</div>
+            <div class="node-title">Produktgrenzen & Verträge</div>
+          </div>
+
+          <div class="graph-arrow">➔</div>
+
+          <!-- HPS-02 -->
+          <div class="graph-node node-verified" onclick="openHarbourModal('HPS-02')">
+            <div class="node-id">HPS-02 [VERIFIZIERT]</div>
+            <div class="node-title">Getrennte Startprofile</div>
+          </div>
+
+          <div class="graph-arrow">➔</div>
+
+          <!-- HPS-03 -->
+          <div class="graph-node node-progress" onclick="openHarbourModal('HPS-03')">
+            <div class="node-id">HPS-03 [IN ARBEIT]</div>
+            <div class="node-title">Plan/Dok Kern & MCP</div>
+          </div>
+
+          <div class="graph-arrow">➔</div>
+
+          <!-- HPS-04 -->
+          <div class="graph-node node-progress" onclick="openHarbourModal('HPS-04')">
+            <div class="node-id">HPS-04 [IN ARBEIT]</div>
+            <div class="node-title">Devblog & Kanban-UI</div>
+          </div>
+
+          <div class="graph-arrow">➔</div>
+
+          <!-- HPS-08 -->
+          <div class="graph-node node-planned" onclick="openHarbourModal('HPS-08')">
+            <div class="node-id">HPS-08 [GEPLANT]</div>
+            <div class="node-title">1-Klick Transfer-API</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Slices Detail-Tabelle -->
+      <div class="slices-table-container">
+        <div style="padding: 16px 20px; border-bottom: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center;">
+          <strong style="font-size: 14px;">Alle Roadmap-Slices & Vorbedingungen</strong>
+          <span style="font-size: 12px; color: var(--text-dim);">Gesamt: 8 Slices</span>
+        </div>
+        <table class="slices-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Slice Name</th>
+              <th>Projekt</th>
+              <th>Abhängig von</th>
+              <th>Status</th>
+              <th>Zuständigkeit</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="slice-row" data-project="harbour-core" onclick="openHarbourModal('HPS-01')" style="cursor: pointer;">
+              <td style="font-family: var(--font-mono); font-weight: 600; color: var(--accent-primary);">HPS-01</td>
+              <td><strong>Produktgrenzen & Verträge</strong></td>
+              <td>Harbour One</td>
+              <td><em>Keine (Start-Slice)</em></td>
+              <td><span class="card-tag tag-accepted">Abgenommen</span></td>
+              <td>Architektur</td>
+            </tr>
+            <tr class="slice-row" data-project="harbour-core" onclick="openHarbourModal('HPS-02')" style="cursor: pointer;">
+              <td style="font-family: var(--font-mono); font-weight: 600; color: var(--accent-primary);">HPS-02</td>
+              <td><strong>Getrennte Startprofile</strong></td>
+              <td>Harbour One</td>
+              <td>HPS-01</td>
+              <td><span class="card-tag tag-verified">Verifiziert</span></td>
+              <td>Platform Lead</td>
+            </tr>
+            <tr class="slice-row" data-project="harbour-core" onclick="openHarbourModal('HPS-03')" style="cursor: pointer;">
+              <td style="font-family: var(--font-mono); font-weight: 600; color: var(--accent-primary);">HPS-03</td>
+              <td><strong>Plan/Dok-Kern & MCP</strong></td>
+              <td>Harbour One</td>
+              <td>HPS-02</td>
+              <td><span class="card-tag tag-progress">In Arbeit</span></td>
+              <td>Backend Lead</td>
+            </tr>
+            <tr class="slice-row" data-project="harbour-core" onclick="openHarbourModal('HPS-04')" style="cursor: pointer;">
+              <td style="font-family: var(--font-mono); font-weight: 600; color: var(--accent-primary);">HPS-04</td>
+              <td><strong>Devblog & Kanban-UI</strong></td>
+              <td>Harbour One</td>
+              <td>HPS-03</td>
+              <td><span class="card-tag tag-progress">In Arbeit</span></td>
+              <td>Frontend Craft</td>
+            </tr>
+            <tr class="slice-row" data-project="harbour-core" onclick="openHarbourModal('HPS-05')" style="cursor: pointer;">
+              <td style="font-family: var(--font-mono); font-weight: 600; color: var(--accent-primary);">HPS-05</td>
+              <td><strong>Dokumentations-Agent</strong></td>
+              <td>Harbour One</td>
+              <td>HPS-04</td>
+              <td><span class="card-tag tag-planned">Geplant</span></td>
+              <td>KI-Agent</td>
+            </tr>
+            <tr class="slice-row" data-project="harbour-core" onclick="openHarbourModal('HPS-06')" style="cursor: pointer;">
+              <td style="font-family: var(--font-mono); font-weight: 600; color: var(--accent-primary);">HPS-06</td>
+              <td><strong>Universal Inbox Kern</strong></td>
+              <td>Harbour One</td>
+              <td>HPS-02</td>
+              <td><span class="card-tag tag-planned">Geplant</span></td>
+              <td>Inbox Lead</td>
+            </tr>
+            <tr class="slice-row" data-project="harbour-core" onclick="openHarbourModal('HPS-07')" style="cursor: pointer;">
+              <td style="font-family: var(--font-mono); font-weight: 600; color: var(--accent-primary);">HPS-07</td>
+              <td><strong>Austauschbare Prüfmodelle</strong></td>
+              <td>Harbour One</td>
+              <td>HPS-06</td>
+              <td><span class="card-tag tag-planned">Geplant</span></td>
+              <td>KI-Architektur</td>
+            </tr>
+            <tr class="slice-row" data-project="harbour-core" onclick="openHarbourModal('HPS-08')" style="cursor: pointer;">
+              <td style="font-family: var(--font-mono); font-weight: 600; color: var(--accent-primary);">HPS-08</td>
+              <td><strong>1-Klick Transfer-API</strong></td>
+              <td>Harbour One</td>
+              <td>HPS-05, HPS-07</td>
+              <td><span class="card-tag tag-planned">Geplant</span></td>
+              <td>Platform Lead</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </section>
 
@@ -1367,6 +1750,59 @@ window.HARBOUR_DATA = {
     }
   ],
 
+  
+  roadmaps: [
+    {
+      id: "RMP-HPS",
+      title: "Harbour One: Produkt-Trennung von Odysseus",
+      projectId: "harbour-core",
+      projectLabel: "Harbour One",
+      progress: 50,
+      totalSlices: 8,
+      completedSlices: 4,
+      slices: [
+        { id: "HPS-01", name: "Produktgrenzen & Verträge", status: "accepted", dependsOn: [], desc: "Zwei Produkte und genau ein Writer je Datenbestand.", owner: "Architektur" },
+        { id: "HPS-02", name: "Getrennte Startprofile", status: "verified", dependsOn: ["HPS-01"], desc: "Autarke Kompositionen für Plan/Dok und Inbox.", owner: "Platform Lead" },
+        { id: "HPS-03", name: "Plan/Dok-Kern & MCP", status: "in_progress", dependsOn: ["HPS-02"], desc: "Dauerhafte Speicherung von Roadmaps & Slices.", owner: "Backend Lead" },
+        { id: "HPS-04", name: "Devblog & Kanban-UI", status: "in_progress", dependsOn: ["HPS-03"], desc: "Bebilderte Chronik und Human-First Frontend.", owner: "Frontend Craft" },
+        { id: "HPS-05", name: "Dokumentations-Agent", status: "planned", dependsOn: ["HPS-04"], desc: "Automatisierte Erstellung von Journalvorschlägen.", owner: "KI-Agent" },
+        { id: "HPS-06", name: "Universal Inbox Kern", status: "planned", dependsOn: ["HPS-02"], desc: "Telegram- und Nextcloud-Connectors entkoppelt.", owner: "Inbox Lead" },
+        { id: "HPS-07", name: "Austauschbare Prüfmodelle", status: "planned", dependsOn: ["HPS-06"], desc: "LLM-Vorprüfung für Dokumente und Memos.", owner: "KI-Architektur" },
+        { id: "HPS-08", name: "1-Klick Transfer-API", status: "planned", dependsOn: ["HPS-05", "HPS-07"], desc: "Idempotente Übergabe von Odysseus an Harbour.", owner: "Platform Lead" }
+      ]
+    },
+    {
+      id: "RMP-SCRAP",
+      title: "Scrapper: Die 5 Evolutionsstufen",
+      projectId: "scrapper",
+      projectLabel: "Scrapper",
+      progress: 60,
+      totalSlices: 5,
+      completedSlices: 3,
+      slices: [
+        { id: "SCRAP-01", name: "Stufe 1: Geometrischer Prototyp", status: "accepted", dependsOn: [], desc: "Prototyp & Bounding Boxes.", owner: "Asset Lead" },
+        { id: "SCRAP-02", name: "Stufe 2: Rigging & Kinematik", status: "accepted", dependsOn: ["SCRAP-01"], desc: "Gelenke und Bewegungshierarchien.", owner: "Animation Lead" },
+        { id: "SCRAP-03", name: "Stufe 3: PBR-Materialien & Shader", status: "verified", dependsOn: ["SCRAP-02"], desc: "Performance-optimierte Shader.", owner: "Shader Dev" },
+        { id: "SCRAP-04", name: "Stufe 4: Gameplay-Loop", status: "in_progress", dependsOn: ["SCRAP-03"], desc: "Interaktionsfeedback und Balancing.", owner: "Game Dev" },
+        { id: "SCRAP-05", name: "Stufe 5: Audio & Polish", status: "planned", dependsOn: ["SCRAP-04"], desc: "Sounddesign und finale Abnahme.", owner: "Audio Lead" }
+      ]
+    },
+    {
+      id: "RMP-SYS1",
+      title: "Queen System 1 KI: Entkopplung",
+      projectId: "queen-system1",
+      projectLabel: "Queen System 1",
+      progress: 33,
+      totalSlices: 3,
+      completedSlices: 1,
+      slices: [
+        { id: "SYS1-01", name: "Schnittstellendefinition (<50ms)", status: "accepted", dependsOn: [], desc: "Entkoppelte Inferenz ohne Chat-Monolith.", owner: "KI-Architektur" },
+        { id: "SYS1-02", name: "Zustandsautomat & Cache-Lookup", status: "in_progress", dependsOn: ["SYS1-01"], desc: "Reflexive Regelsätze und Vorhersagen.", owner: "Core Dev" },
+        { id: "SYS1-03", name: "Live-Kopplung mit System 2", status: "planned", dependsOn: ["SYS1-02"], desc: "Asynchroner Handoff an generative Modelle.", owner: "KI-Architektur" }
+      ]
+    }
+  ],
+
   decisions: [
     {
       id: "ADR-001",
@@ -1418,7 +1854,7 @@ window.HARBOUR_DATA = {
     });
 
     // 2. Update View Sections
-    const views = ['kanban', 'devblog', 'decisions'];
+    const views = ['kanban', 'roadmaps', 'devblog', 'decisions'];
     views.forEach(v => {
       const el = document.getElementById('view-' + v);
       if (el) {
@@ -1436,8 +1872,31 @@ window.HARBOUR_DATA = {
   // Global Modal Handlers
   window.openHarbourModal = function(taskId) {
     const data = window.HARBOUR_DATA;
-    if (!data || !data.tasks) return;
-    const task = data.tasks.find(t => t.id === taskId);
+    if (!data) return;
+    
+    // Check in tasks
+    let task = (data.tasks || []).find(t => t.id === taskId);
+    
+    // Check in roadmaps slices
+    if (!task && data.roadmaps) {
+      for (const r of data.roadmaps) {
+        const s = (r.slices || []).find(sl => sl.id === taskId);
+        if (s) {
+          task = {
+            id: s.id,
+            title: s.name,
+            projectLabel: r.projectLabel,
+            status: s.status,
+            milestone: r.title,
+            summary: s.desc,
+            evidence: s.dependsOn && s.dependsOn.length ? 'Abhängig von: ' + s.dependsOn.join(', ') : 'Keine Vorbedingungen (Start-Slice)',
+            owner: s.owner
+          };
+          break;
+        }
+      }
+    }
+
     if (!task) return;
 
     const overlay = document.getElementById('modal-overlay');
@@ -1449,12 +1908,12 @@ window.HARBOUR_DATA = {
     body.innerHTML = `
       <div style="margin-bottom: 16px;">
         <span class="card-tag tag-${task.status}">${escapeHtml(task.projectLabel)}</span>
-        <span style="font-size: 12px; color: var(--text-muted); margin-left: 8px;">Meilenstein: <strong>${escapeHtml(task.milestone)}</strong></span>
+        <span style="font-size: 12px; color: var(--text-muted); margin-left: 8px;">Meilenstein / Roadmap: <strong>${escapeHtml(task.milestone)}</strong></span>
       </div>
       <p style="font-size: 14px; color: var(--text-main); margin-bottom: 20px;">${escapeHtml(task.summary)}</p>
       
       <div class="article-visual-block">
-        <div class="visual-block-header">Prüfnachweis & Referenz</div>
+        <div class="visual-block-header">Prüfnachweis / Abhängigkeit</div>
         <div style="font-family: var(--font-mono); font-size: 12px; color: var(--accent-primary);">${escapeHtml(task.evidence)}</div>
       </div>
 
@@ -1471,7 +1930,7 @@ window.HARBOUR_DATA = {
     if (overlay) overlay.classList.remove('active');
   };
 
-  // Keyboard Shortcuts (1, 2, 3, Esc)
+  // Keyboard Shortcuts (1=Kanban, 2=Roadmaps, 3=Devblog, 4=Decisions, Esc=Modal)
   window.addEventListener('keydown', function(e) {
     const tag = (document.activeElement && document.activeElement.tagName || '').toLowerCase();
     if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
@@ -1479,8 +1938,10 @@ window.HARBOUR_DATA = {
     if (e.key === '1' || e.code === 'Digit1' || e.code === 'Numpad1') {
       window.switchHarbourTab('kanban');
     } else if (e.key === '2' || e.code === 'Digit2' || e.code === 'Numpad2') {
-      window.switchHarbourTab('devblog');
+      window.switchHarbourTab('roadmaps');
     } else if (e.key === '3' || e.code === 'Digit3' || e.code === 'Numpad3') {
+      window.switchHarbourTab('devblog');
+    } else if (e.key === '4' || e.code === 'Digit4' || e.code === 'Numpad4') {
       window.switchHarbourTab('decisions');
     } else if (e.key === 'Escape') {
       window.closeHarbourModal();
@@ -1492,21 +1953,25 @@ window.HARBOUR_DATA = {
     const cards = document.querySelectorAll('.kanban-card');
     cards.forEach(c => {
       const p = c.getAttribute('data-project');
-      if (projectId === 'all' || p === projectId) {
-        c.style.display = 'block';
-      } else {
-        c.style.display = 'none';
-      }
+      c.style.display = (projectId === 'all' || p === projectId) ? 'block' : 'none';
     });
 
     const articles = document.querySelectorAll('.article-card');
     articles.forEach(a => {
       const p = a.getAttribute('data-project');
-      if (projectId === 'all' || p === projectId) {
-        a.style.display = 'block';
-      } else {
-        a.style.display = 'none';
-      }
+      a.style.display = (projectId === 'all' || p === projectId) ? 'block' : 'none';
+    });
+
+    const summaries = document.querySelectorAll('.project-summary-card');
+    summaries.forEach(s => {
+      const p = s.getAttribute('data-project');
+      s.style.display = (projectId === 'all' || p === projectId) ? 'block' : 'none';
+    });
+
+    const rows = document.querySelectorAll('.slice-row');
+    rows.forEach(r => {
+      const p = r.getAttribute('data-project');
+      r.style.display = (projectId === 'all' || p === projectId) ? 'table-row' : 'none';
     });
   };
 
@@ -1520,7 +1985,6 @@ window.HARBOUR_DATA = {
 
   // Setup click listeners on load
   function setup() {
-    // Project select change
     const sel = document.getElementById('project-select');
     if (sel) {
       sel.addEventListener('change', function(e) {
@@ -1528,11 +1992,9 @@ window.HARBOUR_DATA = {
       });
     }
 
-    // Modal close button
     const closeBtn = document.getElementById('modal-close-btn');
-    if (closeBtn) {
-      closeBtn.addEventListener('click', window.closeHarbourModal);
-    }
+    if (closeBtn) closeBtn.addEventListener('click', window.closeHarbourModal);
+    
     const overlay = document.getElementById('modal-overlay');
     if (overlay) {
       overlay.addEventListener('click', function(e) {
@@ -1540,7 +2002,6 @@ window.HARBOUR_DATA = {
       });
     }
 
-    // Timeline buttons in devblog
     document.querySelectorAll('.timeline-item-btn').forEach(btn => {
       btn.addEventListener('click', function() {
         const id = btn.getAttribute('data-article-id');

@@ -219,6 +219,59 @@ window.HARBOUR_DATA = {
     }
   ],
 
+  
+  roadmaps: [
+    {
+      id: "RMP-HPS",
+      title: "Harbour One: Produkt-Trennung von Odysseus",
+      projectId: "harbour-core",
+      projectLabel: "Harbour One",
+      progress: 50,
+      totalSlices: 8,
+      completedSlices: 4,
+      slices: [
+        { id: "HPS-01", name: "Produktgrenzen & Verträge", status: "accepted", dependsOn: [], desc: "Zwei Produkte und genau ein Writer je Datenbestand.", owner: "Architektur" },
+        { id: "HPS-02", name: "Getrennte Startprofile", status: "verified", dependsOn: ["HPS-01"], desc: "Autarke Kompositionen für Plan/Dok und Inbox.", owner: "Platform Lead" },
+        { id: "HPS-03", name: "Plan/Dok-Kern & MCP", status: "in_progress", dependsOn: ["HPS-02"], desc: "Dauerhafte Speicherung von Roadmaps & Slices.", owner: "Backend Lead" },
+        { id: "HPS-04", name: "Devblog & Kanban-UI", status: "in_progress", dependsOn: ["HPS-03"], desc: "Bebilderte Chronik und Human-First Frontend.", owner: "Frontend Craft" },
+        { id: "HPS-05", name: "Dokumentations-Agent", status: "planned", dependsOn: ["HPS-04"], desc: "Automatisierte Erstellung von Journalvorschlägen.", owner: "KI-Agent" },
+        { id: "HPS-06", name: "Universal Inbox Kern", status: "planned", dependsOn: ["HPS-02"], desc: "Telegram- und Nextcloud-Connectors entkoppelt.", owner: "Inbox Lead" },
+        { id: "HPS-07", name: "Austauschbare Prüfmodelle", status: "planned", dependsOn: ["HPS-06"], desc: "LLM-Vorprüfung für Dokumente und Memos.", owner: "KI-Architektur" },
+        { id: "HPS-08", name: "1-Klick Transfer-API", status: "planned", dependsOn: ["HPS-05", "HPS-07"], desc: "Idempotente Übergabe von Odysseus an Harbour.", owner: "Platform Lead" }
+      ]
+    },
+    {
+      id: "RMP-SCRAP",
+      title: "Scrapper: Die 5 Evolutionsstufen",
+      projectId: "scrapper",
+      projectLabel: "Scrapper",
+      progress: 60,
+      totalSlices: 5,
+      completedSlices: 3,
+      slices: [
+        { id: "SCRAP-01", name: "Stufe 1: Geometrischer Prototyp", status: "accepted", dependsOn: [], desc: "Prototyp & Bounding Boxes.", owner: "Asset Lead" },
+        { id: "SCRAP-02", name: "Stufe 2: Rigging & Kinematik", status: "accepted", dependsOn: ["SCRAP-01"], desc: "Gelenke und Bewegungshierarchien.", owner: "Animation Lead" },
+        { id: "SCRAP-03", name: "Stufe 3: PBR-Materialien & Shader", status: "verified", dependsOn: ["SCRAP-02"], desc: "Performance-optimierte Shader.", owner: "Shader Dev" },
+        { id: "SCRAP-04", name: "Stufe 4: Gameplay-Loop", status: "in_progress", dependsOn: ["SCRAP-03"], desc: "Interaktionsfeedback und Balancing.", owner: "Game Dev" },
+        { id: "SCRAP-05", name: "Stufe 5: Audio & Polish", status: "planned", dependsOn: ["SCRAP-04"], desc: "Sounddesign und finale Abnahme.", owner: "Audio Lead" }
+      ]
+    },
+    {
+      id: "RMP-SYS1",
+      title: "Queen System 1 KI: Entkopplung",
+      projectId: "queen-system1",
+      projectLabel: "Queen System 1",
+      progress: 33,
+      totalSlices: 3,
+      completedSlices: 1,
+      slices: [
+        { id: "SYS1-01", name: "Schnittstellendefinition (<50ms)", status: "accepted", dependsOn: [], desc: "Entkoppelte Inferenz ohne Chat-Monolith.", owner: "KI-Architektur" },
+        { id: "SYS1-02", name: "Zustandsautomat & Cache-Lookup", status: "in_progress", dependsOn: ["SYS1-01"], desc: "Reflexive Regelsätze und Vorhersagen.", owner: "Core Dev" },
+        { id: "SYS1-03", name: "Live-Kopplung mit System 2", status: "planned", dependsOn: ["SYS1-02"], desc: "Asynchroner Handoff an generative Modelle.", owner: "KI-Architektur" }
+      ]
+    }
+  ],
+
   decisions: [
     {
       id: "ADR-001",
