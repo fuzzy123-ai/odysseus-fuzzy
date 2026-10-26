@@ -641,3 +641,35 @@ body {
   line-height: 1.6;
   color: var(--text-main);
 }
+
+/* ==========================================================================
+   Responsive Adaptations
+   ========================================================================== */
+@media (max-width: 1200px) {
+  .kanban-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .devblog-container {
+    grid-template-columns: 1fr;
+  }
+  .devblog-sidebar {
+    position: static;
+  }
+}
+
+@media (max-width: 768px) {
+  .kanban-grid {
+    grid-template-columns: 1fr;
+  }
+  .app-header {
+    padding: 0 16px;
+    height: auto;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+  .main-viewport {
+    padding: 16px;
+  }
+}

@@ -95,7 +95,7 @@ window.HARBOUR_DATA = {
       summary: "Vollständige Nutzerfreigabe für zwei getrennte Repositories (Odysseus vs. Harbour One).",
       owner: "User / Nikola",
       milestone: "Architektur-Gate",
-      evidence: "harbour_ui_concept_2_welten.md"
+      evidence: "docs/plans/harbour-product-separation-inventory.md"
     },
     {
       id: "TSK-08",
