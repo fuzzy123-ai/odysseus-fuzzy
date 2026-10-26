@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Harbour One | Planung & Dokumentation</title>
-  <!-- Inline Zero-CDN Self-Contained Stylesheet (Immune to Network/Auth/Adblock Failures) -->
+  <!-- Inline Zero-CDN Self-Contained Stylesheet -->
   <style>
 /* ==========================================================================
    Harbour One | Craft Design System & Stylesheet (100% Autark, Zero-CDN)
@@ -758,7 +758,115 @@ body {
       </div>
 
       <div id="kanban-grid" class="kanban-grid">
-        <!-- Rendered by JS -->
+
+        <div class="kanban-column">
+          <div class="column-header">
+            <div class="column-title"><span>Geplant</span></div>
+            <span class="column-badge">2</span>
+          </div>
+          <div class="card-list">
+            <div class="kanban-card" data-task-id="TSK-01">
+              <span class="card-tag tag-planned">Queen System 1</span>
+              <div class="card-title">LLM-Entscheidungskopplung & System1-Kern</div>
+              <div class="card-summary">Entkoppelte Schnittstelle für System1-Reaktionsmuster ohne blockierenden Chat-Monolith.</div>
+              <div class="card-footer">
+                <span>M1: Konzept</span>
+                <span>KI-Architektur</span>
+              </div>
+            </div>
+            <div class="kanban-card" data-task-id="TSK-02">
+              <span class="card-tag tag-planned">Harbour One</span>
+              <div class="card-title">Universal Transfer-API Spezifikation</div>
+              <div class="card-summary">Idempotente REST-Übergabe (POST /api/transfers) für 1-Klick-Übernahme aus Odysseus.</div>
+              <div class="card-footer">
+                <span>HPS-08</span>
+                <span>Platform Lead</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="kanban-column">
+          <div class="column-header">
+            <div class="column-title"><span>In Arbeit</span></div>
+            <span class="column-badge">2</span>
+          </div>
+          <div class="card-list">
+            <div class="kanban-card" data-task-id="TSK-03">
+              <span class="card-tag tag-progress">Harbour One</span>
+              <div class="card-title">Autarkes Frontend & Magazin-Chronik</div>
+              <div class="card-summary">100% autarke CSS-Architektur ohne CDN-Abhängigkeit; Kanban- und Devblog-Viewports.</div>
+              <div class="card-footer">
+                <span>Phase 1</span>
+                <span>Frontend Craft</span>
+              </div>
+            </div>
+            <div class="kanban-card" data-task-id="TSK-04">
+              <span class="card-tag tag-progress">Scrapper</span>
+              <div class="card-title">Stufe 4: Verfeinerung der Gameplay-Loop</div>
+              <div class="card-summary">Balancing der Interaktionen und Optimierung der State-Maschinen-Übergänge.</div>
+              <div class="card-footer">
+                <span>Stufe 4</span>
+                <span>Game Dev</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="kanban-column">
+          <div class="column-header">
+            <div class="column-title"><span>Verifiziert</span></div>
+            <span class="column-badge">2</span>
+          </div>
+          <div class="card-list">
+            <div class="kanban-card" data-task-id="TSK-05">
+              <span class="card-tag tag-verified">Infrastruktur & Server</span>
+              <div class="card-title">Cloudflare Ingress & Subdomain-Routing</div>
+              <div class="card-summary">CNAME harbour.katzarow.de auf Port 7050 im Debian-Tunnel aktiv und per HTTPS geprüft.</div>
+              <div class="card-footer">
+                <span>Deploy M1</span>
+                <span>Ops Lead</span>
+              </div>
+            </div>
+            <div class="kanban-card" data-task-id="TSK-06">
+              <span class="card-tag tag-verified">Scrapper</span>
+              <div class="card-title">Stufen 1–3: Asset- & Modell-Chronik</div>
+              <div class="card-summary">Vollständige Erfassung der ersten drei Modellierungsstufen mit belegter Historie.</div>
+              <div class="card-footer">
+                <span>Stufe 3</span>
+                <span>Asset Lead</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="kanban-column">
+          <div class="column-header">
+            <div class="column-title"><span>Abgenommen</span></div>
+            <span class="column-badge">2</span>
+          </div>
+          <div class="card-list">
+            <div class="kanban-card" data-task-id="TSK-07">
+              <span class="card-tag tag-accepted">Harbour One</span>
+              <div class="card-title">Produkt-Trennung: 2-Welten-Architektur</div>
+              <div class="card-summary">Vollständige Nutzerfreigabe für zwei getrennte Repositories (Odysseus vs. Harbour One).</div>
+              <div class="card-footer">
+                <span>Architektur-Gate</span>
+                <span>User / Nikola</span>
+              </div>
+            </div>
+            <div class="kanban-card" data-task-id="TSK-08">
+              <span class="card-tag tag-accepted">Infrastruktur & Server</span>
+              <div class="card-title">Rootless Podman Containerharbour</div>
+              <div class="card-summary">Isolierter User-Service harbour-podman.service läuft stabil auf Debian 192.168.178.122:7050.</div>
+              <div class="card-footer">
+                <span>Server Live</span>
+                <span>User / Nikola</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
       </div>
     </section>
 
@@ -774,13 +882,113 @@ body {
         <aside class="devblog-sidebar">
           <div class="timeline-nav-title">Artikel & Meilensteine</div>
           <div id="devblog-timeline" class="timeline-list">
-            <!-- Rendered by JS -->
+
+          <button class="timeline-item-btn active" data-article-id="art-scrapper">
+            <div>Scrapper: Die 5 Evolutionsstufen der Modellarchitektur</div>
+            <div style="font-size: 11px; color: var(--text-dim);">26. Oktober 2026</div>
+          </button>
+          <button class="timeline-item-btn" data-article-id="art-system1">
+            <div>Queen System 1 KI: Entkopplung der Reaktionsmuster</div>
+            <div style="font-size: 11px; color: var(--text-dim);">26. Oktober 2026</div>
+          </button>
+          <button class="timeline-item-btn" data-article-id="art-harbour-split">
+            <div>Die 2-Welten-Architektur: Odysseus und Harbour One trennen</div>
+            <div style="font-size: 11px; color: var(--text-dim);">26. Oktober 2026</div>
+          </button>
+
           </div>
         </aside>
 
         <!-- Main Articles Feed -->
         <div id="devblog-feed" class="devblog-feed">
-          <!-- Rendered by JS -->
+
+        <article class="article-card" id="art-scrapper">
+          <header class="article-header">
+            <div class="article-meta">
+              <span class="article-badge">Projektchronik</span>
+              <span>•</span>
+              <span>Scrapper</span>
+              <span>•</span>
+              <span>26. Oktober 2026</span>
+              <span>•</span>
+              <span>4 Min. Lesezeit</span>
+            </div>
+            <h2 class="article-title">Scrapper: Die 5 Evolutionsstufen der Modellarchitektur</h2>
+            <p style="color: var(--text-muted); font-size: 14px;">Ein detaillierter Rückblick auf die Entwicklung des Scrappers: Von der ersten Konzeptzeichnung über Rigging und Physik-Kollisionen bis zur aktuellen Stufe.</p>
+          </header>
+          <div class="article-body">
+            <p>Das Projekt <strong>Scrapper</strong> durchläuft fünf klar definierte Reifegrade, um Gameplay-Tiefe mit robuster technischer Umsetzbarkeit zu verbinden. Hier ist der aktuelle Status der einzelnen Stufen:</p>
+            <div class="article-visual-block">
+              <div class="visual-block-header">Übersicht der 5 Stufen</div>
+              <table class="evidence-table">
+                <thead>
+                  <tr><th>Stufe</th><th>Bezeichnung</th><th>Status</th><th>Prüfbeleg</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>Stufe 1</td><td>Geometrischer Prototyp & Bounding</td><td><span class="card-tag tag-accepted">Abgenommen</span></td><td>SRC-SCRAP-01</td></tr>
+                  <tr><td>Stufe 2</td><td>Rigging & Gelenkkinematik</td><td><span class="card-tag tag-accepted">Abgenommen</span></td><td>SRC-SCRAP-02</td></tr>
+                  <tr><td>Stufe 3</td><td>Materialien, Textur-PBR & Shader</td><td><span class="card-tag tag-verified">Verifiziert</span></td><td>SRC-SCRAP-03</td></tr>
+                  <tr><td>Stufe 4</td><td>Gameplay-Loop & Interaktionsfeedback</td><td><span class="card-tag tag-progress">In Arbeit</span></td><td>ACT-SCRAP-04</td></tr>
+                  <tr><td>Stufe 5</td><td>Audio-Integration & Polish</td><td><span class="card-tag tag-planned">Geplant</span></td><td>PLN-SCRAP-05</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p>Besonderes Augenmerk lag in Stufe 3 auf der Performance unter Last: Alle Shader-Instanzen laufen mit minimalem Drawcall-Overhead und sind für stabile Frameraten auf Zielhardware optimiert.</p>
+          </div>
+        </article>
+
+        <article class="article-card" id="art-system1">
+          <header class="article-header">
+            <div class="article-meta">
+              <span class="article-badge">Architektur</span>
+              <span>•</span>
+              <span>Queen System 1</span>
+              <span>•</span>
+              <span>26. Oktober 2026</span>
+              <span>•</span>
+              <span>3 Min. Lesezeit</span>
+            </div>
+            <h2 class="article-title">Queen System 1 KI: Entkopplung der Reaktionsmuster</h2>
+            <p style="color: var(--text-muted); font-size: 14px;">Warum reflexive KI-Entscheidungen getrennt von tiefen Sprachmodellen laufen müssen und wie das System-1-Muster aufgebaut ist.</p>
+          </header>
+          <div class="article-body">
+            <p>In <code>07_Produktion/97_PlanSystem1KI.md</code> wurde der Grundstein für ein reaktionsschnelles System 1 gelegt. Anstatt für jede Interaktion ein schwerfälliges LLM im vollen Kontextfenster abzufragen, trennt die Architektur strikt zwischen zwei Ebenen:</p>
+            <ul>
+              <li><strong>System 1 (Reflexiv & Determinisch):</strong> Schnelle Vorhersagen, Cache-Lookup, Zustandsautomaten und lokale Regelsätze mit Antwortzeiten &lt; 50ms.</li>
+              <li><strong>System 2 (Reflektiv & Generativ):</strong> Tiefgreifende Kontextanalysen, Planung und Dokumentationserstellung über dedizierte Modelle.</li>
+            </ul>
+            <div class="article-visual-block">
+              <div class="visual-block-header">Architektur-Kernelement</div>
+              <p style="font-size: 13px; color: var(--text-muted);">Das System 1 bleibt bis zur endgültigen Schnittstellendefinition entkoppelt und wird nicht vorzeitig in den Chat-Monolithen gezwungen.</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="article-card" id="art-harbour-split">
+          <header class="article-header">
+            <div class="article-meta">
+              <span class="article-badge">Meilenstein</span>
+              <span>•</span>
+              <span>Harbour One</span>
+              <span>•</span>
+              <span>26. Oktober 2026</span>
+              <span>•</span>
+              <span>5 Min. Lesezeit</span>
+            </div>
+            <h2 class="article-title">Die 2-Welten-Architektur: Odysseus und Harbour One trennen</h2>
+            <p style="color: var(--text-muted); font-size: 14px;">Vollständige Entkopplung: Warum Alltag/Inbox und Planung/Dokumentation als getrennte Repositories ohne Altschulden neu aufgesetzt werden.</p>
+          </header>
+          <div class="article-body">
+            <p>Am 26. Oktober 2026 wurde die fundamentale Weichenstellung für das gesamte Ökosystem getroffen:</p>
+            <p>Der bisherige Monolith wird nicht als schwerer Altschuldenträger fortgeführt. Stattdessen entstehen zwei eigenständige, saubere Repositories:</p>
+            <ul>
+              <li><strong>Odysseus:</strong> Der persönliche Lebens- und Kommunikations-Hub (Universal Inbox für Telegram-Voice/Text, Nextcloud, Kalender und Assistenten-Chat).</li>
+              <li><strong>Harbour One:</strong> Das Planungs- und Dokumentations-Cockpit (Kanban, Meilensteine, Devblog-Chronik und Entscheidungs-Boards).</li>
+            </ul>
+            <p>Die beiden Welten kommunizieren später über eine klare, asynchrone REST-Transfer-API (<code>POST /api/transfers</code>), wodurch beide Systeme völlig unabhängig voneinander gewartet und betrieben werden können.</p>
+          </div>
+        </article>
+
         </div>
       </div>
     </section>
@@ -793,7 +1001,43 @@ body {
       </div>
 
       <div id="decisions-grid" class="decisions-grid">
-        <!-- Rendered by JS -->
+
+        <div class="decision-card">
+          <div class="decision-header">
+            <span class="decision-id">ADR-001</span>
+            <span class="decision-status accepted">Angenommen</span>
+          </div>
+          <div class="decision-title">Strikte Trennung in 2 GitHub-Repositories</div>
+          <div class="decision-desc">Odysseus (Alltag & Inbox) und Harbour One (Planung & Doku) werden als getrennte Repositories geführt. Keine gemeinsamen Datenbank-Schreibzugriffe.</div>
+          <div class="decision-footer">
+            <strong>Auswirkung:</strong> Maximale Stabilität, saubere Codebases, kein Altschulden-Transfer.
+          </div>
+        </div>
+
+        <div class="decision-card">
+          <div class="decision-header">
+            <span class="decision-id">ADR-002</span>
+            <span class="decision-status accepted">Angenommen</span>
+          </div>
+          <div class="decision-title">100% Autarkes Frontend ohne externe CDNs</div>
+          <div class="decision-desc">Alle Styles und Skripte werden lokal ausgeliefert. Ausfallschutz gegen fehlschlagende CDN-Requests und strikte Browser-Blocker.</div>
+          <div class="decision-footer">
+            <strong>Auswirkung:</strong> Verlässliches Rendern auf allen Geräten und Verbindungen.
+          </div>
+        </div>
+
+        <div class="decision-card">
+          <div class="decision-header">
+            <span class="decision-id">ADR-003</span>
+            <span class="decision-status open">In Vorbereitung</span>
+          </div>
+          <div class="decision-title">Asynchrone Transfer-API für Inbox-Triage</div>
+          <div class="decision-desc">Spezifikation des Transfer-Payloads (ID, Herkunft, Audio-/Dateireferenz, Quelltranskript) für die 1-Klick-Übergabe von Odysseus an Harbour.</div>
+          <div class="decision-footer">
+            <strong>Auswirkung:</strong> Ermöglicht nahtlose Übergabe von Sprachnotizen direkt in die Projektplanung.
+          </div>
+        </div>
+
       </div>
     </section>
 
@@ -812,7 +1056,7 @@ body {
     </div>
   </div>
 
-  <!-- Application Logic (Self-Contained & Autark) -->
+  <!-- Application Logic -->
   <script>
 /**
  * Harbour One | Domain Data Models (Projects, Tasks, Devblog & Decisions)
@@ -1364,7 +1608,11 @@ window.HARBOUR_DATA = {
   }
 
   // Bootstrap
-  document.addEventListener('DOMContentLoaded', init);
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
 })();
 
   </script>
