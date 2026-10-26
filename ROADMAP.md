@@ -1,5 +1,12 @@
 # Roadmap / Help Wanted
 
+Product separation decision, 2026-10-26: [dependency inventory and readable plan](docs/plans/harbour-product-separation-inventory.md)
+and [canonical successor design plan](docs/plans/harbour-product-separation-roadmap.json).
+The user selected two products: Planning/Documentation and Universal Inbox.
+This governs the new product design; implementation, runtime authority migration,
+and deployment remain separate. The pinned Harbour roadmap below preserves its
+existing acceptance history until the explicit successor migration in HPS-01.
+
 Current Harbour One planning: [Product roadmap](docs/plans/harbour-one-product-roadmap.json)
 and [Open Work](docs/plans/open-work-completion-master-roadmap.json). The
 2026-09-05 product reconciliation distinguishes accepted foundations from

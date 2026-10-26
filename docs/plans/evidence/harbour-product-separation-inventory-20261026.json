@@ -1,0 +1,4812 @@
+{
+  "schema_version": 1,
+  "kind": "harbour_one.product_separation.static_inventory",
+  "observed_at": "2026-10-26T10:27:14.516837+00:00",
+  "baseline_revision": "80e4a05e82cb9adc3c6c52b99cbfae1a675e4eed",
+  "method": "Repository scripts/architecture_import_map.py loaded with runpy as a source-only analyzer; ast.parse scans selected source trees. No application imports or live reads.",
+  "scan_roots": [
+    "app.py",
+    "src",
+    "routes",
+    "core",
+    "services",
+    "plugins",
+    "mcp_servers"
+  ],
+  "summary": {
+    "scanned_file_count": 1156,
+    "module_count": 1153,
+    "parse_error_count": 3,
+    "import_edge_count": 10476,
+    "local_cross_domain_edge_count": 1838,
+    "imports_executed": false,
+    "files_moved": false
+  },
+  "parse_errors": [
+    {
+      "module": "src.builtin_action_email_urgency",
+      "path": "src/builtin_action_email_urgency.py",
+      "error": "SyntaxError:1"
+    },
+    {
+      "module": "src.builtin_actions",
+      "path": "src/builtin_actions.py",
+      "error": "SyntaxError:1"
+    },
+    {
+      "module": "src.task_scheduler_checkin",
+      "path": "src/task_scheduler_checkin.py",
+      "error": "SyntaxError:1"
+    }
+  ],
+  "selected_modules": [
+    {
+      "module": "app",
+      "path": "app.py",
+      "domain": "app",
+      "imports": [
+        {
+          "module": "mimetypes",
+          "domain": "external",
+          "kind": "import",
+          "line": 2,
+          "local": false
+        },
+        {
+          "module": "json",
+          "domain": "external",
+          "kind": "import",
+          "line": 3,
+          "local": false
+        },
+        {
+          "module": "os",
+          "domain": "external",
+          "kind": "import",
+          "line": 4,
+          "local": false
+        },
+        {
+          "module": "re",
+          "domain": "external",
+          "kind": "import",
+          "line": 5,
+          "local": false
+        },
+        {
+          "module": "sys",
+          "domain": "external",
+          "kind": "import",
+          "line": 6,
+          "local": false
+        },
+        {
+          "module": "threading",
+          "domain": "external",
+          "kind": "import",
+          "line": 7,
+          "local": false
+        },
+        {
+          "module": "dotenv",
+          "domain": "external",
+          "kind": "from",
+          "line": 34,
+          "local": false
+        },
+        {
+          "module": "src.startup_mode",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 42,
+          "local": true
+        },
+        {
+          "module": "src.runtime_topology",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 48,
+          "local": true
+        },
+        {
+          "module": "asyncio",
+          "domain": "external",
+          "kind": "import",
+          "line": 54,
+          "local": false
+        },
+        {
+          "module": "logging",
+          "domain": "external",
+          "kind": "import",
+          "line": 55,
+          "local": false
+        },
+        {
+          "module": "secrets",
+          "domain": "external",
+          "kind": "import",
+          "line": 56,
+          "local": false
+        },
+        {
+          "module": "datetime",
+          "domain": "external",
+          "kind": "from",
+          "line": 57,
+          "local": false
+        },
+        {
+          "module": "typing",
+          "domain": "external",
+          "kind": "from",
+          "line": 58,
+          "local": false
+        },
+        {
+          "module": "contextlib",
+          "domain": "external",
+          "kind": "from",
+          "line": 60,
+          "local": false
+        },
+        {
+          "module": "fastapi",
+          "domain": "external",
+          "kind": "from",
+          "line": 61,
+          "local": false
+        },
+        {
+          "module": "fastapi.responses",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 62,
+          "local": false
+        },
+        {
+          "module": "fastapi.middleware.cors",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 63,
+          "local": false
+        },
+        {
+          "module": "fastapi.staticfiles",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 64,
+          "local": false
+        },
+        {
+          "module": "starlette.middleware.base",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 65,
+          "local": false
+        },
+        {
+          "module": "starlette.middleware.gzip",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 66,
+          "local": false
+        },
+        {
+          "module": "core.constants",
+          "domain": "core",
+          "kind": "from",
+          "line": 69,
+          "local": true
+        },
+        {
+          "module": "core.database",
+          "domain": "core",
+          "kind": "from",
+          "line": 73,
+          "local": true
+        },
+        {
+          "module": "core.middleware",
+          "domain": "core",
+          "kind": "from",
+          "line": 74,
+          "local": true
+        },
+        {
+          "module": "core.auth",
+          "domain": "core",
+          "kind": "from",
+          "line": 75,
+          "local": true
+        },
+        {
+          "module": "core.exceptions",
+          "domain": "core",
+          "kind": "from",
+          "line": 76,
+          "local": true
+        },
+        {
+          "module": "bcrypt",
+          "domain": "external",
+          "kind": "import",
+          "line": 81,
+          "local": false
+        },
+        {
+          "module": "src.app_helpers",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 83,
+          "local": true
+        },
+        {
+          "module": "src.generated_images",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 84,
+          "local": true
+        },
+        {
+          "module": "src.security_incident_egress",
+          "domain": "security",
+          "kind": "from",
+          "line": 85,
+          "local": true
+        },
+        {
+          "module": "src.security_incident_network_context",
+          "domain": "security",
+          "kind": "from",
+          "line": 90,
+          "local": true
+        },
+        {
+          "module": "src.ops_timeline_adapters",
+          "domain": "ops",
+          "kind": "from",
+          "line": 91,
+          "local": true
+        },
+        {
+          "module": "src.security_access_alert_delivery",
+          "domain": "security",
+          "kind": "from",
+          "line": 92,
+          "local": true
+        },
+        {
+          "module": "src.security_auth_incident_bridge",
+          "domain": "security",
+          "kind": "from",
+          "line": 97,
+          "local": true
+        },
+        {
+          "module": "src.security_incident_delivery",
+          "domain": "security",
+          "kind": "from",
+          "line": 98,
+          "local": true
+        },
+        {
+          "module": "src.security_incident_telegram_transport",
+          "domain": "security",
+          "kind": "from",
+          "line": 99,
+          "local": true
+        },
+        {
+          "module": "starlette.responses",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 102,
+          "local": false
+        },
+        {
+          "module": "logging.handlers",
+          "domain": "unknown",
+          "kind": "import",
+          "line": 105,
+          "local": false
+        },
+        {
+          "module": "core.constants",
+          "domain": "core",
+          "kind": "from",
+          "line": 106,
+          "local": true
+        },
+        {
+          "module": "asyncio",
+          "domain": "external",
+          "kind": "import",
+          "line": 255,
+          "local": false
+        },
+        {
+          "module": "starlette.middleware.base",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 256,
+          "local": false
+        },
+        {
+          "module": "starlette.responses",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 257,
+          "local": false
+        },
+        {
+          "module": "src.mcp_context_causal_observation",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 258,
+          "local": true
+        },
+        {
+          "module": "routes.auth_routes",
+          "domain": "routes",
+          "kind": "from",
+          "line": 343,
+          "local": true
+        },
+        {
+          "module": "plugins.obsidian.backend.routes",
+          "domain": "plugins",
+          "kind": "from",
+          "line": 344,
+          "local": true
+        },
+        {
+          "module": "services.youtube",
+          "domain": "integrations",
+          "kind": "from",
+          "line": 718,
+          "local": true
+        },
+        {
+          "module": "src.rag_singleton",
+          "domain": "memory",
+          "kind": "from",
+          "line": 731,
+          "local": true
+        },
+        {
+          "module": "src.config",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 743,
+          "local": true
+        },
+        {
+          "module": "src.app_initializer",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 746,
+          "local": true
+        },
+        {
+          "module": "src.assistant_log",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 808,
+          "local": true
+        },
+        {
+          "module": "core.models",
+          "domain": "core",
+          "kind": "from",
+          "line": 811,
+          "local": true
+        },
+        {
+          "module": "services.tts",
+          "domain": "integrations",
+          "kind": "from",
+          "line": 833,
+          "local": true
+        },
+        {
+          "module": "src.transcription_runtime",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 840,
+          "local": true
+        },
+        {
+          "module": "src.webhook_manager",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 925,
+          "local": true
+        },
+        {
+          "module": "src.contrib",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 930,
+          "local": true
+        },
+        {
+          "module": "routes.upload_routes",
+          "domain": "routes",
+          "kind": "from",
+          "line": 937,
+          "local": true
+        },
+        {
+          "module": "routes.universal_inbox_routes",
+          "domain": "inbox",
+          "kind": "from",
+          "line": 940,
+          "local": true
+        },
+        {
+          "module": "routes.universal_file_io_routes",
+          "domain": "inbox",
+          "kind": "from",
+          "line": 942,
+          "local": true
+        },
+        {
+          "module": "routes.live_affordance_routes",
+          "domain": "security",
+          "kind": "from",
+          "line": 944,
+          "local": true
+        },
+        {
+          "module": "routes.non_ui_gate_readiness_routes",
+          "domain": "routes",
+          "kind": "from",
+          "line": 946,
+          "local": true
+        },
+        {
+          "module": "routes.emoji_routes",
+          "domain": "routes",
+          "kind": "from",
+          "line": 952,
+          "local": true
+        },
+        {
+          "module": "routes.session_routes",
+          "domain": "routes",
+          "kind": "from",
+          "line": 956,
+          "local": true
+        },
+        {
+          "module": "routes.admin_wipe_routes",
+          "domain": "routes",
+          "kind": "from",
+          "line": 961,
+          "local": true
+        },
+        {
+          "module": "routes.memory_routes",
+          "domain": "memory",
+          "kind": "from",
+          "line": 965,
+          "local": true
+        },
+        {
+          "module": "routes.internal_reference_routes",
+          "domain": "routes",
+          "kind": "from",
+          "line": 968,
+          "local": true
+        },
+        {
+          "module": "routes.review_gate_routes",
+          "domain": "security",
+          "kind": "from",
+          "line": 970,
+          "local": true
+        },
+        {
+          "module": "routes.clarification_routes",
+          "domain": "routes",
+          "kind": "from",
+          "line": 972,
+          "local": true
+        },
+        {
+          "module": "routes.legacy_chat_contract_routes",
+          "domain": "routes",
+          "kind": "from",
+          "line": 974,
+          "local": true
+        },
+        {
+          "module": "routes.version_one_readiness_routes",
+          "domain": "release",
+          "kind": "from",
+          "line": 976,
+          "local": true
+        },
+        {
+          "module": "routes.ops_console_routes",
+          "domain": "ops",
+          "kind": "from",
+          "line": 978,
+          "local": true
+        },
+        {
+          "module": "routes.skills_routes",
+          "domain": "routes",
+          "kind": "from",
+          "line": 980,
+          "local": true
+        },
+        {
+          "module": "routes.chat_routes",
+          "domain": "routes",
+          "kind": "from",
+          "line": 984,
+          "local": true
+        },
+        {
+          "module": "routes.research_routes",
+          "domain": "routes",
+          "kind": "from",
+          "line": 994,
+          "local": true
+        },
+        {
+          "module": "routes.roadmap_routes",
+          "domain": "routes",
+          "kind": "from",
+          "line": 998,
+          "local": true
+        },
+        {
+          "module": "routes.ai_lens_routes",
+          "domain": "routes",
+          "kind": "from",
+          "line": 1002,
+          "local": true
+        },
+        {
+          "module": "routes.server_project_routes",
+          "domain": "agent",
+          "kind": "from",
+          "line": 1006,
+          "local": true
+        },
+        {
+          "module": "routes.repo_routes",
+          "domain": "routes",
+          "kind": "from",
+          "line": 1010,
+          "local": true
+        },
+        {
+          "module": "routes.project_versioning_routes",
+          "domain": "routes",
+          "kind": "from",
+          "line": 1014,
+          "local": true
+        },
+        {
+          "module": "routes.github_issue_routes",
+          "domain": "routes",
+          "kind": "from",
+          "line": 1019,
+          "local": true
+        },
+        {
+          "module": "routes.coding_agent_routes",
+          "domain": "agent",
+          "kind": "from",
+          "line": 1023,
+          "local": true
+        },
+        {
+          "module": "routes.coding_agent_quick_entry_routes",
+          "domain": "agent",
+          "kind": "from",
+          "line": 1025,
+          "local": true
+        },
+        {
+          "module": "routes.sandbox_worker_routes",
+          "domain": "routes",
+          "kind": "from",
+          "line": 1029,
+          "local": true
+        },
+        {
+          "module": "routes.history_routes",
+          "domain": "routes",
+          "kind": "from",
+          "line": 1033,
+          "local": true
+        },
+        {
+          "module": "routes.search_routes",
+          "domain": "routes",
+          "kind": "from",
+          "line": 1037,
+          "local": true
+        },
+        {
+          "module": "routes.preset_routes",
+          "domain": "routes",
+          "kind": "from",
+          "line": 1041,
+          "local": true
+        },
+        {
+          "module": "routes.diagnostics_routes",
+          "domain": "routes",
+          "kind": "from",
+          "line": 1045,
+          "local": true
+        },
+        {
+          "module": "routes.security_routes",
+          "domain": "security",
+          "kind": "from",
+          "line": 1049,
+          "local": true
+        },
+        {
+          "module": "routes.system_update_routes",
+          "domain": "release",
+          "kind": "from",
+          "line": 1053,
+          "local": true
+        },
+        {
+          "module": "routes.recent_changes_routes",
+          "domain": "routes",
+          "kind": "from",
+          "line": 1057,
+          "local": true
+        },
+        {
+          "module": "routes.planning_definition_routes",
+          "domain": "routes",
+          "kind": "from",
+          "line": 1061,
+          "local": true
+        },
+        {
+          "module": "src.context_source_app",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 1067,
+          "local": true
+        },
+        {
+          "module": "src.planning_durable_context_source",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 1068,
+          "local": true
+        },
+        {
+          "module": "src.mcp_context_app",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 1091,
+          "local": true
+        },
+        {
+          "module": "routes.agent_operation_routes",
+          "domain": "routes",
+          "kind": "from",
+          "line": 1100,
+          "local": true
+        },
+        {
+          "module": "routes.cleanup_routes",
+          "domain": "routes",
+          "kind": "from",
+          "line": 1104,
+          "local": true
+        },
+        {
+          "module": "routes.personal_routes",
+          "domain": "memory",
+          "kind": "from",
+          "line": 1108,
+          "local": true
+        },
+        {
+          "module": "routes.embedding_routes",
+          "domain": "routes",
+          "kind": "from",
+          "line": 1112,
+          "local": true
+        },
+        {
+          "module": "routes.model_routes",
+          "domain": "routes",
+          "kind": "from",
+          "line": 1116,
+          "local": true
+        },
+        {
+          "module": "routes.copilot_routes",
+          "domain": "routes",
+          "kind": "from",
+          "line": 1120,
+          "local": true
+        },
+        {
+          "module": "routes.chatgpt_subscription_routes",
+          "domain": "routes",
+          "kind": "from",
+          "line": 1124,
+          "local": true
+        },
+        {
+          "module": "routes.tts_routes",
+          "domain": "routes",
+          "kind": "from",
+          "line": 1128,
+          "local": true
+        },
+        {
+          "module": "routes.transcription_routes",
+          "domain": "routes",
+          "kind": "from",
+          "line": 1132,
+          "local": true
+        },
+        {
+          "module": "routes.document_routes",
+          "domain": "visual",
+          "kind": "from",
+          "line": 1143,
+          "local": true
+        },
+        {
+          "module": "routes.signature_routes",
+          "domain": "routes",
+          "kind": "from",
+          "line": 1148,
+          "local": true
+        },
+        {
+          "module": "routes.gallery_routes",
+          "domain": "visual",
+          "kind": "from",
+          "line": 1152,
+          "local": true
+        },
+        {
+          "module": "routes.editor_draft_routes",
+          "domain": "visual",
+          "kind": "from",
+          "line": 1156,
+          "local": true
+        },
+        {
+          "module": "src.task_scheduler",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 1160,
+          "local": true
+        },
+        {
+          "module": "src.event_bus",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 1162,
+          "local": true
+        },
+        {
+          "module": "routes.task_routes",
+          "domain": "routes",
+          "kind": "from",
+          "line": 1164,
+          "local": true
+        },
+        {
+          "module": "routes.task_summary_routes",
+          "domain": "routes",
+          "kind": "from",
+          "line": 1166,
+          "local": true
+        },
+        {
+          "module": "routes.assistant_routes",
+          "domain": "routes",
+          "kind": "from",
+          "line": 1169,
+          "local": true
+        },
+        {
+          "module": "routes.agent_team_routes",
+          "domain": "routes",
+          "kind": "from",
+          "line": 1172,
+          "local": true
+        },
+        {
+          "module": "routes.calendar_routes",
+          "domain": "integrations",
+          "kind": "from",
+          "line": 1176,
+          "local": true
+        },
+        {
+          "module": "routes.shell_routes",
+          "domain": "routes",
+          "kind": "from",
+          "line": 1181,
+          "local": true
+        },
+        {
+          "module": "routes.workspace_routes",
+          "domain": "workspace",
+          "kind": "from",
+          "line": 1189,
+          "local": true
+        },
+        {
+          "module": "routes.mount_routes",
+          "domain": "workspace",
+          "kind": "from",
+          "line": 1192,
+          "local": true
+        },
+        {
+          "module": "routes.hwfit_routes",
+          "domain": "routes",
+          "kind": "from",
+          "line": 1196,
+          "local": true
+        },
+        {
+          "module": "routes.compare_routes",
+          "domain": "routes",
+          "kind": "from",
+          "line": 1200,
+          "local": true
+        },
+        {
+          "module": "routes.prefs_routes",
+          "domain": "routes",
+          "kind": "from",
+          "line": 1204,
+          "local": true
+        },
+        {
+          "module": "routes.backup_routes",
+          "domain": "workspace",
+          "kind": "from",
+          "line": 1208,
+          "local": true
+        },
+        {
+          "module": "routes.font_routes",
+          "domain": "routes",
+          "kind": "from",
+          "line": 1211,
+          "local": true
+        },
+        {
+          "module": "src.mcp_manager",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 1216,
+          "local": true
+        },
+        {
+          "module": "routes.mcp_routes",
+          "domain": "tools",
+          "kind": "from",
+          "line": 1217,
+          "local": true
+        },
+        {
+          "module": "routes.operator_quick_status_routes",
+          "domain": "routes",
+          "kind": "from",
+          "line": 1222,
+          "local": true
+        },
+        {
+          "module": "routes.operator_dashboard_routes",
+          "domain": "routes",
+          "kind": "from",
+          "line": 1224,
+          "local": true
+        },
+        {
+          "module": "routes.workspace_snapshot_routes",
+          "domain": "workspace",
+          "kind": "from",
+          "line": 1226,
+          "local": true
+        },
+        {
+          "module": "src.ai_interaction",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 1231,
+          "local": true
+        },
+        {
+          "module": "routes.webhook_routes",
+          "domain": "integrations",
+          "kind": "from",
+          "line": 1901,
+          "local": true
+        },
+        {
+          "module": "routes.api_token_routes",
+          "domain": "routes",
+          "kind": "from",
+          "line": 1905,
+          "local": true
+        },
+        {
+          "module": "routes.harbour_mcp_routes",
+          "domain": "routes",
+          "kind": "from",
+          "line": 1909,
+          "local": true
+        },
+        {
+          "module": "routes.note_routes",
+          "domain": "routes",
+          "kind": "from",
+          "line": 1915,
+          "local": true
+        },
+        {
+          "module": "routes.email_routes",
+          "domain": "integrations",
+          "kind": "from",
+          "line": 1919,
+          "local": true
+        },
+        {
+          "module": "routes.codex_routes",
+          "domain": "agent",
+          "kind": "from",
+          "line": 1928,
+          "local": true
+        },
+        {
+          "module": "routes.vault_routes",
+          "domain": "workspace",
+          "kind": "from",
+          "line": 1937,
+          "local": true
+        },
+        {
+          "module": "routes.contacts_routes",
+          "domain": "integrations",
+          "kind": "from",
+          "line": 1941,
+          "local": true
+        },
+        {
+          "module": "companion",
+          "domain": "external",
+          "kind": "from",
+          "line": 1944,
+          "local": false
+        },
+        {
+          "module": "routes.plugin_routes",
+          "domain": "plugins",
+          "kind": "from",
+          "line": 1949,
+          "local": true
+        },
+        {
+          "module": "src.harbour.maintenance_tasks",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 2087,
+          "local": true
+        },
+        {
+          "module": "src.harbour.lifecycle_supervision",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 2227,
+          "local": true
+        },
+        {
+          "module": "re",
+          "domain": "external",
+          "kind": "import",
+          "line": 384,
+          "local": false
+        },
+        {
+          "module": "src.agent_tools",
+          "domain": "agent",
+          "kind": "from",
+          "line": 749,
+          "local": true
+        },
+        {
+          "module": "src.agent_tools.knowledge_tools",
+          "domain": "agent",
+          "kind": "from",
+          "line": 750,
+          "local": true
+        },
+        {
+          "module": "src.unified_source_index_runtime",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 754,
+          "local": true
+        },
+        {
+          "module": "src.unified_source_index_job_runner",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 759,
+          "local": true
+        },
+        {
+          "module": "src.unified_source_index_runtime_status",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 760,
+          "local": true
+        },
+        {
+          "module": "services.transcription.faster_whisper_adapter",
+          "domain": "integrations",
+          "kind": "from",
+          "line": 875,
+          "local": true
+        },
+        {
+          "module": "src.maintenance_model_policy",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 876,
+          "local": true
+        },
+        {
+          "module": "src.transcription_local_model",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 877,
+          "local": true
+        },
+        {
+          "module": "src.transcription_pipeline",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 878,
+          "local": true
+        },
+        {
+          "module": "src.transcription_review",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 879,
+          "local": true
+        },
+        {
+          "module": "src.transcription_store",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 880,
+          "local": true
+        },
+        {
+          "module": "routes.cookbook_routes",
+          "domain": "routes",
+          "kind": "from",
+          "line": 1186,
+          "local": true
+        },
+        {
+          "module": "src.telegram_model_settings",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 1249,
+          "local": true
+        },
+        {
+          "module": "plugins.telegram.stores",
+          "domain": "plugins",
+          "kind": "from",
+          "line": 1284,
+          "local": true
+        },
+        {
+          "module": "plugins.telegram.stores",
+          "domain": "plugins",
+          "kind": "from",
+          "line": 1295,
+          "local": true
+        },
+        {
+          "module": "src.telegram_session_rollover",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 1296,
+          "local": true
+        },
+        {
+          "module": "core.database",
+          "domain": "core",
+          "kind": "from",
+          "line": 1330,
+          "local": true
+        },
+        {
+          "module": "src.telegram_session_rollover",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 1331,
+          "local": true
+        },
+        {
+          "module": "core.database",
+          "domain": "core",
+          "kind": "from",
+          "line": 1377,
+          "local": true
+        },
+        {
+          "module": "src.endpoint_resolver",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 1378,
+          "local": true
+        },
+        {
+          "module": "core.database",
+          "domain": "core",
+          "kind": "from",
+          "line": 1428,
+          "local": true
+        },
+        {
+          "module": "src.secure_provider_runtime",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 1429,
+          "local": true
+        },
+        {
+          "module": "src.ai_interaction",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 1485,
+          "local": true
+        },
+        {
+          "module": "core.models",
+          "domain": "core",
+          "kind": "from",
+          "line": 1547,
+          "local": true
+        },
+        {
+          "module": "src.agent_loop",
+          "domain": "agent",
+          "kind": "from",
+          "line": 1548,
+          "local": true
+        },
+        {
+          "module": "src.telegram_context_policy",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 1549,
+          "local": true
+        },
+        {
+          "module": "src.telegram_todo_truth",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 1550,
+          "local": true
+        },
+        {
+          "module": "src.telegram_turn_diagnostics",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 1551,
+          "local": true
+        },
+        {
+          "module": "src.telegram_truth_gate",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 1557,
+          "local": true
+        },
+        {
+          "module": "src.workflow_skills",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 1558,
+          "local": true
+        },
+        {
+          "module": "src.version_info",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 2034,
+          "local": true
+        },
+        {
+          "module": "src.readiness",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 2048,
+          "local": true
+        },
+        {
+          "module": "uvicorn",
+          "domain": "external",
+          "kind": "import",
+          "line": 2337,
+          "local": false
+        },
+        {
+          "module": "collections",
+          "domain": "external",
+          "kind": "from",
+          "line": 437,
+          "local": false
+        },
+        {
+          "module": "src.auth_helpers",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 683,
+          "local": true
+        },
+        {
+          "module": "core.database",
+          "domain": "core",
+          "kind": "from",
+          "line": 684,
+          "local": true
+        },
+        {
+          "module": "services.stt",
+          "domain": "integrations",
+          "kind": "from",
+          "line": 1136,
+          "local": true
+        },
+        {
+          "module": "routes.stt_routes",
+          "domain": "routes",
+          "kind": "from",
+          "line": 1138,
+          "local": true
+        },
+        {
+          "module": "core.database",
+          "domain": "core",
+          "kind": "from",
+          "line": 1451,
+          "local": true
+        },
+        {
+          "module": "src.auth_helpers",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 1452,
+          "local": true
+        },
+        {
+          "module": "src.endpoint_resolver",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 1453,
+          "local": true
+        },
+        {
+          "module": "plugins.telegram.stores",
+          "domain": "plugins",
+          "kind": "from",
+          "line": 1502,
+          "local": true
+        },
+        {
+          "module": "src.plugin_system",
+          "domain": "plugins",
+          "kind": "from",
+          "line": 2102,
+          "local": true
+        },
+        {
+          "module": "core.database",
+          "domain": "core",
+          "kind": "from",
+          "line": 2110,
+          "local": true
+        },
+        {
+          "module": "src.bg_monitor",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 2151,
+          "local": true
+        },
+        {
+          "module": "src.cookbook_serve_lifecycle",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 2216,
+          "local": true
+        },
+        {
+          "module": "src.agent_tools.knowledge_tools",
+          "domain": "agent",
+          "kind": "from",
+          "line": 2280,
+          "local": true
+        },
+        {
+          "module": "src.plugin_system",
+          "domain": "plugins",
+          "kind": "from",
+          "line": 2309,
+          "local": true
+        },
+        {
+          "module": "src.privacy_runtime",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 1581,
+          "local": true
+        },
+        {
+          "module": "src.secure_provider_runtime",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 1582,
+          "local": true
+        },
+        {
+          "module": "src.endpoint_resolver",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 1768,
+          "local": true
+        },
+        {
+          "module": "src.recent_changes",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 2159,
+          "local": true
+        },
+        {
+          "module": "src.builtin_mcp",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 2177,
+          "local": true
+        },
+        {
+          "module": "core.middleware",
+          "domain": "core",
+          "kind": "from",
+          "line": 532,
+          "local": true
+        },
+        {
+          "module": "src.prompt_security",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 1727,
+          "local": true
+        }
+      ]
+    },
+    {
+      "module": "core.auth",
+      "path": "core/auth.py",
+      "domain": "core",
+      "imports": [
+        {
+          "module": "enum",
+          "domain": "external",
+          "kind": "import",
+          "line": 6,
+          "local": false
+        },
+        {
+          "module": "copy",
+          "domain": "external",
+          "kind": "import",
+          "line": 7,
+          "local": false
+        },
+        {
+          "module": "json",
+          "domain": "external",
+          "kind": "import",
+          "line": 8,
+          "local": false
+        },
+        {
+          "module": "math",
+          "domain": "external",
+          "kind": "import",
+          "line": 9,
+          "local": false
+        },
+        {
+          "module": "os",
+          "domain": "external",
+          "kind": "import",
+          "line": 10,
+          "local": false
+        },
+        {
+          "module": "re",
+          "domain": "external",
+          "kind": "import",
+          "line": 11,
+          "local": false
+        },
+        {
+          "module": "secrets",
+          "domain": "external",
+          "kind": "import",
+          "line": 12,
+          "local": false
+        },
+        {
+          "module": "threading",
+          "domain": "external",
+          "kind": "import",
+          "line": 13,
+          "local": false
+        },
+        {
+          "module": "time",
+          "domain": "external",
+          "kind": "import",
+          "line": 14,
+          "local": false
+        },
+        {
+          "module": "weakref",
+          "domain": "external",
+          "kind": "import",
+          "line": 15,
+          "local": false
+        },
+        {
+          "module": "logging",
+          "domain": "external",
+          "kind": "import",
+          "line": 16,
+          "local": false
+        },
+        {
+          "module": "contextlib",
+          "domain": "external",
+          "kind": "from",
+          "line": 17,
+          "local": false
+        },
+        {
+          "module": "dataclasses",
+          "domain": "external",
+          "kind": "from",
+          "line": 18,
+          "local": false
+        },
+        {
+          "module": "pathlib",
+          "domain": "external",
+          "kind": "from",
+          "line": 19,
+          "local": false
+        },
+        {
+          "module": "typing",
+          "domain": "external",
+          "kind": "from",
+          "line": 20,
+          "local": false
+        },
+        {
+          "module": "bcrypt",
+          "domain": "external",
+          "kind": "import",
+          "line": 22,
+          "local": false
+        },
+        {
+          "module": "pyotp",
+          "domain": "external",
+          "kind": "import",
+          "line": 23,
+          "local": false
+        },
+        {
+          "module": "core.atomic_io",
+          "domain": "core",
+          "kind": "from",
+          "line": 28,
+          "local": true
+        },
+        {
+          "module": "core.middleware",
+          "domain": "core",
+          "kind": "from",
+          "line": 29,
+          "local": true
+        },
+        {
+          "module": "src.constants",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 57,
+          "local": true
+        },
+        {
+          "module": "src.unified_source_index_owner_scope",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 453,
+          "local": true
+        },
+        {
+          "module": "core.database",
+          "domain": "core",
+          "kind": "from",
+          "line": 566,
+          "local": true
+        }
+      ]
+    },
+    {
+      "module": "core.database",
+      "path": "core/database.py",
+      "domain": "core",
+      "imports": [
+        {
+          "module": "os",
+          "domain": "external",
+          "kind": "import",
+          "line": 1,
+          "local": false
+        },
+        {
+          "module": "logging",
+          "domain": "external",
+          "kind": "import",
+          "line": 2,
+          "local": false
+        },
+        {
+          "module": "sqlite3",
+          "domain": "external",
+          "kind": "import",
+          "line": 3,
+          "local": false
+        },
+        {
+          "module": "datetime",
+          "domain": "external",
+          "kind": "from",
+          "line": 4,
+          "local": false
+        },
+        {
+          "module": "pathlib",
+          "domain": "external",
+          "kind": "from",
+          "line": 5,
+          "local": false
+        },
+        {
+          "module": "sqlalchemy",
+          "domain": "external",
+          "kind": "from",
+          "line": 6,
+          "local": false
+        },
+        {
+          "module": "sqlalchemy.engine",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 7,
+          "local": false
+        },
+        {
+          "module": "sqlalchemy.types",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 8,
+          "local": false
+        },
+        {
+          "module": "sqlalchemy.orm",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 10,
+          "local": false
+        },
+        {
+          "module": "src.runtime_paths",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 12,
+          "local": true
+        },
+        {
+          "module": "src.constants",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 36,
+          "local": true
+        },
+        {
+          "module": "contextlib",
+          "domain": "external",
+          "kind": "from",
+          "line": 1236,
+          "local": false
+        },
+        {
+          "module": "typing",
+          "domain": "external",
+          "kind": "from",
+          "line": 1237,
+          "local": false
+        },
+        {
+          "module": "sqlalchemy.pool",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 60,
+          "local": false
+        },
+        {
+          "module": "core.database_migrations",
+          "domain": "core",
+          "kind": "from",
+          "line": 1212,
+          "local": true
+        },
+        {
+          "module": "datetime",
+          "domain": "external",
+          "kind": "from",
+          "line": 1270,
+          "local": false
+        },
+        {
+          "module": "datetime",
+          "domain": "external",
+          "kind": "from",
+          "line": 1362,
+          "local": false
+        },
+        {
+          "module": "src.secret_storage",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 109,
+          "local": true
+        },
+        {
+          "module": "src.secret_storage",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 115,
+          "local": true
+        },
+        {
+          "module": "core",
+          "domain": "core",
+          "kind": "from",
+          "line": 1220,
+          "local": true
+        }
+      ]
+    },
+    {
+      "module": "routes.codex_routes",
+      "path": "routes/codex_routes.py",
+      "domain": "agent",
+      "imports": [
+        {
+          "module": "json",
+          "domain": "external",
+          "kind": "import",
+          "line": 8,
+          "local": false
+        },
+        {
+          "module": "zipfile",
+          "domain": "external",
+          "kind": "import",
+          "line": 9,
+          "local": false
+        },
+        {
+          "module": "io",
+          "domain": "external",
+          "kind": "from",
+          "line": 10,
+          "local": false
+        },
+        {
+          "module": "pathlib",
+          "domain": "external",
+          "kind": "from",
+          "line": 11,
+          "local": false
+        },
+        {
+          "module": "typing",
+          "domain": "external",
+          "kind": "from",
+          "line": 12,
+          "local": false
+        },
+        {
+          "module": "fastapi",
+          "domain": "external",
+          "kind": "from",
+          "line": 14,
+          "local": false
+        },
+        {
+          "module": "fastapi.responses",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 15,
+          "local": false
+        },
+        {
+          "module": "src.auth_helpers",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 17,
+          "local": true
+        },
+        {
+          "module": "src.tool_implementations",
+          "domain": "tools",
+          "kind": "from",
+          "line": 18,
+          "local": true
+        },
+        {
+          "module": "src.constants",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 19,
+          "local": true
+        },
+        {
+          "module": "routes._validators",
+          "domain": "routes",
+          "kind": "from",
+          "line": 20,
+          "local": true
+        },
+        {
+          "module": "routes.codex_helpers",
+          "domain": "agent",
+          "kind": "from",
+          "line": 21,
+          "local": true
+        },
+        {
+          "module": "routes.document_routes",
+          "domain": "visual",
+          "kind": "from",
+          "line": 204,
+          "local": true
+        },
+        {
+          "module": "routes.email_routes",
+          "domain": "integrations",
+          "kind": "from",
+          "line": 226,
+          "local": true
+        },
+        {
+          "module": "routes.email_routes",
+          "domain": "integrations",
+          "kind": "from",
+          "line": 239,
+          "local": true
+        },
+        {
+          "module": "src.request_models",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 261,
+          "local": true
+        },
+        {
+          "module": "routes.calendar_routes",
+          "domain": "integrations",
+          "kind": "from",
+          "line": 290,
+          "local": true
+        },
+        {
+          "module": "routes.document_routes",
+          "domain": "visual",
+          "kind": "from",
+          "line": 357,
+          "local": true
+        },
+        {
+          "module": "asyncio",
+          "domain": "external",
+          "kind": "import",
+          "line": 378,
+          "local": false
+        },
+        {
+          "module": "pathlib",
+          "domain": "external",
+          "kind": "from",
+          "line": 399,
+          "local": false
+        },
+        {
+          "module": "json",
+          "domain": "external",
+          "kind": "import",
+          "line": 400,
+          "local": false
+        },
+        {
+          "module": "re",
+          "domain": "external",
+          "kind": "import",
+          "line": 450,
+          "local": false
+        },
+        {
+          "module": "routes.cookbook_helpers",
+          "domain": "routes",
+          "kind": "from",
+          "line": 493,
+          "local": true
+        },
+        {
+          "module": "re",
+          "domain": "external",
+          "kind": "import",
+          "line": 528,
+          "local": false
+        },
+        {
+          "module": "re",
+          "domain": "external",
+          "kind": "import",
+          "line": 630,
+          "local": false
+        },
+        {
+          "module": "routes.cookbook_helpers",
+          "domain": "routes",
+          "kind": "from",
+          "line": 655,
+          "local": true
+        },
+        {
+          "module": "re",
+          "domain": "external",
+          "kind": "import",
+          "line": 687,
+          "local": false
+        },
+        {
+          "module": "shlex",
+          "domain": "external",
+          "kind": "import",
+          "line": 693,
+          "local": false
+        },
+        {
+          "module": "time",
+          "domain": "external",
+          "kind": "import",
+          "line": 702,
+          "local": false
+        },
+        {
+          "module": "json",
+          "domain": "external",
+          "kind": "import",
+          "line": 702,
+          "local": false
+        },
+        {
+          "module": "core.atomic_io",
+          "domain": "core",
+          "kind": "from",
+          "line": 703,
+          "local": true
+        },
+        {
+          "module": "pathlib",
+          "domain": "external",
+          "kind": "from",
+          "line": 704,
+          "local": false
+        },
+        {
+          "module": "routes.email_helpers",
+          "domain": "integrations",
+          "kind": "from",
+          "line": 126,
+          "local": true
+        },
+        {
+          "module": "routes.email_helpers",
+          "domain": "integrations",
+          "kind": "from",
+          "line": 153,
+          "local": true
+        },
+        {
+          "module": "shlex",
+          "domain": "external",
+          "kind": "import",
+          "line": 473,
+          "local": false
+        },
+        {
+          "module": "fastapi",
+          "domain": "external",
+          "kind": "from",
+          "line": 515,
+          "local": false
+        },
+        {
+          "module": "fastapi",
+          "domain": "external",
+          "kind": "from",
+          "line": 587,
+          "local": false
+        },
+        {
+          "module": "fastapi",
+          "domain": "external",
+          "kind": "from",
+          "line": 665,
+          "local": false
+        }
+      ]
+    },
+    {
+      "module": "routes.harbour_mcp_routes",
+      "path": "routes/harbour_mcp_routes.py",
+      "domain": "routes",
+      "imports": [
+        {
+          "module": "__future__",
+          "domain": "external",
+          "kind": "from",
+          "line": 3,
+          "local": false
+        },
+        {
+          "module": "logging",
+          "domain": "external",
+          "kind": "import",
+          "line": 5,
+          "local": false
+        },
+        {
+          "module": "time",
+          "domain": "external",
+          "kind": "import",
+          "line": 6,
+          "local": false
+        },
+        {
+          "module": "pathlib",
+          "domain": "external",
+          "kind": "from",
+          "line": 7,
+          "local": false
+        },
+        {
+          "module": "typing",
+          "domain": "external",
+          "kind": "from",
+          "line": 8,
+          "local": false
+        },
+        {
+          "module": "fastapi",
+          "domain": "external",
+          "kind": "from",
+          "line": 10,
+          "local": false
+        },
+        {
+          "module": "fastapi.responses",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 11,
+          "local": false
+        },
+        {
+          "module": "src.mcp_authenticated_dispatch",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 13,
+          "local": true
+        },
+        {
+          "module": "src.harbour_inbox_service",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 70,
+          "local": true
+        },
+        {
+          "module": "src.mcp_authenticated_dispatch",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 81,
+          "local": true
+        },
+        {
+          "module": "src.planning_revision_store",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 82,
+          "local": true
+        }
+      ]
+    },
+    {
+      "module": "routes.planning_definition_routes",
+      "path": "routes/planning_definition_routes.py",
+      "domain": "routes",
+      "imports": [
+        {
+          "module": "__future__",
+          "domain": "external",
+          "kind": "from",
+          "line": 3,
+          "local": false
+        },
+        {
+          "module": "asyncio",
+          "domain": "external",
+          "kind": "import",
+          "line": 5,
+          "local": false
+        },
+        {
+          "module": "base64",
+          "domain": "external",
+          "kind": "import",
+          "line": 6,
+          "local": false
+        },
+        {
+          "module": "binascii",
+          "domain": "external",
+          "kind": "import",
+          "line": 7,
+          "local": false
+        },
+        {
+          "module": "dataclasses",
+          "domain": "external",
+          "kind": "from",
+          "line": 8,
+          "local": false
+        },
+        {
+          "module": "hashlib",
+          "domain": "external",
+          "kind": "import",
+          "line": 9,
+          "local": false
+        },
+        {
+          "module": "json",
+          "domain": "external",
+          "kind": "import",
+          "line": 10,
+          "local": false
+        },
+        {
+          "module": "os",
+          "domain": "external",
+          "kind": "import",
+          "line": 11,
+          "local": false
+        },
+        {
+          "module": "pathlib",
+          "domain": "external",
+          "kind": "from",
+          "line": 12,
+          "local": false
+        },
+        {
+          "module": "re",
+          "domain": "external",
+          "kind": "import",
+          "line": 13,
+          "local": false
+        },
+        {
+          "module": "secrets",
+          "domain": "external",
+          "kind": "import",
+          "line": 14,
+          "local": false
+        },
+        {
+          "module": "typing",
+          "domain": "external",
+          "kind": "from",
+          "line": 15,
+          "local": false
+        },
+        {
+          "module": "fastapi",
+          "domain": "external",
+          "kind": "from",
+          "line": 17,
+          "local": false
+        },
+        {
+          "module": "fastapi.responses",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 18,
+          "local": false
+        },
+        {
+          "module": "src.planning_agent_handoff",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 20,
+          "local": true
+        },
+        {
+          "module": "src.planning_definition_projection",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 24,
+          "local": true
+        },
+        {
+          "module": "src.harbour_authority",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 25,
+          "local": true
+        },
+        {
+          "module": "src.planning_revision_store",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 26,
+          "local": true
+        },
+        {
+          "module": "core.middleware",
+          "domain": "core",
+          "kind": "from",
+          "line": 279,
+          "local": true
+        },
+        {
+          "module": "routes.project_versioning_routes",
+          "domain": "routes",
+          "kind": "from",
+          "line": 280,
+          "local": true
+        },
+        {
+          "module": "src.auth_helpers",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 281,
+          "local": true
+        },
+        {
+          "module": "src.constants",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 282,
+          "local": true
+        },
+        {
+          "module": "src.mcp_authenticated_dispatch",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 283,
+          "local": true
+        },
+        {
+          "module": "src.planning_mcp_service",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 284,
+          "local": true
+        },
+        {
+          "module": "routes.project_versioning_routes",
+          "domain": "routes",
+          "kind": "from",
+          "line": 430,
+          "local": true
+        },
+        {
+          "module": "src.planning_roadmap_migration",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 614,
+          "local": true
+        },
+        {
+          "module": "src.planning_source_inventory",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 621,
+          "local": true
+        }
+      ]
+    },
+    {
+      "module": "routes.universal_inbox_routes",
+      "path": "routes/universal_inbox_routes.py",
+      "domain": "inbox",
+      "imports": [
+        {
+          "module": "__future__",
+          "domain": "external",
+          "kind": "from",
+          "line": 3,
+          "local": false
+        },
+        {
+          "module": "os",
+          "domain": "external",
+          "kind": "import",
+          "line": 5,
+          "local": false
+        },
+        {
+          "module": "json",
+          "domain": "external",
+          "kind": "import",
+          "line": 6,
+          "local": false
+        },
+        {
+          "module": "math",
+          "domain": "external",
+          "kind": "import",
+          "line": 7,
+          "local": false
+        },
+        {
+          "module": "re",
+          "domain": "external",
+          "kind": "import",
+          "line": 8,
+          "local": false
+        },
+        {
+          "module": "typing",
+          "domain": "external",
+          "kind": "from",
+          "line": 9,
+          "local": false
+        },
+        {
+          "module": "fastapi",
+          "domain": "external",
+          "kind": "from",
+          "line": 11,
+          "local": false
+        },
+        {
+          "module": "fastapi.responses",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 12,
+          "local": false
+        },
+        {
+          "module": "core.database",
+          "domain": "core",
+          "kind": "from",
+          "line": 14,
+          "local": true
+        },
+        {
+          "module": "routes.document_helpers",
+          "domain": "visual",
+          "kind": "from",
+          "line": 15,
+          "local": true
+        },
+        {
+          "module": "src.auth_helpers",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 16,
+          "local": true
+        },
+        {
+          "module": "src.auth_helpers",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 17,
+          "local": true
+        },
+        {
+          "module": "src.document_subject_scope",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 18,
+          "local": true
+        },
+        {
+          "module": "src.universal_inbox_file_types",
+          "domain": "inbox",
+          "kind": "from",
+          "line": 23,
+          "local": true
+        },
+        {
+          "module": "src.universal_inbox_flow_state",
+          "domain": "inbox",
+          "kind": "from",
+          "line": 24,
+          "local": true
+        },
+        {
+          "module": "src.universal_inbox_items",
+          "domain": "inbox",
+          "kind": "from",
+          "line": 25,
+          "local": true
+        },
+        {
+          "module": "src.universal_inbox_source_access",
+          "domain": "inbox",
+          "kind": "from",
+          "line": 37,
+          "local": true
+        },
+        {
+          "module": "src.universal_inbox_workspace_snapshot",
+          "domain": "inbox",
+          "kind": "from",
+          "line": 41,
+          "local": true
+        },
+        {
+          "module": "src.universal_inbox_working_copy",
+          "domain": "inbox",
+          "kind": "from",
+          "line": 44,
+          "local": true
+        },
+        {
+          "module": "src.universal_inbox_workbench",
+          "domain": "inbox",
+          "kind": "from",
+          "line": 48,
+          "local": true
+        },
+        {
+          "module": "src.universal_inbox_routing",
+          "domain": "inbox",
+          "kind": "from",
+          "line": 53,
+          "local": true
+        },
+        {
+          "module": "src.universal_inbox_placement",
+          "domain": "inbox",
+          "kind": "from",
+          "line": 54,
+          "local": true
+        }
+      ]
+    },
+    {
+      "module": "src.auth_helpers",
+      "path": "src/auth_helpers.py",
+      "domain": "unknown",
+      "imports": [
+        {
+          "module": "os",
+          "domain": "external",
+          "kind": "import",
+          "line": 3,
+          "local": false
+        },
+        {
+          "module": "contextlib",
+          "domain": "external",
+          "kind": "from",
+          "line": 4,
+          "local": false
+        },
+        {
+          "module": "dataclasses",
+          "domain": "external",
+          "kind": "from",
+          "line": 5,
+          "local": false
+        },
+        {
+          "module": "typing",
+          "domain": "external",
+          "kind": "from",
+          "line": 6,
+          "local": false
+        },
+        {
+          "module": "fastapi",
+          "domain": "external",
+          "kind": "from",
+          "line": 7,
+          "local": false
+        },
+        {
+          "module": "core.auth",
+          "domain": "core",
+          "kind": "from",
+          "line": 8,
+          "local": true
+        }
+      ]
+    },
+    {
+      "module": "src.harbour.adapters",
+      "path": "src/harbour/adapters/__init__.py",
+      "domain": "unknown",
+      "imports": [
+        {
+          "module": "__future__",
+          "domain": "external",
+          "kind": "from",
+          "line": 10,
+          "local": false
+        },
+        {
+          "module": "typing",
+          "domain": "external",
+          "kind": "from",
+          "line": 12,
+          "local": false
+        },
+        {
+          "module": "src.nextcloud_knowledge_ingestion",
+          "domain": "inbox",
+          "kind": "from",
+          "line": 14,
+          "local": true
+        },
+        {
+          "module": "src.forge_context_reader",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 18,
+          "local": true
+        },
+        {
+          "module": "src.harbour.adapters.telegram_bridge",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 23,
+          "local": true
+        },
+        {
+          "module": "src.harbour.adapters.nextcloud_ingest",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 31,
+          "local": true
+        }
+      ]
+    },
+    {
+      "module": "src.harbour.core",
+      "path": "src/harbour/core/__init__.py",
+      "domain": "unknown",
+      "imports": [
+        {
+          "module": "__future__",
+          "domain": "external",
+          "kind": "from",
+          "line": 7,
+          "local": false
+        },
+        {
+          "module": "src.planning_revision_store",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 9,
+          "local": true
+        },
+        {
+          "module": "src.harbor_planning_projection",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 20,
+          "local": true
+        },
+        {
+          "module": "src.execution_authority_snapshot",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 25,
+          "local": true
+        },
+        {
+          "module": "src.execution_authority_ledger",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 30,
+          "local": true
+        },
+        {
+          "module": "src.agent_verification_receipt",
+          "domain": "agent",
+          "kind": "from",
+          "line": 42,
+          "local": true
+        }
+      ]
+    },
+    {
+      "module": "src.harbour.gateway.coordinator",
+      "path": "src/harbour/gateway/coordinator.py",
+      "domain": "unknown",
+      "imports": [
+        {
+          "module": "__future__",
+          "domain": "external",
+          "kind": "from",
+          "line": 9,
+          "local": false
+        },
+        {
+          "module": "dataclasses",
+          "domain": "external",
+          "kind": "from",
+          "line": 11,
+          "local": false
+        },
+        {
+          "module": "datetime",
+          "domain": "external",
+          "kind": "from",
+          "line": 12,
+          "local": false
+        },
+        {
+          "module": "json",
+          "domain": "external",
+          "kind": "import",
+          "line": 13,
+          "local": false
+        },
+        {
+          "module": "pathlib",
+          "domain": "external",
+          "kind": "from",
+          "line": 14,
+          "local": false
+        },
+        {
+          "module": "threading",
+          "domain": "external",
+          "kind": "import",
+          "line": 15,
+          "local": false
+        },
+        {
+          "module": "typing",
+          "domain": "external",
+          "kind": "from",
+          "line": 16,
+          "local": false
+        },
+        {
+          "module": "uuid",
+          "domain": "external",
+          "kind": "import",
+          "line": 17,
+          "local": false
+        },
+        {
+          "module": "src.coding_agent_backend",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 19,
+          "local": true
+        },
+        {
+          "module": "src.coding_agent_runner_state",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 23,
+          "local": true
+        },
+        {
+          "module": "src.harbour.gateway.worktree_manager",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 59,
+          "local": true
+        }
+      ]
+    },
+    {
+      "module": "src.harbour.inbox",
+      "path": "src/harbour/inbox/__init__.py",
+      "domain": "unknown",
+      "imports": [
+        {
+          "module": "__future__",
+          "domain": "external",
+          "kind": "from",
+          "line": 7,
+          "local": false
+        },
+        {
+          "module": "src.harbour_inbox_service",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 9,
+          "local": true
+        },
+        {
+          "module": "src.document_subject_scope",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 18,
+          "local": true
+        }
+      ]
+    },
+    {
+      "module": "src.harbour_inbox_service",
+      "path": "src/harbour_inbox_service.py",
+      "domain": "unknown",
+      "imports": [
+        {
+          "module": "__future__",
+          "domain": "external",
+          "kind": "from",
+          "line": 8,
+          "local": false
+        },
+        {
+          "module": "dataclasses",
+          "domain": "external",
+          "kind": "from",
+          "line": 10,
+          "local": false
+        },
+        {
+          "module": "datetime",
+          "domain": "external",
+          "kind": "from",
+          "line": 11,
+          "local": false
+        },
+        {
+          "module": "contextlib",
+          "domain": "external",
+          "kind": "from",
+          "line": 12,
+          "local": false
+        },
+        {
+          "module": "hashlib",
+          "domain": "external",
+          "kind": "import",
+          "line": 13,
+          "local": false
+        },
+        {
+          "module": "json",
+          "domain": "external",
+          "kind": "import",
+          "line": 14,
+          "local": false
+        },
+        {
+          "module": "re",
+          "domain": "external",
+          "kind": "import",
+          "line": 15,
+          "local": false
+        },
+        {
+          "module": "typing",
+          "domain": "external",
+          "kind": "from",
+          "line": 16,
+          "local": false
+        },
+        {
+          "module": "core.auth",
+          "domain": "core",
+          "kind": "from",
+          "line": 18,
+          "local": true
+        },
+        {
+          "module": "core.database",
+          "domain": "core",
+          "kind": "from",
+          "line": 19,
+          "local": true
+        },
+        {
+          "module": "src.auth_helpers",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 20,
+          "local": true
+        },
+        {
+          "module": "src.clarification_store",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 21,
+          "local": true
+        },
+        {
+          "module": "src.harbour_knowledge_store",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 27,
+          "local": true
+        },
+        {
+          "module": "src.planning_revision_store",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 30,
+          "local": true
+        },
+        {
+          "module": "src.harbour_knowledge_active_runtime",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 970,
+          "local": true
+        },
+        {
+          "module": "src.upload_handler",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 1142,
+          "local": true
+        },
+        {
+          "module": "src.mcp_authenticated_dispatch",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 520,
+          "local": true
+        },
+        {
+          "module": "src.planning_revision_store",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 950,
+          "local": true
+        },
+        {
+          "module": "src.mcp_authenticated_dispatch",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 332,
+          "local": true
+        }
+      ]
+    },
+    {
+      "module": "src.harbour_knowledge_active_runtime",
+      "path": "src/harbour_knowledge_active_runtime.py",
+      "domain": "unknown",
+      "imports": [
+        {
+          "module": "__future__",
+          "domain": "external",
+          "kind": "from",
+          "line": 2,
+          "local": false
+        },
+        {
+          "module": "base64",
+          "domain": "external",
+          "kind": "import",
+          "line": 4,
+          "local": false
+        },
+        {
+          "module": "contextlib",
+          "domain": "external",
+          "kind": "from",
+          "line": 5,
+          "local": false
+        },
+        {
+          "module": "dataclasses",
+          "domain": "external",
+          "kind": "from",
+          "line": 6,
+          "local": false
+        },
+        {
+          "module": "datetime",
+          "domain": "external",
+          "kind": "from",
+          "line": 7,
+          "local": false
+        },
+        {
+          "module": "hashlib",
+          "domain": "external",
+          "kind": "import",
+          "line": 8,
+          "local": false
+        },
+        {
+          "module": "hmac",
+          "domain": "external",
+          "kind": "import",
+          "line": 9,
+          "local": false
+        },
+        {
+          "module": "json",
+          "domain": "external",
+          "kind": "import",
+          "line": 10,
+          "local": false
+        },
+        {
+          "module": "os",
+          "domain": "external",
+          "kind": "import",
+          "line": 11,
+          "local": false
+        },
+        {
+          "module": "pathlib",
+          "domain": "external",
+          "kind": "from",
+          "line": 12,
+          "local": false
+        },
+        {
+          "module": "re",
+          "domain": "external",
+          "kind": "import",
+          "line": 13,
+          "local": false
+        },
+        {
+          "module": "sqlite3",
+          "domain": "external",
+          "kind": "import",
+          "line": 14,
+          "local": false
+        },
+        {
+          "module": "stat",
+          "domain": "external",
+          "kind": "import",
+          "line": 15,
+          "local": false
+        },
+        {
+          "module": "threading",
+          "domain": "external",
+          "kind": "import",
+          "line": 16,
+          "local": false
+        },
+        {
+          "module": "time",
+          "domain": "external",
+          "kind": "import",
+          "line": 17,
+          "local": false
+        },
+        {
+          "module": "typing",
+          "domain": "external",
+          "kind": "from",
+          "line": 18,
+          "local": false
+        },
+        {
+          "module": "src.constants",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 20,
+          "local": true
+        },
+        {
+          "module": "src.harbour_authority",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 21,
+          "local": true
+        },
+        {
+          "module": "src.harbour_knowledge_staging_destination",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 22,
+          "local": true
+        },
+        {
+          "module": "src.harbour_knowledge_store",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 23,
+          "local": true
+        },
+        {
+          "module": "src.unified_source_index_adapters",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 33,
+          "local": true
+        },
+        {
+          "module": "src.unified_source_index_contract",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 37,
+          "local": true
+        },
+        {
+          "module": "src.unified_source_index_harbour_query",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 40,
+          "local": true
+        },
+        {
+          "module": "src.unified_source_index_lexical",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 41,
+          "local": true
+        },
+        {
+          "module": "src.unified_source_index_migrations",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 46,
+          "local": true
+        },
+        {
+          "module": "src.unified_source_index_owner_scope",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 47,
+          "local": true
+        },
+        {
+          "module": "src.unified_source_index_query",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 48,
+          "local": true
+        },
+        {
+          "module": "src.unified_source_index_query_contract",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 53,
+          "local": true
+        },
+        {
+          "module": "src.unified_source_index_runtime_config",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 57,
+          "local": true
+        },
+        {
+          "module": "src.unified_source_index_runtime_contract",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 61,
+          "local": true
+        },
+        {
+          "module": "src.unified_source_index_sqlite",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 62,
+          "local": true
+        },
+        {
+          "module": "src.unified_source_index_stores",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 63,
+          "local": true
+        },
+        {
+          "module": "src.unified_source_index_sources.knowledge",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 64,
+          "local": true
+        },
+        {
+          "module": "src.private_context_confirmation",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 70,
+          "local": true
+        },
+        {
+          "module": "src.private_context_confirmation_app",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 77,
+          "local": true
+        },
+        {
+          "module": "src.context_metadata_binding",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 84,
+          "local": true
+        },
+        {
+          "module": "src.mcp_context_authority",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 85,
+          "local": true
+        },
+        {
+          "module": "json",
+          "domain": "external",
+          "kind": "import",
+          "line": 375,
+          "local": false
+        },
+        {
+          "module": "src",
+          "domain": "external",
+          "kind": "from",
+          "line": 513,
+          "local": false
+        },
+        {
+          "module": "src.unified_source_index_query",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 1315,
+          "local": true
+        }
+      ]
+    },
+    {
+      "module": "src.harbour_knowledge_store",
+      "path": "src/harbour_knowledge_store.py",
+      "domain": "unknown",
+      "imports": [
+        {
+          "module": "__future__",
+          "domain": "external",
+          "kind": "from",
+          "line": 7,
+          "local": false
+        },
+        {
+          "module": "dataclasses",
+          "domain": "external",
+          "kind": "from",
+          "line": 9,
+          "local": false
+        },
+        {
+          "module": "datetime",
+          "domain": "external",
+          "kind": "from",
+          "line": 10,
+          "local": false
+        },
+        {
+          "module": "hashlib",
+          "domain": "external",
+          "kind": "import",
+          "line": 11,
+          "local": false
+        },
+        {
+          "module": "hmac",
+          "domain": "external",
+          "kind": "import",
+          "line": 12,
+          "local": false
+        },
+        {
+          "module": "functools",
+          "domain": "external",
+          "kind": "from",
+          "line": 13,
+          "local": false
+        },
+        {
+          "module": "json",
+          "domain": "external",
+          "kind": "import",
+          "line": 14,
+          "local": false
+        },
+        {
+          "module": "pathlib",
+          "domain": "external",
+          "kind": "from",
+          "line": 15,
+          "local": false
+        },
+        {
+          "module": "os",
+          "domain": "external",
+          "kind": "import",
+          "line": 16,
+          "local": false
+        },
+        {
+          "module": "inspect",
+          "domain": "external",
+          "kind": "import",
+          "line": 17,
+          "local": false
+        },
+        {
+          "module": "re",
+          "domain": "external",
+          "kind": "import",
+          "line": 18,
+          "local": false
+        },
+        {
+          "module": "sqlite3",
+          "domain": "external",
+          "kind": "import",
+          "line": 19,
+          "local": false
+        },
+        {
+          "module": "stat",
+          "domain": "external",
+          "kind": "import",
+          "line": 20,
+          "local": false
+        },
+        {
+          "module": "threading",
+          "domain": "external",
+          "kind": "import",
+          "line": 21,
+          "local": false
+        },
+        {
+          "module": "typing",
+          "domain": "external",
+          "kind": "from",
+          "line": 22,
+          "local": false
+        },
+        {
+          "module": "src.harbour_authority",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 24,
+          "local": true
+        }
+      ]
+    },
+    {
+      "module": "src.mcp_authenticated_dispatch",
+      "path": "src/mcp_authenticated_dispatch.py",
+      "domain": "unknown",
+      "imports": [
+        {
+          "module": "__future__",
+          "domain": "external",
+          "kind": "from",
+          "line": 3,
+          "local": false
+        },
+        {
+          "module": "asyncio",
+          "domain": "external",
+          "kind": "import",
+          "line": 5,
+          "local": false
+        },
+        {
+          "module": "dataclasses",
+          "domain": "external",
+          "kind": "from",
+          "line": 6,
+          "local": false
+        },
+        {
+          "module": "datetime",
+          "domain": "external",
+          "kind": "from",
+          "line": 7,
+          "local": false
+        },
+        {
+          "module": "hashlib",
+          "domain": "external",
+          "kind": "import",
+          "line": 8,
+          "local": false
+        },
+        {
+          "module": "json",
+          "domain": "external",
+          "kind": "import",
+          "line": 9,
+          "local": false
+        },
+        {
+          "module": "math",
+          "domain": "external",
+          "kind": "import",
+          "line": 10,
+          "local": false
+        },
+        {
+          "module": "re",
+          "domain": "external",
+          "kind": "import",
+          "line": 11,
+          "local": false
+        },
+        {
+          "module": "time",
+          "domain": "external",
+          "kind": "import",
+          "line": 12,
+          "local": false
+        },
+        {
+          "module": "unicodedata",
+          "domain": "external",
+          "kind": "import",
+          "line": 13,
+          "local": false
+        },
+        {
+          "module": "typing",
+          "domain": "external",
+          "kind": "from",
+          "line": 14,
+          "local": false
+        },
+        {
+          "module": "urllib.parse",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 15,
+          "local": false
+        },
+        {
+          "module": "bcrypt",
+          "domain": "external",
+          "kind": "import",
+          "line": 17,
+          "local": false
+        },
+        {
+          "module": "fastapi",
+          "domain": "external",
+          "kind": "from",
+          "line": 18,
+          "local": false
+        },
+        {
+          "module": "core.database",
+          "domain": "core",
+          "kind": "from",
+          "line": 20,
+          "local": true
+        },
+        {
+          "module": "src.harbour_authority",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 21,
+          "local": true
+        },
+        {
+          "module": "src.planning_revision_store",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 22,
+          "local": true
+        },
+        {
+          "module": "src.planning_revision_store",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 171,
+          "local": true
+        },
+        {
+          "module": "mcp_servers.planning_server",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 229,
+          "local": true
+        },
+        {
+          "module": "src.harbour_inbox_service",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 835,
+          "local": true
+        },
+        {
+          "module": "src.planning_definition_contract",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 1292,
+          "local": true
+        },
+        {
+          "module": "src.harbour.mcp.dispatcher",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 224,
+          "local": true
+        },
+        {
+          "module": "src.harbour_inbox_service",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 285,
+          "local": true
+        },
+        {
+          "module": "src.harbour_inbox_service",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 641,
+          "local": true
+        },
+        {
+          "module": "src.harbour.mcp.dispatcher",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 660,
+          "local": true
+        },
+        {
+          "module": "mcp_servers.planning_server",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 669,
+          "local": true
+        },
+        {
+          "module": "src.harbour.mcp.dispatcher",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 670,
+          "local": true
+        },
+        {
+          "module": "src.harbour.mcp",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 689,
+          "local": true
+        },
+        {
+          "module": "src.harbour.mcp.dispatcher",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 690,
+          "local": true
+        },
+        {
+          "module": "src.harbour_inbox_service",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 702,
+          "local": true
+        },
+        {
+          "module": "src.harbour.mcp.dispatcher",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 729,
+          "local": true
+        },
+        {
+          "module": "src.harbour.mcp.dispatcher",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 727,
+          "local": true
+        }
+      ]
+    },
+    {
+      "module": "src.nextcloud_knowledge_ingestion",
+      "path": "src/nextcloud_knowledge_ingestion.py",
+      "domain": "inbox",
+      "imports": [
+        {
+          "module": "__future__",
+          "domain": "external",
+          "kind": "from",
+          "line": 9,
+          "local": false
+        },
+        {
+          "module": "dataclasses",
+          "domain": "external",
+          "kind": "from",
+          "line": 11,
+          "local": false
+        },
+        {
+          "module": "hashlib",
+          "domain": "external",
+          "kind": "import",
+          "line": 12,
+          "local": false
+        },
+        {
+          "module": "re",
+          "domain": "external",
+          "kind": "import",
+          "line": 13,
+          "local": false
+        },
+        {
+          "module": "types",
+          "domain": "external",
+          "kind": "from",
+          "line": 14,
+          "local": false
+        },
+        {
+          "module": "typing",
+          "domain": "external",
+          "kind": "from",
+          "line": 15,
+          "local": false
+        },
+        {
+          "module": "src.bigdata_ledger_contract",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 17,
+          "local": true
+        },
+        {
+          "module": "src.harbour_authority",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 18,
+          "local": true
+        },
+        {
+          "module": "src.harbour_knowledge_store",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 19,
+          "local": true
+        },
+        {
+          "module": "src.personal_docs_owner_reader",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 26,
+          "local": true
+        }
+      ]
+    },
+    {
+      "module": "src.nextcloud_knowledge_ingestion_composition",
+      "path": "src/nextcloud_knowledge_ingestion_composition.py",
+      "domain": "inbox",
+      "imports": [
+        {
+          "module": "__future__",
+          "domain": "external",
+          "kind": "from",
+          "line": 8,
+          "local": false
+        },
+        {
+          "module": "dataclasses",
+          "domain": "external",
+          "kind": "from",
+          "line": 10,
+          "local": false
+        },
+        {
+          "module": "hashlib",
+          "domain": "external",
+          "kind": "import",
+          "line": 11,
+          "local": false
+        },
+        {
+          "module": "hmac",
+          "domain": "external",
+          "kind": "import",
+          "line": 12,
+          "local": false
+        },
+        {
+          "module": "json",
+          "domain": "external",
+          "kind": "import",
+          "line": 13,
+          "local": false
+        },
+        {
+          "module": "pathlib",
+          "domain": "external",
+          "kind": "from",
+          "line": 14,
+          "local": false
+        },
+        {
+          "module": "re",
+          "domain": "external",
+          "kind": "import",
+          "line": 15,
+          "local": false
+        },
+        {
+          "module": "threading",
+          "domain": "external",
+          "kind": "import",
+          "line": 16,
+          "local": false
+        },
+        {
+          "module": "core.auth",
+          "domain": "core",
+          "kind": "from",
+          "line": 18,
+          "local": true
+        },
+        {
+          "module": "src.bigdata_ledger_contract",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 19,
+          "local": true
+        },
+        {
+          "module": "src.harbour_authority",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 20,
+          "local": true
+        },
+        {
+          "module": "src.harbour_knowledge_active_runtime",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 21,
+          "local": true
+        },
+        {
+          "module": "src.harbour_knowledge_staging_destination",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 22,
+          "local": true
+        },
+        {
+          "module": "src.harbour_knowledge_store",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 26,
+          "local": true
+        },
+        {
+          "module": "src.nextcloud_knowledge_ingestion",
+          "domain": "inbox",
+          "kind": "from",
+          "line": 27,
+          "local": true
+        },
+        {
+          "module": "src.personal_docs_owner_reader",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 28,
+          "local": true
+        },
+        {
+          "module": "src.unified_source_index_runtime_config",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 29,
+          "local": true
+        },
+        {
+          "module": "src.unified_source_index_runtime_contract",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 33,
+          "local": true
+        },
+        {
+          "module": "src.unified_source_index_source_capability",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 34,
+          "local": true
+        },
+        {
+          "module": "src.unified_source_index_sources.knowledge",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 35,
+          "local": true
+        }
+      ]
+    },
+    {
+      "module": "src.planning_mcp_service",
+      "path": "src/planning_mcp_service.py",
+      "domain": "unknown",
+      "imports": [
+        {
+          "module": "__future__",
+          "domain": "external",
+          "kind": "from",
+          "line": 8,
+          "local": false
+        },
+        {
+          "module": "copy",
+          "domain": "external",
+          "kind": "from",
+          "line": 10,
+          "local": false
+        },
+        {
+          "module": "dataclasses",
+          "domain": "external",
+          "kind": "from",
+          "line": 11,
+          "local": false
+        },
+        {
+          "module": "datetime",
+          "domain": "external",
+          "kind": "from",
+          "line": 12,
+          "local": false
+        },
+        {
+          "module": "functools",
+          "domain": "external",
+          "kind": "from",
+          "line": 13,
+          "local": false
+        },
+        {
+          "module": "hashlib",
+          "domain": "external",
+          "kind": "import",
+          "line": 14,
+          "local": false
+        },
+        {
+          "module": "json",
+          "domain": "external",
+          "kind": "import",
+          "line": 15,
+          "local": false
+        },
+        {
+          "module": "ntpath",
+          "domain": "external",
+          "kind": "import",
+          "line": 16,
+          "local": false
+        },
+        {
+          "module": "os",
+          "domain": "external",
+          "kind": "import",
+          "line": 17,
+          "local": false
+        },
+        {
+          "module": "pathlib",
+          "domain": "external",
+          "kind": "from",
+          "line": 18,
+          "local": false
+        },
+        {
+          "module": "re",
+          "domain": "external",
+          "kind": "import",
+          "line": 19,
+          "local": false
+        },
+        {
+          "module": "stat",
+          "domain": "external",
+          "kind": "import",
+          "line": 20,
+          "local": false
+        },
+        {
+          "module": "unicodedata",
+          "domain": "external",
+          "kind": "import",
+          "line": 21,
+          "local": false
+        },
+        {
+          "module": "typing",
+          "domain": "external",
+          "kind": "from",
+          "line": 22,
+          "local": false
+        },
+        {
+          "module": "urllib.parse",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 23,
+          "local": false
+        },
+        {
+          "module": "src.memory_lifecycle_adapters",
+          "domain": "memory",
+          "kind": "from",
+          "line": 25,
+          "local": true
+        },
+        {
+          "module": "src.planning_agent_handoff",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 26,
+          "local": true
+        },
+        {
+          "module": "src.planning_definition_contract",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 30,
+          "local": true
+        },
+        {
+          "module": "src.planning_definition_projection",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 37,
+          "local": true
+        },
+        {
+          "module": "src.planning_revision_store",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 41,
+          "local": true
+        },
+        {
+          "module": "src.planning_source_inventory",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 45,
+          "local": true
+        },
+        {
+          "module": "src.planning_source_memory",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 50,
+          "local": true
+        },
+        {
+          "module": "src.plan_runtime",
+          "domain": "orchestration",
+          "kind": "from",
+          "line": 4478,
+          "local": true
+        },
+        {
+          "module": "src.progressive_graph_api",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 4479,
+          "local": true
+        },
+        {
+          "module": "src.roadmap_lens",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 4480,
+          "local": true
+        }
+      ]
+    },
+    {
+      "module": "src.planning_process_runtime",
+      "path": "src/planning_process_runtime.py",
+      "domain": "unknown",
+      "imports": [
+        {
+          "module": "__future__",
+          "domain": "external",
+          "kind": "from",
+          "line": 9,
+          "local": false
+        },
+        {
+          "module": "base64",
+          "domain": "external",
+          "kind": "import",
+          "line": 11,
+          "local": false
+        },
+        {
+          "module": "dataclasses",
+          "domain": "external",
+          "kind": "from",
+          "line": 12,
+          "local": false
+        },
+        {
+          "module": "hashlib",
+          "domain": "external",
+          "kind": "import",
+          "line": 13,
+          "local": false
+        },
+        {
+          "module": "json",
+          "domain": "external",
+          "kind": "import",
+          "line": 14,
+          "local": false
+        },
+        {
+          "module": "math",
+          "domain": "external",
+          "kind": "import",
+          "line": 15,
+          "local": false
+        },
+        {
+          "module": "multiprocessing",
+          "domain": "external",
+          "kind": "import",
+          "line": 16,
+          "local": false
+        },
+        {
+          "module": "multiprocessing.connection",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 17,
+          "local": false
+        },
+        {
+          "module": "os",
+          "domain": "external",
+          "kind": "import",
+          "line": 18,
+          "local": false
+        },
+        {
+          "module": "pathlib",
+          "domain": "external",
+          "kind": "from",
+          "line": 19,
+          "local": false
+        },
+        {
+          "module": "re",
+          "domain": "external",
+          "kind": "import",
+          "line": 20,
+          "local": false
+        },
+        {
+          "module": "tempfile",
+          "domain": "external",
+          "kind": "import",
+          "line": 21,
+          "local": false
+        },
+        {
+          "module": "threading",
+          "domain": "external",
+          "kind": "import",
+          "line": 22,
+          "local": false
+        },
+        {
+          "module": "time",
+          "domain": "external",
+          "kind": "import",
+          "line": 23,
+          "local": false
+        },
+        {
+          "module": "typing",
+          "domain": "external",
+          "kind": "from",
+          "line": 24,
+          "local": false
+        },
+        {
+          "module": "src.harbour_authority",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 26,
+          "local": true
+        },
+        {
+          "module": "src.mcp_authenticated_dispatch",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 31,
+          "local": true
+        },
+        {
+          "module": "src.planning_mcp_service",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 32,
+          "local": true
+        },
+        {
+          "module": "src.planning_roadmap_migration",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 33,
+          "local": true
+        },
+        {
+          "module": "src.planning_definition_contract",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 41,
+          "local": true
+        },
+        {
+          "module": "src.planning_revision_store",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 45,
+          "local": true
+        }
+      ]
+    },
+    {
+      "module": "src.planning_revision_store",
+      "path": "src/planning_revision_store.py",
+      "domain": "unknown",
+      "imports": [
+        {
+          "module": "__future__",
+          "domain": "external",
+          "kind": "from",
+          "line": 3,
+          "local": false
+        },
+        {
+          "module": "base64",
+          "domain": "external",
+          "kind": "import",
+          "line": 5,
+          "local": false
+        },
+        {
+          "module": "contextlib",
+          "domain": "external",
+          "kind": "from",
+          "line": 6,
+          "local": false
+        },
+        {
+          "module": "copy",
+          "domain": "external",
+          "kind": "from",
+          "line": 7,
+          "local": false
+        },
+        {
+          "module": "dataclasses",
+          "domain": "external",
+          "kind": "from",
+          "line": 8,
+          "local": false
+        },
+        {
+          "module": "datetime",
+          "domain": "external",
+          "kind": "from",
+          "line": 9,
+          "local": false
+        },
+        {
+          "module": "functools",
+          "domain": "external",
+          "kind": "from",
+          "line": 10,
+          "local": false
+        },
+        {
+          "module": "hashlib",
+          "domain": "external",
+          "kind": "import",
+          "line": 11,
+          "local": false
+        },
+        {
+          "module": "hmac",
+          "domain": "external",
+          "kind": "import",
+          "line": 12,
+          "local": false
+        },
+        {
+          "module": "json",
+          "domain": "external",
+          "kind": "import",
+          "line": 13,
+          "local": false
+        },
+        {
+          "module": "os",
+          "domain": "external",
+          "kind": "import",
+          "line": 14,
+          "local": false
+        },
+        {
+          "module": "pathlib",
+          "domain": "external",
+          "kind": "from",
+          "line": 15,
+          "local": false
+        },
+        {
+          "module": "re",
+          "domain": "external",
+          "kind": "import",
+          "line": 16,
+          "local": false
+        },
+        {
+          "module": "tempfile",
+          "domain": "external",
+          "kind": "import",
+          "line": 17,
+          "local": false
+        },
+        {
+          "module": "threading",
+          "domain": "external",
+          "kind": "import",
+          "line": 18,
+          "local": false
+        },
+        {
+          "module": "time",
+          "domain": "external",
+          "kind": "import",
+          "line": 19,
+          "local": false
+        },
+        {
+          "module": "typing",
+          "domain": "external",
+          "kind": "from",
+          "line": 20,
+          "local": false
+        },
+        {
+          "module": "weakref",
+          "domain": "external",
+          "kind": "import",
+          "line": 21,
+          "local": false
+        },
+        {
+          "module": "src.harbour_authority",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 23,
+          "local": true
+        },
+        {
+          "module": "src.planning_definition_projection",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 32,
+          "local": true
+        },
+        {
+          "module": "src.planning_definition_contract",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 38,
+          "local": true
+        },
+        {
+          "module": "src.planning_roadmap_migration",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 5582,
+          "local": true
+        },
+        {
+          "module": "src.planning_roadmap_migration",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 5156,
+          "local": true
+        },
+        {
+          "module": "msvcrt",
+          "domain": "external",
+          "kind": "import",
+          "line": 3881,
+          "local": false
+        },
+        {
+          "module": "fcntl",
+          "domain": "external",
+          "kind": "import",
+          "line": 3895,
+          "local": false
+        },
+        {
+          "module": "msvcrt",
+          "domain": "external",
+          "kind": "import",
+          "line": 3910,
+          "local": false
+        },
+        {
+          "module": "fcntl",
+          "domain": "external",
+          "kind": "import",
+          "line": 3914,
+          "local": false
+        }
+      ]
+    },
+    {
+      "module": "src.upload_handler",
+      "path": "src/upload_handler.py",
+      "domain": "unknown",
+      "imports": [
+        {
+          "module": "os",
+          "domain": "external",
+          "kind": "import",
+          "line": 2,
+          "local": false
+        },
+        {
+          "module": "re",
+          "domain": "external",
+          "kind": "import",
+          "line": 3,
+          "local": false
+        },
+        {
+          "module": "json",
+          "domain": "external",
+          "kind": "import",
+          "line": 4,
+          "local": false
+        },
+        {
+          "module": "uuid",
+          "domain": "external",
+          "kind": "import",
+          "line": 5,
+          "local": false
+        },
+        {
+          "module": "time",
+          "domain": "external",
+          "kind": "import",
+          "line": 6,
+          "local": false
+        },
+        {
+          "module": "hashlib",
+          "domain": "external",
+          "kind": "import",
+          "line": 7,
+          "local": false
+        },
+        {
+          "module": "mimetypes",
+          "domain": "external",
+          "kind": "import",
+          "line": 8,
+          "local": false
+        },
+        {
+          "module": "shutil",
+          "domain": "external",
+          "kind": "import",
+          "line": 9,
+          "local": false
+        },
+        {
+          "module": "stat",
+          "domain": "external",
+          "kind": "import",
+          "line": 10,
+          "local": false
+        },
+        {
+          "module": "tempfile",
+          "domain": "external",
+          "kind": "import",
+          "line": 11,
+          "local": false
+        },
+        {
+          "module": "threading",
+          "domain": "external",
+          "kind": "import",
+          "line": 12,
+          "local": false
+        },
+        {
+          "module": "dataclasses",
+          "domain": "external",
+          "kind": "from",
+          "line": 13,
+          "local": false
+        },
+        {
+          "module": "datetime",
+          "domain": "external",
+          "kind": "from",
+          "line": 14,
+          "local": false
+        },
+        {
+          "module": "typing",
+          "domain": "external",
+          "kind": "from",
+          "line": 15,
+          "local": false
+        },
+        {
+          "module": "fastapi",
+          "domain": "external",
+          "kind": "from",
+          "line": 16,
+          "local": false
+        },
+        {
+          "module": "core.auth",
+          "domain": "core",
+          "kind": "from",
+          "line": 18,
+          "local": true
+        },
+        {
+          "module": "src.upload_limits",
+          "domain": "unknown",
+          "kind": "from",
+          "line": 19,
+          "local": true
+        },
+        {
+          "module": "logging",
+          "domain": "external",
+          "kind": "import",
+          "line": 37,
+          "local": false
+        },
+        {
+          "module": "unicodedata",
+          "domain": "external",
+          "kind": "import",
+          "line": 24,
+          "local": false
+        },
+        {
+          "module": "magic",
+          "domain": "external",
+          "kind": "import",
+          "line": 339,
+          "local": false
+        },
+        {
+          "module": "PIL",
+          "domain": "external",
+          "kind": "from",
+          "line": 1300,
+          "local": false
+        },
+        {
+          "module": "PIL",
+          "domain": "external",
+          "kind": "from",
+          "line": 1035,
+          "local": false
+        }
+      ]
+    }
+  ],
+  "direct_inbound_consumers": {
+    "core.database": [
+      "app",
+      "core.auth",
+      "core.session_manager",
+      "core.session_serialization",
+      "mcp_servers.calendar_server",
+      "mcp_servers.email_draft_document_utils",
+      "routes.admin_wipe_routes",
+      "routes.api_token_routes",
+      "routes.assistant_routes",
+      "routes.auth_user_rename",
+      "routes.calendar_routes",
+      "routes.chat_helpers",
+      "routes.chat_routes",
+      "routes.chatgpt_subscription_routes",
+      "routes.compare_routes",
+      "routes.cookbook_routes",
+      "routes.copilot_routes",
+      "routes.diagnostics_routes",
+      "routes.document_helpers",
+      "routes.document_routes",
+      "routes.editor_draft_routes",
+      "routes.email_account_helpers",
+      "routes.email_ai_helpers",
+      "routes.email_helpers",
+      "routes.email_oauth_helpers",
+      "routes.email_owner_events",
+      "routes.email_pollers",
+      "routes.email_smtp_helpers",
+      "routes.gallery_helpers",
+      "routes.gallery_routes",
+      "routes.github_issue_routes",
+      "routes.history_routes",
+      "routes.mcp_routes",
+      "routes.memory_routes",
+      "routes.model_routes",
+      "routes.note_reminders",
+      "routes.note_routes",
+      "routes.operator_dashboard_routes",
+      "routes.operator_quick_status_routes",
+      "routes.session_routes",
+      "routes.signature_routes",
+      "routes.task_routes",
+      "routes.task_summary_routes",
+      "routes.universal_inbox_routes",
+      "routes.webhook_routes",
+      "src.agent_loop",
+      "src.agent_tools.session_tools",
+      "src.caldav_sync",
+      "src.caldav_writeback",
+      "src.calendar_capability_service",
+      "src.chatgpt_subscription",
+      "src.clarification_store",
+      "src.database",
+      "src.document_owner_reader",
+      "src.document_subject_scope",
+      "src.endpoint_resolver",
+      "src.event_bus",
+      "src.github_issue_duplicates",
+      "src.github_issue_index",
+      "src.github_issue_sync",
+      "src.harbour.maintenance_tasks",
+      "src.harbour_inbox_service",
+      "src.mcp_authenticated_dispatch",
+      "src.mcp_context_authority",
+      "src.mcp_oauth",
+      "src.mcp_private_context_confirmation_app",
+      "src.model_context",
+      "src.private_context_confirmation_app",
+      "src.readiness",
+      "src.service_health",
+      "src.session_actions",
+      "src.session_search",
+      "src.task_scheduler",
+      "src.task_scheduler_helpers",
+      "src.task_scheduler_startup",
+      "src.telegram_session_rollover",
+      "src.todo_domain_service",
+      "src.tool_domains.admin_runtime",
+      "src.tool_domains.admin_settings",
+      "src.tool_domains.github_issues",
+      "src.tool_domains.personal_workspace",
+      "src.universal_inbox_working_copy"
+    ],
+    "core.auth": [
+      "app",
+      "routes.assistant_routes",
+      "routes.auth_routes",
+      "routes.auth_user_rename",
+      "routes.context_source_routes",
+      "routes.note_routes",
+      "routes.project_versioning_routes",
+      "routes.research_routes",
+      "routes.task_routes",
+      "routes.transcription_routes",
+      "src.auth_helpers",
+      "src.clarification_store",
+      "src.context_manifest_producer",
+      "src.context_source_app",
+      "src.document_subject_scope",
+      "src.forge_context_metadata",
+      "src.forge_context_page",
+      "src.harbour_inbox_service",
+      "src.mcp_context_app",
+      "src.mcp_context_authority",
+      "src.mcp_private_context_confirmation",
+      "src.mcp_private_context_confirmation_app",
+      "src.nextcloud_knowledge_ingestion_composition",
+      "src.planning_durable_context_source",
+      "src.security_action_authorization",
+      "src.security_session_contracts",
+      "src.task_scheduler",
+      "src.tool_security",
+      "src.upload_handler"
+    ],
+    "src.auth_helpers": [
+      "app",
+      "plugins.obsidian.backend.routes",
+      "routes.agent_operation_routes",
+      "routes.api_token_routes",
+      "routes.assistant_routes",
+      "routes.backup_routes",
+      "routes.calendar_routes",
+      "routes.chat_helpers",
+      "routes.chat_routes",
+      "routes.chatgpt_subscription_routes",
+      "routes.clarification_routes",
+      "routes.cleanup_routes",
+      "routes.codex_helpers",
+      "routes.codex_routes",
+      "routes.compare_routes",
+      "routes.context_source_routes",
+      "routes.cookbook_routes",
+      "routes.cookbook_tail_routes",
+      "routes.copilot_routes",
+      "routes.diagnostics_routes",
+      "routes.document_helpers",
+      "routes.document_routes",
+      "routes.editor_draft_routes",
+      "routes.email_attachment_helpers",
+      "routes.email_helpers",
+      "routes.gallery_helpers",
+      "routes.gallery_routes",
+      "routes.github_issue_routes",
+      "routes.history_routes",
+      "routes.internal_reference_routes",
+      "routes.memory_routes",
+      "routes.model_routes",
+      "routes.mount_routes",
+      "routes.note_routes",
+      "routes.personal_routes",
+      "routes.planning_definition_routes",
+      "routes.prefs_routes",
+      "routes.preset_routes",
+      "routes.project_versioning_routes",
+      "routes.research_routes",
+      "routes.server_project_routes",
+      "routes.session_routes",
+      "routes.signature_routes",
+      "routes.skills_routes",
+      "routes.task_routes",
+      "routes.task_summary_routes",
+      "routes.universal_file_io_routes",
+      "routes.universal_inbox_routes",
+      "routes.upload_routes",
+      "routes.webhook_routes",
+      "routes.workspace_routes",
+      "routes.workspace_snapshot_routes",
+      "src.agent_tools.model_interaction_tools",
+      "src.ai_interaction",
+      "src.clarification_attention",
+      "src.clarification_store",
+      "src.document_subject_scope",
+      "src.endpoint_resolver",
+      "src.harbour_inbox_service",
+      "src.llm_model_cache",
+      "src.task_scheduler",
+      "src.tool_security"
+    ],
+    "src.constants": [
+      "core.auth",
+      "core.constants",
+      "core.database",
+      "core.mount_manager",
+      "core.path_resolver",
+      "mcp_servers.email_account_config",
+      "mcp_servers.email_agent_draft_utils",
+      "mcp_servers.email_server",
+      "mcp_servers.image_gen_server",
+      "mcp_servers.memory_server",
+      "mcp_servers.rag_server",
+      "plugins.obsidian.backend.vault_service",
+      "routes.admin_wipe_routes",
+      "routes.agent_operation_routes",
+      "routes.auth_routes",
+      "routes.auth_user_rename",
+      "routes.codex_routes",
+      "routes.coding_agent_routes",
+      "routes.contacts_routes",
+      "routes.cookbook_routes",
+      "routes.document_routes",
+      "routes.email_attachment_helpers",
+      "routes.email_helpers",
+      "routes.email_routes",
+      "routes.emoji_routes",
+      "routes.gallery_routes",
+      "routes.internal_reference_routes",
+      "routes.mcp_routes",
+      "routes.note_reminders",
+      "routes.operator_dashboard_routes",
+      "routes.operator_quick_status_routes",
+      "routes.planning_definition_routes",
+      "routes.prefs_routes",
+      "routes.project_versioning_routes",
+      "routes.repo_routes",
+      "routes.research_routes",
+      "routes.review_gate_routes",
+      "routes.roadmap_routes",
+      "routes.sandbox_worker_routes",
+      "routes.task_routes",
+      "routes.upload_routes",
+      "routes.vault_routes",
+      "routes.workspace_snapshot_routes",
+      "services.docs.service",
+      "services.memory.service",
+      "services.research.research_handler",
+      "services.search.content",
+      "services.search.providers",
+      "services.tts.tts_service",
+      "src.agent_loop",
+      "src.agent_loop_system_prompt",
+      "src.agent_run_ledger",
+      "src.agent_task_ledger",
+      "src.agent_tools.document_tools",
+      "src.agent_tools.filesystem_tools",
+      "src.agent_tools.project_commit_tools",
+      "src.agent_tools.subprocess_tools",
+      "src.agent_tools.web_tools",
+      "src.ai_activity_ledger",
+      "src.ai_interaction",
+      "src.app_initializer",
+      "src.bg_jobs",
+      "src.chat_handler",
+      "src.coding_agent_backend",
+      "src.coding_agent_runner_state",
+      "src.config",
+      "src.cookbook_serve_lifecycle",
+      "src.embeddings",
+      "src.event_bus",
+      "src.evidence_storage",
+      "src.generated_images",
+      "src.harbour_knowledge_active_runtime",
+      "src.integrations",
+      "src.memory_provenance_ledger",
+      "src.model_episode_store",
+      "src.ops_timeline_adapters",
+      "src.project_forge_outbox",
+      "src.project_forge_policy",
+      "src.project_version_store",
+      "src.rag_manager",
+      "src.rag_singleton",
+      "src.rag_vector",
+      "src.recent_changes",
+      "src.repo_commit_runner",
+      "src.repo_git_adapter",
+      "src.repo_push_runner",
+      "src.repo_recent_memory",
+      "src.repo_registry",
+      "src.research_handler",
+      "src.sandbox_job_ledger",
+      "src.secret_handoff",
+      "src.secret_storage",
+      "src.service_health",
+      "src.settings",
+      "src.tool_capability_maintenance",
+      "src.tool_domains.media_research_contacts",
+      "src.tool_domains.repo_skills",
+      "src.tool_domains.vault",
+      "src.tool_execution",
+      "src.tool_implementations",
+      "src.tool_path_confinement",
+      "src.tool_utils",
+      "src.unified_source_index_runtime_config"
+    ],
+    "src.planning_revision_store": [
+      "mcp_servers.planning_server",
+      "routes.harbour_mcp_routes",
+      "routes.planning_definition_routes",
+      "routes.workspace_snapshot_routes",
+      "src.context_source_app",
+      "src.harbour.core",
+      "src.harbour_inbox_service",
+      "src.mcp_authenticated_dispatch",
+      "src.planning_context_reader",
+      "src.planning_durable_context_source",
+      "src.planning_mcp_service",
+      "src.planning_process_runtime",
+      "src.planning_roadmap_migration"
+    ],
+    "src.harbour_knowledge_store": [
+      "src.harbour_inbox_service",
+      "src.harbour_knowledge_active_runtime",
+      "src.harbour_knowledge_migration",
+      "src.harbour_knowledge_staging_destination",
+      "src.harbour_snapshot_comparison",
+      "src.import_export_migration_proof",
+      "src.mcp_private_context_confirmation",
+      "src.nextcloud_knowledge_ingestion",
+      "src.nextcloud_knowledge_ingestion_composition",
+      "src.unified_source_index_harbour_query",
+      "src.unified_source_index_sources.knowledge"
+    ]
+  },
+  "source_sha256": {
+    "app.py": "f7262dc5470df7345dc270493976335d803ec2ad48deb53bcb9ba4f3ca1e573c",
+    "core/auth.py": "81e61fcbff87c2ffe01d204240c405730db8a57db311aab95875e00bd789029b",
+    "core/database.py": "46011b9fac9f821451391f02dbb8293f84ad5fc6891e457a0d46dc20f40217aa",
+    "routes/codex_routes.py": "6a8541f9c2f2e7301a605b67f80b798ace83d67078f84bfb5c24e449b993b38e",
+    "routes/harbour_mcp_routes.py": "8e32dc87cc072a999f29975143547927afe5675b52deda2b4e653dbf431685f2",
+    "routes/planning_definition_routes.py": "d172f4cf0a2f8ab1ae24c7cb3cc8d5f5ecda4213be0504ed248c4eef3215edef",
+    "routes/universal_inbox_routes.py": "5e9de54f1fd908c518e90611a64268611ea51f462973231c962396e1714ca0cf",
+    "src/auth_helpers.py": "faefbf57383013ab159f624ebb5714e596ac8d672e4d59e9b667540f57b92070",
+    "src/harbour/adapters/__init__.py": "70e4bc7d15b770894781ba5453ec1dbe64d6dee36e58503704287a909e50d433",
+    "src/harbour/core/__init__.py": "de6289cf0484540f0b2149e303ffc475105accc3368a607ea3ab4cc857a03166",
+    "src/harbour/gateway/coordinator.py": "f4a33d08bd4b9b83ae576f8897a852c13743467c1286396b7bc48b86983455a3",
+    "src/harbour/inbox/__init__.py": "a32a397808fd70597877a18b6ffe83b89d3fa60e40d0d340c7982ca89d80c64e",
+    "src/harbour_inbox_service.py": "07a4373eb76326287dc0468db04b16ed9bdd4c4023482cae1db806bc8e5a10c8",
+    "src/harbour_knowledge_active_runtime.py": "db0425c81de678a822ceea876f6c8b671b6b52f27e7552d0ce5af0b6aafd0f4c",
+    "src/harbour_knowledge_store.py": "c81efed4328ee04bc97925a49dbea099e950bd92eb4fdeae307797ce0bbfe89e",
+    "src/mcp_authenticated_dispatch.py": "a50e4b62bd51f4e9d9c702ec106581aeabbd75aca19e07850769bcfdc719565c",
+    "src/nextcloud_knowledge_ingestion.py": "1162292368f2c269e6d7d9ec6eb8560486d6af4e2a71927fecd39d4fc9aeebc0",
+    "src/nextcloud_knowledge_ingestion_composition.py": "3f95d9ebeebb9c1b7a519bf74be26078191900dc72ecdc20ac13414d3b089220",
+    "src/planning_mcp_service.py": "7fbb50c2999b600bae26eb188ba89a884d50ba7c6e3c1d2eeb7a06055dc9f8d7",
+    "src/planning_process_runtime.py": "0f4a6ae62e95482a34636317315524ce1fa1e1fc4fd377eb28f18963fc719133",
+    "src/planning_revision_store.py": "f974b6b96fbf457393f212b2cfdd98308469d2bb1b8c3604f06fee5859e5fa84",
+    "src/upload_handler.py": "081c0e88509f02b66f98b181975647f573a206ce6fe7b9ea9a374e617b0421e2",
+    "scripts/architecture_import_map.py": "d578f05654346b5b257ad4da4208285a7ff7179a381d9aea9165bdb45b2e7775",
+    "src/universal_inbox_worker.py": "d73beaf691e477cf42a7b813e7726249002b64760aac82ffa0a9b4eb284f02ef",
+    "src/universal_inbox_extraction.py": "f9cc7cfac8eb1fb0c03629ad6666971fd9d0a1ae83e665102d014b7336e161a6",
+    "src/universal_inbox_ocr.py": "18172b04e44287729372ca5fe8cc01cae1eda8e3fc626f3c0e955b7d75baf655",
+    "src/universal_inbox_items.py": "ffd5a9c331c24f0ced378770c5004a8ba9178bd4252106907bf623795ae34c40",
+    "src/maintenance_model_policy.py": "e39ff067e1a1ea6c070e29467a8c216048ac62a7d6bbcac7071549c249829d63",
+    "src/maintenance_llm_runtime.py": "49d8d7d14cfd7a1437ec4c7051c0b073bdb206da7acbaa71535aeffb3bca73d5",
+    "src/maintenance_output_validator.py": "a60f8ceed3a0d618062f3d34c09322bbda5906596f4356f2de8b1c94acf5745f",
+    "plugins/telegram/plugin.py": "c547c237802abfe40bf293655d16032a605e0ce17deb39515da20cbc6cc2fc01",
+    "plugins/telegram/live_pipeline.py": "31a952760ca81c8031e31d21b8befd1d14efe1ba51458cdb0671ee75a74a82e4",
+    "src/nextcloud_resumable_scanner.py": "82196a642421226a1aba5934cacad255934f21fb5013007c6b44ff5e3e7371af",
+    "src/universal_inbox_nextcloud_transfer.py": "703d45317b0d2c76ae3e0dfe3db137d1aa99b687a6166fd727e287c68c3c510d",
+    "static/frontpage-v3/api.js": "a4f935f0b326d64f74d5cad1cb8b1979fcd1eebb14f77499f42f46e0e5eff4fb",
+    "src/harbour/mcp/dispatcher.py": "2a2f0a491b79bc35de86a7fd6e5372b0be746a917ea492ac41765082b43d2210",
+    "docs/plans/harbour-one-product-roadmap.json": "a9d63f745f74f79378e0961fcaaa45e4ef4b9828f03e13b839a76cb59c01c028",
+    "src/planning_roadmap_migration.py": "a1f032364fe3bda2e5e2f10d1c5f8fabe18d5fb729a282305759b040cbc47985"
+  },
+  "limitations": [
+    "Static import inventory, not runtime reachability or removable-code measurement.",
+    "Includes conditional, function-local and TYPE_CHECKING imports; plugin enablement and dynamic imports are not resolved.",
+    "Existing analyzer domain labels are legacy heuristics, not target-product ownership.",
+    "The analyzer records from-import module bases, not every imported symbol; relative package imports require manual review.",
+    "Historical upstream authorship and percent remaining were not measured.",
+    "Runtime data, deployment revision, credential state and production activity were not read."
+  ],
+  "supplemental_bom_validation": [
+    {
+      "path": "src/builtin_action_email_urgency.py",
+      "utf8_bom": true,
+      "utf8_sig_parse_passed": true,
+      "interpretation": "BOM handling limitation of existing scanner; no demonstrated source syntax error."
+    },
+    {
+      "path": "src/builtin_actions.py",
+      "utf8_bom": true,
+      "utf8_sig_parse_passed": true,
+      "interpretation": "BOM handling limitation of existing scanner; no demonstrated source syntax error."
+    },
+    {
+      "path": "src/task_scheduler_checkin.py",
+      "utf8_bom": true,
+      "utf8_sig_parse_passed": true,
+      "interpretation": "BOM handling limitation of existing scanner; no demonstrated source syntax error."
+    }
+  ],
+  "redqueen_snapshot": {
+    "root": "C:\\Users\\nkatz\\Documents\\RedQueen",
+    "authority": "Observed files in a separately owned dirty working tree, not an accepted immutable release.",
+    "file_sha256": {
+      "07_Produktion/Devblog/README.md": "eced6d2a18aa0edb915ce5b5786d2b1e20298455c4a633f932fa1f6369d01920",
+      "07_Produktion/Devblog/content/queen.json": "6f0120ac99e4fcf5ba0d3672d6d6693aeaf60a54c410fe2221c1469fd4978226",
+      "07_Produktion/Devblog/content/waffen.json": "57ba6a016342a4aba2cf3a089c00b9fb00b843d31cf2581e4fbecec7da2b46c2",
+      "07_Produktion/97_PlanSystem1KI.md": "bdd49de13a1c018859ed82b70abe5aa6a327b89825db35881c46862f7b15d10b",
+      "07_Produktion/108_Projektuebersicht.md": "fcbd57071d75fc8ad93439e4df3bd034964b3714a63c2111989c76108a5e18be",
+      "tools/devblog/build_archive.py": "98e02cd26f9131b9280c6d1ccdcdd3a09bf6760d0c7537057417f65dc5b5e904",
+      "tools/devblog/asset_cards.py": "9fc7600d1ed03450d1f046202702614217a0eed3ab20be72b338d405edcde04e"
+    },
+    "prototype_present": false
+  },
+  "delegated_research": [
+    {
+      "task": "planning_dependencies",
+      "model": "gpt-6-luna",
+      "mode": "read_only"
+    },
+    {
+      "task": "inbox_dependencies",
+      "model": "gpt-6-luna",
+      "mode": "read_only"
+    },
+    {
+      "task": "redqueen_boundary",
+      "model": "gpt-6-luna",
+      "mode": "read_only"
+    }
+  ],
+  "parent_verification": [
+    "Read actual /mcp route and authentication composition.",
+    "Read durable planning/knowledge stores, migration identities and inactive process header.",
+    "Read Universal Inbox worker, model policy, Telegram pipeline/setup and Nextcloud transfer.",
+    "Read Harbour decision Inbox read-model and pinned roadmap statements.",
+    "Read RedQueen blog source contract and Plan97 current decision.",
+    "Corrected earlier /api/codex Planning-write assumption and classified source-scan BOM diagnostics."
+  ]
+}

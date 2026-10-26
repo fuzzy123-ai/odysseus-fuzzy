@@ -1,0 +1,602 @@
+{
+  "schema_version": 1,
+  "kind": "harbour_one.product_separation_roadmap",
+  "title": "Planung und Dokumentation von Universal Inbox trennen",
+  "status": "planned",
+  "updated_at": "2026-10-26T10:30:01.292175+00:00",
+  "parent_roadmap": "docs/plans/harbour-one-product-roadmap.json",
+  "authority": {
+    "scope": "User-authorized dependency inventory and planning only. No implementation, migration or live action.",
+    "source": "User decision in chat 01a177a4-3c91-79b0-9385-63be3cf4248a on 2026-10-26",
+    "historical_runtime_authority": "Existing pinned Harbour roadmap and migration identities remain unchanged. This successor design does not replace an accepted runtime revision."
+  },
+  "authoring_claim": {
+    "claim_id": "HPS-PLAN-20261026",
+    "owner": "/root",
+    "phase": "roadmap_authoring",
+    "state": "released",
+    "acquired_at": "2026-10-26T10:16:19Z",
+    "depends_on": [],
+    "authorization": "User requests dependency inventory and separation plan with delegated low-cost research and parent acceptance.",
+    "allowed_paths": [
+      "ROADMAP.md",
+      "docs/plans/harbour-product-separation-roadmap.json",
+      "docs/plans/harbour-product-separation-inventory.md",
+      "docs/plans/evidence/harbour-product-separation-inventory-20261026.json",
+      "docs/plans/evidence/harbour-product-separation-validation-20261026.json"
+    ],
+    "baseline_revision": "80e4a05e82cb9adc3c6c52b99cbfae1a675e4eed",
+    "ownership_check": "Tracked working tree clean before authoring. Scanned top-level Planning JSON claims: only released H1R-PLAN-RECONCILE-20260905 overlaps ROADMAP.md. All delegated work is read-only.",
+    "released_at": "2026-10-26T10:30:01.292175+00:00",
+    "result": "Dependency inventory and separation plan authored. Three read-only Luna research packets reviewed by parent; independent Sol review findings corrected and rechecked. No implementation authority consumed.",
+    "evidence_ref": "docs/plans/evidence/harbour-product-separation-validation-20261026.json",
+    "verification_limit": "Static source inventory and planning checks only; no application/live/product acceptance."
+  },
+  "decision": {
+    "date": "2026-10-26",
+    "source_thread_id": "01a177a4-3c91-79b0-9385-63be3cf4248a",
+    "confirmed_by_user": [
+      "Zwei getrennte Werkzeuge: Planung/Dokumentation und Universal Inbox.",
+      "Plan/Dok kombiniert Blog, Kanban und bestehendes Harbour-MCP-Planning.",
+      "Universal Inbox umfasst Telegram, Nextcloud und LLM-gestützte Datenprüfung.",
+      "Dieser Auftrag erstellt Inventur und Plan; delegierte Befunde werden vom Parent abgenommen."
+    ],
+    "proposed_implementation": [
+      "Zunächst ein Repository, zwei unabhängig startbare Produktkompositionen, kleine gemeinsame Vertragsbibliothek.",
+      "Inbox bleibt während der Herauslösung auf dem Legacy-Rahmen; Plan/Dok wird zuerst unabhängig.",
+      "Keine gemeinsame veränderbare Planungsdatenbank, keine produktübergreifenden direkten Tabellenwrites.",
+      "Worker-Gateway und allgemeiner KI-Chat sind keine Voraussetzung für Plan/Dok-MVP."
+    ]
+  },
+  "current_findings": {
+    "baseline_revision": "80e4a05e82cb9adc3c6c52b99cbfae1a675e4eed",
+    "inventory_ref": "docs/plans/harbour-product-separation-inventory.md",
+    "machine_evidence_ref": "docs/plans/evidence/harbour-product-separation-inventory-20261026.json",
+    "summary": "Odysseus ist aktuell Host beider Domänen. Planning-/Knowledge-Stores sind wiederverwendbar; Auth, app.state, globale Pfade, Upload-/Dokumentmodelle und Provider-/Plugin-Komposition verhindern eine sofortige unabhängige Nutzung.",
+    "api_correction": "/mcp ist die belegte Harbour-Schnittstelle. Der Legacy-Vertrag /api/codex/* belegt keine passende Planning-Schreiboperation. Fähigkeiten und sichere Schreibadapter müssen in HPS-03 festgestellt werden.",
+    "inbox_distinction": "Universal-Inbox-Dateiverarbeitung und Harbour-Entscheidungslesemodell sind getrennte Implementierungen. Projektentscheidungen gehören in Plan/Dok; Quellen-/Dateieingänge in Universal Inbox.",
+    "frozen_authority": "docs/plans/harbour-one-product-roadmap.json bleibt bytegleich; ihre historische Akzeptanz wird nicht in neuen Produktfortschritt umgerechnet.",
+    "missing_historical_reference": "docs/plans/handoffs/abc-open-work-5h-run-20260905.json fehlt im geprüften Checkout.",
+    "redqueen_prototype": "tools/devblog/workspace/server.py war bei der aktuellen read-only Prüfung nicht vorhanden. Kein Architekturbaustein wird darauf vorausgesetzt."
+  },
+  "contracts": {
+    "planning_source_authority": "Bestehende RedQueen-Pläne/Claims bleiben vorerst Autorität. Harbour projiziert referenziert; spätere Übernahme benötigt eine geprüfte Umschaltrevision und einen einzigen Writer.",
+    "status_dimensions": [
+      "planning",
+      "execution",
+      "verification",
+      "user_acceptance",
+      "documentation"
+    ],
+    "transfer_fields": [
+      "transfer_id",
+      "idempotency_key",
+      "source_product",
+      "source_id",
+      "source_revision",
+      "owner_ref",
+      "target_project_id",
+      "payload_ref",
+      "classification",
+      "permission_ref",
+      "created_at"
+    ],
+    "journal_fields": [
+      "project_id",
+      "aspect_id",
+      "asset_id?",
+      "roadmap_id?",
+      "node_id?",
+      "event_id",
+      "source_ref",
+      "source_revision_or_digest",
+      "occurred_at",
+      "observed_at",
+      "evidence_type",
+      "artifact_refs"
+    ],
+    "knowledge_ownership": "Wiederverwendbarer Store-Vertrag, aber pro Datenbestand genau ein Writer und explizite Projekt-/Inbox-Berechtigungen. Suchindex/Board/HTML sind abgeleitet.",
+    "writer_boundary": "Dokumentationsagent beobachtet belegte Änderungen und erstellt Journalvorschläge. Implementierungsclaims, Tests und Abnahmen bleiben beim zuständigen System/Owner."
+  },
+  "slices": [
+    {
+      "id": "HPS-01",
+      "name": "Produktgrenzen, Quellenhoheit und Nachfolgeplanung festlegen",
+      "depends_on": [],
+      "owner_role": "architecture_owner",
+      "priority": "P0",
+      "class": "repo_only",
+      "scope": [
+        "Zwei Produkte und genau einen Writer je Datenbestand konkretisieren.",
+        "Gemeinsame Identitäts-, Artefakt- und Übergabeverträge versionieren; bestehende IDs erhalten.",
+        "Historische Harbour-Migrationsidentitäten erhalten und einen überprüften Authority-Nachfolger vorbereiten; fehlende Handoff-Evidenz klären.",
+        "RedQueen-Quellenhoheit festhalten: zunächst Referenzprojektion; spätere Übernahme nur mit explizitem Umschaltpunkt."
+      ],
+      "candidate_paths": [
+        "docs/plans/harbour-product-separation-roadmap.json",
+        "docs/plans/harbour-one-product-roadmap.json",
+        "src/planning_roadmap_migration.py",
+        "specs/planning_definition.v2.schema.json"
+      ],
+      "done_when": [
+        "Keine konkurrierenden Plan-/Statusautoritäten und keine Vermischung von Plan, Ist, Prüfung, Abnahme und Dokumentation.",
+        "Bestehende Migration bleibt lesbar; neuer Versionsvertrag ändert alte akzeptierte Revisionen nicht.",
+        "Produkt-/Domain-Owner, Auth-Grenzen, Rechteentzug, Datenlöschung und Übergaberetry sind entschieden und prüfbar."
+      ],
+      "verification": [
+        "Revisions-/Migrationsvertragsprüfung mit historischen Fixtures.",
+        "Schema- und Referenzprüfung; unabhängige Architekturprüfung."
+      ],
+      "risks": [
+        "Unkontrolliertes Ändern eines gepinnten Roadmap-Inputs invalidiert bestehende Nachweise."
+      ],
+      "status": "planned",
+      "claimable": false,
+      "evidence": []
+    },
+    {
+      "id": "HPS-02",
+      "name": "Gemeinsame technische Verträge und getrennte Startprofile",
+      "depends_on": [
+        "HPS-01"
+      ],
+      "owner_role": "platform_integrator",
+      "priority": "P0",
+      "class": "repo_only",
+      "scope": [
+        "Plan/Dok und Inbox über explizite Kompositionen zusammenstellen, zunächst im selben Repository.",
+        "Auth/token/principal, Pfade, Dokumentrepository und Issuer über injizierte Adapter anbinden.",
+        "Globale Datenbank-/Pfadinitialisierung aus reinen Domänenimports entfernen bzw. hinter Host-Adaptern halten.",
+        "Abhängigkeiten für das jeweilige Paket minimieren; keine pauschale Kopie von app.py."
+      ],
+      "candidate_paths": [
+        "app.py",
+        "core/database.py",
+        "core/auth.py",
+        "src/auth_helpers.py",
+        "src/harbour_knowledge_active_runtime.py",
+        "routes/harbour_mcp_routes.py"
+      ],
+      "done_when": [
+        "Plan/Dok startet mit temporären Daten ohne Inbox, Chat, Telegram, Modellserver oder importbedingte Providerkontakte.",
+        "Minimales Inbox-Startgerüst startet mit injizierten Testadaptern ohne Plan/Dok; noch nicht angebundene Funktionen melden unavailable. Die funktionale Inbox-Herauslösung und Connectoren werden erst in HPS-06 abgenommen.",
+        "Bestehende Nutzeridentitäten, Scopeprüfung, Tokenwiderruf und CSRF bleiben wirksam.",
+        "Je Bestand genau ein Writer; gemeinsamer Bibliothekscode bedeutet keinen freien Tabellenzugriff."
+      ],
+      "verification": [
+        "Import-/Startup-Smoke in isolierten Prozessen ohne Netz und mit temporären Daten.",
+        "Auth-denial, token-revocation, missing-config und storage-restart Tests.",
+        "Statische Importkarte vor/nach der Herauslösung."
+      ],
+      "risks": [
+        "core.database und globale Konstanten sind transitive Startabhängigkeiten."
+      ],
+      "status": "planned",
+      "claimable": false,
+      "evidence": []
+    },
+    {
+      "id": "HPS-03",
+      "name": "Projektfähiger Planning-/Knowledge-Kern mit authentifiziertem Zugang",
+      "depends_on": [
+        "HPS-02"
+      ],
+      "owner_role": "planning_backend_owner",
+      "priority": "P0",
+      "class": "repo_only",
+      "scope": [
+        "Bestehende durable Stores und Planning-Definitionen wiederverwenden.",
+        "Allgemeine Projektfähigkeit an synthetischen oder neu Harbour-eigenen Projekten von historischen harbour-one/fuzzy-Migrationsannahmen trennen. Bestehende RedQueen-Planung bleibt bis zu einer expliziten Quellenumschaltung lesend.",
+        "Tatsächliche /mcp-Toolfähigkeiten und nötige sichere Schreiboperationen feststellen und ergänzen.",
+        "Census-Lookup und antwort-only Inbox-Tools nicht als Persistenznachweis verwenden.",
+        "Journal-/Artefakt-Vertrag ergänzen; Runtimefelder nicht in Planning Definition v2 einschleusen."
+      ],
+      "candidate_paths": [
+        "src/planning_revision_store.py",
+        "src/planning_mcp_service.py",
+        "src/mcp_authenticated_dispatch.py",
+        "routes/harbour_mcp_routes.py",
+        "routes/planning_definition_routes.py",
+        "src/harbour_knowledge_store.py"
+      ],
+      "done_when": [
+        "Autorisierte Projekt-/Plan-/Journaländerung an synthetischen oder neu Harbour-eigenen Daten wird dauerhaft gespeichert und exakt zurückgelesen; bestehende RedQueen-Pläne werden vor einer gesonderten Quellenumschaltung nicht parallel beschreibbar.",
+        "Neustart erhält Inhalt, Revision, Herkunft und Rechte.",
+        "Fremder Owner/Projekt, widerrufener Token und veraltete Revision werden abgelehnt.",
+        "Wiederholung mit derselben Idempotenzidentität erzeugt kein Duplikat; angebotene Tools bilden echte Dienste ab."
+      ],
+      "verification": [
+        "Authentifizierter lokaler MCP-/API-End-to-End-Test mit synthetischen Daten.",
+        "CAS-Konflikt, Idempotenz, Widerruf, Korruption und Wiederanlauf.",
+        "Ausgewählte bestehende Store-, Route- und MCP-Tests plus neue Vertragsfälle."
+      ],
+      "risks": [
+        "Bestehende öffentliche Leseoberfläche beweist keinen generischen Journal-Schreibpfad."
+      ],
+      "status": "planned",
+      "claimable": false,
+      "evidence": []
+    },
+    {
+      "id": "HPS-04",
+      "name": "RedQueen-Quellenadapter und Blog/Kanban/Chronik",
+      "depends_on": [
+        "HPS-03"
+      ],
+      "owner_role": "redqueen_adapter_owner_with_blog_owner",
+      "priority": "P0",
+      "class": "repo_only",
+      "scope": [
+        "RedQueen-Pläne/Claims lesend mit stabilen Quellverweisen anbinden. Die Oberfläche nutzt bis zur expliziten Quellenumschaltung den bestehenden autorisierten Writer; ein zweiter bearbeitbarer Planimport ist ausgeschlossen.",
+        "Blog-content, Abschnitt-/Katalog-IDs, Medienindex und historische Quellen erhalten.",
+        "Kanban und Chronik als Projektionen der zuständigen Quellen bauen.",
+        "Queen System1 und Scrapper als konkrete erste Ansichten integrieren; externe Repo-Pfade nur nach Writer-Handoff verändern."
+      ],
+      "candidate_paths": [
+        "static/harbour/",
+        "static/frontpage-v3/"
+      ],
+      "external_candidate_paths": [
+        "RedQueen:tools/devblog/",
+        "RedQueen:07_Produktion/Devblog/"
+      ],
+      "done_when": [
+        "Queen System1 bleibt Zukunft/Entwurf mit aktuellen Planverweisen und offenen Entscheidungen.",
+        "Scrapper zeigt fünf Stufen, Quellen und getrennte Modell-/Gameplay-/Prüf-/Abnahmestände.",
+        "Blog und Board referenzieren dasselbe Vorhaben; redaktionelles Dokumentiert setzt weder Done noch Accepted.",
+        "Medienzugriff und Export sind nachvollziehbar; keine generierten HTML-Dateien werden als Planungsquelle behandelt."
+      ],
+      "verification": [
+        "Read-only Importfixtures aus abgestimmten Quellsnapshots.",
+        "UI-Navigation, Quellenanzeige, Medienfehler, leere und blockierte Zustände.",
+        "Deterministische Wiedererzeugung und keine Statusänderung durch reines Lesen."
+      ],
+      "risks": [
+        "RedQueen-Blog wird parallel bearbeitet; genaue Pfade vor Implementierung übergeben lassen."
+      ],
+      "status": "planned",
+      "claimable": false,
+      "evidence": []
+    },
+    {
+      "id": "HPS-05",
+      "name": "Dokumentationsagent und Plan/Dok-MVP abnehmen",
+      "depends_on": [
+        "HPS-04"
+      ],
+      "owner_role": "documentation_integration_owner",
+      "priority": "P0",
+      "class": "repo_only",
+      "scope": [
+        "Begrenzten Projektänderungs-Collector mit Quellenrevisionen anbinden.",
+        "Dokumentationsagent schreibt Journalvorschläge; bestehender Blog-Writer verarbeitet freigegebene Redaktion.",
+        "Einen synthetischen Ablauf und anschließend einen explizit autorisierten kleinen RedQueen-Slice durchspielen.",
+        "Abschluss/Wiedereröffnung derselben Karte und Blog-Ableitung implementieren; Worker-Gateway ist optional."
+      ],
+      "candidate_paths": [
+        "src/planning_mcp_service.py",
+        "src/harbour_knowledge_store.py"
+      ],
+      "external_candidate_paths": [
+        "RedQueen:tools/devblog/"
+      ],
+      "done_when": [
+        "Plan, tatsächliche Arbeit, Prüfnachweis, Benutzerabnahme und Journal sind getrennt nachvollziehbar.",
+        "Doppelte Beobachtung erzeugt kein zweites Ereignis; fehlender Beleg wird als offen gezeigt.",
+        "Neustart, Wiedereröffnung und Blog-Neuaufbau erhalten Identität und Historie.",
+        "Plan/Dok-MVP funktioniert bei abgeschalteter Universal Inbox."
+      ],
+      "verification": [
+        "Lokaler Golden Flow mit Fehler-/Retry-Szenario und Neustart.",
+        "Unabhängige Funktionsprüfung und konkrete Benutzerabnahme der Oberfläche."
+      ],
+      "risks": [
+        "Dateiänderung allein ist kein Beleg für semantische Fertigstellung."
+      ],
+      "status": "planned",
+      "claimable": false,
+      "evidence": []
+    },
+    {
+      "id": "HPS-06",
+      "name": "Eigenständiger Inbox-Kern und Quellenadapter",
+      "depends_on": [
+        "HPS-02"
+      ],
+      "owner_role": "inbox_backend_owner",
+      "priority": "P0",
+      "class": "repo_only",
+      "scope": [
+        "Upload-/Dokumentindex, Arbeitskopien, Extraktion, Routing und Status als Inbox-Verträge kapseln.",
+        "Telegram-Dateieingang von Chat-Agent, Memory-Writer und PC-Control abgrenzen.",
+        "Nextcloud-Scan, Knowledge-Ingestion und Export als getrennte Adapter mit explizitem Betriebsmodus führen.",
+        "Projektentscheidungen/Blocker aus der verpflichtenden Universal-Inbox-Komposition lösen; optionalen Leselink erhalten."
+      ],
+      "candidate_paths": [
+        "routes/universal_inbox_routes.py",
+        "src/upload_handler.py",
+        "src/universal_inbox_items.py",
+        "src/universal_inbox_worker.py",
+        "src/harbour_inbox_service.py",
+        "plugins/telegram/live_pipeline.py",
+        "plugins/telegram/plugin.py",
+        "src/nextcloud_resumable_scanner.py",
+        "src/universal_inbox_nextcloud_transfer.py"
+      ],
+      "done_when": [
+        "Dateieingang und Review funktionieren ohne Planning-Service und ohne Chat-Agenten.",
+        "Webhook und Polling verwenden gleiche IDs/Deduplizierung; Wiederanlauf verliert keine angenommenen Eingänge.",
+        "Originale, Arbeitskopien, Reviewergebnisse und Exporte haben getrennte Versionen/Besitzer.",
+        "Connectoren sind gezielt aktivierbar; deaktivierte Connectoren starten keine Hintergrundarbeit."
+      ],
+      "verification": [
+        "Synthetische Uploads, OCR/Parser-Fixtures, Owner-denial, working-copy provenance.",
+        "Fake-Telegram/WebDAV, Cursor-Retry, doppelte Events, Quelle nicht erreichbar.",
+        "Prozessneustart und gezieltes Connector-Start/Stop; reale Dienste separat gated."
+      ],
+      "risks": [
+        "Legacy-Pluginsetup bindet mehr Dienste als die Datei-Pipeline benötigt."
+      ],
+      "status": "planned",
+      "claimable": false,
+      "evidence": []
+    },
+    {
+      "id": "HPS-07",
+      "name": "Providerunabhängige Datenprüfung",
+      "depends_on": [
+        "HPS-06"
+      ],
+      "owner_role": "inbox_provider_owner",
+      "priority": "P1",
+      "class": "repo_only",
+      "scope": [
+        "Bestehende lokale Maintenance-Policy und Outputvalidierung als Sicherheits-/Qualitätsvertrag erhalten.",
+        "Provideradapter für konkrete gewählte Prüfmodelle definieren; vorhandene Settings nur über zulässige Produktkonfiguration nutzen.",
+        "Evidenzgebundene Prüfergebnisse, Konflikte und menschliche Klärung statt automatischer Wahrheitsschreibung."
+      ],
+      "candidate_paths": [
+        "src/maintenance_model_policy.py",
+        "src/maintenance_llm_runtime.py",
+        "src/maintenance_output_validator.py",
+        "src/universal_inbox_worker.py"
+      ],
+      "done_when": [
+        "Fake-Provider und lokaler Adapter erfüllen denselben Ergebnisvertrag.",
+        "Budget, Timeout, Datenklassifikation, erlaubter Provider und Fallback sind explizit.",
+        "Modellabweichungen und ungültige Ausgaben führen zu Review/Fehler; kein ungefragter Wechsel zu externen Diensten.",
+        "Prüfergebnis, Freigabe zur Weitergabe und tatsächlicher Export sind unterscheidbar."
+      ],
+      "verification": [
+        "Schema-/Prompt-Injection-Fixtures, nicht erlaubter Provider, Timeout und Budgetgrenzen.",
+        "Kein Netz im Offline-Test; Live-Provider erst nach konkreter Auswahl und Datenfreigabe."
+      ],
+      "risks": [
+        "Andere LLMs sind im untersuchten Inbox-Pfad noch keine fertige austauschbare Funktion."
+      ],
+      "status": "planned",
+      "claimable": false,
+      "evidence": []
+    },
+    {
+      "id": "HPS-08",
+      "name": "Explizite Inbox-zu-Projekt-Übergabe",
+      "depends_on": [
+        "HPS-03",
+        "HPS-06"
+      ],
+      "owner_role": "integration_owner",
+      "priority": "P1",
+      "class": "repo_only",
+      "scope": [
+        "Versionierten Transfer mit Herkunft, Rechtebezug, Zielprojekt und Idempotenz aus HPS-01 implementieren.",
+        "Empfangsbestätigung mit stabiler Zielreferenz; Wiederanlauf und teilweisen Erfolg nachvollziehbar machen.",
+        "Quelllöschung, Rechteentzug, Retention und bereits angenommene Kopien nach vereinbartem Vertrag behandeln."
+      ],
+      "candidate_paths": [
+        "routes/harbour_mcp_routes.py",
+        "src/harbour_inbox_service.py",
+        "src/planning_revision_store.py",
+        "src/harbour_knowledge_store.py"
+      ],
+      "done_when": [
+        "Wiederholte Übergabe erzeugt genau ein Zielvorhaben bzw. eine Zielreferenz.",
+        "Ausfall eines Produkts beschädigt den Zustand des anderen nicht.",
+        "Keine direkten fremden Tabellenwrites und keine Übernahme nicht freigegebener Inhalte.",
+        "Rechteentzug und Löschung haben getestete, sichtbare Wirkung; gemeinsame Kontoidentität erweitert nicht automatisch die Datenfreigabe."
+      ],
+      "verification": [
+        "Producer/consumer contract tests mit Retry vor/nach Commit und Neustart.",
+        "Falscher Owner/Projekt, revoked access, duplicate transfer, partial failure.",
+        "Beide Produkte bleiben eigenständig nutzbar."
+      ],
+      "risks": [
+        "Getrennte Prozesse brauchen explizite Zustellung; keine globale verteilte Transaktion unterstellen."
+      ],
+      "status": "planned",
+      "claimable": false,
+      "evidence": []
+    },
+    {
+      "id": "HPS-09",
+      "name": "Pilot, getrennte Pakete und Legacy-Ausdünnung",
+      "depends_on": [
+        "HPS-05",
+        "HPS-07",
+        "HPS-08"
+      ],
+      "owner_role": "release_owner",
+      "priority": "P1",
+      "class": "repo_only_then_user_release_gate",
+      "scope": [
+        "Aktive Verbraucher, installierte Plugins, Datenbestände und Betriebsanforderungen über redigierte erlaubte Diagnosen erheben.",
+        "Plan/Dok und Inbox mit eigenen Abhängigkeiten, Datenpfaden, Healthchecks und Sicherungs-/Wiederherstellungsabläufen paketieren.",
+        "Nur nachgewiesen ungenutzte alte Routen/Dienste schrittweise deaktivieren; physisches Entfernen separat prüfen.",
+        "Konkrete Hosting-/URL-/Providerentscheidung, Pilotmigration und Rollback vor Live-Umschaltung abschließen."
+      ],
+      "candidate_paths": [
+        "app.py",
+        "requirements.txt",
+        "docker-compose.harbour.yml",
+        "ops/homeserver/",
+        "docs/plans/harbour-product-separation-roadmap.json"
+      ],
+      "done_when": [
+        "Beide Produkte lassen sich unabhängig installieren, starten, sichern und wiederherstellen.",
+        "Benannte Pilotdaten und Produktabläufe sind abgenommen; bisherige Daten und Rückweg sind belegt.",
+        "Plan/Dok benötigt keinen Odysseus-Gesamtprozess; Inbox enthält nur ihre belegten Pflichtdienste plus gewählte Adapter.",
+        "Liste deaktivierter/entfernter Komponenten ist durch Verbraucher- und Starttests begründet."
+      ],
+      "verification": [
+        "Cold-install/start, dependency absence, backup/restore und Rollback mit Testdaten.",
+        "Unabhängige Review, Benutzerabnahme und getrennte konkrete Live-Gates.",
+        "Produktiver Pilot und längerfristiger Betrieb erst mit den jeweils nötigen Freigaben."
+      ],
+      "risks": [
+        "Statische Importzahlen sind keine sichere Löschliste; aktueller Serverstand ist hier unbekannt."
+      ],
+      "status": "planned",
+      "claimable": false,
+      "evidence": []
+    }
+  ],
+  "execution_policy": {
+    "authorization": "planning_only",
+    "implementation_authorized": false,
+    "live_actions_authorized": false,
+    "candidate_paths_are_claims": false,
+    "claim_rule": "Vor jedem Implementierungspaket aktuellen Zustand/Owner und exakte Pfade prüfen und einen eigenen Claim erwerben; candidate_paths sind Abgrenzungsvorschläge.",
+    "parallelizable_after_HPS_02": [
+      [
+        "HPS-03",
+        "HPS-06"
+      ]
+    ],
+    "mvp_path": [
+      "HPS-01",
+      "HPS-02",
+      "HPS-03",
+      "HPS-04",
+      "HPS-05"
+    ],
+    "inbox_path": [
+      "HPS-01",
+      "HPS-02",
+      "HPS-06",
+      "HPS-07"
+    ],
+    "integration_path": [
+      "HPS-03",
+      "HPS-06",
+      "HPS-08"
+    ],
+    "model_routing": "Kleine abgegrenzte Bestandsaufnahmen/Implementierungspakete an Luna; unklare Integrationsfragen gezielt an Sol. Parent übernimmt Architektur, Befundprüfung und Schlussabnahme. Keine Preis-/Gratisannahme.",
+    "review": "Unabhängige Prüfung der Artefakte, danach eigene Parent-Abnahme; Modellurteil ersetzt keine Maschinevidenz."
+  },
+  "gate_queue": [
+    {
+      "id": "HPS-IMPLEMENTATION",
+      "class": "repo_only",
+      "status": "waiting_on_user",
+      "owner": "user",
+      "blocks": [
+        "HPS-01",
+        "HPS-02",
+        "HPS-03",
+        "HPS-04",
+        "HPS-05",
+        "HPS-06",
+        "HPS-07",
+        "HPS-08",
+        "HPS-09"
+      ],
+      "decision_needed": "Gesonderter Umsetzungsauftrag nach dem beauftragten Inventur-/Planungsschritt.",
+      "safe_default": "Nur Planungsartefakte; kein Implementierungsstart."
+    },
+    {
+      "id": "HPS-DEPLOYMENT-DESIGN",
+      "class": "needs_design",
+      "status": "waiting_on_user",
+      "owner": "user",
+      "blocks": [
+        "HPS-09"
+      ],
+      "decision_needed": "Konkrete Produktnamen/URLs, Hosting und Pilotumfang vor dem Rollout.",
+      "safe_default": "Technische lokale Planung ohne festgelegte öffentliche Namen/URLs."
+    },
+    {
+      "id": "HPS-LIVE-SOURCES-PROVIDERS",
+      "class": "needs_live_go",
+      "status": "waiting_on_user",
+      "owner": "user",
+      "blocks": [
+        "HPS-09"
+      ],
+      "decision_needed": "Exakte Telegram-/Nextcloud-Quellen und externe Prüfprovider samt zulässigen Daten vor Aktivierung; vorhandene Freigaben prüfen.",
+      "safe_default": "Fake-Adapter und synthetische Daten."
+    },
+    {
+      "id": "HPS-MIGRATION-RELEASE",
+      "class": "external_release_gate",
+      "status": "waiting_on_user",
+      "owner": "user",
+      "blocks": [
+        "HPS-09"
+      ],
+      "decision_needed": "Konkrete private Datenmigration, Live-Umschaltung und spätere Entfernung benannter Legacy-Komponenten mit Rückweg.",
+      "safe_default": "Keine privaten Daten migrieren, nichts deployen oder entfernen."
+    }
+  ],
+  "not_verified": [
+    "Aktuelle Produktionsrevision und aktivierte Plugins/Provider.",
+    "Vollständige dynamische Laufzeit-Abhängigkeitsauflösung oder sichere Löschliste.",
+    "Produktstart ohne Legacy-Abhängigkeiten und getrennte Paketinstallation.",
+    "Authentifizierter neuer Plan/Dok-Schreibpfad, Migration und End-to-End-Abläufe.",
+    "Live-Telegram, Nextcloud, alternative Prüfmodelle, UI und Langzeitbetrieb.",
+    "Upstream-Abstammungsanteil des Codes und tatsächliche Modellkosten."
+  ],
+  "status_vocabulary": {
+    "draft": "Plan wird verfasst/geprüft.",
+    "planned": "Implementierung ist beschrieben, nicht ausgeführt.",
+    "waiting_on_user": "Materielle Owner-Entscheidung/Freigabe fehlt für den benannten späteren Schritt."
+  },
+  "handoff": {
+    "roadmap": "docs/plans/harbour-product-separation-roadmap.json",
+    "slice": "HPS-PLAN-20261026",
+    "owner": "/root",
+    "claim": "HPS-PLAN-20261026",
+    "next_action": "Bei Umsetzungsauftrag HPS-01 nach aktuellem Ownership-/Authority-Abgleich beginnen.",
+    "blockers": "Keine Blockade für Abschluss der Inventur/Planung. Spätere Implementierung und Live-Schritte haben die benannten Gates.",
+    "evidence_ref": "docs/plans/evidence/harbour-product-separation-validation-20261026.json",
+    "changed_paths": [
+      "ROADMAP.md",
+      "docs/plans/harbour-product-separation-roadmap.json",
+      "docs/plans/harbour-product-separation-inventory.md",
+      "docs/plans/evidence/harbour-product-separation-inventory-20261026.json",
+      "docs/plans/evidence/harbour-product-separation-validation-20261026.json"
+    ],
+    "tests_and_results": [
+      "Existing architecture import-map tests: 3 passed; one asyncio_mode config warning with plugin autoload disabled.",
+      "Duplicate-free JSON, unique IDs, acyclic dependency graph, existing candidate paths, source fingerprints and unchanged pinned parent checked.",
+      "Independent Sol review: four findings corrected; focused recheck passed.",
+      "Final content fingerprint receipt is the evidence_ref; implementation slices remain planned and unclaimable."
+    ]
+  },
+  "review": {
+    "research_models": [
+      "gpt-6-luna",
+      "gpt-6-luna",
+      "gpt-6-luna"
+    ],
+    "independent_reviewer_model": "gpt-6-sol",
+    "independent_scope": "Initial document/source spot-check plus focused correction recheck.",
+    "findings_resolved": [
+      "HPS-02 bootstrap vs HPS-06 functional Inbox acceptance.",
+      "Synthetic/Harbour-owned writes vs read-only RedQueen authority before cutover.",
+      "Full RedQueen Blog README path.",
+      "Exact System1 filename instead of ambiguous Plan 97."
+    ],
+    "parent_owner": "/root",
+    "parent_verdict": "Accepted as inventory and plan only. Implementation and live readiness remain unverified."
+  }
+}

@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "kind": "harbour_one.product_separation.plan_validation",
+  "recorded_at": "2026-10-26T10:31:49.518026+00:00",
+  "baseline_revision": "80e4a05e82cb9adc3c6c52b99cbfae1a675e4eed",
+  "scope": "Inventory and plan acceptance only; no implementation/runtime release.",
+  "verdict": "pass_for_planning",
+  "claim_id": "HPS-PLAN-20261026",
+  "owner": "/root",
+  "artifact_sha256": {
+    "ROADMAP.md": "7f9b5bd0da5d733d52a64eba9959b12753d72188a823015485ea8fd8c2d71437",
+    "docs/plans/harbour-product-separation-roadmap.json": "41452c6efd3a0358f54f9a84f67b9746267ebadf58a5e24550993b1e2e10b7bd",
+    "docs/plans/harbour-product-separation-inventory.md": "3803872ea2114bdde8922a196e90eb1f5416ec575fd570a81ec908688858591b",
+    "docs/plans/evidence/harbour-product-separation-inventory-20261026.json": "24655d4204105078c4e006982f97be97e0f06f67e9fd70b42cf1598262267f0c"
+  },
+  "artifact_set_sha256": "aa28688b9e076b327a44ef36cbc376bf6f3e9e2bb590f1c6e2b9482a968367c5",
+  "tracked_diff_sha256": "9b0577bebf8145539daaa2485be1c7d21b531b9e56819f10a047c0b713e36fd3",
+  "digest_scope": "Four authored candidate files including untracked JSON/Markdown; receipt excluded to avoid self-reference. Source hashes in inventory evidence.",
+  "checks": [
+    {
+      "name": "architecture_import_map_tests",
+      "command": "PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 venv/Scripts/python.exe -B -m pytest --noconftest -p no:cacheprovider -q tests/test_architecture_import_map.py",
+      "result": "3 passed",
+      "warning": "Unknown asyncio_mode config option with automatic plugin loading disabled."
+    },
+    {
+      "name": "duplicate_free_JSON_and_unique_IDs",
+      "result": "pass"
+    },
+    {
+      "name": "acyclic_dependencies",
+      "result": "pass"
+    },
+    {
+      "name": "planned_status_no_implementation_claims",
+      "result": "pass"
+    },
+    {
+      "name": "candidate_paths_and_gate_refs",
+      "result": "pass"
+    },
+    {
+      "name": "source_fingerprints_38",
+      "result": "pass"
+    },
+    {
+      "name": "pinned_parent_and_HEAD_unchanged",
+      "result": "pass"
+    },
+    {
+      "name": "markdown_links_and_index",
+      "result": "pass"
+    },
+    {
+      "name": "git_diff_check_and_new_artifact_whitespace",
+      "result": "pass"
+    },
+    {
+      "name": "no_tracked_source_mutations",
+      "result": "pass"
+    },
+    {
+      "name": "three_BOM_files_parse_with_utf8_sig",
+      "result": "pass"
+    }
+  ],
+  "validation_adjustment": "Initial whole-file whitespace check also examined pre-existing ROADMAP.md lines and failed. Final check uses git diff --check for tracked modifications and full whitespace check for newly authored files; no unrelated whitespace cleanup.",
+  "independent_review": {
+    "model": "gpt-6-sol",
+    "mode": "read_only",
+    "initial_findings": 4,
+    "resolved_findings": 4,
+    "focused_recheck": "passed",
+    "scope_limit": "Document/source spot-check and focused recheck, not a full runtime audit."
+  },
+  "parent_acceptance": {
+    "reviewer": "/root",
+    "result": "accepted_as_inventory_and_plan",
+    "basis": "Critical paths personally read; architecture and authority boundaries checked; four review corrections incorporated; final structural/source checks passed."
+  },
+  "redqueen_snapshot_drift_at_final_check": [],
+  "not_verified": [
+    "Aktuelle Produktionsrevision und aktivierte Plugins/Provider.",
+    "Vollständige dynamische Laufzeit-Abhängigkeitsauflösung oder sichere Löschliste.",
+    "Produktstart ohne Legacy-Abhängigkeiten und getrennte Paketinstallation.",
+    "Authentifizierter neuer Plan/Dok-Schreibpfad, Migration und End-to-End-Abläufe.",
+    "Live-Telegram, Nextcloud, alternative Prüfmodelle, UI und Langzeitbetrieb.",
+    "Upstream-Abstammungsanteil des Codes und tatsächliche Modellkosten."
+  ],
+  "next_action": "Bei Umsetzungsauftrag HPS-01 nach aktuellem Ownership-/Authority-Abgleich beginnen."
+}
