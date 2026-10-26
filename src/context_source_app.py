@@ -55,7 +55,7 @@ def install_context_sources(
         raise ValueError("context composition unavailable") from None
     if getattr(app.state, "auth_manager", None) is not auth_manager:
         raise ValueError("context composition unavailable") from None
-    if any(route.path.startswith("/api/context/") for route in app.routes):
+    if any(getattr(route, "path", "").startswith("/api/context/") for route in app.routes):
         raise ValueError("context composition already installed") from None
     bundle = None
     context_router = None
