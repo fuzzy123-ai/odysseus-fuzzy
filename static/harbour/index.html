@@ -3,39 +3,41 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Harbour One | Operations & Agent Platform</title>
+  <title>Harbour One | Autonomous Agent Platform</title>
   <style>
 /* ==========================================================================
-   Harbour One | OpsPilot-Inspired High-Craft Architecture (100% Autark)
+   Harbour One | High-Craft Blue OpsPilot Architecture (Solo-Developer & Agent Multi-Tasking)
    ========================================================================== */
 
 :root {
-  --bg-canvas: #0b0c10;
-  --bg-card: #13141a;
-  --bg-card-hover: #181a22;
-  --bg-elevated: #1e202a;
+  --bg-canvas: #090a0f;
+  --bg-card: #111218;
+  --bg-card-hover: #161822;
+  --bg-elevated: #1b1d28;
   
-  --border-subtle: #1c1e26;
-  --border-default: #262834;
-  --border-strong: #36394a;
+  --border-subtle: #191b24;
+  --border-default: #222634;
+  --border-strong: #32384c;
   
   --text-main: #f5f6fa;
   --text-muted: #9ba1b4;
   --text-dim: #5c6275;
   
-  /* OpsPilot Accent Palette */
-  --accent-coral: #ff4d4d;
-  --accent-coral-glow: rgba(255, 77, 77, 0.15);
-  --accent-coral-dim: rgba(255, 77, 77, 0.08);
+  /* Electric Blue Accent Palette */
+  --accent-blue: #3b82f6;
+  --accent-blue-deep: #1d4ed8;
+  --accent-blue-bright: #60a5fa;
+  --accent-blue-glow: rgba(59, 130, 246, 0.25);
+  --accent-blue-dim: rgba(59, 130, 246, 0.08);
   
-  --status-high: #ff4d4d;
-  --status-high-bg: rgba(255, 77, 77, 0.15);
+  --status-high: #3b82f6;
+  --status-high-bg: rgba(59, 130, 246, 0.15);
   --status-med: #f59e0b;
   --status-med-bg: rgba(245, 158, 11, 0.15);
   --status-ok: #10b981;
   --status-ok-bg: rgba(16, 185, 129, 0.15);
-  --status-blue: #3b82f6;
-  --status-blue-bg: rgba(59, 130, 246, 0.15);
+  --status-purple: #a855f7;
+  --status-purple-bg: rgba(168, 85, 247, 0.15);
 
   --radius-sm: 8px;
   --radius-md: 12px;
@@ -82,12 +84,13 @@ body {
 .brand-icon-box {
   width: 36px;
   height: 36px;
-  background: linear-gradient(135deg, #ff4d4d, #d92626);
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
   border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
   justify-content: center;
   color: #fff;
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
 }
 
 .brand-title-wrap {
@@ -150,7 +153,7 @@ body {
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #3b82f6, #6366f1);
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -212,13 +215,13 @@ body {
 .kpi-icon-box {
   width: 40px;
   height: 40px;
-  background-color: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background-color: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.18);
   border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-muted);
+  color: var(--accent-blue-bright);
 }
 
 .kpi-content {
@@ -274,74 +277,148 @@ body {
 
 .card-action-link {
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--accent-blue-bright);
   text-decoration: none;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 4px;
+  font-weight: 500;
 }
 .card-action-link:hover { color: #fff; }
 
-/* Activity Bar Chart Mockup (Coral & Dark Blocks) */
+.btn-time-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid var(--border-default);
+  color: #9ba1b4;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn-time-filter:hover {
+  border-color: var(--accent-blue);
+  color: #fff;
+  background: rgba(59, 130, 246, 0.05);
+}
+
+.chart-main-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  position: relative;
+  height: 190px;
+  padding-top: 10px;
+}
+
+.chart-y-axis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 154px;
+  font-size: 11px;
+  color: #555b6d;
+  min-width: 44px;
+  font-variant-numeric: tabular-nums;
+  padding-bottom: 24px;
+  user-select: none;
+}
+
+.bar-chart-wrapper {
+  flex: 1;
+  position: relative;
+  height: 154px;
+}
+
+.chart-gridlines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 130px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.gridline {
+  width: 100%;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.05);
+}
+
 .bar-chart-container {
-  height: 180px;
+  position: relative;
+  z-index: 2;
+  height: 100%;
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 8px;
-  padding: 10px 0 20px;
-  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 24px;
+  border-bottom: 1px solid #1f212a;
 }
 
-.bar-col {
+.month-col-group {
   display: flex;
   flex-direction: column;
   align-items: center;
-  flex: 1;
   gap: 8px;
-  height: 100%;
-  justify-content: flex-end;
+  flex: 1;
+}
+
+.month-bars-cluster {
+  display: flex;
+  align-items: flex-end;
+  gap: 2.5px;
+  height: 130px;
 }
 
 .bar-stack {
-  width: 100%;
-  max-width: 28px;
   display: flex;
-  flex-direction: column-reverse;
-  gap: 3px;
-  align-items: center;
+  flex-direction: column;
+  gap: 2px;
+  width: 5.5px;
+  justify-content: flex-end;
 }
 
 .bar-block {
   width: 100%;
-  height: 7px;
-  border-radius: 2px;
-  background-color: #1f212a;
+  height: 6px;
+  border-radius: 1.5px;
+  background-color: #161922;
 }
 
 .bar-block.filled {
-  background-color: var(--accent-coral);
+  background-color: var(--accent-blue);
+  box-shadow: 0 0 5px rgba(59, 130, 246, 0.45);
 }
 
 .bar-label {
   font-size: 11px;
-  color: var(--text-dim);
+  color: #6b7280;
+  font-weight: 500;
+  user-select: none;
 }
 
-/* Semicircular Gauge (Coral Gradient Segments) */
+/* Semicircular Radial Segment Gauge */
 .gauge-wrapper {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 10px 0;
+  padding: 6px 0 0;
 }
 
 .gauge-arc-mock {
   position: relative;
-  width: 240px;
-  height: 120px;
+  width: 340px;
+  height: 170px;
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -349,37 +426,52 @@ body {
 
 .gauge-center-text {
   position: absolute;
-  bottom: 0;
+  bottom: 8px;
   text-align: center;
+  left: 0;
+  right: 0;
+  user-select: none;
 }
 
 .gauge-big-num {
-  font-size: 32px;
+  font-size: 38px;
   font-weight: 800;
-  color: #fff;
+  color: #ffffff;
   line-height: 1;
+  letter-spacing: -1px;
 }
 
 .gauge-sub {
   font-size: 12px;
-  color: var(--text-dim);
+  color: #6b7280;
+  font-weight: 500;
+  margin-top: 4px;
+  letter-spacing: 0.3px;
 }
 
 .gauge-legend {
   display: flex;
   justify-content: center;
+  align-items: center;
   gap: 16px;
-  margin-top: 24px;
+  margin-top: 22px;
   font-size: 11px;
-  color: var(--text-dim);
+  color: #8a8f9d;
+  font-weight: 500;
+  flex-wrap: wrap;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .legend-dot {
   display: inline-block;
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  margin-right: 5px;
 }
 
 /* Bottom Row: Priority Tasks Table & Agent Workload */
@@ -418,13 +510,13 @@ body {
 .badge-pill {
   font-size: 11px;
   font-weight: 600;
-  padding: 4px 10px;
+  padding: 3px 8px;
   border-radius: var(--radius-pill);
   display: inline-block;
 }
-.badge-high { background: var(--status-high-bg); color: var(--status-high); }
-.badge-med { background: var(--status-med-bg); color: var(--status-med); }
-.badge-ok { background: var(--status-ok-bg); color: var(--status-ok); }
+.badge-high { background: var(--status-high-bg); color: var(--status-high); border: 1px solid rgba(59, 130, 246, 0.25); }
+.badge-med { background: var(--status-med-bg); color: var(--status-med); border: 1px solid rgba(245, 158, 11, 0.25); }
+.badge-ok { background: var(--status-ok-bg); color: var(--status-ok); border: 1px solid rgba(16, 185, 129, 0.25); }
 
 /* Agent Workload List */
 .agent-workload-list {
@@ -444,7 +536,7 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
-  min-width: 160px;
+  min-width: 170px;
 }
 
 .agent-avatar {
@@ -480,7 +572,7 @@ body {
 .agent-progress-track {
   flex: 1;
   height: 6px;
-  background-color: var(--border-subtle);
+  background-color: #181a24;
   border-radius: var(--radius-pill);
   overflow: hidden;
 }
@@ -498,6 +590,288 @@ body {
   text-align: right;
 }
 
+/* Additional Views Styles */
+.view-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.view-title-wrap h2 {
+  font-size: 22px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.4px;
+}
+.view-title-wrap p {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.filter-pill-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.filter-pill-btn {
+  background: #13141a;
+  border: 1px solid #262834;
+  color: #9ba1b4;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 14px;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.filter-pill-btn:hover {
+  color: #fff;
+  border-color: #3b82f6;
+}
+.filter-pill-btn.active {
+  background: #3b82f6;
+  color: #fff;
+  border-color: #3b82f6;
+  font-weight: 600;
+}
+
+.btn-accent {
+  background: var(--accent-blue);
+  color: #fff;
+  border: none;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+.btn-accent:hover { opacity: 0.9; }
+
+/* 4 Workflow Status Columns (Klar differenziert) */
+.workflow-columns-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+  margin-top: 20px;
+}
+@media (max-width: 1200px) {
+  .workflow-columns-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 640px) {
+  .workflow-columns-grid { grid-template-columns: 1fr; }
+}
+
+.workflow-col {
+  background: #111217;
+  border-radius: 14px;
+  border: 1px solid #1e202a;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.col-stage-planned { border-top: 3px solid #60a5fa; }
+.col-stage-inprogress { border-top: 3px solid #3b82f6; }
+.col-stage-verified { border-top: 3px solid #a855f7; }
+.col-stage-accepted { border-top: 3px solid #10b981; }
+
+.workflow-col-header {
+  padding: 14px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #1c1e26;
+  background: rgba(255, 255, 255, 0.015);
+}
+.col-title-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+}
+.col-count-pill {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background: #1c1e26;
+  color: #9ba1b4;
+}
+
+.col-items-list {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 380px;
+}
+
+.slice-card {
+  background: #16171f;
+  border: 1px solid #232532;
+  border-radius: 10px;
+  padding: 14px;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+  cursor: pointer;
+}
+.slice-card:hover {
+  transform: translateY(-2px);
+  border-color: #3b82f6;
+}
+.slice-meta-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.slice-id {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent-blue-bright);
+  letter-spacing: 0.3px;
+}
+.slice-project-tag {
+  font-size: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #9ba1b4;
+}
+.slice-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #f5f6fa;
+  line-height: 1.4;
+  margin-bottom: 8px;
+}
+.slice-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 11px;
+  color: #6b7280;
+}
+.agent-pulse-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #3b82f6;
+  background: rgba(59, 130, 246, 0.12);
+  padding: 2px 8px;
+  border-radius: 9999px;
+}
+.pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #3b82f6;
+  box-shadow: 0 0 6px #3b82f6;
+}
+
+/* DAG Visual Map */
+.dag-map-box {
+  background: #111217;
+  border: 1px solid #1e202a;
+  border-radius: 14px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+.dag-flow-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 12px 6px;
+}
+.dag-node {
+  background: #161720;
+  border: 1px solid #262837;
+  border-radius: 10px;
+  padding: 12px 18px;
+  min-width: 170px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.dag-node.active-node {
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.2);
+}
+.dag-arrow {
+  color: #4b5563;
+  font-size: 18px;
+  user-select: none;
+}
+
+/* Agent Teams Cockpit */
+.agents-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+  margin-bottom: 28px;
+}
+@media (max-width: 1100px) {
+  .agents-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 600px) {
+  .agents-grid { grid-template-columns: 1fr; }
+}
+.agent-cockpit-card {
+  background: #13141a;
+  border: 1px solid #1f212a;
+  border-radius: 14px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  position: relative;
+  overflow: hidden;
+}
+.agent-status-badge {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 9999px;
+}
+
+/* ADR & Decisions Table Controls */
+.decisions-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.search-input-box {
+  background: #161720;
+  border: 1px solid #262837;
+  border-radius: 8px;
+  padding: 8px 14px;
+  color: #fff;
+  font-size: 13px;
+  width: 260px;
+  outline: none;
+}
+.search-input-box:focus {
+  border-color: var(--accent-blue);
+}
+
 /* Responsive */
 @media (max-width: 1100px) {
   .kpi-grid { grid-template-columns: repeat(3, 1fr); }
@@ -508,487 +882,6 @@ body {
   .app-header { flex-wrap: wrap; height: auto; padding: 12px 16px; gap: 12px; }
   .main-viewport { padding: 16px; }
 }
-
-
-  
-  /* OpsPilot High-Craft Middle Statistics Styles */
-  .middle-grid {
-    display: grid;
-    grid-template-columns: 62% 38%;
-    gap: 20px;
-    margin-bottom: 28px;
-  }
-
-  .btn-time-filter {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: transparent;
-    border: 1px solid #262834;
-    color: #9ba1b4;
-    font-size: 12px;
-    font-weight: 500;
-    padding: 5px 12px;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.15s ease;
-  }
-  .btn-time-filter:hover {
-    border-color: #3b3f52;
-    color: #fff;
-    background: rgba(255, 255, 255, 0.03);
-  }
-
-  .chart-main-row {
-    display: flex;
-    gap: 12px;
-    align-items: flex-end;
-    position: relative;
-    height: 190px;
-    padding-top: 10px;
-  }
-
-  .chart-y-axis {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    height: 154px;
-    font-size: 11px;
-    color: #555b6d;
-    min-width: 44px;
-    font-variant-numeric: tabular-nums;
-    padding-bottom: 24px;
-    user-select: none;
-  }
-
-  .bar-chart-wrapper {
-    flex: 1;
-    position: relative;
-    height: 154px;
-  }
-
-  .chart-gridlines {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 130px;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    pointer-events: none;
-    z-index: 1;
-  }
-
-  .gridline {
-    width: 100%;
-    border-bottom: 1px dashed rgba(255, 255, 255, 0.05);
-  }
-
-  .bar-chart-container {
-    position: relative;
-    z-index: 2;
-    height: 100%;
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    padding-bottom: 24px;
-    border-bottom: 1px solid #1f212a;
-  }
-
-  .month-col-group {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    flex: 1;
-  }
-
-  .month-bars-cluster {
-    display: flex;
-    align-items: flex-end;
-    gap: 2.5px;
-    height: 130px;
-  }
-
-  .bar-stack {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    width: 5.5px;
-    justify-content: flex-end;
-  }
-
-  .bar-block {
-    width: 100%;
-    height: 6px;
-    border-radius: 1.5px;
-    background-color: #191b22;
-  }
-
-  .bar-block.filled {
-    background-color: #eb3333;
-    box-shadow: 0 0 5px rgba(235, 51, 51, 0.4);
-  }
-
-  .bar-label {
-    font-size: 11px;
-    color: #6b7280;
-    font-weight: 500;
-    user-select: none;
-  }
-
-  /* Semicircular Radial Segment Gauge */
-  .gauge-wrapper {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 6px 0 0;
-  }
-
-  .gauge-arc-mock {
-    position: relative;
-    width: 340px;
-    height: 170px;
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-  }
-
-  .gauge-center-text {
-    position: absolute;
-    bottom: 8px;
-    text-align: center;
-    left: 0;
-    right: 0;
-    user-select: none;
-  }
-
-  .gauge-big-num {
-    font-size: 38px;
-    font-weight: 800;
-    color: #ffffff;
-    line-height: 1;
-    letter-spacing: -1px;
-  }
-
-  .gauge-sub {
-    font-size: 12px;
-    color: #6b7280;
-    font-weight: 500;
-    margin-top: 4px;
-    letter-spacing: 0.3px;
-  }
-
-  .gauge-legend {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 16px;
-    margin-top: 22px;
-    font-size: 11px;
-    color: #8a8f9d;
-    font-weight: 500;
-    flex-wrap: wrap;
-  }
-
-  .legend-item {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .legend-dot {
-    display: inline-block;
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-  }
-
-  
-  /* Additional OpsPilot Views Styles (Roadmaps, Agents, Devblog, Decisions) */
-  .view-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 24px;
-    flex-wrap: wrap;
-    gap: 16px;
-  }
-  .view-title-wrap h2 {
-    font-size: 22px;
-    font-weight: 700;
-    color: #fff;
-    letter-spacing: -0.4px;
-  }
-  .view-title-wrap p {
-    font-size: 13px;
-    color: var(--text-muted);
-    margin-top: 4px;
-  }
-  
-  .filter-pill-group {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    flex-wrap: wrap;
-  }
-  .filter-pill-btn {
-    background: #13141a;
-    border: 1px solid #262834;
-    color: #9ba1b4;
-    font-size: 12px;
-    font-weight: 500;
-    padding: 6px 14px;
-    border-radius: 9999px;
-    cursor: pointer;
-    transition: all 0.15s ease;
-  }
-  .filter-pill-btn:hover {
-    color: #fff;
-    border-color: #3b3f52;
-  }
-  .filter-pill-btn.active {
-    background: #fff;
-    color: #0b0c10;
-    border-color: #fff;
-    font-weight: 600;
-  }
-
-  /* 4 Workflow Status Columns (Klar differenziert) */
-  .workflow-columns-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 18px;
-    margin-top: 20px;
-  }
-  @media (max-width: 1200px) {
-    .workflow-columns-grid { grid-template-columns: repeat(2, 1fr); }
-  }
-  @media (max-width: 640px) {
-    .workflow-columns-grid { grid-template-columns: 1fr; }
-  }
-
-  .workflow-col {
-    background: #111217;
-    border-radius: 14px;
-    border: 1px solid #1e202a;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-  /* Category distinctions */
-  .col-stage-planned { border-top: 3px solid #3b82f6; }
-  .col-stage-inprogress { border-top: 3px solid #f97316; }
-  .col-stage-verified { border-top: 3px solid #a855f7; }
-  .col-stage-accepted { border-top: 3px solid #10b981; }
-
-  .workflow-col-header {
-    padding: 14px 16px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px solid #1c1e26;
-    background: rgba(255, 255, 255, 0.015);
-  }
-  .col-title-badge {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 13px;
-    font-weight: 700;
-    color: #fff;
-  }
-  .col-count-pill {
-    font-size: 11px;
-    font-weight: 600;
-    padding: 2px 8px;
-    border-radius: 9999px;
-    background: #1c1e26;
-    color: #9ba1b4;
-  }
-
-  .col-items-list {
-    padding: 14px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    min-height: 380px;
-  }
-
-  .slice-card {
-    background: #16171f;
-    border: 1px solid #232532;
-    border-radius: 10px;
-    padding: 14px;
-    transition: transform 0.15s ease, border-color 0.15s ease;
-    cursor: pointer;
-  }
-  .slice-card:hover {
-    transform: translateY(-2px);
-    border-color: #36394a;
-  }
-  .slice-meta-top {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
-  }
-  .slice-id {
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--accent-coral);
-    letter-spacing: 0.3px;
-  }
-  .slice-project-tag {
-    font-size: 10px;
-    background: rgba(255, 255, 255, 0.05);
-    padding: 2px 6px;
-    border-radius: 4px;
-    color: #9ba1b4;
-  }
-  .slice-card-title {
-    font-size: 13px;
-    font-weight: 600;
-    color: #f5f6fa;
-    line-height: 1.4;
-    margin-bottom: 8px;
-  }
-  .slice-card-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 10px;
-    padding-top: 8px;
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
-    font-size: 11px;
-    color: #6b7280;
-  }
-  .agent-pulse-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 11px;
-    font-weight: 600;
-    color: #f97316;
-    background: rgba(249, 115, 22, 0.12);
-    padding: 2px 8px;
-    border-radius: 9999px;
-  }
-  .pulse-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: #f97316;
-    box-shadow: 0 0 6px #f97316;
-  }
-
-  /* DAG Visual Map */
-  .dag-map-box {
-    background: #111217;
-    border: 1px solid #1e202a;
-    border-radius: 14px;
-    padding: 20px;
-    margin-bottom: 24px;
-  }
-  .dag-flow-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    overflow-x: auto;
-    padding: 12px 6px;
-  }
-  .dag-node {
-    background: #161720;
-    border: 1px solid #262837;
-    border-radius: 10px;
-    padding: 12px 18px;
-    min-width: 170px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-  .dag-node.active-node {
-    border-color: var(--accent-coral);
-    box-shadow: 0 0 12px rgba(235, 51, 51, 0.15);
-  }
-  .dag-arrow {
-    color: #4b5563;
-    font-size: 18px;
-    user-select: none;
-  }
-
-  /* Agent Teams Cockpit */
-  .agents-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 18px;
-    margin-bottom: 28px;
-  }
-  @media (max-width: 1100px) {
-    .agents-grid { grid-template-columns: repeat(2, 1fr); }
-  }
-  @media (max-width: 600px) {
-    .agents-grid { grid-template-columns: 1fr; }
-  }
-  .agent-cockpit-card {
-    background: #13141a;
-    border: 1px solid #1f212a;
-    border-radius: 14px;
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-    position: relative;
-    overflow: hidden;
-  }
-  .agent-status-badge {
-    position: absolute;
-    top: 16px;
-    right: 16px;
-    font-size: 11px;
-    font-weight: 600;
-    padding: 3px 8px;
-    border-radius: 9999px;
-  }
-
-  /* ADR & Decisions Table Controls */
-  .decisions-toolbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 16px;
-    flex-wrap: wrap;
-  }
-  .search-input-box {
-    background: #161720;
-    border: 1px solid #262837;
-    border-radius: 8px;
-    padding: 8px 14px;
-    color: #fff;
-    font-size: 13px;
-    width: 260px;
-    outline: none;
-  }
-  .search-input-box:focus {
-    border-color: var(--accent-coral);
-  }
-  .btn-accent {
-    background: var(--accent-coral);
-    color: #fff;
-    border: none;
-    font-weight: 600;
-    font-size: 13px;
-    padding: 8px 16px;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: opacity 0.15s ease;
-  }
-  .btn-accent:hover { opacity: 0.9; }
-
   </style>
 </head>
 <body>
@@ -1004,8 +897,8 @@ body {
         </svg>
       </div>
       <div class="brand-title-wrap">
-        <span class="brand-title">Harbour<span style="color: #ff4d4d;">One</span></span>
-        <span class="brand-subtitle">Autonomous Planning & Agent Platform</span>
+        <span class="brand-title">Harbour<span style="color: #3b82f6;">One</span></span>
+        <span class="brand-subtitle">Autonomous Agent Multitasking & Project Command</span>
       </div>
     </div>
 
@@ -1025,32 +918,34 @@ body {
       </div>
       <div style="cursor: pointer; color: var(--text-muted); position: relative;">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-        <span style="position: absolute; top: -2px; right: -2px; width: 6px; height: 6px; border-radius: 50%; background: #ff4d4d;"></span>
+        <span style="position: absolute; top: -2px; right: -2px; width: 6px; height: 6px; border-radius: 50%; background: #3b82f6;"></span>
       </div>
-      <div class="user-avatar-pill" title="Nikola Katzarow">NK</div>
+      <div class="user-avatar-pill" title="Nikola Katzarow (Solo Operator)">NK</div>
     </div>
   </header>
 
   <main class="main-viewport">
 
-    <!-- View: Overview -->
+    <!-- ========================================== -->
+    <!-- View: Overview (Tab 1)                    -->
+    <!-- ========================================== -->
     <section id="view-overview" class="view-section active">
 
       <!-- Hero Greeting -->
       <div class="hero-greeting">
-        <h1 class="hero-title">Good evening, Nikola 👋</h1>
-        <p class="hero-subtitle">Everything you need to orchestrate your projects & autonomous agents</p>
+        <h1 class="hero-title">Willkommen zurück, Nikola 👋</h1>
+        <p class="hero-subtitle">Echtzeit-Telemetrie deiner Agenten, Workflows und Homeserver-Dienste</p>
       </div>
 
-      <!-- 5 Metric KPI Cards -->
+      <!-- 5 Metric KPI Cards (Echte Systemdaten) -->
       <div class="kpi-grid">
         <div class="kpi-card">
           <div class="kpi-icon-box">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
           </div>
           <div class="kpi-content">
-            <span class="kpi-label">Active Agents</span>
-            <span class="kpi-value">3 Running</span>
+            <span class="kpi-label">Active Containers</span>
+            <span class="kpi-value">3 Online</span>
           </div>
         </div>
 
@@ -1059,8 +954,8 @@ body {
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
           </div>
           <div class="kpi-content">
-            <span class="kpi-label">Active Workflows</span>
-            <span class="kpi-value">248 Slices</span>
+            <span class="kpi-label">Tracked Slices</span>
+            <span class="kpi-value">248 Units</span>
           </div>
         </div>
 
@@ -1069,41 +964,41 @@ body {
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
           </div>
           <div class="kpi-content">
-            <span class="kpi-label">Tasks Completed</span>
-            <span class="kpi-value">1,842</span>
+            <span class="kpi-label">Automated Tests</span>
+            <span class="kpi-value">1,842 Passed</span>
           </div>
         </div>
 
         <div class="kpi-card">
           <div class="kpi-icon-box">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
           </div>
           <div class="kpi-content">
-            <span class="kpi-label">Team Productivity</span>
-            <span class="kpi-value">87%</span>
+            <span class="kpi-label">Homeserver Health</span>
+            <span class="kpi-value">99.8%</span>
           </div>
         </div>
 
         <div class="kpi-card">
           <div class="kpi-icon-box">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
           </div>
           <div class="kpi-content">
-            <span class="kpi-label">Operational Costs</span>
-            <span class="kpi-value">\$84.2K</span>
+            <span class="kpi-label">Repository Volume</span>
+            <span class="kpi-value">84.2K LOC</span>
           </div>
         </div>
       </div>
 
-            <!-- Middle Row: Operations Performance & Semicircular Radial Gauge -->
+      <!-- Middle Row: Agent Telemetry & Semicircular Radial Gauge -->
       <div class="middle-grid">
 
-        <!-- Operations Performance Chart -->
+        <!-- Agent Telemetry Equalizer Chart -->
         <div class="dashboard-card">
           <div class="card-header-flex">
             <div>
-              <h3 class="card-heading">Operations Performance</h3>
-              <p class="card-subtext">Overall business performance and operational efficiency</p>
+              <h3 class="card-heading">Agent Execution & Telemetry</h3>
+              <p class="card-subtext">Monatliche Tool-Aufrufe, Code-Synthesen und Agent-Aktionen</p>
             </div>
             <button class="btn-time-filter" type="button">
               This Month
@@ -1113,11 +1008,11 @@ body {
 
           <div class="chart-main-row">
             <div class="chart-y-axis">
-              <span>$1.2M</span>
-              <span>$900K</span>
-              <span>$600K</span>
-              <span>$300K</span>
-              <span>$0</span>
+              <span>12K</span>
+              <span>9K</span>
+              <span>6K</span>
+              <span>3K</span>
+              <span>0</span>
             </div>
             
             <div class="bar-chart-wrapper">
@@ -1907,12 +1802,12 @@ body {
           </div>
         </div>
 
-        <!-- Semicircular Radial Segment Gauge (Workflow Status) -->
+        <!-- Semicircular Radial Segment Gauge (Slice Distribution) -->
         <div class="dashboard-card">
           <div class="card-header-flex">
             <div>
               <h3 class="card-heading">Workflow Status</h3>
-              <p class="card-subtext">Distribution across all active roadmaps</p>
+              <p class="card-subtext">Verteilung aller aktiven Architektur-Slices</p>
             </div>
             <a href="#" class="card-action-link" onclick="switchTab('roadmaps'); return false;">View All →</a>
           </div>
@@ -1920,194 +1815,221 @@ body {
           <div class="gauge-wrapper">
             <div class="gauge-arc-mock">
               <svg width="340" height="170" viewBox="0 0 340 170" fill="none">
-                <rect x="52.2" y="131.0" width="11.5" height="38.0" rx="5.5" fill="#e52929" transform="rotate(-90.0 58.0 150.0)" />
-                <rect x="53.1" y="117.5" width="11.5" height="38.0" rx="5.5" fill="#e83030" transform="rotate(-83.1 58.8 136.5)" />
-                <rect x="55.5" y="104.2" width="11.5" height="38.0" rx="5.5" fill="#eb3838" transform="rotate(-76.2 61.3 123.2)" />
-                <rect x="59.5" y="91.3" width="11.5" height="38.0" rx="5.5" fill="#ee4242" transform="rotate(-69.2 65.3 110.3)" />
-                <rect x="65.1" y="79.0" width="11.5" height="38.0" rx="5.5" fill="#f04b4b" transform="rotate(-62.3 70.8 98.0)" />
-                <rect x="72.1" y="67.4" width="11.5" height="38.0" rx="5.5" fill="#f35757" transform="rotate(-55.4 77.8 86.4)" />
-                <rect x="80.4" y="56.7" width="11.5" height="38.0" rx="5.5" fill="#f56363" transform="rotate(-48.5 86.2 75.7)" />
-                <rect x="90.0" y="47.2" width="11.5" height="38.0" rx="5.5" fill="#f77070" transform="rotate(-41.5 95.7 66.2)" />
-                <rect x="100.6" y="38.8" width="11.5" height="38.0" rx="5.5" fill="#f97e7e" transform="rotate(-34.6 106.4 57.8)" />
-                <rect x="112.2" y="31.8" width="11.5" height="38.0" rx="5.5" fill="#fa8b8b" transform="rotate(-27.7 118.0 50.8)" />
-                <rect x="124.5" y="26.3" width="11.5" height="38.0" rx="5.5" fill="#fb9797" transform="rotate(-20.8 130.3 45.3)" />
-                <rect x="137.4" y="22.3" width="11.5" height="38.0" rx="5.5" fill="#fca3a3" transform="rotate(-13.8 143.2 41.3)" />
-                <rect x="150.7" y="19.8" width="11.5" height="38.0" rx="5.5" fill="#fdb1b1" transform="rotate(-6.9 156.5 38.8)" />
-                <rect x="164.2" y="19.0" width="11.5" height="38.0" rx="5.5" fill="#fdbfbf" transform="rotate(0.0 170.0 38.0)" />
-                <rect x="177.8" y="19.8" width="11.5" height="38.0" rx="5.5" fill="#fecccc" transform="rotate(6.9 183.5 38.8)" />
-                <rect x="191.1" y="22.3" width="11.5" height="38.0" rx="5.5" fill="#fed9d9" transform="rotate(13.8 196.8 41.3)" />
-                <rect x="204.0" y="26.3" width="11.5" height="38.0" rx="5.5" fill="#fee6e6" transform="rotate(20.8 209.7 45.3)" />
-                <rect x="216.3" y="31.8" width="11.5" height="38.0" rx="5.5" fill="#cbd5e1" transform="rotate(27.7 222.0 50.8)" />
-                <rect x="227.9" y="38.8" width="11.5" height="38.0" rx="5.5" fill="#94a3b8" transform="rotate(34.6 233.6 57.8)" />
-                <rect x="238.5" y="47.2" width="11.5" height="38.0" rx="5.5" fill="#64748b" transform="rotate(41.5 244.3 66.2)" />
-                <rect x="248.1" y="56.7" width="11.5" height="38.0" rx="5.5" fill="#475569" transform="rotate(48.5 253.8 75.7)" />
-                <rect x="256.4" y="67.4" width="11.5" height="38.0" rx="5.5" fill="#3b4354" transform="rotate(55.4 262.2 86.4)" />
-                <rect x="263.4" y="79.0" width="11.5" height="38.0" rx="5.5" fill="#2f3644" transform="rotate(62.3 269.2 98.0)" />
-                <rect x="269.0" y="91.3" width="11.5" height="38.0" rx="5.5" fill="#262c37" transform="rotate(69.2 274.7 110.3)" />
-                <rect x="273.0" y="104.2" width="11.5" height="38.0" rx="5.5" fill="#1f232c" transform="rotate(76.2 278.7 123.2)" />
-                <rect x="275.4" y="117.5" width="11.5" height="38.0" rx="5.5" fill="#191c23" transform="rotate(83.1 281.2 136.5)" />
-                <rect x="276.2" y="131.0" width="11.5" height="38.0" rx="5.5" fill="#14161c" transform="rotate(90.0 282.0 150.0)" />
+                <rect x="52.2" y="131.0" width="11.5" height="38.0" rx="5.5" fill="#1d4ed8" transform="rotate(-90.0 58.0 150.0)" />
+                <rect x="53.1" y="117.5" width="11.5" height="38.0" rx="5.5" fill="#2563eb" transform="rotate(-83.1 58.8 136.5)" />
+                <rect x="55.5" y="104.2" width="11.5" height="38.0" rx="5.5" fill="#316cee" transform="rotate(-76.2 61.3 123.2)" />
+                <rect x="59.5" y="91.3" width="11.5" height="38.0" rx="5.5" fill="#3b82f6" transform="rotate(-69.2 65.3 110.3)" />
+                <rect x="65.1" y="79.0" width="11.5" height="38.0" rx="5.5" fill="#4f90f7" transform="rotate(-62.3 70.8 98.0)" />
+                <rect x="72.1" y="67.4" width="11.5" height="38.0" rx="5.5" fill="#5a9af8" transform="rotate(-55.4 77.8 86.4)" />
+                <rect x="80.4" y="56.7" width="11.5" height="38.0" rx="5.5" fill="#60a5fa" transform="rotate(-48.5 86.2 75.7)" />
+                <rect x="90.0" y="47.2" width="11.5" height="38.0" rx="5.5" fill="#70b0fb" transform="rotate(-41.5 95.7 66.2)" />
+                <rect x="100.6" y="38.8" width="11.5" height="38.0" rx="5.5" fill="#80bbfb" transform="rotate(-34.6 106.4 57.8)" />
+                <rect x="112.2" y="31.8" width="11.5" height="38.0" rx="5.5" fill="#90c6fc" transform="rotate(-27.7 118.0 50.8)" />
+                <rect x="124.5" y="26.3" width="11.5" height="38.0" rx="5.5" fill="#a0d1fd" transform="rotate(-20.8 130.3 45.3)" />
+                <rect x="137.4" y="22.3" width="11.5" height="38.0" rx="5.5" fill="#b0dcfe" transform="rotate(-13.8 143.2 41.3)" />
+                <rect x="150.7" y="19.8" width="11.5" height="38.0" rx="5.5" fill="#bae6fd" transform="rotate(-6.9 156.5 38.8)" />
+                <rect x="164.2" y="19.0" width="11.5" height="38.0" rx="5.5" fill="#ccebfe" transform="rotate(0.0 170.0 38.0)" />
+                <rect x="177.8" y="19.8" width="11.5" height="38.0" rx="5.5" fill="#e0f2fe" transform="rotate(6.9 183.5 38.8)" />
+                <rect x="191.1" y="22.3" width="11.5" height="38.0" rx="5.5" fill="#f0f9ff" transform="rotate(13.8 196.8 41.3)" />
+                <rect x="204.0" y="26.3" width="11.5" height="38.0" rx="5.5" fill="#e2e8f0" transform="rotate(20.8 209.7 45.3)" />
+                <rect x="216.3" y="31.8" width="11.5" height="38.0" rx="5.5" fill="#94a3b8" transform="rotate(27.7 222.0 50.8)" />
+                <rect x="227.9" y="38.8" width="11.5" height="38.0" rx="5.5" fill="#64748b" transform="rotate(34.6 233.6 57.8)" />
+                <rect x="238.5" y="47.2" width="11.5" height="38.0" rx="5.5" fill="#475569" transform="rotate(41.5 244.3 66.2)" />
+                <rect x="248.1" y="56.7" width="11.5" height="38.0" rx="5.5" fill="#3b4354" transform="rotate(48.5 253.8 75.7)" />
+                <rect x="256.4" y="67.4" width="11.5" height="38.0" rx="5.5" fill="#2f3644" transform="rotate(55.4 262.2 86.4)" />
+                <rect x="263.4" y="79.0" width="11.5" height="38.0" rx="5.5" fill="#262c37" transform="rotate(62.3 269.2 98.0)" />
+                <rect x="269.0" y="91.3" width="11.5" height="38.0" rx="5.5" fill="#1f232c" transform="rotate(69.2 274.7 110.3)" />
+                <rect x="273.0" y="104.2" width="11.5" height="38.0" rx="5.5" fill="#181c24" transform="rotate(76.2 278.7 123.2)" />
+                <rect x="275.4" y="117.5" width="11.5" height="38.0" rx="5.5" fill="#14171d" transform="rotate(83.1 281.2 136.5)" />
+                <rect x="276.2" y="131.0" width="11.5" height="38.0" rx="5.5" fill="#101217" transform="rotate(90.0 282.0 150.0)" />
               </svg>
               <div class="gauge-center-text">
                 <div class="gauge-big-num">248</div>
-                <div class="gauge-sub">Total Workflows</div>
+                <div class="gauge-sub">Total Slices</div>
               </div>
             </div>
           </div>
 
           <div class="gauge-legend">
-            <span class="legend-item"><span class="legend-dot" style="background: #e52929;"></span> In Progress</span>
-            <span class="legend-item"><span class="legend-dot" style="background: #f77070;"></span> Completed</span>
-            <span class="legend-item"><span class="legend-dot" style="background: #fdb1b1;"></span> On Hold</span>
-            <span class="legend-item"><span class="legend-dot" style="background: #cbd5e1;"></span> Delayed</span>
-            <span class="legend-item"><span class="legend-dot" style="background: #334155;"></span> Cancelled</span>
+            <span class="legend-item"><span class="legend-dot" style="background: #1d4ed8;"></span> Verifiziert</span>
+            <span class="legend-item"><span class="legend-dot" style="background: #3b82f6;"></span> In Arbeit</span>
+            <span class="legend-item"><span class="legend-dot" style="background: #60a5fa;"></span> Geplant</span>
+            <span class="legend-item"><span class="legend-dot" style="background: #bae6fd;"></span> Review</span>
+            <span class="legend-item"><span class="legend-dot" style="background: #334155;"></span> Archiviert</span>
           </div>
         </div>
 
       </div>
 
-      <!-- Bottom Row: Priority Tasks Table & Team Workload -->
+      <!-- Bottom Row: Priority Tasks Table & Agent Workload -->
       <div class="bottom-grid">
 
-        <!-- Priority Tasks Table -->
+        <!-- Active Slices & Tasks Table (Echte Aufgaben) -->
         <div class="dashboard-card">
           <div class="card-header-flex">
-            <h3 class="card-heading">Priority Tasks</h3>
-            <a href="#" class="card-action-link" onclick="switchTab('decisions'); return false;">View All ➔</a>
+            <div>
+              <h3 class="card-heading">Active Roadmap Slices</h3>
+              <p class="card-subtext">Priorisierte Slices im aktuellen Sprint</p>
+            </div>
+            <a href="#" class="card-action-link" onclick="switchTab('roadmaps'); return false;">View All →</a>
           </div>
 
           <table class="ops-table">
             <thead>
               <tr>
-                <th>Task</th>
-                <th>Owner</th>
-                <th>Priority</th>
-                <th>Due Date</th>
+                <th>Slice / Task</th>
+                <th>Zuständiger Agent</th>
+                <th>Priorität</th>
+                <th>Zieltermin</th>
                 <th>Status</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td><span style="display:inline-flex; align-items:center; gap:6px;">📄 Review vendor proposal</span></td>
+                <td><span style="display:inline-flex; align-items:center; gap:6px;">⚡ SLC-02: OpsPilot Blue HUD & Reaktivität</span></td>
                 <td>
                   <div style="display:flex; align-items:center; gap:8px;">
-                    <div style="width:24px; height:24px; border-radius:50%; background:#ff4d4d; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700;">SA</div>
-                    <span>Sarah Ahmed</span>
+                    <div style="width:24px; height:24px; border-radius:50%; background:#2563eb; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700;">AS</div>
+                    <span>Agent Sol (Frontend)</span>
                   </div>
                 </td>
-                <td><span class="badge-pill badge-high">High</span></td>
-                <td style="color: var(--text-dim);">Apr 29, 2026</td>
-                <td><span class="badge-pill" style="background:rgba(255,59,59,0.12); color:#ff4d4d;">Overdue</span></td>
+                <td><span class="badge-pill badge-high">P0 Blocker</span></td>
+                <td style="color: var(--text-dim);">26. Okt 2026</td>
+                <td><span class="badge-pill badge-high">In Work</span></td>
               </tr>
               <tr>
-                <td><span style="display:inline-flex; align-items:center; gap:6px;">📄 Approve purchase Order</span></td>
+                <td><span style="display:inline-flex; align-items:center; gap:6px;">🔒 SLC-03: RedQueen Path-Scoped Leases</span></td>
                 <td>
                   <div style="display:flex; align-items:center; gap:8px;">
-                    <div style="width:24px; height:24px; border-radius:50%; background:#3b82f6; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700;">JM</div>
-                    <span>James Miller</span>
+                    <div style="width:24px; height:24px; border-radius:50%; background:#3b82f6; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700;">AL</div>
+                    <span>Agent Luna (Coordinator)</span>
                   </div>
                 </td>
-                <td><span class="badge-pill badge-high">High</span></td>
-                <td style="color: var(--text-dim);">Apr 29, 2026</td>
-                <td><span class="badge-pill" style="background:rgba(255,59,59,0.12); color:#ff4d4d;">Overdue</span></td>
+                <td><span class="badge-pill badge-high">P0 Blocker</span></td>
+                <td style="color: var(--text-dim);">27. Okt 2026</td>
+                <td><span class="badge-pill badge-high">In Work</span></td>
               </tr>
               <tr>
-                <td><span style="display:inline-flex; align-items:center; gap:6px;">📄 Client onboarding call</span></td>
+                <td><span style="display:inline-flex; align-items:center; gap:6px;">🔄 ADR-04: MCP Planning Dual-Sync Bridge</span></td>
                 <td>
                   <div style="display:flex; align-items:center; gap:8px;">
-                    <div style="width:24px; height:24px; border-radius:50%; background:#10b981; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700;">PS</div>
-                    <span>Priya Singh</span>
+                    <div style="width:24px; height:24px; border-radius:50%; background:#60a5fa; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700;">AG</div>
+                    <span>Agy (Orchestrator)</span>
                   </div>
                 </td>
-                <td><span class="badge-pill badge-med">Medium</span></td>
-                <td style="color: var(--text-dim);">Apr 30, 2026</td>
-                <td><span class="badge-pill" style="background:rgba(16,185,129,0.12); color:#10b981;">In Progress</span></td>
+                <td><span class="badge-pill badge-med">P1 Critical</span></td>
+                <td style="color: var(--text-dim);">28. Okt 2026</td>
+                <td><span class="badge-pill badge-med">In Review</span></td>
               </tr>
               <tr>
-                <td><span style="display:inline-flex; align-items:center; gap:6px;">📄 Process refund request</span></td>
+                <td><span style="display:inline-flex; align-items:center; gap:6px;">🚀 SRV-01: Homeserver Podman Port 7050 Bind</span></td>
                 <td>
                   <div style="display:flex; align-items:center; gap:8px;">
-                    <div style="width:24px; height:24px; border-radius:50%; background:#8b5cf6; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700;">DW</div>
-                    <span>David Wilson</span>
+                    <div style="width:24px; height:24px; border-radius:50%; background:#1d4ed8; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700;">AC</div>
+                    <span>Agent Chronos (Release)</span>
                   </div>
                 </td>
-                <td><span class="badge-pill badge-med">Medium</span></td>
-                <td style="color: var(--text-dim);">May 1, 2026</td>
-                <td><span class="badge-pill" style="background:rgba(16,185,129,0.12); color:#10b981;">In Progress</span></td>
+                <td><span class="badge-pill badge-med">P1 Critical</span></td>
+                <td style="color: var(--text-dim);">25. Okt 2026</td>
+                <td><span class="badge-pill badge-ok">Verified</span></td>
               </tr>
             </tbody>
           </table>
         </div>
 
-        <!-- Team & Agent Workload -->
+        <!-- Agent Multitasking & Workload Cockpit (Echte Agenten) -->
         <div class="dashboard-card">
           <div class="card-header-flex">
-            <h3 class="card-heading">Team & Agent Workload</h3>
-            <a href="#" class="card-action-link" onclick="switchTab('agents'); return false;">View All ➔</a>
+            <div>
+              <h3 class="card-heading">Agent Multitasking & Workload</h3>
+              <p class="card-subtext">Aktive KI-Instanzen und Lease-Auslastung</p>
+            </div>
+            <a href="#" class="card-action-link" onclick="switchTab('agents'); return false;">View All →</a>
           </div>
 
           <div class="agent-workload-list">
+            <!-- Agy -->
             <div class="agent-row">
               <div class="agent-meta-left">
-                <div class="agent-avatar" style="background: #ff4d4d;">SA</div>
+                <div class="agent-avatar" style="background: linear-gradient(135deg, #2563eb, #1d4ed8);">AG</div>
                 <div>
-                  <div class="agent-name-title">Sarah Ahmed</div>
-                  <div class="agent-role-sub">Product Manager / Agent Lead</div>
+                  <div class="agent-name-title">Agy (Lead Orchestrator)</div>
+                  <div class="agent-role-sub">Execution & Task Dispatch</div>
                 </div>
               </div>
               <div class="agent-bar-wrap">
                 <div class="agent-progress-track">
-                  <div class="agent-progress-fill" style="width: 92%; background: #ff4d4d;"></div>
+                  <div class="agent-progress-fill" style="width: 88%; background: linear-gradient(90deg, #2563eb, #3b82f6);"></div>
                 </div>
-                <span class="agent-percent-num">92%</span>
+                <span class="agent-percent-num">88%</span>
               </div>
             </div>
 
+            <!-- Agent Luna -->
             <div class="agent-row">
               <div class="agent-meta-left">
-                <div class="agent-avatar" style="background: #3b82f6;">JM</div>
+                <div class="agent-avatar" style="background: linear-gradient(135deg, #3b82f6, #60a5fa);">AL</div>
                 <div>
-                  <div class="agent-name-title">James Miller</div>
-                  <div class="agent-role-sub">Operations Lead</div>
+                  <div class="agent-name-title">Agent Luna (Coordinator)</div>
+                  <div class="agent-role-sub">Path-Scoped Claims & Leases</div>
                 </div>
               </div>
               <div class="agent-bar-wrap">
                 <div class="agent-progress-track">
-                  <div class="agent-progress-fill" style="width: 76%; background: #ff4d4d;"></div>
+                  <div class="agent-progress-fill" style="width: 74%; background: linear-gradient(90deg, #3b82f6, #60a5fa);"></div>
                 </div>
-                <span class="agent-percent-num">76%</span>
+                <span class="agent-percent-num">74%</span>
               </div>
             </div>
 
+            <!-- Opus -->
             <div class="agent-row">
               <div class="agent-meta-left">
-                <div class="agent-avatar" style="background: #10b981;">PS</div>
+                <div class="agent-avatar" style="background: linear-gradient(135deg, #a855f7, #6366f1);">OP</div>
                 <div>
-                  <div class="agent-name-title">Priya Singh</div>
-                  <div class="agent-role-sub">Team Lead / QA</div>
+                  <div class="agent-name-title">Opus (Chief Reviewer)</div>
+                  <div class="agent-role-sub">Formal Verification & QA</div>
                 </div>
               </div>
               <div class="agent-bar-wrap">
                 <div class="agent-progress-track">
-                  <div class="agent-progress-fill" style="width: 68%; background: #f59e0b;"></div>
+                  <div class="agent-progress-fill" style="width: 62%; background: linear-gradient(90deg, #a855f7, #3b82f6);"></div>
                 </div>
-                <span class="agent-percent-num">68%</span>
+                <span class="agent-percent-num">62%</span>
               </div>
             </div>
 
+            <!-- Argon -->
             <div class="agent-row">
               <div class="agent-meta-left">
-                <div class="agent-avatar" style="background: #8b5cf6;">DW</div>
+                <div class="agent-avatar" style="background: linear-gradient(135deg, #0ea5e9, #38bdf8);">AR</div>
                 <div>
-                  <div class="agent-name-title">David Wilson</div>
-                  <div class="agent-role-sub">Backend Developer</div>
+                  <div class="agent-name-title">Argon (Chief Architect)</div>
+                  <div class="agent-role-sub">System Design & Spec Drafting</div>
                 </div>
               </div>
               <div class="agent-bar-wrap">
                 <div class="agent-progress-track">
-                  <div class="agent-progress-fill" style="width: 54%; background: #3b82f6;"></div>
+                  <div class="agent-progress-fill" style="width: 54%; background: linear-gradient(90deg, #0284c7, #38bdf8);"></div>
                 </div>
                 <span class="agent-percent-num">54%</span>
+              </div>
+            </div>
+
+            <!-- Atlas -->
+            <div class="agent-row">
+              <div class="agent-meta-left">
+                <div class="agent-avatar" style="background: linear-gradient(135deg, #475569, #334155);">AT</div>
+                <div>
+                  <div class="agent-name-title">Atlas (Standby Worker)</div>
+                  <div class="agent-role-sub">Codebase Search & Analysis</div>
+                </div>
+              </div>
+              <div class="agent-bar-wrap">
+                <div class="agent-progress-track">
+                  <div class="agent-progress-fill" style="width: 20%; background: #475569;"></div>
+                </div>
+                <span class="agent-percent-num">20%</span>
               </div>
             </div>
           </div>
@@ -2146,13 +2068,13 @@ body {
           </div>
           <span class="dag-arrow">➔</span>
           <div class="dag-node active-node">
-            <span style="font-size: 10px; color: #ff4d4d; font-weight: 700;">PHASE 2 • IN WORK</span>
-            <strong style="color: #fff; font-size: 13px;">OpsPilot Cockpit UI</strong>
+            <span style="font-size: 10px; color: #3b82f6; font-weight: 700;">PHASE 2 • IN WORK</span>
+            <strong style="color: #fff; font-size: 13px;">OpsPilot Blue Cockpit</strong>
             <span style="font-size: 11px; color: #6b7280;">Active Agent: Sol</span>
           </div>
           <span class="dag-arrow">➔</span>
           <div class="dag-node active-node">
-            <span style="font-size: 10px; color: #f97316; font-weight: 700;">PHASE 3 • IN WORK</span>
+            <span style="font-size: 10px; color: #60a5fa; font-weight: 700;">PHASE 3 • IN WORK</span>
             <strong style="color: #fff; font-size: 13px;">Multi-Tasking Leases</strong>
             <span style="font-size: 11px; color: #6b7280;">Active Agent: Luna</span>
           </div>
@@ -2177,7 +2099,7 @@ body {
         <div class="workflow-col col-stage-planned">
           <div class="workflow-col-header">
             <div class="col-title-badge">
-              <span style="color: #3b82f6;">●</span> Geplant
+              <span style="color: #60a5fa;">●</span> Geplant
             </div>
             <span class="col-count-pill">3</span>
           </div>
@@ -2190,7 +2112,7 @@ body {
               <div class="slice-card-title">Live WebSocket Feed für Agent Multitasking Telemetrie</div>
               <div class="slice-card-footer">
                 <span>Lease: Unassigned</span>
-                <span style="color: #3b82f6; font-weight: 600;">P1 High</span>
+                <span style="color: #60a5fa; font-weight: 600;">P1 High</span>
               </div>
             </div>
             <div class="slice-card" data-project="redqueen">
@@ -2201,7 +2123,7 @@ body {
               <div class="slice-card-title">Bounded File Size Auditor für Subagenten-Workspaces</div>
               <div class="slice-card-footer">
                 <span>Lease: Unassigned</span>
-                <span style="color: #3b82f6; font-weight: 600;">P2 Med</span>
+                <span style="color: #60a5fa; font-weight: 600;">P2 Med</span>
               </div>
             </div>
             <div class="slice-card" data-project="odysseus">
@@ -2212,7 +2134,7 @@ body {
               <div class="slice-card-title">Automatisierte Snapshot-Verifikation vor Server-Releases</div>
               <div class="slice-card-footer">
                 <span>Lease: Unassigned</span>
-                <span style="color: #3b82f6; font-weight: 600;">P1 High</span>
+                <span style="color: #60a5fa; font-weight: 600;">P1 High</span>
               </div>
             </div>
           </div>
@@ -2222,7 +2144,7 @@ body {
         <div class="workflow-col col-stage-inprogress">
           <div class="workflow-col-header">
             <div class="col-title-badge">
-              <span style="color: #f97316;">●</span> In Arbeit
+              <span style="color: #3b82f6;">●</span> In Arbeit
             </div>
             <span class="col-count-pill">2</span>
           </div>
@@ -2232,10 +2154,10 @@ body {
                 <span class="slice-id">SLC-02</span>
                 <span class="slice-project-tag">Harbour One</span>
               </div>
-              <div class="slice-card-title">OpsPilot Design Angleichung: Equalizer Bars & Radial Gauge</div>
+              <div class="slice-card-title">OpsPilot Blue HUD: Equalizer Bars & Radial Blue Gauge</div>
               <div class="slice-card-footer">
                 <span class="agent-pulse-pill"><span class="pulse-dot"></span> Agent Sol</span>
-                <span style="color: #f97316; font-weight: 600;">14m TTL</span>
+                <span style="color: #3b82f6; font-weight: 600;">14m TTL</span>
               </div>
             </div>
             <div class="slice-card" data-project="redqueen">
@@ -2246,7 +2168,7 @@ body {
               <div class="slice-card-title">Concurrent Subagent Leases & Path-Scoped Claim Manager</div>
               <div class="slice-card-footer">
                 <span class="agent-pulse-pill"><span class="pulse-dot"></span> Agent Luna</span>
-                <span style="color: #f97316; font-weight: 600;">22m TTL</span>
+                <span style="color: #3b82f6; font-weight: 600;">22m TTL</span>
               </div>
             </div>
           </div>
@@ -2311,7 +2233,7 @@ body {
                 <span class="slice-id">ADR-02</span>
                 <span class="slice-project-tag">Harbour One</span>
               </div>
-              <div class="slice-card-title">Design Direction: OpsPilot Dark Obsidian Theme</div>
+              <div class="slice-card-title">Design Direction: Blue OpsPilot Tactical HUD</div>
               <div class="slice-card-footer">
                 <span style="color: #10b981; font-weight: 600;">✓ Accepted</span>
                 <span>Nikola</span>
@@ -2331,8 +2253,8 @@ body {
           <h2>Agent Teams & Multitasking Cockpit</h2>
           <p>Echtzeit-Übersicht: Welche Agenten arbeiten gerade an welchen Slices & Pfaden</p>
         </div>
-        <div style="font-size: 12px; color: #10b981; font-weight: 600; display: flex; align-items: center; gap: 6px;">
-          <span style="width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 8px #10b981;"></span>
+        <div style="font-size: 12px; color: #3b82f6; font-weight: 600; display: flex; align-items: center; gap: 6px;">
+          <span style="width: 8px; height: 8px; border-radius: 50%; background: #3b82f6; box-shadow: 0 0 8px #3b82f6;"></span>
           3 Agenten aktiv im Workspace
         </div>
       </div>
@@ -2340,9 +2262,9 @@ body {
       <div class="agents-grid">
         <!-- Agent Sol -->
         <div class="agent-cockpit-card">
-          <span class="agent-status-badge" style="background: rgba(235, 51, 51, 0.15); color: #ff4d4d;">Running</span>
+          <span class="agent-status-badge" style="background: rgba(59, 130, 246, 0.15); color: #3b82f6;">Running</span>
           <div style="display: flex; align-items: center; gap: 12px;">
-            <div style="width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #ff4d4d, #d92626); display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 14px;">AS</div>
+            <div style="width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #2563eb, #1d4ed8); display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 14px;">AS</div>
             <div>
               <strong style="color: #fff; font-size: 15px;">Agent Sol</strong>
               <div style="font-size: 12px; color: #8a8f9d;">Frontend & UI Engineer</div>
@@ -2350,23 +2272,23 @@ body {
           </div>
           <div>
             <div style="font-size: 11px; color: #6b7280; margin-bottom: 2px;">AKTIVER CLAIM</div>
-            <div style="font-size: 13px; font-weight: 600; color: #f5f6fa;">OpsPilot Middle Stats & Equalizer</div>
+            <div style="font-size: 13px; font-weight: 600; color: #f5f6fa;">Blue OpsPilot Middle Stats & Equalizer</div>
           </div>
           <div>
             <div style="font-size: 11px; color: #6b7280; margin-bottom: 4px;">PFAD-LOCK (PATH-SCOPED)</div>
-            <code style="font-size: 11px; background: #191b22; padding: 3px 6px; border-radius: 4px; color: #ff8080;">static/harbour/*</code>
+            <code style="font-size: 11px; background: #191b22; padding: 3px 6px; border-radius: 4px; color: #93c5fd;">static/harbour/*</code>
           </div>
-          <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #1f212a; pt: 8px; padding-top: 10px; font-size: 11px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #1f212a; padding-top: 10px; font-size: 11px;">
             <span style="color: #6b7280;">Lease TTL: 14m</span>
-            <span style="color: #ff4d4d; font-weight: 700;">92% Workload</span>
+            <span style="color: #3b82f6; font-weight: 700;">88% Workload</span>
           </div>
         </div>
 
         <!-- Agent Luna -->
         <div class="agent-cockpit-card">
-          <span class="agent-status-badge" style="background: rgba(249, 115, 22, 0.15); color: #f97316;">Running</span>
+          <span class="agent-status-badge" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa;">Running</span>
           <div style="display: flex; align-items: center; gap: 12px;">
-            <div style="width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #f97316, #ea580c); display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 14px;">AL</div>
+            <div style="width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #3b82f6, #60a5fa); display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 14px;">AL</div>
             <div>
               <strong style="color: #fff; font-size: 15px;">Agent Luna</strong>
               <div style="font-size: 12px; color: #8a8f9d;">Multi-Tasking Coordinator</div>
@@ -2378,11 +2300,11 @@ body {
           </div>
           <div>
             <div style="font-size: 11px; color: #6b7280; margin-bottom: 4px;">PFAD-LOCK (PATH-SCOPED)</div>
-            <code style="font-size: 11px; background: #191b22; padding: 3px 6px; border-radius: 4px; color: #f9a8d4;">core/multitask/*</code>
+            <code style="font-size: 11px; background: #191b22; padding: 3px 6px; border-radius: 4px; color: #bfdbfe;">core/multitask/*</code>
           </div>
           <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #1f212a; padding-top: 10px; font-size: 11px;">
             <span style="color: #6b7280;">Lease TTL: 22m</span>
-            <span style="color: #f97316; font-weight: 700;">76% Workload</span>
+            <span style="color: #60a5fa; font-weight: 700;">74% Workload</span>
           </div>
         </div>
 
@@ -2390,7 +2312,7 @@ body {
         <div class="agent-cockpit-card">
           <span class="agent-status-badge" style="background: rgba(59, 130, 246, 0.15); color: #3b82f6;">Active</span>
           <div style="display: flex; align-items: center; gap: 12px;">
-            <div style="width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #3b82f6, #2563eb); display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 14px;">AC</div>
+            <div style="width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #1d4ed8, #2563eb); display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 14px;">AC</div>
             <div>
               <strong style="color: #fff; font-size: 15px;">Agent Chronos</strong>
               <div style="font-size: 12px; color: #8a8f9d;">Release Engineer</div>
@@ -2452,21 +2374,21 @@ body {
             <tr>
               <td><code>static/harbour/*</code></td>
               <td>Agent Sol (Frontend)</td>
-              <td><span style="color: var(--accent-coral); font-weight: 600;">SLC-02</span></td>
+              <td><span style="color: var(--accent-blue-bright); font-weight: 600;">SLC-02</span></td>
               <td>14 Min</td>
               <td><span class="badge-pill badge-high">Locked</span></td>
             </tr>
             <tr>
               <td><code>core/multitask/*</code></td>
               <td>Agent Luna (Coordinator)</td>
-              <td><span style="color: var(--accent-coral); font-weight: 600;">SLC-03</span></td>
+              <td><span style="color: var(--accent-blue-bright); font-weight: 600;">SLC-03</span></td>
               <td>22 Min</td>
               <td><span class="badge-pill badge-high">Locked</span></td>
             </tr>
             <tr>
               <td><code>ops/homeserver/*</code></td>
               <td>Agent Chronos (Release)</td>
-              <td><span style="color: var(--accent-coral); font-weight: 600;">SLC-01</span></td>
+              <td><span style="color: var(--accent-blue-bright); font-weight: 600;">SLC-01</span></td>
               <td>35 Min</td>
               <td><span class="badge-pill badge-med">Active Sync</span></td>
             </tr>
@@ -2488,14 +2410,14 @@ body {
 
       <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
         <div class="dashboard-card">
-          <div style="font-size: 11px; color: var(--accent-coral); font-weight: 700; margin-bottom: 6px;">26. OKTOBER 2026 • RELEASE HARBOUR ONE</div>
+          <div style="font-size: 11px; color: var(--accent-blue-bright); font-weight: 700; margin-bottom: 6px;">26. OKTOBER 2026 • RELEASE HARBOUR ONE</div>
           <h3 style="font-size: 16px; color: #fff; margin-bottom: 8px;">RedQueen Multi-Agent Architecture & OpsPilot Cockpit</h3>
           <p style="font-size: 13px; color: var(--text-muted); line-height: 1.6; margin-bottom: 14px;">
-            Das Harbour One Cockpit wurde auf das tiefschwarze OpsPilot-Design mit 40-Bar-Equalizer und 27-Segment-Halbkreis-Gauge umgestellt. Gleichzeitig wurde die strikte Pfad-Isolation für nebenläufige Agenten etabliert, um Schreibkonflikte dauerhaft auszuschließen.
+            Das Harbour One Cockpit wurde auf das tiefschwarze Blue-OpsPilot-Design mit 40-Bar-Equalizer und 27-Segment-Halbkreis-Gauge umgestellt. Gleichzeitig wurde die strikte Pfad-Isolation für nebenläufige Agenten etabliert, um Schreibkonflikte dauerhaft auszuschließen.
           </p>
           <div style="display: flex; gap: 8px;">
             <span style="font-size: 11px; background: #1c1e27; padding: 3px 8px; border-radius: 4px; color: #9ba1b4;">Architecture</span>
-            <span style="font-size: 11px; background: #1c1e27; padding: 3px 8px; border-radius: 4px; color: #9ba1b4;">OpsPilot</span>
+            <span style="font-size: 11px; background: #1c1e27; padding: 3px 8px; border-radius: 4px; color: #9ba1b4;">Blue HUD</span>
           </div>
         </div>
 
@@ -2529,7 +2451,7 @@ body {
       <div class="decisions-toolbar">
         <div class="filter-pill-group">
           <button class="filter-pill-btn active" onclick="filterDecisions('all', this)">Alle Prioritäten</button>
-          <button class="filter-pill-btn" onclick="filterDecisions('P0', this)" style="color: #ff4d4d;">P0 Blocker</button>
+          <button class="filter-pill-btn" onclick="filterDecisions('P0', this)" style="color: #60a5fa;">P0 Blocker</button>
           <button class="filter-pill-btn" onclick="filterDecisions('P1', this)" style="color: #f97316;">P1 Critical</button>
           <button class="filter-pill-btn" onclick="filterDecisions('P2', this)" style="color: #3b82f6;">P2 Normal</button>
         </div>
@@ -2562,7 +2484,7 @@ body {
               </td>
               <td>Nikola / Sol</td>
               <td style="color: #6b7280;">26. Okt 2026</td>
-              <td><span class="badge-pill" style="background: rgba(249, 115, 22, 0.15); color: #f97316;">In Review</span></td>
+              <td><span class="badge-pill" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa;">In Review</span></td>
             </tr>
             <tr data-prio="P0">
               <td><span class="badge-pill badge-high" style="font-weight: 700;">P0 Blocker</span></td>
@@ -2579,8 +2501,8 @@ body {
               <td><span class="badge-pill badge-med" style="font-weight: 700; color: #f97316; background: rgba(249, 115, 22, 0.15);">P1 Critical</span></td>
               <td><code>ADR-02</code></td>
               <td>
-                <strong style="color: #fff; display: block; margin-bottom: 2px;">OpsPilot Obsidian Theme als Standard</strong>
-                <span style="font-size: 12px; color: #8a8f9d;">Vollständige Abkehr vom Standard AI-Vibecode Look zugunsten von professionellem Dark HUD.</span>
+                <strong style="color: #fff; display: block; margin-bottom: 2px;">OpsPilot Blue Theme als Standard</strong>
+                <span style="font-size: 12px; color: #8a8f9d;">Vollständige Abkehr vom Standard AI-Vibecode Look zugunsten von professionellem Dark Blue HUD.</span>
               </td>
               <td>Nikola / Sol</td>
               <td style="color: #6b7280;">26. Okt 2026</td>
@@ -2613,10 +2535,10 @@ body {
       </div>
     </section>
 
-</main>
+  </main>
 
   <script>
-    // Tab Map
+    // Tab Navigation
     const TABS = ['overview', 'roadmaps', 'agents', 'devblog', 'decisions'];
 
     function switchTab(tabId) {
