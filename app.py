@@ -1953,10 +1953,24 @@ app.include_router(setup_plugin_routes())
 
 @app.get("/")
 async def serve_index(request: Request):
+    host = request.headers.get("host", "")
+    if "harbour" in host:
+        harbour_ui = abs_join(BASE_DIR, "static/harbour/index.html")
+        if os.path.exists(harbour_ui):
+            return serve_html_with_nonce(request, harbour_ui)
     static_path = abs_join(BASE_DIR, "static/index.html")
     if os.path.exists(static_path):
         return serve_html_with_nonce(request, static_path)
     return serve_html_with_nonce(request, abs_join(BASE_DIR, "index.html"))
+
+
+@app.get("/harbour")
+@app.get("/harbour/{path:path}")
+async def serve_harbour_workbench(request: Request, path: str = ""):
+    harbour_ui = abs_join(BASE_DIR, "static/harbour/index.html")
+    if os.path.exists(harbour_ui):
+        return serve_html_with_nonce(request, harbour_ui)
+    return await serve_index(request)
 
 
 @app.get("/harbor-one")
