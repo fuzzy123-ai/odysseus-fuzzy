@@ -1967,10 +1967,27 @@ async def serve_index(request: Request):
 @app.get("/harbour")
 @app.get("/harbour/{path:path}")
 async def serve_harbour_workbench(request: Request, path: str = ""):
+    if path:
+        target = abs_join(BASE_DIR, "static/harbour", path)
+        if os.path.isfile(target):
+            from starlette.responses import FileResponse
+            return FileResponse(target)
     harbour_ui = abs_join(BASE_DIR, "static/harbour/index.html")
     if os.path.exists(harbour_ui):
         return serve_html_with_nonce(request, harbour_ui)
     return await serve_index(request)
+
+
+@app.get("/css/{file_name:path}")
+@app.get("/js/{file_name:path}")
+async def serve_harbour_assets(request: Request, file_name: str = ""):
+    prefix = "css" if request.url.path.startswith("/css") else "js"
+    target = abs_join(BASE_DIR, "static/harbour", prefix, file_name)
+    if os.path.isfile(target):
+        from starlette.responses import FileResponse
+        return FileResponse(target)
+    from fastapi import HTTPException
+    raise HTTPException(status_code=404, detail="Asset not found")
 
 
 @app.get("/harbor-one")
